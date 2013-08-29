@@ -3,7 +3,7 @@
 require "rims/version"
 
 module RIMS
-  # Your code goes here...
+  autoload :Protocol, 'rims/protocol'
 end
 
 # Local Variables:
