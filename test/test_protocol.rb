@@ -113,6 +113,20 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal([ '*', '(', literal1, literal2, ')' ], RIMS::Protocol.read_line(input))
       assert_equal('', input.read)
     end
+
+    def test_parse
+      assert_equal([], RIMS::Protocol.parse([]))
+      assert_equal(%w[ abcd CAPABILITY ],
+                   RIMS::Protocol.parse(%w[ abcd CAPABILITY ]))
+      assert_equal(%w[ abcd OK CAPABILITY completed ],
+                   RIMS::Protocol.parse(%w[ abcd OK CAPABILITY completed ]))
+      assert_equal([ '*', 'OK', [ :block, 'UNSEEN', '12' ], 'Message', '12', 'is', 'first', 'unseen' ],
+                   RIMS::Protocol.parse(%w[ * OK [ UNSEEN 12 ] Message 12 is first unseen ]))
+      assert_equal([ '*', 'FLAGS', [ :group,  '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ] ],
+                   RIMS::Protocol.parse(%w[ * FLAGS ( \\Answered \\Flagged \\Deleted \\Seen \\Draft ) ]))
+      assert_equal([ '*', 'OK', [ :block, 'PERMANENTFLAGS', [ :group, '\Deleted', '\Seen', '\*' ] ], 'Limited' ],
+                   RIMS::Protocol.parse(%w[ * OK [ PERMANENTFLAGS ( \\Deleted \\Seen \\* ) ] Limited ]))
+    end
   end
 end
 

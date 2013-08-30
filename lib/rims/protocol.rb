@@ -22,6 +22,29 @@ module RIMS
       atom_list
     end
     module_function :scan_line
+
+    def parse(atom_list, last_atom=nil)
+      syntax_list = []
+      while (atom = atom_list.shift)
+        case (atom)
+        when last_atom
+          break
+        when '('
+          syntax_list.push([ :group ] + parse(atom_list, ')'))
+        when '['
+          syntax_list.push([ :block ] + parse(atom_list, ']'))
+        else
+          syntax_list.push(atom)
+        end
+      end
+
+      if (atom == nil && last_atom != nil) then
+        raise 'syntax error.'
+      end
+
+      syntax_list
+    end
+    module_function :parse
   end
 end
 
