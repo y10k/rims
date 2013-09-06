@@ -1,0 +1,77 @@
+# *- coding: utf-8 -*-
+
+= クラス構成
+
+GlobalDB:
+  グローバルな属性を保存する。
+  サーバで1つだけ存在する。
+  cnum: Change Number, メールボックスやメッセージの更新毎に増やす連番。
+  uid: メッセージの識別番号を払い出すためのシーケンス。メールボックス毎ではなく、サーバ全体で一意にする。
+  uidvalidity: メールボックスの識別番号を払い出すためのシーケンス。
+  mbox_id-[uidvalidity]: メールボックス名
+  mbox_name-[メールボックス名]: uidvalidity
+
+MessageDB:
+  メッセージ本文と属性を保存する。
+  サーバで1つだけ存在する。
+  text-[uid]: メッセージ本文
+  mbox-[uid]: メッセージが格納されているメールボックスのuidvalidityをカンマ区切りのリストで格納する。
+  cksum-[uid]: メッセージ本文のチェックサム。SHA256で計算する。保存形式の例
+               "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  flag_(seen,answered,flagged,draft,recent)-[uid]: メッセージのフラグ属性。true or falseを保存する。
+
+MailboxDB:
+  メールボックスの情報を保存する。
+  メールボックス毎に複数存在する。
+  mbox_id: uidvalidity
+  mbox_name: メールボックス名
+  flags_(seen,answered,flagged,deleted,draft,recent): 有効なフラグ数
+  msg_id-[uid]: メールボックスに格納されているメッセージの参照。UIDはキーの一部として格納する。
+                値は\Deleteフラグをtrue or falseで保存する。
+
+KeyValueStore:
+  バックエンドのKey-Valueストア。
+  APIははGDBMを想定する。
+    - fetch
+    - store
+    - each_key
+    - key?
+    - sync
+
+= 主な操作
+== 初期設定
+1. GlobalDBを初期化する。
+     cnum,uid,uidvalidityがキーとして存在しなければ、新たに0を格納する。
+
+== メールボックスの作成
+1. GlobalDBからuidvalidityを払い出して、メールボックス名とuidvalidityをGlobalDBに保存する。
+     uidvalidityの値を取得して、新しいメールボックスのuidvalidityにする。
+     uidvalidityの値を1つ増やす。
+     mbox_id-[uidvalidity]にメールボックス名を保存する。
+     mbox_name-[メールボックス名]にuidvalidityを保存する。
+2. uidvalidityを名前にして、MailboxDBを作成する。
+3. MailboxDBを初期化する。
+     mbox_idにuidvalidityを保存する。
+     mbox_nameにメールボックス名を保存する。
+     flags_(seen,answered,flagged,deleted,draft,recent)に0を格納する。
+4. GlobalDBのcnumを1個増やす。
+
+== メッセージの追加
+1. GlobalDBからuidと格納先メールボックスのudivalidityを取得する。
+2. 取得したuidをキーにMessageDBへメッセージを保存する。
+    text-[uid]にメッセージを保存する。
+    mbox-[uid]にメッセージを格納するメールボックスのuidvalidityを保存する。
+    cksum-[uid]にメッセージのSHA256ハッシュ値を保存する。
+    flag_(seen,answered,flagged,draft,recent)-[uid]にフラグの初期値を保存する。\Recentがtrueで他はすべてfalse。
+3. 取得したuidをキーにMailboxDBへメッセージを追加する。
+    msg_id-[uid]に\Deleteフラグのデフォルト値のfalseを保存する。
+    flags_(seen,answered,flagged,deleted,draft,recent)のうち、デフォルトでtrueなフラグをカウントアップする。
+4. GlobalDBのcnumを1個増やす。
+
+== メッセージフラグの変更
+1. 変更対象のメッセージをuidで特定する。
+2. MessageDBのflag_(seen,answered,flagged,draft,recent)-[uid]を修正する。
+3. MessageDBのmbox-[uid]からメッセージを保持しているフォルダーのuidvalidityを取得する。
+4. MailboxDBのflags_(seen,answered,flagged,deleted,draft,recent)のカウントを増減する。
+   trueなら1つ増やす、falseなら1つ減らす。負値になったら内部エラー。
+5. GlobalDBのcnumを1個増やす。
