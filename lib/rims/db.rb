@@ -4,7 +4,7 @@ require 'digest'
 require 'set'
 
 module RIMS
-  class GlobalDB
+  class DB
     def initialize(kv_store)
       @db = kv_store
     end
@@ -18,7 +18,9 @@ module RIMS
       @db.close
       self
     end
+  end
 
+  class GlobalDB < DB
     def setup
       unless (@db.key? 'cnum') then
         @db['cnum'] = '0'
@@ -101,11 +103,7 @@ module RIMS
     end
   end
 
-  class MessageDB
-    def initialize(kv_store)
-      @db = kv_store
-    end
-
+  class MessageDB < DB
     def add_msg(id, text)
       if (@db.key? "text-#{id}") then
         raise "internal error: duplicated message id <#{id}>."
