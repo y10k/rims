@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
+require 'digest'
 require 'rims'
+require 'set'
 require 'test/unit'
 
 module RIMS::Test
@@ -53,6 +55,35 @@ module RIMS::Test
       assert_nil(@g_db.mbox_name(0))
       assert_nil(@g_db.mbox_id('INBOX'))
       assert_equal([], @g_db.each_mbox_id.to_a)
+    end
+  end
+
+  class MessageDBTest < Test::Unit::TestCase
+    def setup
+      @kv_store = {}
+      @msg_db = RIMS::MessageDB.new(@kv_store)
+    end
+
+    def test_msg
+      @msg_db.add_msg(0, 'foo')
+      assert_equal('foo', @kv_store['text-0'])
+      assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @kv_store['cksum-0'])
+      assert_equal('foo', @msg_db.msg_text(0))
+      assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @msg_db.msg_cksum(0))
+      assert_equal([ 0 ], @msg_db.each_msg_id.to_a)
+
+      @msg_db.set_msg_flag(0, 'seen', true)
+      assert_equal(true, @msg_db.msg_flag(0, 'seen'))
+      @msg_db.set_msg_flag(0, 'seen', false)
+      assert_equal(false, @msg_db.msg_flag(0, 'seen'))
+
+      assert_equal([].to_set, @msg_db.msg_mboxes(0))
+      @msg_db.add_msg_mbox(0, 0)
+      assert_equal([ 0 ].to_set, @msg_db.msg_mboxes(0))
+      @msg_db.add_msg_mbox(0, 1)
+      assert_equal([ 0, 1 ].to_set, @msg_db.msg_mboxes(0))
+      @msg_db.del_msg_mbox(0, 0)
+      assert_equal([ 1 ].to_set, @msg_db.msg_mboxes(0))
     end
   end
 end
