@@ -3,18 +3,10 @@
 module RIMS
   class KeyValueStore
     def [](key)
-      fetch(key)
-    end
-
-    def []=(key, value)
-      store(key, value)
-    end
-
-    def fetch(key)
       raise NotImplementedError, 'abstract'
     end
 
-    def store(key, value)
+    def []=(key, value)
       raise NotImplementedError, 'abstract'
     end
 

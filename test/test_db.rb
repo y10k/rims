@@ -9,7 +9,7 @@ module RIMS::Test
   class GlobalDBTest < Test::Unit::TestCase
     def setup
       @kv_store = {}
-      @g_db = RIMS::GlobalDB.new(@kv_store)
+      @g_db = RIMS::GlobalDB.new(RIMS::GDBM_KeyValueStore.new(@kv_store))
     end
 
     def test_setup
@@ -61,7 +61,7 @@ module RIMS::Test
   class MessageDBTest < Test::Unit::TestCase
     def setup
       @kv_store = {}
-      @msg_db = RIMS::MessageDB.new(@kv_store)
+      @msg_db = RIMS::MessageDB.new(RIMS::GDBM_KeyValueStore.new(@kv_store))
     end
 
     def test_msg

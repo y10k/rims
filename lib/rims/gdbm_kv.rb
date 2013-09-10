@@ -13,12 +13,12 @@ module RIMS
       new(GDBM.new(path))
     end
 
-    def fetch(key)
-      @db.fetch(key)
+    def [](key)
+      @db[key]
     end
 
-    def store(key, value)
-      @db.store(key, value)
+    def []=(key, value)
+      @db[key] = value
     end
 
     def delete(key)
