@@ -175,6 +175,103 @@ module RIMS
       self
     end
   end
+
+  class MailboxDB < DB
+    def mbox_id
+      if (id = @db['mbox_id']) then
+        id.to_i
+      end
+    end
+
+    def mbox_id=(id)
+      @db['mbox_id'] = id.to_s
+      id
+    end
+
+    def mbox_name
+      @db['mbox_name']
+    end
+
+    def mbox_name=(name)
+      @db['mbox_name'] = name
+      name
+    end
+
+    def msgs
+      (@db['msg_count'] || '0').to_i
+    end
+
+    def msgs_increment
+      next_count = msgs + 1
+      @db['msg_count'] = next_count.to_s
+      next_count
+    end
+
+    def msgs_decrement
+      next_count = msgs - 1
+      if (next_count < 0) then
+        raise 'negative message count.'
+      end
+      @db['msg_count'] = next_count.to_s
+      next_count
+    end
+
+    def flags(name)
+      (@db["flags_#{name}"] || '0').to_i
+    end
+
+    def flags_increment(name)
+      next_count = flags(name) + 1
+      @db["flags_#{name}"] = next_count.to_s
+      next_count
+    end
+
+    def flags_decrement(name)
+      next_count = flags(name) - 1
+      if (next_count < 0) then
+        raise "negative flag count: #{name}."
+      end
+      @db["flags_#{name}"] = next_count.to_s
+      next_count
+    end
+
+    def add_msg(id)
+      @db["msg-#{id}"] = ''
+      self
+    end
+
+    def exist_msg?(id)
+      @db.key? "msg-#{id}"
+    end
+
+    def msg_flag_del(id)
+      (exist_msg? id) or raise "not exist message: #{id}."
+      @db["msg-#{id}"] == 'deleted'
+    end
+
+    def set_msg_flag_del(id, value)
+      (exist_msg? id) or raise "not exist message: #{id}."
+      @db["msg-#{id}"] = value ? 'deleted' : ''
+      self
+    end
+
+    def expunge_msg(id)
+      (exist_msg? id) or raise "not exist message: #{id}."
+      msg_flag_del(id) or raise "no deleted flag: #{id}."
+      @db.delete("msg-#{id}")
+      self
+    end
+
+    def each_msg_id
+      return enum_for(:each_msg_id) unless block_given?
+      @db.each_key do |key|
+        if (key =~ /^msg-\d+$/) then
+          yield($&[5..-1].to_i)
+        end
+      end
+      self
+    end
+  end
 end
 
 # Local Variables:
