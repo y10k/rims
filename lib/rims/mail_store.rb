@@ -16,7 +16,7 @@ module RIMS
       @global_db = GlobalDB.new(open_kvs('global.db'))
       @msg_db = GlobalDB.new(open_kvs('message.db'))
 
-      @mbox_db = []
+      @mbox_db = {}
       @global_db.each_mbox_id do |id|
         @mbox_db[id] = MessageDB.new(open_kvs("mbox_#{id}.db"))
       end
@@ -62,7 +62,7 @@ module RIMS
       cnum = @global_db.cnum
       next_id = @global_db.uidvalidity
 
-      @mbox_db[next_id] = MessageDB.new(open_kvs("mbox_#{next_id}.db"))
+      @mbox_db[next_id] = MailboxDB.new(open_kvs("mbox_#{next_id}.db"))
       @mbox_db[next_id].mbox_id = next_id
       @mbox_db[next_id].mbox_name = name
 
