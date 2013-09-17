@@ -88,8 +88,11 @@ module RIMS
       name
     end
 
-    def each_mbox_id(*args, &block)
-      @global_db.each_mbox_id(*args, &block)
+    def each_mbox_id
+      return enum_for(:each_mbox_id) unless block_given?
+      @global_db.each_mbox_id do |id|
+        yield(id)
+      end
       self
     end
   end
