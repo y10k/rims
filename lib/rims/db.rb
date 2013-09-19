@@ -243,8 +243,11 @@ module RIMS
     end
 
     def add_msg(id)
-      @db["msg-#{id}"] = ''
-      self
+      unless (exist_msg? id) then
+        @db["msg-#{id}"] = ''
+        msgs_increment
+        self
+      end
     end
 
     def exist_msg?(id)
@@ -266,6 +269,7 @@ module RIMS
       (exist_msg? id) or raise "not exist message: #{id}."
       msg_flag_del(id) or raise "no deleted flag: #{id}."
       @db.delete("msg-#{id}")
+      msgs_decrement
       self
     end
 
