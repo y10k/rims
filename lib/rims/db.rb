@@ -104,17 +104,24 @@ module RIMS
   end
 
   class MessageDB < DB
-    def add_msg(id, text)
+    def add_msg(id, text, date=Time.now)
       if (@db.key? "text-#{id}") then
         raise "internal error: duplicated message id <#{id}>."
       end
       @db["text-#{id}"] = text
+      @db["date-#{id}"] = Marshal.dump(date)
       @db["cksum-#{id}"] = 'sha256:' + Digest::SHA256.hexdigest(text)
       self
     end
 
     def msg_text(id)
       @db["text-#{id}"]
+    end
+
+    def msg_date(id)
+      if (date_bin = @db["date-#{id}"]) then
+        Marshal.load(date_bin)
+      end
     end
 
     def msg_cksum(id)
@@ -125,7 +132,7 @@ module RIMS
       return enum_for(:each_msg_id) unless block_given?
       @db.each_key do |key|
         if (key =~ /^text-\d+$/) then
-          yield($&[6..-1].to_i)
+          yield($&[5..-1].to_i)
         end
       end
       self
@@ -266,7 +273,7 @@ module RIMS
       return enum_for(:each_msg_id) unless block_given?
       @db.each_key do |key|
         if (key =~ /^msg-\d+$/) then
-          yield($&[5..-1].to_i)
+          yield($&[4..-1].to_i)
         end
       end
       self
