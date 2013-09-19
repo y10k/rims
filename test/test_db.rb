@@ -4,6 +4,7 @@ require 'digest'
 require 'rims'
 require 'set'
 require 'test/unit'
+require 'time'
 
 module RIMS::Test
   class GlobalDBTest < Test::Unit::TestCase
@@ -65,10 +66,13 @@ module RIMS::Test
     end
 
     def test_msg
+      t0 = Time.now
       @msg_db.add_msg(0, 'foo')
       assert_equal('foo', @kv_store['text-0'])
+      assert(@kv_store.key? 'date-0')
       assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @kv_store['cksum-0'])
       assert_equal('foo', @msg_db.msg_text(0))
+      assert(@msg_db.msg_date(0) >= t0)
       assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @msg_db.msg_cksum(0))
       assert_equal([ 0 ], @msg_db.each_msg_id.to_a)
 
@@ -84,6 +88,11 @@ module RIMS::Test
       assert_equal([ 0, 1 ].to_set, @msg_db.msg_mboxes(0))
       @msg_db.del_msg_mbox(0, 0)
       assert_equal([ 1 ].to_set, @msg_db.msg_mboxes(0))
+
+      @msg_db.add_msg(1, 'bar', Time.parse('1975-11-19 12:34:56'))
+      assert_equal('bar', @msg_db.msg_text(1))
+      assert_equal(Time.parse('1975-11-19 12:34:56'), @msg_db.msg_date(1))
+      assert_equal([ 0, 1 ], @msg_db.each_msg_id.to_a)
     end
   end
 
