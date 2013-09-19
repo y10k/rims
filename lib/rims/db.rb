@@ -125,7 +125,7 @@ module RIMS
       return enum_for(:each_msg_id) unless block_given?
       @db.each_key do |key|
         if (key =~ /^text-\d+$/) then
-          yield($&[6..-1].to_i)
+          yield($&[5..-1].to_i)
         end
       end
       self
@@ -266,7 +266,7 @@ module RIMS
       return enum_for(:each_msg_id) unless block_given?
       @db.each_key do |key|
         if (key =~ /^msg-\d+$/) then
-          yield($&[5..-1].to_i)
+          yield($&[4..-1].to_i)
         end
       end
       self
