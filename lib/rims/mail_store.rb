@@ -177,6 +177,35 @@ module RIMS
 
       self
     end
+
+    def each_msg_id(mbox_id)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      return enum_for(:each_msg_id, mbox_id) unless block_given?
+      mbox_db.each_msg_id do |id|
+        yield(id)
+      end
+      self
+    end
+
+    def expunge_mbox(mbox_id)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+
+      cnum = @global_db.cnum
+
+      msg_list = mbox_db.each_msg_id.find_all{|id| mbox_db.msg_flag_del(id) }
+      for id in msg_list
+        for name in %w[ seen answered flagged deleted draft recent ]
+          if (msg_flag(mbox_id, id, name)) then
+            mbox_db.flags_decrement(name)
+          end
+        end
+        mbox_db.expunge_msg(id)
+      end
+
+      @global_db.cnum = cnum + 1
+
+      self
+    end
   end
 end
 
