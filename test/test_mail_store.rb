@@ -45,6 +45,73 @@ module RIMS::Test
       assert_equal(2, @mail_store.uidvalidity)
       assert_equal([ 1 ], @mail_store.each_mbox_id.to_a)
     end
+
+    def test_msg
+      mbox_id = @mail_store.add_mbox('INBOX')
+      msg_id = @mail_store.add_msg(mbox_id, 'foo')
+
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'draft'))
+      assert_equal(1, @mail_store.mbox_flags(mbox_id, 'recent'))
+
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'flagged'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(mbox_id, msg_id, 'recent'))
+
+      @mail_store.set_msg_flag(mbox_id, msg_id, 'seen', true)
+
+      assert_equal(1, @mail_store.mbox_flags(mbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'draft'))
+      assert_equal(1, @mail_store.mbox_flags(mbox_id, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(mbox_id, msg_id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'flagged'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(mbox_id, msg_id, 'recent'))
+
+      @mail_store.set_msg_flag(mbox_id, msg_id, 'recent', false)
+
+      assert_equal(1, @mail_store.mbox_flags(mbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(mbox_id, msg_id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'flagged'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'draft'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'recent'))
+
+      @mail_store.set_msg_flag(mbox_id, msg_id, 'deleted', true)
+
+      assert_equal(1, @mail_store.mbox_flags(mbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'flagged'))
+      assert_equal(1, @mail_store.mbox_flags(mbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(mbox_id, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(mbox_id, msg_id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'flagged'))
+      assert_equal(true, @mail_store.msg_flag(mbox_id, msg_id, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'draft'))
+      assert_equal(false, @mail_store.msg_flag(mbox_id, msg_id, 'recent'))
+    end
   end
 end
 

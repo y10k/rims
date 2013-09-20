@@ -95,6 +95,88 @@ module RIMS
       end
       self
     end
+
+    def mbox_msgs(id)
+      mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
+      mbox_db.msgs
+    end
+
+    def mbox_flags(id, name)
+      mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
+      mbox_db.flags(name)
+    end
+
+    def add_msg(mbox_id, msg_text, msg_date=Time.now)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+
+      cnum = @global_db.cnum
+      next_id = @global_db.uid
+
+      @global_db.uid = next_id + 1
+      @msg_db.add_msg(next_id, msg_text, msg_date)
+      @msg_db.add_msg_mbox(next_id, mbox_id)
+      @msg_db.set_msg_flag(next_id, 'seen', false)
+      @msg_db.set_msg_flag(next_id, 'answered', false)
+      @msg_db.set_msg_flag(next_id, 'flagged', false)
+      @msg_db.set_msg_flag(next_id, 'draft', false)
+      mbox_db.add_msg(next_id)
+
+      @global_db.cnum = cnum + 1
+
+      set_msg_flag(mbox_id, next_id, 'recent', true)
+
+      next_id
+    end
+
+    def msg_flag(mbox_id, msg_id, name)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      unless (mbox_db.exist_msg? msg_id) then
+        raise "not found a message <#{msg_id}> at mailbox <#{mbox_id}>."
+      end
+
+      case (name)
+      when 'recent', 'seen', 'answered', 'flagged', 'draft'
+        @msg_db.msg_flag(msg_id, name)
+      when 'deleted'
+        mbox_db.msg_flag_del(msg_id)
+      else
+        raise "unnown flag name: #{name}"
+      end
+    end
+
+    def set_msg_flag(mbox_id, msg_id, name, value)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      unless (mbox_db.exist_msg? msg_id) then
+        raise "not found a message <#{msg_id}> at mailbox <#{mbox_id}>."
+      end
+
+      cnum = @global_db.cnum
+
+      case (name)
+      when 'recent', 'seen', 'answered', 'flagged', 'draft'
+        @msg_db.set_msg_flag(msg_id, name, value)
+        for id in @msg_db.msg_mboxes(msg_id)
+          if (value) then
+            @mbox_db[id].flags_increment(name)
+          else
+            @mbox_db[id].flags_decrement(name)
+          end
+        end
+      when 'deleted'
+        mbox_db.set_msg_flag_del(msg_id, value)
+        if (value) then
+          mbox_db.flags_increment(name)
+        else
+          mbox_db.flags_decrement(name)
+        end
+      else
+        raise "unnown flag name: #{name}"
+      end
+
+      @global_db.cnum = cnum + 1
+
+      self
+    end
   end
 end
 
