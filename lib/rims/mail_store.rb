@@ -14,11 +14,11 @@ module RIMS
 
     def open
       @global_db = GlobalDB.new(open_kvs('global.db'))
-      @msg_db = GlobalDB.new(open_kvs('message.db'))
+      @msg_db = MessageDB.new(open_kvs('message.db'))
 
       @mbox_db = {}
       @global_db.each_mbox_id do |id|
-        @mbox_db[id] = MessageDB.new(open_kvs("mbox_#{id}.db"))
+        @mbox_db[id] = MailoxDB.new(open_kvs("mbox_#{id}.db"))
       end
 
       self
