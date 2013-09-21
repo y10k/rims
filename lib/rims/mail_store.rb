@@ -136,6 +136,25 @@ module RIMS
       next_id
     end
 
+    def copy_msg(msg_id, dest_mbox_id)
+      mbox_db = @mbox_db[dest_mbox_id] or raise "not found a mailbox: #{dest_mbox_id}."
+
+      cnum = @global_db.cnum
+
+      @msg_db.add_msg_mbox(msg_id, dest_mbox_id)
+      mbox_db.add_msg(msg_id)
+
+      for name in %w[ seen answered flagged draft recent ]
+        if (@msg_db.msg_flag(msg_id, name)) then
+          mbox_db.flags_increment(name)
+        end
+      end
+
+      @global_db.cnum = cnum + 1
+
+      self
+    end
+
     def msg_text(mbox_id, msg_id)
       mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
       @msg_db.msg_text(msg_id) if (mbox_db.exist_msg? msg_id)
