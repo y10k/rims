@@ -2,6 +2,7 @@
 
 require 'rims'
 require 'test/unit'
+require 'time'
 
 module RIMS::Test
   class MailStoreTest < Test::Unit::TestCase
@@ -56,9 +57,12 @@ module RIMS::Test
       cnum = @mail_store.cnum
       mbox_id = @mail_store.add_mbox('INBOX')
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
-      msg_id = @mail_store.add_msg(mbox_id, 'foo')
+      msg_id = @mail_store.add_msg(mbox_id, 'foo', Time.parse('1975-11-19 12:34:56'))
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
       assert_equal([ msg_id ], @mail_store.each_msg_id(mbox_id).to_a)
+
+      assert_equal('foo', @mail_store.msg_text(mbox_id, msg_id))
+      assert_equal(Time.parse('1975-11-19 12:34:56'), @mail_store.msg_date(mbox_id, msg_id))
 
       assert_equal(0, @mail_store.mbox_flags(mbox_id, 'seen'))
       assert_equal(0, @mail_store.mbox_flags(mbox_id, 'answered'))

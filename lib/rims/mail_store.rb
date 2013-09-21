@@ -136,6 +136,16 @@ module RIMS
       next_id
     end
 
+    def msg_text(mbox_id, msg_id)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      @msg_db.msg_text(msg_id) if (mbox_db.exist_msg? msg_id)
+    end
+
+    def msg_date(mbox_id, msg_id)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      @msg_db.msg_date(msg_id) if (mbox_db.exist_msg? msg_id)
+    end
+
     def msg_flag(mbox_id, msg_id, name)
       mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
       unless (mbox_db.exist_msg? msg_id) then
