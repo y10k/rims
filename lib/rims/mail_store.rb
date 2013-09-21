@@ -88,6 +88,14 @@ module RIMS
       name
     end
 
+    def mbox_name(id)
+      @global_db.mbox_name(id)
+    end
+
+    def mbox_id(name)
+      @global_db.mbox_id(name)
+    end
+
     def each_mbox_id
       return enum_for(:each_mbox_id) unless block_given?
       @global_db.each_mbox_id do |id|
