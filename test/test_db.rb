@@ -15,7 +15,7 @@ module RIMS::Test
 
     def test_setup
       @g_db.setup
-      assert_equal({ 'cnum' => '0', 'uid' => '0', 'uidvalidity' => '0' }, @kv_store)
+      assert_equal({ 'cnum' => '0', 'uid' => '1', 'uidvalidity' => '1' }, @kv_store)
     end
 
     def test_cnum
@@ -28,18 +28,18 @@ module RIMS::Test
 
     def test_uid
       @g_db.setup
-      assert_equal(0, @g_db.uid)
-      @g_db.uid = 1
       assert_equal(1, @g_db.uid)
-      assert_equal('1', @kv_store['uid'])
+      @g_db.uid = 2
+      assert_equal(2, @g_db.uid)
+      assert_equal('2', @kv_store['uid'])
     end
 
     def test_uidvalidity
       @g_db.setup
-      assert_equal(0, @g_db.uidvalidity)
-      @g_db.uidvalidity = 1
       assert_equal(1, @g_db.uidvalidity)
-      assert_equal('1', @kv_store['uidvalidity'])
+      @g_db.uidvalidity = 2
+      assert_equal(2, @g_db.uidvalidity)
+      assert_equal('2', @kv_store['uidvalidity'])
     end
 
     def test_mbox

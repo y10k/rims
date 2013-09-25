@@ -24,8 +24,8 @@ module RIMS
     def setup
       unless (@db.key? 'cnum') then
         @db['cnum'] = '0'
-        @db['uid'] = '0'
-        @db['uidvalidity'] = '0'
+        @db['uid'] = '1'
+        @db['uidvalidity'] = '1'
       end
 
       self
