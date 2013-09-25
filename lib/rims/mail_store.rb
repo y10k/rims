@@ -13,7 +13,7 @@ module RIMS
     private :open_kvs
 
     def open
-      @global_db = GlobalDB.new(open_kvs('global.db'))
+      @global_db = GlobalDB.new(open_kvs('global.db')).setup
       @msg_db = MessageDB.new(open_kvs('message.db'))
 
       @mbox_db = {}
