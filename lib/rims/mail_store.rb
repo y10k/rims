@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+require 'set'
+
 module RIMS
   class MailStore
     def initialize(store_dir, &block) # :yields: path
@@ -242,6 +244,78 @@ module RIMS
       @global_db.cnum = cnum + 1
 
       self
+    end
+
+    def select_mbox(mbox_id)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      MailFolder.new(mbox_id, self)
+    end
+  end
+
+  class MailFolder
+    MessageStruct = Struct.new(:id, :num)
+
+    def initialize(mbox_id, mail_store)
+      @id = mbox_id
+      @st = mail_store
+      reload
+    end
+
+    def reload
+      @cnum = @st.cnum
+      msg_id_list = @st.each_msg_id(@id).to_a
+      msg_id_list.sort
+      @msg_list = msg_id_list.zip(1..(msg_id_list.length)).map{|id, num| MessageStruct.new(id, num) }
+      self
+    end
+
+    def updated?
+      @st.cnum > @cnum
+    end
+
+    attr_reader :id
+    attr_reader :msg_list
+
+    def parse_msg_set(msg_set_desc)
+      self.class.parse_msg_set(msg_set_desc, @msg_list[-1])
+    end
+
+    def self.parse_msg_seq(msg_seq_desc, last_number)
+      case (msg_seq_desc)
+      when /^(\d+|\*)$/
+        msg_seq_pair = [ $&, $& ]
+      when /^(\d+|\*):(\d+|\*)$/
+        msg_seq_pair = [ $1, $2 ]
+      else
+        raise "invalid message sequence format: #{msg_seq_desc}"
+      end
+
+      msg_seq_pair.map!{|num|
+        case (num)
+        when '*'
+          last_number
+        else
+          n = num.to_i
+          if (n < 1) then
+            raise "out of range of message sequence number: #{msg_seq_desc}"
+          end
+          n
+        end
+      }
+
+      Range.new(msg_seq_pair[0], msg_seq_pair[1])
+    end
+
+    def self.parse_msg_set(msg_set_desc, last_number)
+      msg_set = [].to_set
+      msg_set_desc.split(/,/).each do |msg_seq_desc|
+        msg_range = parse_msg_seq(msg_seq_desc, last_number)
+        msg_range.step do |n|
+          msg_set << n
+        end
+      end
+
+      msg_set
     end
   end
 end

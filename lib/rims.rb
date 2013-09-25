@@ -6,6 +6,7 @@ module RIMS
   autoload :GDBM_KeyValueStore, 'rims/gdbm_kv'
   autoload :GlobalDB, 'rims/db'
   autoload :KeyValueStore, 'rims/kv'
+  autoload :MailFolder, 'rims/mail_store'
   autoload :MailStore, 'rims/mail_store'
   autoload :MailboxDB, 'rims/db'
   autoload :MessageDB, 'rims/db'

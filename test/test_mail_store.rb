@@ -231,6 +231,42 @@ module RIMS::Test
       assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'draft'))
       assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'recent'))
     end
+
+    def test_mail_folder
+      mbox_id = @mail_store.add_mbox('INBOX')
+      folder = @mail_store.select_mbox(mbox_id)
+      assert_equal(mbox_id, folder.id)
+      assert_equal(false, folder.updated?)
+      assert_equal([], folder.msg_list)
+
+      @mail_store.add_msg(mbox_id, 'foo')
+      assert_equal(true, folder.updated?)
+      folder.reload
+      assert_equal(false, folder.updated?)
+      assert_equal([ [ 1, 1 ] ], folder.msg_list.map{|i| i.to_a })
+    end
+  end
+
+  class MailFolderClassMethodTest < Test::Unit::TestCase
+    def test_parse_msg_seq
+      assert_equal(1..1, RIMS::MailFolder.parse_msg_seq('1', 99))
+      assert_equal(99..99, RIMS::MailFolder.parse_msg_seq('*', 99))
+      assert_equal(1..10, RIMS::MailFolder.parse_msg_seq('1:10', 99))
+      assert_equal(1..99, RIMS::MailFolder.parse_msg_seq('1:*', 99))
+      assert_equal(99..99, RIMS::MailFolder.parse_msg_seq('*:*', 99))
+    end
+
+    def test_parse_msg_set
+      assert_equal([ 1 ].to_set, RIMS::MailFolder.parse_msg_set('1', 99))
+      assert_equal([ 99 ].to_set, RIMS::MailFolder.parse_msg_set('*', 99))
+      assert_equal((1..10).to_set, RIMS::MailFolder.parse_msg_set('1:10', 99))
+      assert_equal((1..99).to_set, RIMS::MailFolder.parse_msg_set('1:*', 99))
+      assert_equal((99..99).to_set, RIMS::MailFolder.parse_msg_set('*:*', 99))
+
+      assert_equal([ 1, 5, 7, 99 ].to_set, RIMS::MailFolder.parse_msg_set('1,5,7,*', 99))
+      assert_equal([ 1, 2, 3, 11, 97, 98, 99 ].to_set, RIMS::MailFolder.parse_msg_set('1:3,11,97:*', 99))
+      assert_equal((1..99).to_set, RIMS::MailFolder.parse_msg_set('1:70,30:*', 99))
+    end
   end
 end
 
