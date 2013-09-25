@@ -18,7 +18,7 @@ module RIMS::Test
       assert_equal({ 'cnum' => '0', 'uid' => '0', 'uidvalidity' => '0' }, @kv_store)
     end
 
-    def test_uid
+    def test_cnum
       @g_db.setup
       assert_equal(0, @g_db.cnum)
       @g_db.cnum = 1
