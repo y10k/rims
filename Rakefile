@@ -7,7 +7,9 @@ require 'rdoc/task'
 
 Rake::TestTask.new
 
-Rake::RDocTask.new
+Rake::RDocTask.new do |rd|
+  rd.rdoc_files.include('lib/**/*.rb')
+end
 
 # Local Variables:
 # mode: Ruby
