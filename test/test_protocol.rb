@@ -52,6 +52,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
     end
 
     def test_read_line
+      assert_nil(RIMS::Protocol.read_line(StringIO.new))
       assert_equal([], RIMS::Protocol.read_line(StringIO.new("\n")))
       assert_equal(%w[ abcd CAPABILITY ],
                    RIMS::Protocol.read_line(StringIO.new("abcd CAPABILITY\n")))
