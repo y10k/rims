@@ -45,6 +45,24 @@ module RIMS
       syntax_list
     end
     module_function :parse
+
+    def read_command(input)
+      while (atom_list = read_line(input))
+        if (atom_list.empty?) then
+          next
+        end
+        if (atom_list.length < 2) then
+          raise 'need for tag and command.'
+        end
+        if (atom_list[0] =~ /^[*+]/) then
+          raise "invalid command tag: #{atom_list[0]}"
+        end
+        return parse(atom_list)
+      end
+
+      nil
+    end
+    module_function :read_command
   end
 end
 

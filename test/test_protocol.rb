@@ -128,6 +128,36 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal([ '*', 'OK', [ :block, 'PERMANENTFLAGS', [ :group, '\Deleted', '\Seen', '\*' ] ], 'Limited' ],
                    RIMS::Protocol.parse(%w[ * OK [ PERMANENTFLAGS ( \\Deleted \\Seen \\* ) ] Limited ]))
     end
+
+    def test_read_command
+      assert_nil(RIMS::Protocol.read_command(StringIO.new))
+      assert_nil(RIMS::Protocol.read_command(StringIO.new("\n")))
+      assert_nil(RIMS::Protocol.read_command(StringIO.new(" \t\n")))
+      assert_equal(%w[ abcd CAPABILITY ],
+                   RIMS::Protocol.read_command(StringIO.new("abcd CAPABILITY\n")))
+      assert_equal(%w[ abcd CAPABILITY ],
+                   RIMS::Protocol.read_command(StringIO.new("\n \n\t\nabcd CAPABILITY\n")))
+      assert_equal(%w[ abcd OK CAPABILITY completed ],
+                   RIMS::Protocol.read_command(StringIO.new("abcd OK CAPABILITY completed\n")))
+      assert_equal([ 'A003', 'STORE', '2:4', '+FLAGS', [ :group, '\Deleted' ] ],
+                   RIMS::Protocol.read_command(StringIO.new("A003 STORE 2:4 +FLAGS (\\Deleted)\n")))
+
+      literal = <<-'EOF'
+Date: Mon, 7 Feb 1994 21:52:25 -0800 (PST)
+From: Fred Foobar <foobar@Blurdybloop.COM>
+Subject: afternoon meeting
+To: mooch@owatagu.siam.edu
+Message-Id: <B27397-0100000@Blurdybloop.COM>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+
+Hello Joe, do you think we can meet at 3:30 tomorrow?
+      EOF
+
+      input = StringIO.new("A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n")
+      assert_equal([ 'A003', 'APPEND', 'saved-messages', [ :group, '\Seen' ], literal ],
+		   RIMS::Protocol.read_command(input))
+    end
   end
 end
 
