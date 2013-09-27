@@ -11,6 +11,7 @@ module RIMS
   autoload :MailboxDB, 'rims/db'
   autoload :MessageDB, 'rims/db'
   autoload :Protocol, 'rims/protocol'
+  autoload :ProtocolDecoder, 'rims/protocol'
 end
 
 # Local Variables:
