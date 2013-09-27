@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'rims'
 require 'stringio'
 require 'test/unit'
@@ -188,6 +189,107 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       input = StringIO.new("A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n")
       assert_equal([ 'A003', 'APPEND', 'saved-messages', [ :group, '\Seen' ], literal ],
 		   RIMS::Protocol.read_command(input))
+    end
+  end
+
+  class ProtocolDecoderTest < Test::Unit::TestCase
+    def setup
+      @kv_store = {}
+      @mail_store = RIMS::MailStore.new('foo') {|path|
+        kvs = {}
+        def kvs.close
+          self
+        end
+        RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
+      }
+      @mail_store.open
+      @mail_store.add_mbox('INBOX')
+      @logger = Logger.new(STDOUT)
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
+      @decoder = RIMS::ProtocolDecoder.new(@mail_store, @logger)
+      @decoder.username = 'foo'
+      @decoder.password = 'open_sesame'
+    end
+
+    def teardown
+      @mail_store.close
+    end
+
+    def test_capability
+      res = @decoder.capability('T001').each
+      assert_equal('* CAPABILITY IMAP4rev1', res.next)
+      assert_equal('T001 OK CAPABILITY completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
+    def test_logout
+      res = @decoder.logout('T003').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T003 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
+    def test_login
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.login('T001', 'foo', 'detarame').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+
+      res = @decoder.logout('T003').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T003 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+    end
+
+    def test_command_loop_capability
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 CAPABILITY
+T002 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_equal("* CAPABILITY IMAP4rev1\r\n", res.next)
+      assert_equal("T001 OK CAPABILITY completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T002 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+    end
+
+    def test_command_loop_login
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo detarame
+T002 LOGIN foo open_sesame
+T003 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T003 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
     end
   end
 end
