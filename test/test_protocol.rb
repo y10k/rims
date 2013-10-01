@@ -252,6 +252,45 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal(false, @decoder.auth?)
     end
 
+    def test_select
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.select('T001', 'INBOX').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.select('T003', 'INBOX').each
+      assert_equal('* 0 EXISTS', res.next)
+      assert_equal('* 0 RECENT', res.next)
+      assert_equal('* [UNSEEN 0]', res.next)
+      assert_equal('* [UIDVALIDITY 1]', res.next)
+      assert_equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', res.next)
+      assert_equal('T003 OK [READ-WRITE] SELECT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.logout('T004').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T004 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+    end
+
     def test_command_loop_capability
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
@@ -288,6 +327,35 @@ T003 LOGOUT
 
       assert_match(/^\* BYE /, res.next)
       assert_equal("T003 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+    end
+
+    def test_command_loop_select
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 SELECT INBOX
+T002 LOGIN foo open_sesame
+T003 SELECT INBOX
+T004 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_equal("* 0 EXISTS\r\n", res.next)
+      assert_equal("* 0 RECENT\r\n", res.next)
+      assert_equal("* [UNSEEN 0]\r\n", res.next)
+      assert_equal("* [UIDVALIDITY 1]\r\n", res.next)
+      assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
+      assert_equal("T003 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T004 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
     end
