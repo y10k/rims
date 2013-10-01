@@ -57,6 +57,7 @@ module RIMS
     end
 
     def add_mbox(name)
+      name = 'INBOX' if (name =~ /^INBOX$/i)
       if (@global_db.mbox_id(name)) then
         raise "duplicated mailbox name: #{name}."
       end
@@ -95,6 +96,7 @@ module RIMS
     end
 
     def mbox_id(name)
+      name = 'INBOX' if (name =~ /^INBOX$/i)
       @global_db.mbox_id(name)
     end
 
