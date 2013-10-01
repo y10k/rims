@@ -378,6 +378,46 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_subscribe_not_implemented
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.subscribe('T001', 'INBOX').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+
+      res = @decoder.subscribe('T003', 'INBOX').each
+      assert_equal('T003 BAD not implemented', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
+    def test_unsubscribe_not_implemented
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.unsubscribe('T001', 'INBOX').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+
+      res = @decoder.unsubscribe('T003', 'INBOX').each
+      assert_equal('T003 BAD not implemented', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_command_loop_capability
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
