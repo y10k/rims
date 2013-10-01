@@ -219,8 +219,12 @@ module RIMS
       protect_auth(tag) {
         res = []
         if (id = @st.mbox_id(mbox_name)) then
-          @st.del_mbox(id)
-          res << "#{tag} OK DELETE completed"
+          if (id != @st.mbox_id('INBOX')) then
+            @st.del_mbox(id)
+            res << "#{tag} OK DELETE completed"
+          else
+            res << "#{tag} NO not delete inbox"
+          end
         else
           res << "#{tag} NO not found a mailbox"
         end
