@@ -342,6 +342,42 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_delete
+      @mail_store.add_mbox('foo')
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.delete('T001', 'foo').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_not_nil(@mail_store.mbox_id('foo'))
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+
+      res = @decoder.delete('T003', 'foo').each
+      assert_equal('T003 OK DELETE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_nil(@mail_store.mbox_id('foo'))
+
+      res = @decoder.delete('T004', 'bar').each
+      assert_match(/^T004 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.delete('T005', 'inbox').each
+      assert_match(/^T005 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_not_nil(@mail_store.mbox_id('inbox'))
+
+      res = @decoder.logout('T006').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T006 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_command_loop_capability
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
@@ -439,6 +475,38 @@ T005 LOGOUT
 
       assert_raise(StopIteration) { res.next }
     end
+
+    def test_command_loop_delete
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 DELETE foo
+T002 LOGIN foo open_sesame
+T003 DELETE foo
+T004 DELETE bar
+T005 DELETE inbox
+T006 LOGOUT
+      EOF
+
+      @mail_store.add_mbox('foo')
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      assert_nil(@mail_store.mbox_id('foo'))
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_equal("T003 OK DELETE completed\r\n", res.next)
+
+      assert_match(/^T004 NO /, res.next)
+
+      assert_match(/^T005 NO /, res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T006 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+   end
   end
 end
 
