@@ -378,6 +378,34 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_rename_not_implemented
+      @mail_store.add_mbox('foo')
+      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('bar'))
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.rename('T001', 'foo', 'bar').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('bar'))
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+
+      res = @decoder.rename('T003', 'foo', 'bar').each
+      assert_equal('T003 BAD not implemented', res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('bar'))
+    end
+
     def test_subscribe_not_implemented
       assert_equal(false, @decoder.auth?)
 
