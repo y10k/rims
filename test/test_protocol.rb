@@ -6,6 +6,37 @@ require 'test/unit'
 
 module RIMS::Test
   class ProtocolTest < Test::Unit::TestCase
+    def test_quote
+      assert_equal('""', RIMS::Protocol.quote(''))
+      assert_equal('"foo"', RIMS::Protocol.quote('foo'))
+      assert_equal("{1}\r\n\"", RIMS::Protocol.quote('"'))
+      assert_equal("{8}\r\nfoo\nbar\n", RIMS::Protocol.quote("foo\nbar\n"))
+    end
+
+    def test_compile_wildcard
+      assert(RIMS::Protocol.compile_wildcard('xxx') =~ 'xxx')
+      assert(RIMS::Protocol.compile_wildcard('xxx') !~ 'yyy')
+      assert(RIMS::Protocol.compile_wildcard('x*') =~ 'xxx')
+      assert(RIMS::Protocol.compile_wildcard('x*') !~ 'yxx')
+      assert(RIMS::Protocol.compile_wildcard('*x') =~ 'xxx')
+      assert(RIMS::Protocol.compile_wildcard('*x') !~ 'xxy')
+      assert(RIMS::Protocol.compile_wildcard('*x*') =~ 'xyy')
+      assert(RIMS::Protocol.compile_wildcard('*x*') =~ 'yxy')
+      assert(RIMS::Protocol.compile_wildcard('*x*') =~ 'yyx')
+      assert(RIMS::Protocol.compile_wildcard('*x*') !~ 'yyy')
+
+      assert(RIMS::Protocol.compile_wildcard('xxx') =~ 'xxx')
+      assert(RIMS::Protocol.compile_wildcard('xxx') !~ 'yyy')
+      assert(RIMS::Protocol.compile_wildcard('x%') =~ 'xxx')
+      assert(RIMS::Protocol.compile_wildcard('x%') !~ 'yxx')
+      assert(RIMS::Protocol.compile_wildcard('%x') =~ 'xxx')
+      assert(RIMS::Protocol.compile_wildcard('%x') !~ 'xxy')
+      assert(RIMS::Protocol.compile_wildcard('%x%') =~ 'xyy')
+      assert(RIMS::Protocol.compile_wildcard('%x%') =~ 'yxy')
+      assert(RIMS::Protocol.compile_wildcard('%x%') =~ 'yyx')
+      assert(RIMS::Protocol.compile_wildcard('%x%') !~ 'yyy')
+    end
+
     def test_scan_line
       assert_equal([], RIMS::Protocol.scan_line('', StringIO.new))
       assert_equal(%w[ abcd CAPABILITY ],

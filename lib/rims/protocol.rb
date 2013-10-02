@@ -2,6 +2,25 @@
 
 module RIMS
   module Protocol
+    def quote(s)
+      case (s)
+      when /"/, /\n/
+        "{#{s.bytesize}}\r\n" + s
+      else
+        '"' + s + '"'
+      end
+    end
+    module_function :quote
+
+    def compile_wildcard(pattern)
+      src = '^'
+      src << pattern.gsub(/.*?[*%]/) {|s| Regexp.quote(s[0..-2]) + '.*' }
+      src << Regexp.quote($') if $'
+      src << '$'
+      Regexp.compile(src)
+    end
+    module_function :compile_wildcard
+
     def read_line(input)
       line = input.gets or return
       line.chomp!("\n")
