@@ -251,7 +251,25 @@ module RIMS
 
     def list(tag, ref_name, mbox_name)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        res = []
+        if (mbox_name.empty?) then
+          res << '* LIST (\Noselect) NIL ""'
+        else
+          mbox_filter = Protocol.compile_wildcard(mbox_name)
+          mbox_list = @st.each_mbox_id.map{|id| [ id, @st.mbox_name(id) ] }
+          mbox_list.keep_if{|id, name| name.start_with? ref_name }
+          mbox_list.keep_if{|id, name| name[(ref_name.length)..-1] =~ mbox_filter }
+          for id, name in mbox_list
+            attrs = '\Noinferiors'
+            if (@st.mbox_flags(id, 'recent') > 0) then
+              attrs << ' \Marked'
+            else
+              attrs << ' \Unmarked'
+            end
+            res << "* LIST (#{attrs}) NIL #{Protocol.quote(name)}"
+          end
+        end
+        res << "#{tag} OK LIST completed"
       }
     end
 
