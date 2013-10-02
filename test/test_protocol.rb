@@ -203,7 +203,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
         RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
       }
       @mail_store.open
-      @mail_store.add_mbox('INBOX')
+      @inbox_id = @mail_store.add_mbox('INBOX')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
       @decoder = RIMS::ProtocolDecoder.new(@mail_store, @logger)
@@ -446,6 +446,66 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_list
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.list('T001', '', '').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+
+      res = @decoder.list('T003', '', '').each
+      assert_equal('* LIST (\Noselect) NIL ""', res.next)
+      assert_equal('T003 OK LIST completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.list('T004', '', 'nobox').each
+      assert_equal('T004 OK LIST completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.list('T005', '', '*').each
+      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "INBOX"', res.next)
+      assert_equal('T005 OK LIST completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.add_msg(@inbox_id, 'foo')
+
+      res = @decoder.list('T006', '', '*').each
+      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"', res.next)
+      assert_equal('T006 OK LIST completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.add_mbox('foo')
+
+      res = @decoder.list('T007', '', '*').each
+      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"', res.next)
+      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "foo"', res.next)
+      assert_equal('T007 OK LIST completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.list('T008', '', 'f*').each
+      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "foo"', res.next)
+      assert_equal('T008 OK LIST completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.list('T009', 'IN', '*').each
+      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"', res.next)
+      assert_equal('T009 OK LIST completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.logout('T010').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T010 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_command_loop_capability
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
@@ -574,7 +634,48 @@ T006 LOGOUT
       assert_equal("T006 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
-   end
+    end
+
+    def _test_command_loop_list
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LIST "" ""
+T002 LOGIN foo open_sesame
+T003 LIST "" ""
+T007 LIST "" *
+T008 LIST '' f*
+T009 LIST IN *
+T010 LOGOUT
+      EOF
+
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_mbox('foo')
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      assert_nil(@mail_store.mbox_id('foo'))
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_equal('* LIST (\Noselect) NIL ""' + "\r\n", res.next)
+      assert_equal("T003 OK LIST completed\r\n", res.next)
+
+      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"' + "\r\n", res.next)
+      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "foo"' + "\r\n", res.next)
+      assert_equal("T007 OK LIST completed\r\n", res.next)
+
+      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "foo"' + "\r\n", res.next)
+      assert_equal("T008 OK LIST completed\r\n", res.next)
+
+      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"' + "\r\n", res.next)
+      assert_equal("T009 OK LIST completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T010 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+    end
   end
 end
 
