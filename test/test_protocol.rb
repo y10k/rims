@@ -506,6 +506,80 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_status
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.status('T001', 'nobox', [ :group, 'MESSAGES' ]).each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+
+      res = @decoder.status('T003', 'nobox', [ :group, 'MESSAGES' ]).each
+      assert_match(/^T003 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.status('T004', 'INBOX', [ :group, 'MESSAGES' ]).each
+      assert_equal('* STATUS "INBOX" (MESSAGES 0)', res.next)
+      assert_equal('T004 OK STATUS completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.status('T005', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 0 RECENT 0 UINDEX 1 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
+      assert_equal('T005 OK STATUS completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.add_msg(@inbox_id, 'foo')
+      res = @decoder.status('T006', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UINDEX 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
+      assert_equal('T006 OK STATUS completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      res = @decoder.status('T007', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UINDEX 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
+      assert_equal('T007 OK STATUS completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      res = @decoder.status('T008', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UINDEX 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
+      assert_equal('T008 OK STATUS completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.add_msg(@inbox_id, 'bar')
+      res = @decoder.status('T009', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UINDEX 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
+      assert_equal('T009 OK STATUS completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
+      @mail_store.expunge_mbox(@inbox_id)
+      res = @decoder.status('T010', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UINDEX 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
+      assert_equal('T010 OK STATUS completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.status('T011', 'INBOX', 'MESSAGES').each
+      assert_match(/^T011 BAD /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.status('T012', 'INBOX', [ :group, 'DETARAME' ]).each
+      assert_match(/^T012 BAD /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.logout('T013').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T013 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_lsub_not_implemented
       assert_equal(false, @decoder.auth?)
 
@@ -693,6 +767,46 @@ T010 LOGOUT
 
       assert_match(/^\* BYE /, res.next)
       assert_equal("T010 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+    end
+
+    def test_command_loop_status
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 STATUS nobox (MESSAGES)
+T002 LOGIN foo open_sesame
+T003 STATUS nobox (MESSAGES)
+T009 STATUS INBOX (MESSAGES RECENT UINDEX UIDVALIDITY UNSEEN)
+T011 STATUS INBOX MESSAGES
+T012 STATUS INBOX (DETARAME)
+T013 LOGOUT
+      EOF
+
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.add_msg(@inbox_id, 'bar')
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      assert_nil(@mail_store.mbox_id('foo'))
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UINDEX 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)\r\n", res.next)
+      assert_equal("T009 OK STATUS completed\r\n", res.next)
+
+      assert_match(/^T011 BAD /, res.next)
+
+      assert_match(/^T012 BAD /, res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T013 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
     end
