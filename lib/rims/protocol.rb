@@ -85,6 +85,9 @@ module RIMS
   end
 
   class ProtocolDecoder
+    class SyntaxError < StandardError
+    end
+
     def initialize(mail_store, logger)
       @st = mail_store
       @logger = logger
@@ -108,6 +111,10 @@ module RIMS
     def protect_error(tag)
       begin
         yield
+      rescue SyntaxError
+        @logger.error('client command syntax error.')
+        @logger.error($!)
+        [ "#{tag} BAD client command syntax error." ]
       rescue
         @logger.error('internal server error.')
         @logger.error($!)
@@ -281,7 +288,36 @@ module RIMS
 
     def status(tag, mbox_name, data_item_group)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        res = []
+        if (id = @st.mbox_id(mbox_name)) then
+          unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
+            raise SyntaxError, 'second arugment is not a group list.'
+          end
+
+          values = []
+          for item in data_item_group[1..-1]
+            case (item.upcase)
+            when 'MESSAGES'
+              values << 'MESSAGES' << @st.mbox_msgs(id)
+            when 'RECENT'
+              values << 'RECENT' << @st.mbox_flags(id, 'recent')
+            when 'UINDEX'
+              values << 'UINDEX' << @st.uid
+            when 'UIDVALIDITY'
+              values << 'UIDVALIDITY' << id
+            when 'UNSEEN'
+              unseen_flags = @st.mbox_msgs(id) - @st.mbox_flags(id, 'seen')
+              values << 'UNSEEN' << unseen_flags
+            else
+              raise SyntaxError, "unknown status data: #{item}"
+            end
+          end
+
+          res << "* STATUS #{Protocol.quote(mbox_name)} (#{values.join(' ')})"
+          res << "#{tag} OK STATUS completed"
+        else
+          res << "#{tag} NO not found a mailbox"
+        end
       }
     end
 
