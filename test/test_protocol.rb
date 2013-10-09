@@ -213,6 +213,9 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       @kv_store = {}
       @mail_store = RIMS::MailStore.new('foo') {|path|
         kvs = {}
+        def kvs.sync
+          self
+        end
         def kvs.close
           self
         end
@@ -713,6 +716,46 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_check
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.check('T001').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.check('T003').each
+      assert_match(/^T003 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.select('T004', 'INBOX').each
+      res.next while (res.peek =~ /^\* /)
+      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.check('T005').each
+      assert_equal('T005 OK CHECK completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.logout('T006').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T006 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_command_loop_empty
       output = StringIO.new('', 'w')
 
@@ -1006,6 +1049,37 @@ T012 LOGOUT
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'draft'))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'recent'))
       assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 4))
+    end
+
+    def test_command_loop_check
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 CHECK
+T002 LOGIN foo open_sesame
+T003 CHECK
+T004 SELECT INBOX
+T005 CHECK
+T006 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      res.next while (res.peek =~ /^\* /)
+      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_equal("T005 OK CHECK completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T006 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
     end
   end
 end
