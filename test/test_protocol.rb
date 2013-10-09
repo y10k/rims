@@ -616,6 +616,103 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_append
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.append('T001', 'INBOX', 'a').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @decoder.auth?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+
+      res = @decoder.append('T003', 'INBOX', 'a').each
+      assert_equal('T003 OK APPEND completed', res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal('a', @mail_store.msg_text(@inbox_id, 1))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+
+      res = @decoder.append('T004', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'b').each
+      assert_equal('T004 OK APPEND completed', res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal('b', @mail_store.msg_text(@inbox_id, 2))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+
+      res = @decoder.append('T005', 'INBOX', '19-Nov-1975 12:34:56 +0900', 'c').each
+      assert_equal('T005 OK APPEND completed', res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal('c', @mail_store.msg_text(@inbox_id, 3))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'flagged'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 3))
+
+      res = @decoder.append('T006', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'd').each
+      assert_equal('T006 OK APPEND completed', res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal('d', @mail_store.msg_text(@inbox_id, 4))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'answered'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'flagged'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'deleted'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'recent'))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 4))
+
+      res = @decoder.append('T007', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', :NIL, 'x').each
+      assert_match(/^T007 BAD /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      res = @decoder.append('T008', 'INBOX', '19-Nov-1975 12:34:56 +0900', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'x').each
+      assert_match(/^T008 BAD /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      res = @decoder.append('T009', 'INBOX', [ :group, '\Recent' ], 'x').each
+      assert_match(/^T009 BAD /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      res = @decoder.append('T010', 'INBOX', 'bad date-time', 'x').each
+      assert_match(/^T010 BAD /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      res = @decoder.append('T011', 'nobox', 'x').each
+      assert_match(/^T011 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      res = @decoder.logout('T012').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T012 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_command_loop_capability
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
@@ -825,6 +922,80 @@ T013 LOGOUT
       assert_equal("T013 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
+    end
+
+    def test_command_loop_append
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 APPEND INBOX a
+T002 LOGIN foo open_sesame
+T003 APPEND INBOX a
+T004 APPEND INBOX (\Answered \Flagged \Deleted \Seen \Draft) "b"
+T005 APPEND INBOX "19-Nov-1975 12:34:56 +0900" {1}
+c
+T006 APPEND INBOX (\Answered \Flagged \Deleted \Seen \Draft) "19-Nov-1975 12:34:56 +0900" d
+T007 APPEND INBOX (\Answered \Flagged \Deleted \Seen \Draft) "19-Nov-1975 12:34:56 +0900" NIL x
+T008 APPEND INBOX "19-Nov-1975 12:34:56 +0900" (\Answered \Flagged \Deleted \Seen \Draft) x
+T009 APPEND INBOX (\Recent) x
+T010 APPEND INBOX "bad date-time" x
+T011 APPEND nobox x
+T012 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+      assert_equal("T003 OK APPEND completed\r\n", res.next)
+      assert_equal("T004 OK APPEND completed\r\n", res.next)
+      assert_equal("T005 OK APPEND completed\r\n", res.next)
+      assert_equal("T006 OK APPEND completed\r\n", res.next)
+      assert_match(/^T007 BAD /, res.next)
+      assert_match(/^T008 BAD /, res.next)
+      assert_match(/^T009 BAD /, res.next)
+      assert_match(/^T010 BAD /, res.next)
+      assert_match(/^T011 NO /, res.next)
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T012 OK LOGOUT completed\r\n", res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal('a', @mail_store.msg_text(@inbox_id, 1))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+
+      assert_equal('b', @mail_store.msg_text(@inbox_id, 2))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+
+      assert_equal('c', @mail_store.msg_text(@inbox_id, 3))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'flagged'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 3))
+
+      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal('d', @mail_store.msg_text(@inbox_id, 4))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'answered'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'flagged'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'deleted'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'recent'))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 4))
     end
   end
 end
