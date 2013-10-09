@@ -713,6 +713,16 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_command_loop_empty
+      output = StringIO.new('', 'w')
+
+      RIMS::ProtocolDecoder.repl(@decoder, StringIO.new('', 'r'), output, @logger)
+      assert_equal('', output.string)
+
+      RIMS::ProtocolDecoder.repl(@decoder, StringIO.new("\n\t\n \r\n ", 'r'), output, @logger)
+      assert_equal('', output.string)
+    end
+
     def test_command_loop_capability
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
