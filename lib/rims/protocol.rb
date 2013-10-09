@@ -393,7 +393,10 @@ module RIMS
     def close(tag)
       protect_select(tag) {
         @st.sync
-        @folder = nil
+        if (@folder) then
+          @st.expunge_mbox(@folder.id)
+          @folder = nil
+        end
         [ "#{tag} OK CLOSE completed" ]
       }
     end
