@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+require 'time'
+
 module RIMS
   module Protocol
     def quote(s)
@@ -329,7 +331,55 @@ module RIMS
 
     def append(tag, mbox_name, *opt_args, msg_text)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        res = []
+        if (mbox_id = @st.mbox_id(mbox_name)) then
+          msg_flags = []
+          msg_date = Time.now
+
+          if ((! opt_args.empty?) && (opt_args[0].is_a? Array)) then
+            opt_flags = opt_args.shift
+            if (opt_flags[0] != :group) then
+              raise SyntaxError, 'bad flag list.'
+            end
+            for flag_atom in opt_flags[1..-1]
+              case (flag_atom.upcase)
+              when '\ANSWERED'
+                msg_flags << 'answered'
+              when '\FLAGGED'
+                msg_flags << 'flagged'
+              when '\DELETED'
+                msg_flags << 'deleted'
+              when '\SEEN'
+                msg_flags << 'seen'
+              when '\DRAFT'
+                msg_flags << 'draft'
+              else
+                raise SyntaxError, "invalid flag: #{flag_atom}"
+              end
+            end
+          end
+
+          if ((! opt_args.empty?) && (opt_args[0].is_a? String)) then
+            begin
+              msg_date = Time.parse(opt_args.shift)
+            rescue ArgumentError
+              raise SyntaxError, $!.message
+            end
+          end
+
+          unless (opt_args.empty?) then
+            raise SyntaxError, 'unknown option.'
+          end
+
+          msg_id = @st.add_msg(mbox_id, msg_text, msg_date)
+          for flag_name in msg_flags
+            @st.set_msg_flag(mbox_id, msg_id, flag_name, true)
+          end
+
+          res << "#{tag} OK APPEND completed"
+        else
+          res << "#{tag} NO not found a mailbox"
+        end
       }
     end
 
