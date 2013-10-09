@@ -30,8 +30,14 @@ module RIMS
     module_function :read_line
 
     def scan_line(line, input)
-      atom_list = line.scan(/[\[\]()]|".*?"|[^\[\]()\s]+/).map{|s| s.sub(/^"/, '').sub(/"$/, '') }
-      if (atom_list[-1] =~ /^{\d+}$/) then
+      atom_list = line.scan(/[\[\]()]|".*?"|[^\[\]()\s]+/).map{|s|
+        if (s.upcase == 'NIL') then
+          :NIL
+        else
+          s.sub(/^"/, '').sub(/"$/, '')
+        end
+      }
+      if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /^{\d+}$/)) then
 	next_size = $&[1..-2].to_i
 	atom_list[-1] = input.read(next_size) or raise 'unexpected client close.'
         next_atom_list = read_line(input) or raise 'unexpected client close.'

@@ -70,6 +70,8 @@ module RIMS::Test
                    RIMS::Protocol.scan_line('* LIST (\Noselect) "/" foo', StringIO.new))
       assert_equal([ '*', 'LIST', '(', '\Noselect', ')', '/', 'foo [bar] (baz)' ],
                    RIMS::Protocol.scan_line('* LIST (\Noselect) "/" "foo [bar] (baz)"', StringIO.new))
+      assert_equal([ '*', 'LIST', '(', '\Noselect', ')', :NIL, '' ],
+                   RIMS::Protocol.scan_line('* LIST (\Noselect) NIL ""', StringIO.new))
     end
 
     def test_scan_line_string_literal
@@ -116,6 +118,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    RIMS::Protocol.read_line(StringIO.new("* LIST (\\Noselect) \"/\" foo\n")))
       assert_equal([ '*', 'LIST', '(', '\Noselect', ')', '/', 'foo [bar] (baz)' ],
                    RIMS::Protocol.read_line(StringIO.new("* LIST (\\Noselect) \"/\" \"foo [bar] (baz)\"")))
+      assert_equal([ '*', 'LIST', '(', '\Noselect', ')', :NIL, '' ],
+                   RIMS::Protocol.read_line(StringIO.new('* LIST (\Noselect) NIL ""')))
     end
 
     def test_read_line_string_literal
@@ -169,6 +173,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    RIMS::Protocol.parse(%w[ * FLAGS ( \\Answered \\Flagged \\Deleted \\Seen \\Draft ) ]))
       assert_equal([ '*', 'OK', [ :block, 'PERMANENTFLAGS', [ :group, '\Deleted', '\Seen', '\*' ] ], 'Limited' ],
                    RIMS::Protocol.parse(%w[ * OK [ PERMANENTFLAGS ( \\Deleted \\Seen \\* ) ] Limited ]))
+      assert_equal([ '*', 'LIST', [ :group, '\Noselect' ], :NIL, '' ],
+                   RIMS::Protocol.parse([ '*', 'LIST', '(', '\Noselect', ')', :NIL, '' ]))
     end
 
     def test_read_command
