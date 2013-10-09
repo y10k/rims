@@ -4,8 +4,18 @@ require 'logger'
 require 'rims'
 require 'stringio'
 require 'test/unit'
+require 'time'
 
 module RIMS::Test
+  class TimeTest < Test::Unit::TestCase
+    def test_parse_date_time
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), Time.parse('19-Nov-1975 12:34:56 +0900'))
+      assert_raise(ArgumentError) { Time.parse('detarame') }
+      assert_raise(TypeError) { Time.parse([]) }
+      assert_raise(TypeError) { Time.parse(nil) }
+    end
+  end
+
   class ProtocolTest < Test::Unit::TestCase
     def test_quote
       assert_equal('""', RIMS::Protocol.quote(''))
