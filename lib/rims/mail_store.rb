@@ -297,6 +297,17 @@ module RIMS
       self
     end
 
+    def close
+      expunge_mbox
+      @st.each_msg_id(@id) do |msg_id|
+        if (@st.msg_flag(@id, msg_id, 'recent')) then
+          @st.set_msg_flag(@id, msg_id, 'recent', false)
+        end
+      end
+
+      self
+    end
+
     def parse_msg_set(msg_set_desc, uid: false)
       if (uid) then
         last_number = @msg_list[-1].id

@@ -395,7 +395,7 @@ module RIMS
         @st.sync
         if (@folder) then
           @folder.reload if @folder.updated?
-          @folder.expunge_mbox
+          @folder.close
           @folder = nil
         end
         [ "#{tag} OK CLOSE completed" ]

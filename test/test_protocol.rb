@@ -795,6 +795,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
 
       @mail_store.add_msg(@inbox_id, 'foo')
       assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.select('T006', 'INBOX').each
       res.next while (res.peek =~ /^\* /)
@@ -804,8 +806,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
       assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
-
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.close('T007').each
       assert_equal('T007 OK CLOSE completed', res.next)
@@ -813,11 +815,36 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
-      assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
-      res = @decoder.logout('T008').each
+      res = @decoder.select('T008', 'INBOX').each
+      res.next while (res.peek =~ /^\* /)
+      assert_equal('T008 OK [READ-WRITE] SELECT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
+      res = @decoder.close('T009').each
+      assert_equal('T009 OK CLOSE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+      assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(0, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      res = @decoder.logout('T010').each
       assert_match(/^\* BYE /, res.next)
-      assert_equal('T008 OK LOGOUT completed', res.next)
+      assert_equal('T010 OK LOGOUT completed', res.next)
       assert_raise(StopIteration) { res.next }
     end
 
