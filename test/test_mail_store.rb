@@ -245,6 +245,49 @@ module RIMS::Test
       assert_equal(false, folder.updated?)
       assert_equal([ [ 1, 1 ] ], folder.msg_list.map{|i| i.to_a })
     end
+
+    def each_msg_src
+      return enum_for(:each_msg_src) unless block_given?
+      s = 'a'
+      loop do
+        yield(s)
+        s.succ!
+      end
+    end
+    private :each_msg_src
+
+    def test_mail_folder_parse_msg_seq
+      mbox_id = @mail_store.add_mbox('INBOX')
+
+      msg_src = each_msg_src
+      100.times do
+        @mail_store.add_msg(mbox_id, msg_src.next)
+      end
+      @mail_store.each_msg_id(mbox_id) do |id|
+        if (id % 2 == 0) then
+          @mail_store.set_msg_flag(mbox_id, id, 'deleted', true)
+        end
+      end
+      @mail_store.expunge_mbox(mbox_id)
+
+      folder = @mail_store.select_mbox(mbox_id)
+
+      assert_equal([ 1 ].to_set, folder.parse_msg_set('1'))
+      assert_equal([ 1 ].to_set, folder.parse_msg_set('1', uid: false))
+      assert_equal([ 1 ].to_set, folder.parse_msg_set('1', uid: true))
+
+      assert_equal([ 2 ].to_set, folder.parse_msg_set('2'))
+      assert_equal([ 2 ].to_set, folder.parse_msg_set('2', uid: false))
+      assert_equal([ 2 ].to_set, folder.parse_msg_set('2', uid: true))
+
+      assert_equal([ 50 ].to_set, folder.parse_msg_set('*'))
+      assert_equal([ 50 ].to_set, folder.parse_msg_set('*', uid: false))
+      assert_equal([ 99 ].to_set, folder.parse_msg_set('*', uid: true))
+
+      assert_equal((1..50).to_set, folder.parse_msg_set('1:*'))
+      assert_equal((1..50).to_set, folder.parse_msg_set('1:*', uid: false))
+      assert_equal((1..99).to_set, folder.parse_msg_set('1:*', uid: true))
+    end
   end
 
   class MailFolderClassMethodTest < Test::Unit::TestCase
