@@ -404,7 +404,13 @@ module RIMS
 
     def expunge(tag)
       protect_select(tag) {
-        [ "#{tag} BAD not implemented" ]
+        res = []
+        @folder.reload if @folder.updated?
+        @folder.expunge_mbox do |msg_num|
+          res << "* #{msg_num} EXPUNGE"
+        end
+        @folder.reload if @folder.updated?
+        res << "#{tag} OK EXPUNGE completed"
       }
     end
 
