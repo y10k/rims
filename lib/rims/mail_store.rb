@@ -241,6 +241,7 @@ module RIMS
           end
         end
         mbox_db.expunge_msg(id)
+        yield(id) if block_given?
       end
 
       @global_db.cnum = cnum + 1
@@ -277,6 +278,24 @@ module RIMS
 
     attr_reader :id
     attr_reader :msg_list
+
+    def expunge_mbox
+      if (block_given?) then
+        id2num = {}
+        for msg in @msg_list
+          id2num[msg.id] = msg.num
+        end
+
+        @st.expunge_mbox(@id) do |id|
+          num = id2num[id] or raise "internal error: not found a message id <#{id}> at mailbox <#{@id}>"
+          yield(num)
+        end
+      else
+        @st.expunge_mbox(@id)
+      end
+
+      self
+    end
 
     def parse_msg_set(msg_set_desc, uid: false)
       if (uid) then

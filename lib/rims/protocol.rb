@@ -394,7 +394,8 @@ module RIMS
       protect_select(tag) {
         @st.sync
         if (@folder) then
-          @st.expunge_mbox(@folder.id)
+          @folder.reload if @folder.updated?
+          @folder.expunge_mbox
           @folder = nil
         end
         [ "#{tag} OK CLOSE completed" ]
