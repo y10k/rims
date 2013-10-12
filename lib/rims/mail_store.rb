@@ -280,18 +280,20 @@ module RIMS
     attr_reader :msg_list
 
     def expunge_mbox
-      if (block_given?) then
-        id2num = {}
-        for msg in @msg_list
-          id2num[msg.id] = msg.num
-        end
+      if (@st.mbox_flags(@id, 'deleted') > 0) then
+        if (block_given?) then
+          id2num = {}
+          for msg in @msg_list
+            id2num[msg.id] = msg.num
+          end
 
-        @st.expunge_mbox(@id) do |id|
-          num = id2num[id] or raise "internal error: not found a message id <#{id}> at mailbox <#{@id}>"
-          yield(num)
+          @st.expunge_mbox(@id) do |id|
+            num = id2num[id] or raise "internal error: not found a message id <#{id}> at mailbox <#{@id}>"
+            yield(num)
+          end
+        else
+          @st.expunge_mbox(@id)
         end
-      else
-        @st.expunge_mbox(@id)
       end
 
       self
