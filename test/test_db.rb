@@ -99,7 +99,7 @@ module RIMS::Test
   class MailboxDBTest < Test::Unit::TestCase
     def setup
       @kv_store = {}
-      @mbox_db = RIMS::MailboxDB.new(RIMS::GDBM_KeyValueStore.new(@kv_store))
+      @mbox_db = RIMS::MailboxDB.new(RIMS::GDBM_KeyValueStore.new(@kv_store)).setup
     end
 
     def test_attributes
@@ -133,16 +133,26 @@ module RIMS::Test
     end
 
     def test_msg
+      # these flags should be updated by RIMS::MailStore.
+      flags_kv = {
+        'flags_answered' => '0',
+        'flags_flagged' => '0',
+        'flags_deleted' => '0',
+        'flags_seen' => '0',
+        'flags_draft' => '0',
+        'flags_recent' => '0'
+      }
+
       @mbox_db.add_msg(0)
       assert_equal([ 0 ], @mbox_db.each_msg_id.to_a)
       assert_equal(false, @mbox_db.msg_flag_del(0))
-      assert_equal({ 'msg_count' => '1', 'msg-0' => '' }, @kv_store)
+      assert_equal({ 'msg_count' => '1', 'msg-0' => '' }.merge(flags_kv), @kv_store)
       @mbox_db.set_msg_flag_del(0, true)
       assert_equal(true, @mbox_db.msg_flag_del(0))
-      assert_equal({ 'msg_count' => '1', 'msg-0' => 'deleted' }, @kv_store)
+      assert_equal({ 'msg_count' => '1', 'msg-0' => 'deleted' }.merge(flags_kv), @kv_store)
       @mbox_db.expunge_msg(0)
       assert_equal([], @mbox_db.each_msg_id.to_a)
-      assert_equal({ 'msg_count' => '0' }, @kv_store)
+      assert_equal({ 'msg_count' => '0' }.merge(flags_kv), @kv_store)
     end
   end
 end

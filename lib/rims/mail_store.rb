@@ -20,7 +20,7 @@ module RIMS
 
       @mbox_db = {}
       @global_db.each_mbox_id do |id|
-        @mbox_db[id] = MailoxDB.new(open_kvs("mbox_#{id}.db"))
+        @mbox_db[id] = MailoxDB.new(open_kvs("mbox_#{id}.db")).setup
       end
 
       self
@@ -65,7 +65,7 @@ module RIMS
       cnum = @global_db.cnum
       next_id = @global_db.uidvalidity
 
-      @mbox_db[next_id] = MailboxDB.new(open_kvs("mbox_#{next_id}.db"))
+      @mbox_db[next_id] = MailboxDB.new(open_kvs("mbox_#{next_id}.db")).setup
       @mbox_db[next_id].mbox_id = next_id
       @mbox_db[next_id].mbox_name = name
 

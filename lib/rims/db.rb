@@ -22,10 +22,11 @@ module RIMS
 
   class GlobalDB < DB
     def setup
-      unless (@db.key? 'cnum') then
-        @db['cnum'] = '0'
-        @db['uid'] = '1'
-        @db['uidvalidity'] = '1'
+      [ %w[ cnum 0 ],
+        %w[ uid 1 ],
+        %w[ uidvalidity 1 ]
+      ].each do |k, v|
+        @db[k] = v unless (@db.key? k)
       end
 
       self
@@ -204,8 +205,24 @@ module RIMS
       name
     end
 
+    def setup
+      [ %w[ msg_count 0 ],
+        %w[ flags_answered 0 ],
+        %w[ flags_flagged 0 ],
+        %w[ flags_deleted 0 ],
+        %w[ flags_seen 0 ],
+        %w[ flags_draft 0 ],
+        %w[ flags_recent 0 ]
+      ].each do |k, v|
+        @db[k] = v unless (@db.key? k)
+      end
+
+      self
+    end
+
     def msgs
-      (@db['msg_count'] || '0').to_i
+      count = @db['msg_count'] or raise 'not initialized msg_count.'
+      count.to_i
     end
 
     def msgs_increment
@@ -224,7 +241,8 @@ module RIMS
     end
 
     def flags(name)
-      (@db["flags_#{name}"] || '0').to_i
+      count = @db["flags_#{name}"] or raise "not initialized flags_#{name}"
+      count.to_i
     end
 
     def flags_increment(name)
