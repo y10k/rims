@@ -199,7 +199,7 @@ module RIMS
           @folder = @st.select_mbox(id)
           all_msgs = @st.mbox_msgs(@folder.id)
           recent_msgs = @st.mbox_flags(@folder.id, 'recent')
-          unseen_msgs = all_msgs - @st.mbox_flags(@folder.id, 'unseen')
+          unseen_msgs = all_msgs - @st.mbox_flags(@folder.id, 'seen')
           res << "* #{all_msgs} EXISTS"
           res << "* #{recent_msgs} RECENT"
           res << "* [UNSEEN #{unseen_msgs}]"
