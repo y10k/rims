@@ -848,6 +848,102 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_expunge
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.expunge('T001').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.expunge('T003').each
+      assert_match(/^T003 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.select('T004', 'INBOX').each
+      res.next while (res.peek =~ /^\* /)
+      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.expunge('T005').each
+      assert_equal('T005 OK EXPUNGE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.add_msg(@inbox_id, 'a')
+      @mail_store.add_msg(@inbox_id, 'b')
+      @mail_store.add_msg(@inbox_id, 'c')
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      res = @decoder.expunge('T006').each
+      assert_equal('T006 OK EXPUNGE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      for name in %w[ answered flagged seen draft ]
+        @mail_store.set_msg_flag(@inbox_id, 2, name, true)
+        @mail_store.set_msg_flag(@inbox_id, 3, name, true)
+      end
+      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(3, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(3, @mail_store.mbox_flags(@inbox_id, 'recent'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+
+      res = @decoder.expunge('T007').each
+      assert_equal('* 2 EXPUNGE', res.next)
+      assert_equal('T007 OK EXPUNGE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'recent'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
+      
+      assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'recent'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+
+      res = @decoder.expunge('T008').each
+      assert_equal('* 1 EXPUNGE', res.next)
+      assert_equal('* 2 EXPUNGE', res.next)
+      assert_equal('T008 OK EXPUNGE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.logout('T009').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T009 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_command_loop_empty
       output = StringIO.new('', 'w')
 
@@ -1209,6 +1305,65 @@ T008 LOGOUT
       assert_raise(StopIteration) { res.next }
 
       assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
+    end
+
+    def test_command_loop_expunge
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 EXPUNGE
+T002 LOGIN foo open_sesame
+T003 EXPUNGE
+T004 SELECT INBOX
+T007 EXPUNGE
+T009 LOGOUT
+      EOF
+
+      @mail_store.add_msg(@inbox_id, 'a')
+      @mail_store.add_msg(@inbox_id, 'b')
+      @mail_store.add_msg(@inbox_id, 'c')
+      for name in %w[ answered flagged seen draft ]
+        @mail_store.set_msg_flag(@inbox_id, 2, name, true)
+        @mail_store.set_msg_flag(@inbox_id, 3, name, true)
+      end
+      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(3, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(3, @mail_store.mbox_flags(@inbox_id, 'recent'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      res.next while (res.peek =~ /^\* /)
+      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_equal("* 2 EXPUNGE\r\n", res.next)
+      assert_equal("T007 OK EXPUNGE completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T009 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'recent'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
     end
   end
 end
