@@ -76,9 +76,13 @@ module RIMS::Test
       assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @msg_db.msg_cksum(0))
       assert_equal([ 0 ], @msg_db.each_msg_id.to_a)
 
-      @msg_db.set_msg_flag(0, 'seen', true)
+      assert(@msg_db.set_msg_flag(0, 'seen', true)) # changed.
       assert_equal(true, @msg_db.msg_flag(0, 'seen'))
-      @msg_db.set_msg_flag(0, 'seen', false)
+      assert(! @msg_db.set_msg_flag(0, 'seen', true)) # not changed.
+      assert_equal(true, @msg_db.msg_flag(0, 'seen'))
+      assert(@msg_db.set_msg_flag(0, 'seen', false)) # changed.
+      assert_equal(false, @msg_db.msg_flag(0, 'seen'))
+      assert(! @msg_db.set_msg_flag(0, 'seen', false)) # not changed.
       assert_equal(false, @msg_db.msg_flag(0, 'seen'))
 
       assert_equal([].to_set, @msg_db.msg_mboxes(0))
@@ -147,7 +151,10 @@ module RIMS::Test
       assert_equal([ 0 ], @mbox_db.each_msg_id.to_a)
       assert_equal(false, @mbox_db.msg_flag_del(0))
       assert_equal({ 'msg_count' => '1', 'msg-0' => '' }.merge(flags_kv), @kv_store)
-      @mbox_db.set_msg_flag_del(0, true)
+      assert(@mbox_db.set_msg_flag_del(0, true)) # changed.
+      assert_equal(true, @mbox_db.msg_flag_del(0))
+      assert_equal({ 'msg_count' => '1', 'msg-0' => 'deleted' }.merge(flags_kv), @kv_store)
+      assert(! @mbox_db.set_msg_flag_del(0, true)) # not changed.
       assert_equal(true, @mbox_db.msg_flag_del(0))
       assert_equal({ 'msg_count' => '1', 'msg-0' => 'deleted' }.merge(flags_kv), @kv_store)
       @mbox_db.expunge_msg(0)

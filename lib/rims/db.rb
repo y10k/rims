@@ -153,8 +153,10 @@ module RIMS
 
     def set_msg_flag(id, name, value)
       msg_cksum(id) or raise "not found a message at `#{id}'."
-      @db["flag_#{name}-#{id}"] = value ? 'true' : 'false'
-      self
+      old_flag_value = @db["flag_#{name}-#{id}"]
+      new_flag_value = value ? 'true' : 'false'
+      @db["flag_#{name}-#{id}"] = new_flag_value
+      self if (old_flag_value != new_flag_value)
     end
 
     def msg_mboxes(id)
@@ -279,8 +281,10 @@ module RIMS
 
     def set_msg_flag_del(id, value)
       (exist_msg? id) or raise "not exist message: #{id}."
-      @db["msg-#{id}"] = value ? 'deleted' : ''
-      self
+      old_flag_value = @db["msg-#{id}"]
+      new_flag_value = value ? 'deleted' : ''
+      @db["msg-#{id}"] = new_flag_value
+      self if (old_flag_value != new_flag_value)
     end
 
     def expunge_msg(id)
