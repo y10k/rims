@@ -140,7 +140,7 @@ module RIMS
     end
 
     def msg_flag(id, name)
-      msg_text(id) or raise "not found a message at `#{id}'."
+      msg_cksum(id) or raise "not found a message at `#{id}'."
       case (v = @db["flag_#{name}-#{id}"])
       when 'true'
         true
@@ -152,13 +152,13 @@ module RIMS
     end
 
     def set_msg_flag(id, name, value)
-      msg_text(id) or raise "not found a message at `#{id}'."
+      msg_cksum(id) or raise "not found a message at `#{id}'."
       @db["flag_#{name}-#{id}"] = value ? 'true' : 'false'
       self
     end
 
     def msg_mboxes(id)
-      msg_text(id) or raise "not found a message at `#{id}'."
+      msg_cksum(id) or raise "not found a message at `#{id}'."
       if (@db.key? "mbox-#{id}") then
         @db["mbox-#{id}"].split(/,/).map{|s| s.to_i }.to_set
       else
@@ -167,7 +167,7 @@ module RIMS
     end
 
     def add_msg_mbox(id, mbox_id)
-      msg_text(id) or raise "not found a message at `#{id}'."
+      msg_cksum(id) or raise "not found a message at `#{id}'."
       id_set = msg_mboxes(id)
       id_set << mbox_id
       @db["mbox-#{id}"] = id_set.to_a.join(',')
@@ -175,7 +175,7 @@ module RIMS
     end
 
     def del_msg_mbox(id, mbox_id)
-      msg_text(id) or raise "not found a message at `#{id}'."
+      msg_cksum(id) or raise "not found a message at `#{id}'."
       id_set = msg_mboxes(id)
       return unless (id_set.include? mbox_id)
       id_set.delete(mbox_id)
