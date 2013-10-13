@@ -195,20 +195,22 @@ module RIMS
 
       case (name)
       when 'recent', 'seen', 'answered', 'flagged', 'draft'
-        @msg_db.set_msg_flag(msg_id, name, value)
-        for id in @msg_db.msg_mboxes(msg_id)
-          if (value) then
-            @mbox_db[id].flags_increment(name)
-          else
-            @mbox_db[id].flags_decrement(name)
+        if (@msg_db.set_msg_flag(msg_id, name, value)) then
+          for id in @msg_db.msg_mboxes(msg_id)
+            if (value) then
+              @mbox_db[id].flags_increment(name)
+            else
+              @mbox_db[id].flags_decrement(name)
+            end
           end
         end
       when 'deleted'
-        mbox_db.set_msg_flag_del(msg_id, value)
-        if (value) then
-          mbox_db.flags_increment(name)
-        else
-          mbox_db.flags_decrement(name)
+        if (mbox_db.set_msg_flag_del(msg_id, value)) then
+          if (value) then
+            mbox_db.flags_increment(name)
+          else
+            mbox_db.flags_decrement(name)
+          end
         end
       else
         raise "unnown flag name: #{name}"
