@@ -432,7 +432,107 @@ module RIMS
 
     def store(tag, msg_set, data_item_name, data_item_value, uid: false)
       protect_select(tag) {
-        [ "#{tag} BAD not implemented" ]
+        @folder.reload if @folder.updated?
+
+        res = []
+        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+        name, option = data_item_name.split(/\./, 2)
+
+        case (name.upcase)
+        when 'FLAGS'
+          action = :flags_replace
+        when '+FLAGS'
+          action = :flags_add
+        when '-FLAGS'
+          action = :flags_del
+        else
+          raise "unknown store action: #{name}"
+        end
+
+        case (option && option.upcase)
+        when 'SILENT'
+          is_silent = true
+        when nil
+          is_silent = false
+        else
+          raise "unknown store option: #{option.inspect}"
+        end
+
+        if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
+          flag_list = []
+          for flag_atom in data_item_value[1..-1]
+            case (flag_atom.upcase)
+            when '\ANSWERED'
+              flag_list << 'answered'
+            when '\FLAGGED'
+              flag_list << 'flagged'
+            when '\DELETED'
+              flag_list << 'deleted'
+            when '\SEEN'
+              flag_list << 'seen'
+            when '\DRAFT'
+              flag_list << 'draft'
+            else
+              raise SyntaxError, "invalid flag: #{flag_atom}"
+            end
+          end
+          rest_flag_list = %w[ answered flagged deleted seen draft ] - flag_list
+        else
+          raise SyntaxError, 'third arugment is not a group list.'
+        end
+
+        msg_list = @folder.msg_list.find_all{|msg|
+          if (uid) then
+            msg_set.include? msg.id
+          else
+            msg_set.include? msg.num
+          end
+        }
+
+        for msg in msg_list
+          case (action)
+          when :flags_replace
+            for name in flag_list
+              @st.set_msg_flag(@folder.id, msg.id, name, true)
+            end
+            for name in rest_flag_list
+              @st.set_msg_flag(@folder.id, msg.id, name, false)
+            end
+          when :flags_add
+            for name in flag_list
+              @st.set_msg_flag(@folder.id, msg.id, name, true)
+            end
+          when :flags_del
+            for name in flag_list
+              @st.set_msg_flag(@folder.id, msg.id, name, false)
+            end
+          else
+            raise "internal error: unknown action: #{action}"
+          end
+        end
+
+        unless (is_silent) then
+          name_atom_pair_list = [
+            %w[ answered \Answered ],
+            %w[ flagged \Flagged ],
+            %w[ deleted \Deleted ],
+            %w[ seen \Seen ],
+            %w[ draft \Draft ],
+            %w[ recent \Recent ]
+          ]
+
+          for msg in msg_list
+            flag_atom_list = []
+            for name, atom in name_atom_pair_list
+              if (@st.msg_flag(@folder.id, msg.id, name)) then
+                flag_atom_list << atom
+              end
+            end
+            res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})"
+          end
+        end
+
+        res << "#{tag} OK STORE completed"
       }
     end
 
