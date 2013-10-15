@@ -170,7 +170,11 @@ module RIMS
     end
 
     def logout(tag)
-      @folder = nil
+      if (@folder) then
+        @folder.reload if @folder.updated?
+        @folder.close
+        @folder = nil
+      end
       @is_auth = false
       res = []
       res << '* BYE server logout'

@@ -1358,7 +1358,7 @@ T009 LOGOUT
 
       assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'recent'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent')) # clear by LOGOUT
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'flagged'))
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'seen'))
