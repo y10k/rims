@@ -267,7 +267,7 @@ module RIMS
     def reload
       @cnum = @st.cnum
       msg_id_list = @st.each_msg_id(@id).to_a
-      msg_id_list.sort
+      msg_id_list.sort!
       @msg_list = msg_id_list.zip(1..(msg_id_list.length)).map{|id, num| MessageStruct.new(id, num) }
       self
     end
