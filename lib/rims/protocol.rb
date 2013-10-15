@@ -509,13 +509,13 @@ module RIMS
               logger.debug("uid parameter: (#{uid_args.join(' ')})") if logger.debug?
               case (uid_command.upcase)
               when 'SEARCH'
-                res = decoder.search(tag, *opt_args, uid: true)
+                res = decoder.search(tag, *uid_args, uid: true)
               when 'FETCH'
-                res = decoder.fetch(tag, *opt_args, uid: true)
+                res = decoder.fetch(tag, *uid_args, uid: true)
               when 'STORE'
-                res = decoder.store(tag, *opt_args, uid: true)
+                res = decoder.store(tag, *uid_args, uid: true)
               when 'COPY'
-                res = decoder.copy(tag, *opt_args, uid: true)
+                res = decoder.copy(tag, *uid_args, uid: true)
               else
                 logger.error("unknown uid command: #{uid_command}")
                 res = [ "#{tag} BAD unknown uid command" ]
