@@ -1936,6 +1936,215 @@ T009 LOGOUT
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'draft'))
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
     end
+
+    def test_command_loop_store
+      msg_src = Enumerator.new{|y|
+        s = 'a'
+        loop do
+          y << s
+          s = s.succ
+        end
+      }
+
+      10.times do
+        @mail_store.add_msg(@inbox_id, msg_src.next)
+      end
+      @mail_store.each_msg_id(@inbox_id) do |msg_id|
+        if (msg_id % 2 == 0) then
+          @mail_store.set_msg_flag(@inbox_id, msg_id, 'deleted', true)
+        end
+      end
+
+      @mail_store.expunge_mbox(@inbox_id)
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 STORE 1 +FLAGS (\Answered)
+T002 LOGIN foo open_sesame
+T003 STORE 1 +FLAGS (\Answered)
+T004 SELECT INBOX
+T005 STORE 1 +FLAGS (\Answered)
+T006 STORE 1:2 +FLAGS (\Flagged)
+T007 STORE 1:3 +FLAGS (\Deleted)
+T008 STORE 1:4 +FLAGS (\Seen)
+T009 STORE 1:5 +FLAGS (\Draft)
+T010 STORE 1:* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T011 STORE 1 -FLAGS (\Answered)
+T012 STORE 1:2 -FLAGS (\Flagged)
+T013 STORE 1:3 -FLAGS (\Deleted)
+T014 STORE 1:4 -FLAGS (\Seen)
+T015 STORE 1:5 -FLAGS (\Draft)
+T016 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      res.next while (res.peek =~ /^\* /)
+      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Answered \\Recent)\r\n", res.next)
+      assert_equal("T005 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Recent)\r\n", res.next)
+      assert_equal("T006 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Recent)\r\n", res.next)
+      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Recent)\r\n", res.next)
+      assert_equal("T007 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
+      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Seen \\Recent)\r\n", res.next)
+      assert_equal("* 4 FETCH FLAGS (\\Seen \\Recent)\r\n", res.next)
+      assert_equal("T008 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 4 FETCH FLAGS (\\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 5 FETCH FLAGS (\\Draft \\Recent)\r\n", res.next)
+      assert_equal("T009 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 5 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("T010 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("T011 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Answered \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("T012 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Answered \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Seen \\Draft \\Recent)\r\n", res.next)
+      assert_equal("T013 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Answered \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Draft \\Recent)\r\n", res.next)
+      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Draft \\Recent)\r\n", res.next)
+      assert_equal("T014 OK STORE completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH FLAGS (\\Recent)\r\n", res.next)
+      assert_equal("* 2 FETCH FLAGS (\\Answered \\Recent)\r\n", res.next)
+      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Recent)\r\n", res.next)
+      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Recent)\r\n", res.next)
+      assert_equal("* 5 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
+      assert_equal("T015 OK STORE completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T016 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+    end
+
+    def test_command_loop_store_silent
+      msg_src = Enumerator.new{|y|
+        s = 'a'
+        loop do
+          y << s
+          s = s.succ
+        end
+      }
+
+      10.times do
+        @mail_store.add_msg(@inbox_id, msg_src.next)
+      end
+      @mail_store.each_msg_id(@inbox_id) do |msg_id|
+        if (msg_id % 2 == 0) then
+          @mail_store.set_msg_flag(@inbox_id, msg_id, 'deleted', true)
+        end
+      end
+
+      @mail_store.expunge_mbox(@inbox_id)
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 STORE 1 +FLAGS.SILENT (\Answered)
+T002 LOGIN foo open_sesame
+T003 STORE 1 +FLAGS.SILENT (\Answered)
+T004 SELECT INBOX
+T005 STORE 1 +FLAGS.SILENT (\Answered)
+T006 STORE 1:2 +FLAGS.SILENT (\Flagged)
+T007 STORE 1:3 +FLAGS.SILENT (\Deleted)
+T008 STORE 1:4 +FLAGS.SILENT (\Seen)
+T009 STORE 1:5 +FLAGS.SILENT (\Draft)
+T010 STORE 1:* FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+T011 STORE 1 -FLAGS.SILENT (\Answered)
+T012 STORE 1:2 -FLAGS.SILENT (\Flagged)
+T013 STORE 1:3 -FLAGS.SILENT (\Deleted)
+T014 STORE 1:4 -FLAGS.SILENT (\Seen)
+T015 STORE 1:5 -FLAGS.SILENT (\Draft)
+T016 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      res.next while (res.peek =~ /^\* /)
+      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_equal("T005 OK STORE completed\r\n", res.next)
+
+      assert_equal("T006 OK STORE completed\r\n", res.next)
+
+      assert_equal("T007 OK STORE completed\r\n", res.next)
+
+      assert_equal("T008 OK STORE completed\r\n", res.next)
+
+      assert_equal("T009 OK STORE completed\r\n", res.next)
+
+      assert_equal("T010 OK STORE completed\r\n", res.next)
+
+      assert_equal("T011 OK STORE completed\r\n", res.next)
+
+      assert_equal("T012 OK STORE completed\r\n", res.next)
+
+      assert_equal("T013 OK STORE completed\r\n", res.next)
+
+      assert_equal("T014 OK STORE completed\r\n", res.next)
+
+      assert_equal("T015 OK STORE completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T016 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+    end
   end
 end
 
