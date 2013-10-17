@@ -145,12 +145,14 @@ module RIMS
 
       cnum = @global_db.cnum
 
-      @msg_db.add_msg_mbox(msg_id, dest_mbox_id)
-      mbox_db.add_msg(msg_id)
+      unless (mbox_db.exist_msg? msg_id) then
+        @msg_db.add_msg_mbox(msg_id, dest_mbox_id)
+        mbox_db.add_msg(msg_id)
 
-      for name in %w[ seen answered flagged draft recent ]
-        if (@msg_db.msg_flag(msg_id, name)) then
-          mbox_db.flags_increment(name)
+        for name in %w[ seen answered flagged draft recent ]
+          if (@msg_db.msg_flag(msg_id, name)) then
+            mbox_db.flags_increment(name)
+          end
         end
       end
 

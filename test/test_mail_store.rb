@@ -109,6 +109,29 @@ module RIMS::Test
       assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'draft'))
       assert_equal(true, @mail_store.msg_flag(copy_mbox_id, msg_id, 'recent'))
 
+      # duplicated message copy
+      @mail_store.copy_msg(msg_id, copy_mbox_id)
+      assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
+      assert_equal(1, @mail_store.mbox_msgs(copy_mbox_id))
+      assert_equal([ msg_id ], @mail_store.each_msg_id(copy_mbox_id).to_a)
+
+      assert_equal('foo', @mail_store.msg_text(copy_mbox_id, msg_id))
+      assert_equal(Time.parse('1975-11-19 12:34:56'), @mail_store.msg_date(copy_mbox_id, msg_id))
+
+      assert_equal(0, @mail_store.mbox_flags(copy_mbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(copy_mbox_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(copy_mbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(copy_mbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(copy_mbox_id, 'draft'))
+      assert_equal(1, @mail_store.mbox_flags(copy_mbox_id, 'recent'))
+
+      assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'answered'))
+      assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'flagged'))
+      assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'draft'))
+      assert_equal(true, @mail_store.msg_flag(copy_mbox_id, msg_id, 'recent'))
+
       @mail_store.set_msg_flag(mbox_id, msg_id, 'seen', true)
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
 
@@ -140,7 +163,7 @@ module RIMS::Test
       assert_equal(false, @mail_store.msg_flag(copy_mbox_id, msg_id, 'draft'))
       assert_equal(true, @mail_store.msg_flag(copy_mbox_id, msg_id, 'recent'))
 
-      # duplicated 
+      # duplicated flag settings
       @mail_store.set_msg_flag(mbox_id, msg_id, 'seen', true)
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
 
