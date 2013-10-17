@@ -623,7 +623,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.append('T001', 'INBOX', 'a').each
-      assert_match(/^T001 NO /, res.next)
+      assert_match(/^T001 NO /, res.peek)
+      assert_no_match(/\[TRYCREATE\]/, res.next)
       assert_raise(StopIteration) { res.next }
       assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
 
@@ -706,7 +707,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.append('T011', 'nobox', 'x').each
-      assert_match(/^T011 NO /, res.next)
+      assert_match(/^T011 NO \[TRYCREATE\]/, res.next)
       assert_raise(StopIteration) { res.next }
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
@@ -2338,7 +2339,7 @@ T012 LOGOUT
       assert_match(/^T008 BAD /, res.next)
       assert_match(/^T009 BAD /, res.next)
       assert_match(/^T010 BAD /, res.next)
-      assert_match(/^T011 NO /, res.next)
+      assert_match(/^T011 NO \[TRYCREATE\]/, res.next)
       assert_match(/^\* BYE /, res.next)
       assert_equal("T012 OK LOGOUT completed\r\n", res.next)
       assert_raise(StopIteration) { res.next }

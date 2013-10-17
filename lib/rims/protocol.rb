@@ -382,7 +382,7 @@ module RIMS
 
           res << "#{tag} OK APPEND completed"
         else
-          res << "#{tag} NO not found a mailbox"
+          res << "#{tag} NO [TRYCREATE] not found a mailbox"
         end
       }
     end
