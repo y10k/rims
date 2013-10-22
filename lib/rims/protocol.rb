@@ -538,7 +538,26 @@ module RIMS
 
     def copy(tag, msg_set, mbox_name, uid: false)
       protect_select(tag) {
-        [ "#{tag} BAD not implemented" ]
+        res = []
+        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+
+        if (mbox_id = @st.mbox_id(mbox_name)) then
+          msg_list = @folder.msg_list.find_all{|msg|
+            if (uid) then
+              msg_set.include? msg.id
+            else
+              msg_set.include? msg.num
+            end
+          }
+
+          for msg in msg_list
+            @st.copy_msg(msg.id, mbox_id)
+          end
+
+          res << "#{tag} OK COPY completed"
+        else
+          res << "#{tag} NO [TRYCREATE] not found a mailbox"
+        end
       }
     end
 
