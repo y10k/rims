@@ -2087,6 +2087,171 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_copy
+      msg_src = Enumerator.new{|y|
+        s = 'a'
+        loop do
+          y << s
+          s = s.succ
+        end
+      }
+
+      10.times do
+        msg_id = @mail_store.add_msg(@inbox_id, msg_src.next)
+        @mail_store.set_msg_flag(@inbox_id, msg_id, 'flagged', true)
+      end
+      @mail_store.each_msg_id(@inbox_id) do |msg_id|
+        if (msg_id % 2 == 0) then
+          @mail_store.set_msg_flag(@inbox_id, msg_id, 'deleted', true)
+        end
+      end
+      @mail_store.expunge_mbox(@inbox_id)
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      work_id = @mail_store.add_mbox('WORK')
+      assert_equal([], @mail_store.each_msg_id(work_id).to_a)
+      assert_equal(0, @mail_store.mbox_msgs(work_id))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'recent'))
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.copy('T001', '2:4', 'WORK').each
+      assert_match(/^T001 NO /, res.peek)
+      assert_no_match(/\[TRYCREATE\]/, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.copy('T003', '2:4', 'WORK').each
+      assert_match(/^T003 NO /, res.peek)
+      assert_no_match(/\[TRYCREATE\]/, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.select('T004', 'INBOX').each
+      res.next while (res.peek =~ /^\* /)
+      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      assert_equal([], @mail_store.each_msg_id(work_id).to_a)
+      assert_equal(0, @mail_store.mbox_msgs(work_id))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'recent'))
+
+      res = @decoder.copy('T005', '2:4', 'WORK').each
+      assert_equal('T005 OK COPY completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      assert_equal([ 3, 5, 7 ], @mail_store.each_msg_id(work_id).to_a)
+      assert_equal(3, @mail_store.mbox_msgs(work_id))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'answered'))
+      assert_equal(3, @mail_store.mbox_flags(work_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'draft'))
+      assert_equal(3, @mail_store.mbox_flags(work_id, 'recent'))
+
+      # duplicted message copy
+      res = @decoder.copy('T006', '2:4', 'WORK').each
+      assert_equal('T006 OK COPY completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      assert_equal([ 3, 5, 7 ], @mail_store.each_msg_id(work_id).to_a)
+      assert_equal(3, @mail_store.mbox_msgs(work_id))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'answered'))
+      assert_equal(3, @mail_store.mbox_flags(work_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'draft'))
+      assert_equal(3, @mail_store.mbox_flags(work_id, 'recent'))
+
+      # copy of empty messge set
+      res = @decoder.copy('T007', '100', 'WORK').each
+      assert_equal('T007 OK COPY completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      assert_equal([ 3, 5, 7 ], @mail_store.each_msg_id(work_id).to_a)
+      assert_equal(3, @mail_store.mbox_msgs(work_id))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'answered'))
+      assert_equal(3, @mail_store.mbox_flags(work_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'draft'))
+      assert_equal(3, @mail_store.mbox_flags(work_id, 'recent'))
+
+      res = @decoder.copy('T008', '1:*', 'nobox').each
+      assert_match(/^T008 NO \[TRYCREATE\]/, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.logout('T009').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T009 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_command_loop_empty
       output = StringIO.new('', 'w')
 
@@ -2925,6 +3090,103 @@ T016 LOGOUT
       assert_equal("T016 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
+    end
+
+    def test_command_loop_copy
+      msg_src = Enumerator.new{|y|
+        s = 'a'
+        loop do
+          y << s
+          s = s.succ
+        end
+      }
+
+      10.times do
+        msg_id = @mail_store.add_msg(@inbox_id, msg_src.next)
+        @mail_store.set_msg_flag(@inbox_id, msg_id, 'flagged', true)
+      end
+      @mail_store.each_msg_id(@inbox_id) do |msg_id|
+        if (msg_id % 2 == 0) then
+          @mail_store.set_msg_flag(@inbox_id, msg_id, 'deleted', true)
+        end
+      end
+      @mail_store.expunge_mbox(@inbox_id)
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+
+      work_id = @mail_store.add_mbox('WORK')
+      assert_equal([], @mail_store.each_msg_id(work_id).to_a)
+      assert_equal(0, @mail_store.mbox_msgs(work_id))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'answered'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'recent'))
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 COPY 2:4 WORK
+T002 LOGIN foo open_sesame
+T003 COPY 2:4 WORK
+T004 SELECT INBOX
+T005 COPY 2:4 WORK
+T006 COPY 2:4 WORK
+T007 COPY 100 WORK
+T008 COPY 1:* nobox
+T009 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.peek)
+      assert_no_match(/\[TRYCREATE\]/, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.peek)
+      assert_no_match(/\[TRYCREATE\]/, res.next)
+
+      res.next while (res.peek =~ /^\* /)
+      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_equal("T005 OK COPY completed\r\n", res.next)
+
+      assert_equal("T006 OK COPY completed\r\n", res.next)
+
+      assert_equal("T007 OK COPY completed\r\n", res.next)
+
+      assert_match(/^T008 NO \[TRYCREATE\]/, res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T009 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
+      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent')) # clear by logout.
+
+      assert_equal([ 3, 5, 7 ], @mail_store.each_msg_id(work_id).to_a)
+      assert_equal(3, @mail_store.mbox_msgs(work_id))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'answered'))
+      assert_equal(3, @mail_store.mbox_flags(work_id, 'flagged'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'deleted'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'seen'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'draft'))
+      assert_equal(0, @mail_store.mbox_flags(work_id, 'recent')) # clear by logout.
     end
   end
 end
