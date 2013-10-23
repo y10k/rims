@@ -23,12 +23,6 @@ module RIMS::Test
       @mail_store.close if @mail_store
     end
 
-    def test_open
-      assert_equal({ 'foo/global.db' => { 'cnum' => '0', 'uid' => '1', 'uidvalidity' => '1' },
-                     'foo/msg_attr.db' => {}, 'foo/msg_text.db' => {}
-                   }, @kv_store)
-    end
-
     def test_mbox
       assert_equal(0, @mail_store.cnum)
       assert_equal(1, @mail_store.uidvalidity)
