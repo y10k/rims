@@ -196,6 +196,39 @@ module RIMS
       self
     end
 
+    def get_mbox_flags(mbox_id, name)
+      if (count = @attr_st["mbox-#{mbox_id}-flag_count-#{name}"]) then
+        count.to_i
+      end
+    end
+    private :get_mbox_flags
+
+    def set_mbox_flags(mbox_id, name, count)
+      @attr_st["mbox-#{mbox_id}-flag_count-#{name}"] = count.to_s
+      nil
+    end
+    private :set_mbox_flags
+
+    def mbox_flags(mbox_id, name)
+      get_mbox_flags(mbox_id, name) || 0
+    end
+
+    def mbox_flags_increment(mbox_id, name)
+      set_mbox_flags(mbox_id, name, (mbox_flags(mbox_id, name) + 1).to_s)
+      nil
+    end
+    private :mbox_flags_increment
+
+    def mbox_flags_decrement(mbox_id, name)
+      count = get_mbox_flags(mbox_id, name) or raise "not found a mailbox flag counter: #{mbox_id}, #{name}"
+      unless (count > 0) then
+        raise "mailbox flag counter is underflow: #{mbox_id}, #{name}"
+      end
+      set_mbox_flags(mbox_id, name, (count - 1).to_s)
+      nil
+    end
+    private :mbox_flags_decrement
+
     def msg_flag(id, name)
       flag_set = load_flags(id) or raise "not found a message at `#{id}'."
       flag_set.include? name
@@ -205,8 +238,18 @@ module RIMS
       flag_set = load_flags(id) or raise "not found amessage at `#{id}'."
       if (value) then
         is_modified = flag_set.add?(name)
+        if (is_modified) then
+          for mbox_id in msg_mboxes(id)
+            mbox_flags_increment(mbox_id, name)
+          end
+        end
       else
         is_modified = flag_set.delete?(name)
+        if (is_modified) then
+          for mbox_id in msg_mboxes(id)
+            mbox_flags_decrement(mbox_id, name)
+          end
+        end
       end
       save_flags(id, flag_set)
       self if is_modified
@@ -219,6 +262,11 @@ module RIMS
     def add_msg_mbox(id, mbox_id)
       mbox_set = load_mboxes(id) or raise "not found a message at `#{id}'."
       is_modified = mbox_set.add?(mbox_id)
+      if (is_modified) then
+        for name in load_flags(id)
+          mbox_flags_increment(mbox_id, name)
+        end
+      end
       save_mboxes(id, mbox_set)
       self if is_modified
     end
@@ -226,6 +274,11 @@ module RIMS
     def del_msg_mbox(id, mbox_id)
       mbox_set = load_mboxes(id) or raise "not found a message at `#{id}'."
       is_modified = mbox_set.delete?(mbox_id)
+      if (is_modified) then
+        for name in load_flags(id)
+          mbox_flags_decrement(mbox_id, name)
+        end
+      end
       save_mboxes(id, mbox_set)
       self if is_modified
     end
@@ -254,12 +307,7 @@ module RIMS
 
     def setup
       [ %w[ msg_count 0 ],
-        %w[ flags_answered 0 ],
-        %w[ flags_flagged 0 ],
-        %w[ flags_deleted 0 ],
-        %w[ flags_seen 0 ],
-        %w[ flags_draft 0 ],
-        %w[ flags_recent 0 ]
+        %w[ flags_deleted 0 ]
       ].each do |k, v|
         @db[k] = v unless (@db.key? k)
       end
@@ -267,45 +315,72 @@ module RIMS
       self
     end
 
+    def get_msgs
+      if (count = @db['msg_count']) then
+        count.to_i
+      end
+    end
+    private :get_msgs
+
+    def set_msgs(count)
+      @db['msg_count'] = count.to_s
+      nil
+    end
+
     def msgs
-      count = @db['msg_count'] or raise 'not initialized msg_count.'
-      count.to_i
+      get_msgs || 0
     end
 
     def msgs_increment
-      next_count = msgs + 1
-      @db['msg_count'] = next_count.to_s
-      next_count
+      count = msgs
+      set_msgs(count + 1)
+      nil
     end
+    private :msgs_increment
 
     def msgs_decrement
-      next_count = msgs - 1
-      if (next_count < 0) then
-        raise 'negative message count.'
+      count = get_msgs or raise 'not found a message counter.'
+      unless (count > 0) then
+        raise 'message counter is underflowr.'
       end
-      @db['msg_count'] = next_count.to_s
-      next_count
+      set_msgs(count - 1)
+      nil
     end
+    private :msgs_decrement
 
-    def flags(name)
-      count = @db["flags_#{name}"] or raise "not initialized flags_#{name}"
-      count.to_i
-    end
-
-    def flags_increment(name)
-      next_count = flags(name) + 1
-      @db["flags_#{name}"] = next_count.to_s
-      next_count
-    end
-
-    def flags_decrement(name)
-      next_count = flags(name) - 1
-      if (next_count < 0) then
-        raise "negative flag count: #{name}."
+    def get_del_flags
+      if (count = @db['flags_deleted']) then
+        count.to_i
       end
-      @db["flags_#{name}"] = next_count.to_s
-      next_count
     end
+    private :get_del_flags
+
+    def set_del_flags(count)
+      @db['flags_deleted'] = count.to_s
+      nil
+    end
+    private :set_del_flags
+
+    def del_flags
+      get_del_flags || 0
+    end
+
+    def del_flags_increment
+      count = del_flags
+      set_del_flags(count + 1)
+      nil
+    end
+    private :del_flags_increment
+
+    def del_flags_decrement
+      count = get_del_flags or raise 'not found a deleted flag counter.'
+      unless (count > 0) then
+        raise 'deleted flag counter is underflow.'
+      end
+      set_del_flags(count - 1)
+      nil
+    end
+    private :del_flags_decrement
 
     def add_msg(id)
       unless (exist_msg? id) then
@@ -329,7 +404,14 @@ module RIMS
       old_flag_value = @db["msg-#{id}"]
       new_flag_value = value ? 'deleted' : ''
       @db["msg-#{id}"] = new_flag_value
-      self if (old_flag_value != new_flag_value)
+      if (old_flag_value != new_flag_value) then
+        if (value) then
+          del_flags_increment
+        else
+          del_flags_decrement
+        end
+        self 
+      end
     end
 
     def expunge_msg(id)
@@ -337,6 +419,7 @@ module RIMS
       msg_flag_del(id) or raise "no deleted flag: #{id}."
       @db.delete("msg-#{id}")
       msgs_decrement
+      del_flags_decrement
       self
     end
 

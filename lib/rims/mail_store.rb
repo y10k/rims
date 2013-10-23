@@ -119,7 +119,14 @@ module RIMS
 
     def mbox_flags(id, name)
       mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
-      mbox_db.flags(name)
+      case (name)
+      when 'recent', 'seen', 'answered', 'flagged', 'draft'
+        @msg_db.mbox_flags(id, name)
+      when 'deleted'
+        mbox_db.del_flags
+      else
+        raise "unknown flag name: #{name}"
+      end
     end
 
     def add_msg(mbox_id, msg_text, msg_date=Time.now)
@@ -150,12 +157,6 @@ module RIMS
       unless (mbox_db.exist_msg? msg_id) then
         @msg_db.add_msg_mbox(msg_id, dest_mbox_id)
         mbox_db.add_msg(msg_id)
-
-        for name in %w[ seen answered flagged draft recent ]
-          if (@msg_db.msg_flag(msg_id, name)) then
-            mbox_db.flags_increment(name)
-          end
-        end
       end
 
       @global_db.cnum = cnum + 1
@@ -199,23 +200,9 @@ module RIMS
 
       case (name)
       when 'recent', 'seen', 'answered', 'flagged', 'draft'
-        if (@msg_db.set_msg_flag(msg_id, name, value)) then
-          for id in @msg_db.msg_mboxes(msg_id)
-            if (value) then
-              @mbox_db[id].flags_increment(name)
-            else
-              @mbox_db[id].flags_decrement(name)
-            end
-          end
-        end
+        @msg_db.set_msg_flag(msg_id, name, value)
       when 'deleted'
-        if (mbox_db.set_msg_flag_del(msg_id, value)) then
-          if (value) then
-            mbox_db.flags_increment(name)
-          else
-            mbox_db.flags_decrement(name)
-          end
-        end
+        mbox_db.set_msg_flag_del(msg_id, value)
       else
         raise "unnown flag name: #{name}"
       end
@@ -241,11 +228,7 @@ module RIMS
 
       msg_list = mbox_db.each_msg_id.find_all{|id| mbox_db.msg_flag_del(id) }
       for id in msg_list
-        for name in %w[ seen answered flagged deleted draft recent ]
-          if (msg_flag(mbox_id, id, name)) then
-            mbox_db.flags_decrement(name)
-          end
-        end
+        @msg_db.del_msg_mbox(id, mbox_id)
         mbox_db.expunge_msg(id)
         yield(id) if block_given?
       end

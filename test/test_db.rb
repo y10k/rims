@@ -78,18 +78,6 @@ module RIMS::Test
 
       pp @text_st, @attr_st if $DEBUG
 
-      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
-      assert(@msg_db.set_msg_flag(id, 'seen', true)) # changed.
-      assert_equal(true, @msg_db.msg_flag(id, 'seen'))
-      assert(! @msg_db.set_msg_flag(id, 'seen', true)) # not changed.
-      assert_equal(true, @msg_db.msg_flag(id, 'seen'))
-      assert(@msg_db.set_msg_flag(id, 'seen', false)) # changed.
-      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
-      assert(! @msg_db.set_msg_flag(id, 'seen', false)) # not changed.
-      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
-
-      pp @text_st, @attr_st if $DEBUG
-
       assert_equal([].to_set, @msg_db.msg_mboxes(id))
       assert(@msg_db.add_msg_mbox(id, 0))   # changed.
       assert_equal([ 0 ].to_set, @msg_db.msg_mboxes(id))
@@ -103,6 +91,23 @@ module RIMS::Test
       assert_equal([ 1 ].to_set, @msg_db.msg_mboxes(id))
       assert(! @msg_db.del_msg_mbox(id, 0)) # not changed.
       assert_equal([ 1 ].to_set, @msg_db.msg_mboxes(id))
+
+      pp @text_st, @attr_st if $DEBUG
+
+      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
+      assert_equal(0, @msg_db.mbox_flags(1, 'seen'))
+      assert(@msg_db.set_msg_flag(id, 'seen', true)) # changed.
+      assert_equal(true, @msg_db.msg_flag(id, 'seen'))
+      assert_equal(1, @msg_db.mbox_flags(1, 'seen'))
+      assert(! @msg_db.set_msg_flag(id, 'seen', true)) # not changed.
+      assert_equal(true, @msg_db.msg_flag(id, 'seen'))
+      assert_equal(1, @msg_db.mbox_flags(1, 'seen'))
+      assert(@msg_db.set_msg_flag(id, 'seen', false)) # changed.
+      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
+      assert_equal(0, @msg_db.mbox_flags(1, 'seen'))
+      assert(! @msg_db.set_msg_flag(id, 'seen', false)) # not changed.
+      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
+      assert_equal(0, @msg_db.mbox_flags(1, 'seen'))
 
       pp @text_st, @attr_st if $DEBUG
 
@@ -133,31 +138,24 @@ module RIMS::Test
       assert_equal('INBOX', @mbox_db.mbox_name)
     end
 
-    def test_counter
-      assert_equal(0, @mbox_db.msgs)
-      @mbox_db.msgs_increment
-      assert_equal(1, @mbox_db.msgs)
-      @mbox_db.msgs_decrement
-      assert_equal(0, @mbox_db.msgs)
-
-      for n in %w[ seen answered flagged deleted draft recent ]
-        assert_equal(0, @mbox_db.flags(n), "flag_#{n}")
-        @mbox_db.flags_increment(n)
-        assert_equal(1, @mbox_db.flags(n), "flag_#{n}")
-        @mbox_db.flags_decrement(n)
-        assert_equal(0, @mbox_db.flags(n), "flag_#{n}")
-      end
-    end
-
     def test_msg
-      @mbox_db.add_msg(0)
-      assert_equal([ 0 ], @mbox_db.each_msg_id.to_a)
-      assert_equal(false, @mbox_db.msg_flag_del(0))
-      assert(@mbox_db.set_msg_flag_del(0, true)) # changed.
-      assert_equal(true, @mbox_db.msg_flag_del(0))
-      assert(! @mbox_db.set_msg_flag_del(0, true)) # not changed.
-      assert_equal(true, @mbox_db.msg_flag_del(0))
-      @mbox_db.expunge_msg(0)
+      assert_equal(0, @mbox_db.msgs)
+      @mbox_db.add_msg(1)
+      assert_equal(1, @mbox_db.msgs)
+      assert_equal(0, @mbox_db.del_flags)
+      assert_equal([ 1 ], @mbox_db.each_msg_id.to_a)
+
+      assert_equal(false, @mbox_db.msg_flag_del(1))
+      assert(@mbox_db.set_msg_flag_del(1, true)) # changed.
+      assert_equal(true, @mbox_db.msg_flag_del(1))
+      assert_equal(1, @mbox_db.del_flags)
+      assert(! @mbox_db.set_msg_flag_del(1, true)) # not changed.
+      assert_equal(true, @mbox_db.msg_flag_del(1))
+      assert_equal(1, @mbox_db.del_flags)
+
+      @mbox_db.expunge_msg(1)
+      assert_equal(0, @mbox_db.msgs)
+      assert_equal(0, @mbox_db.del_flags)
       assert_equal([], @mbox_db.each_msg_id.to_a)
     end
   end
