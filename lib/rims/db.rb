@@ -45,18 +45,14 @@ module RIMS
       @db['uidvalidity'].to_i
     end
 
-    def uidvalidity=(id)
-      @db['uidvalidity'] = id.to_s
-      id
-    end
+    def add_mbox(name)
+      id = @db['uidvalidity']
+      @db['uidvalidity'] = id.succ
 
-    def add_mbox(id, name)
-      if (@db.key? "mbox_id-#{id}") then
-        raise "internal error: duplicated mailbox id <#{id}>."
-      end
       @db["mbox_id-#{id}"] = name
-      @db["mbox_name-#{name}"] = id.to_s
-      self
+      @db["mbox_name-#{name}"] = id
+
+      id.to_i
     end
 
     def del_mbox(id)

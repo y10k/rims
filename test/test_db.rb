@@ -28,24 +28,30 @@ module RIMS::Test
     def test_uidvalidity
       @g_db.setup
       assert_equal(1, @g_db.uidvalidity)
-      @g_db.uidvalidity = 2
-      assert_equal(2, @g_db.uidvalidity)
     end
 
     def test_mbox
       @g_db.setup
 
-      @g_db.add_mbox(0, 'INBOX')
-      assert_equal('INBOX', @g_db.mbox_name(0))
-      assert_equal(0, @g_db.mbox_id('INBOX'))
-      assert_equal([ 0 ], @g_db.each_mbox_id.to_a)
+      id = @g_db.add_mbox('INBOX')
+      assert_kind_of(Integer, id)
+      assert_equal('INBOX', @g_db.mbox_name(id))
+      assert_equal(id, @g_db.mbox_id('INBOX'))
+      assert_equal([ id ], @g_db.each_mbox_id.to_a)
 
       pp @kv_store if $DEBUG
 
-      @g_db.del_mbox(0)
-      assert_nil(@g_db.mbox_name(0))
+      @g_db.del_mbox(id)
+      assert_nil(@g_db.mbox_name(id))
       assert_nil(@g_db.mbox_id('INBOX'))
       assert_equal([], @g_db.each_mbox_id.to_a)
+
+      id2 = @g_db.add_mbox('INBOX')
+      assert_kind_of(Integer, id2)
+      assert(id2 > id)
+      assert_equal('INBOX', @g_db.mbox_name(id2))
+      assert_equal(id2, @g_db.mbox_id('INBOX'))
+      assert_equal([ id2 ], @g_db.each_mbox_id.to_a)
     end
   end
 

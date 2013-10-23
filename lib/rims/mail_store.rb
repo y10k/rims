@@ -69,14 +69,12 @@ module RIMS
       end
 
       cnum = @global_db.cnum
-      next_id = @global_db.uidvalidity
 
+      next_id = @global_db.add_mbox(name)
       @mbox_db[next_id] = MailboxDB.new(kvs_open_attr("mbox_#{next_id}.db")).setup
       @mbox_db[next_id].mbox_id = next_id
       @mbox_db[next_id].mbox_name = name
 
-      @global_db.uidvalidity = next_id + 1
-      @global_db.add_mbox(next_id, name)
       @global_db.cnum = cnum + 1
 
       next_id
