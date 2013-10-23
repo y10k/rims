@@ -61,16 +61,18 @@ module RIMS::Test
 
   class MessageDBTest < Test::Unit::TestCase
     def setup
-      @kv_store = {}
-      @msg_db = RIMS::MessageDB.new(RIMS::GDBM_KeyValueStore.new(@kv_store))
+      @text_st = {}
+      @attr_st = {}
+      @msg_db = RIMS::MessageDB.new(RIMS::GDBM_KeyValueStore.new(@text_st),
+                                    RIMS::GDBM_KeyValueStore.new(@attr_st))
     end
 
     def test_msg
       t0 = Time.now
       @msg_db.add_msg(0, 'foo')
-      assert_equal('foo', @kv_store['text-0'])
-      assert(@kv_store.key? 'date-0')
-      assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @kv_store['cksum-0'])
+      assert_equal('foo', @text_st['0'])
+      assert(@attr_st.key? 'date-0')
+      assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @attr_st['cksum-0'])
       assert_equal('foo', @msg_db.msg_text(0))
       assert(@msg_db.msg_date(0) >= t0)
       assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @msg_db.msg_cksum(0))

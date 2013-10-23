@@ -18,6 +18,7 @@ module RIMS
       @db.close
       self
     end
+
   end
 
   class GlobalDB < DB
@@ -104,44 +105,76 @@ module RIMS
     end
   end
 
-  class MessageDB < DB
+  class MessageDB
+    def initialize(text_st, attr_st)
+      @text_st = text_st
+      @attr_st = attr_st
+    end
+
+    def sync
+      @text_st.sync
+      @attr_st.sync
+      self
+    end
+
+    def close
+      errors = []
+      for db in [ @text_st, @attr_st ]
+        begin
+          db.close
+        rescue
+          errors << $!
+        end
+      end
+
+      unless (errors.empty?) then
+        if (errors.length == 1) then
+          raise errors[0]
+        else
+          raise 'failed to close message db: ' + errors.map{|ex| "[#{ex.class}] #{ex.message}" }.join(', ')
+        end
+      end
+
+      self
+    end
+
     def add_msg(id, text, date=Time.now)
-      if (@db.key? "text-#{id}") then
+      if (@text_st.key? id.to_s) then
         raise "internal error: duplicated message id <#{id}>."
       end
-      @db["text-#{id}"] = text
-      @db["date-#{id}"] = Marshal.dump(date)
-      @db["cksum-#{id}"] = 'sha256:' + Digest::SHA256.hexdigest(text)
+
+      @text_st[id.to_s] = text
+      @attr_st["date-#{id}"] = Marshal.dump(date)
+      @attr_st["cksum-#{id}"] = 'sha256:' + Digest::SHA256.hexdigest(text)
+
       self
     end
 
     def msg_text(id)
-      @db["text-#{id}"]
+      @text_st[id.to_s]
     end
 
     def msg_date(id)
-      if (date_bin = @db["date-#{id}"]) then
+      if (date_bin = @attr_st["date-#{id}"]) then
         Marshal.load(date_bin)
       end
     end
 
     def msg_cksum(id)
-      @db["cksum-#{id}"]
+      @attr_st["cksum-#{id}"]
     end
 
     def each_msg_id
       return enum_for(:each_msg_id) unless block_given?
-      @db.each_key do |key|
-        if (key =~ /^text-\d+$/) then
-          yield($&[5..-1].to_i)
-        end
+      @text_st.each_key do |key|
+        yield(key.to_i)
       end
       self
     end
 
     def msg_flag(id, name)
       msg_cksum(id) or raise "not found a message at `#{id}'."
-      case (v = @db["flag_#{name}-#{id}"])
+      case (v = @attr_st["flag_#{name}-#{id}"])
       when 'true'
         true
       when 'false'
@@ -153,16 +186,16 @@ module RIMS
 
     def set_msg_flag(id, name, value)
       msg_cksum(id) or raise "not found a message at `#{id}'."
-      old_flag_value = @db["flag_#{name}-#{id}"]
+      old_flag_value = @attr_st["flag_#{name}-#{id}"]
       new_flag_value = value ? 'true' : 'false'
-      @db["flag_#{name}-#{id}"] = new_flag_value
+      @attr_st["flag_#{name}-#{id}"] = new_flag_value
       self if (old_flag_value != new_flag_value)
     end
 
     def msg_mboxes(id)
       msg_cksum(id) or raise "not found a message at `#{id}'."
-      if (@db.key? "mbox-#{id}") then
-        @db["mbox-#{id}"].split(/,/).map{|s| s.to_i }.to_set
+      if (@attr_st.key? "mbox-#{id}") then
+        @attr_st["mbox-#{id}"].split(/,/).map{|s| s.to_i }.to_set
       else
         [].to_set
       end
@@ -172,7 +205,7 @@ module RIMS
       msg_cksum(id) or raise "not found a message at `#{id}'."
       id_set = msg_mboxes(id)
       id_set << mbox_id
-      @db["mbox-#{id}"] = id_set.to_a.join(',')
+      @attr_st["mbox-#{id}"] = id_set.to_a.join(',')
       self
     end
 
@@ -181,7 +214,7 @@ module RIMS
       id_set = msg_mboxes(id)
       return unless (id_set.include? mbox_id)
       id_set.delete(mbox_id)
-      @db["mbox-#{id}"] = id_set.to_a.join(',')
+      @attr_st["mbox-#{id}"] = id_set.to_a.join(',')
       self
     end
   end

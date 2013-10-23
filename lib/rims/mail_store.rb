@@ -4,23 +4,29 @@ require 'set'
 
 module RIMS
   class MailStore
-    def initialize(store_dir, &block) # :yields: path
+    def initialize(store_dir, kvs_open_attr: nil, kvs_open_text: nil)
       @store_dir = store_dir
-      @open_kvs = block
+      @kvs_open_attr = kvs_open_attr or raise ArgumentError, 'need for kvs_open_attr parameter.'
+      @kvs_open_text = kvs_open_text or raise ArgumentError, 'need for kvs_open_text parameter.'
     end
 
-    def open_kvs(name)
-      @open_kvs.call(File.join(@store_dir, name))
+    def kvs_open_attr(name)
+      @kvs_open_attr.call(File.join(@store_dir, name))
     end
-    private :open_kvs
+    private :kvs_open_attr
+
+    def kvs_open_text(name)
+      @kvs_open_text.call(File.join(@store_dir, name))
+    end
+    private :kvs_open_text
 
     def open
-      @global_db = GlobalDB.new(open_kvs('global.db')).setup
-      @msg_db = MessageDB.new(open_kvs('message.db'))
+      @global_db = GlobalDB.new(kvs_open_attr('global.db')).setup
+      @msg_db = MessageDB.new(kvs_open_text('msg_text.db'), kvs_open_attr('msg_attr.db'))
 
       @mbox_db = {}
       @global_db.each_mbox_id do |id|
-        @mbox_db[id] = MailoxDB.new(open_kvs("mbox_#{id}.db")).setup
+        @mbox_db[id] = MailoxDB.new(kvs_open_attr(@store_dir, "mbox_#{id}.db")).setup
       end
 
       self
@@ -65,7 +71,7 @@ module RIMS
       cnum = @global_db.cnum
       next_id = @global_db.uidvalidity
 
-      @mbox_db[next_id] = MailboxDB.new(open_kvs("mbox_#{next_id}.db")).setup
+      @mbox_db[next_id] = MailboxDB.new(kvs_open_attr("mbox_#{next_id}.db")).setup
       @mbox_db[next_id].mbox_id = next_id
       @mbox_db[next_id].mbox_name = name
 

@@ -8,23 +8,24 @@ module RIMS::Test
   class MailStoreTest < Test::Unit::TestCase
     def setup
       @kv_store = {}
-      @mail_store = RIMS::MailStore.new('foo') {|path|
+      @kvs_open = proc{|path|
         kvs = {}
         def kvs.close
           self
         end
         RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
       }
+      @mail_store = RIMS::MailStore.new('foo', kvs_open_attr: @kvs_open, kvs_open_text: @kvs_open)
       @mail_store.open
     end
 
     def teardown
-      @mail_store.close
+      @mail_store.close if @mail_store
     end
 
     def test_open
       assert_equal({ 'foo/global.db' => { 'cnum' => '0', 'uid' => '1', 'uidvalidity' => '1' },
-                     'foo/message.db' => {}
+                     'foo/msg_attr.db' => {}, 'foo/msg_text.db' => {}
                    }, @kv_store)
     end
 
