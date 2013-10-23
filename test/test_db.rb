@@ -25,13 +25,6 @@ module RIMS::Test
       assert_equal(1, @g_db.cnum)
     end
 
-    def test_uid
-      @g_db.setup
-      assert_equal(1, @g_db.uid)
-      @g_db.uid = 2
-      assert_equal(2, @g_db.uid)
-    end
-
     def test_uidvalidity
       @g_db.setup
       assert_equal(1, @g_db.uidvalidity)
@@ -61,7 +54,7 @@ module RIMS::Test
       @text_st = {}
       @attr_st = {}
       @msg_db = RIMS::MessageDB.new(RIMS::GDBM_KeyValueStore.new(@text_st),
-                                    RIMS::GDBM_KeyValueStore.new(@attr_st))
+                                    RIMS::GDBM_KeyValueStore.new(@attr_st)).setup
     end
 
     def teardown
@@ -70,46 +63,49 @@ module RIMS::Test
 
     def test_msg
       t0 = Time.now
-      @msg_db.add_msg(0, 'foo')
-      assert_equal('foo', @msg_db.msg_text(0))
-      assert(@msg_db.msg_date(0) >= t0)
-      assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @msg_db.msg_cksum(0))
-      assert_equal([ 0 ], @msg_db.each_msg_id.to_a)
+      id = @msg_db.add_msg('foo')
+      assert_kind_of(Integer, id)
+      assert_equal('foo', @msg_db.msg_text(id))
+      assert(@msg_db.msg_date(id) >= t0)
+      assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @msg_db.msg_cksum(id))
+      assert_equal([ id ], @msg_db.each_msg_id.to_a)
 
       pp @text_st, @attr_st if $DEBUG
 
-      assert_equal(false, @msg_db.msg_flag(0, 'seen'))
-      assert(@msg_db.set_msg_flag(0, 'seen', true)) # changed.
-      assert_equal(true, @msg_db.msg_flag(0, 'seen'))
-      assert(! @msg_db.set_msg_flag(0, 'seen', true)) # not changed.
-      assert_equal(true, @msg_db.msg_flag(0, 'seen'))
-      assert(@msg_db.set_msg_flag(0, 'seen', false)) # changed.
-      assert_equal(false, @msg_db.msg_flag(0, 'seen'))
-      assert(! @msg_db.set_msg_flag(0, 'seen', false)) # not changed.
-      assert_equal(false, @msg_db.msg_flag(0, 'seen'))
+      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
+      assert(@msg_db.set_msg_flag(id, 'seen', true)) # changed.
+      assert_equal(true, @msg_db.msg_flag(id, 'seen'))
+      assert(! @msg_db.set_msg_flag(id, 'seen', true)) # not changed.
+      assert_equal(true, @msg_db.msg_flag(id, 'seen'))
+      assert(@msg_db.set_msg_flag(id, 'seen', false)) # changed.
+      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
+      assert(! @msg_db.set_msg_flag(id, 'seen', false)) # not changed.
+      assert_equal(false, @msg_db.msg_flag(id, 'seen'))
 
       pp @text_st, @attr_st if $DEBUG
 
-      assert_equal([].to_set, @msg_db.msg_mboxes(0))
-      assert(@msg_db.add_msg_mbox(0, 0))   # changed.
-      assert_equal([ 0 ].to_set, @msg_db.msg_mboxes(0))
-      assert(! @msg_db.add_msg_mbox(0, 0)) # not changed.
-      assert_equal([ 0 ].to_set, @msg_db.msg_mboxes(0))
-      assert(@msg_db.add_msg_mbox(0, 1))   # changed.
-      assert_equal([ 0, 1 ].to_set, @msg_db.msg_mboxes(0))
-      assert(! @msg_db.add_msg_mbox(0, 1)) # not changed.
-      assert_equal([ 0, 1 ].to_set, @msg_db.msg_mboxes(0))
-      assert(@msg_db.del_msg_mbox(0, 0))   # changed.
-      assert_equal([ 1 ].to_set, @msg_db.msg_mboxes(0))
-      assert(! @msg_db.del_msg_mbox(0, 0)) # not changed.
-      assert_equal([ 1 ].to_set, @msg_db.msg_mboxes(0))
+      assert_equal([].to_set, @msg_db.msg_mboxes(id))
+      assert(@msg_db.add_msg_mbox(id, 0))   # changed.
+      assert_equal([ 0 ].to_set, @msg_db.msg_mboxes(id))
+      assert(! @msg_db.add_msg_mbox(id, 0)) # not changed.
+      assert_equal([ 0 ].to_set, @msg_db.msg_mboxes(id))
+      assert(@msg_db.add_msg_mbox(id, 1))   # changed.
+      assert_equal([ 0, 1 ].to_set, @msg_db.msg_mboxes(id))
+      assert(! @msg_db.add_msg_mbox(id, 1)) # not changed.
+      assert_equal([ 0, 1 ].to_set, @msg_db.msg_mboxes(id))
+      assert(@msg_db.del_msg_mbox(id, 0))   # changed.
+      assert_equal([ 1 ].to_set, @msg_db.msg_mboxes(id))
+      assert(! @msg_db.del_msg_mbox(id, 0)) # not changed.
+      assert_equal([ 1 ].to_set, @msg_db.msg_mboxes(id))
 
       pp @text_st, @attr_st if $DEBUG
 
-      @msg_db.add_msg(1, 'bar', Time.parse('1975-11-19 12:34:56'))
-      assert_equal('bar', @msg_db.msg_text(1))
-      assert_equal(Time.parse('1975-11-19 12:34:56'), @msg_db.msg_date(1))
-      assert_equal([ 0, 1 ], @msg_db.each_msg_id.to_a)
+      id2 = @msg_db.add_msg('bar', Time.parse('1975-11-19 12:34:56'))
+      assert_kind_of(Integer, id2)
+      assert(id2 > id)
+      assert_equal('bar', @msg_db.msg_text(id2))
+      assert_equal(Time.parse('1975-11-19 12:34:56'), @msg_db.msg_date(id2))
+      assert_equal([ id, id2 ], @msg_db.each_msg_id.to_a)
     end
   end
 

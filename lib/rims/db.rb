@@ -24,7 +24,6 @@ module RIMS
   class GlobalDB < DB
     def setup
       [ %w[ cnum 0 ],
-        %w[ uid 1 ],
         %w[ uidvalidity 1 ]
       ].each do |k, v|
         @db[k] = v unless (@db.key? k)
@@ -40,15 +39,6 @@ module RIMS
     def cnum=(n)
       @db['cnum'] = n.to_s
       n
-    end
-
-    def uid
-      @db['uid'].to_i
-    end
-
-    def uid=(id)
-      @db['uid'] = id.to_s
-      id
     end
 
     def uidvalidity
@@ -138,18 +128,28 @@ module RIMS
       self
     end
 
-    def add_msg(id, text, date=Time.now)
-      if (@text_st.key? id.to_s) then
-        raise "internal error: duplicated message id <#{id}>."
-      end
+    def setup
+      @attr_st['uid'] = '1' unless (@attr_st.key? 'uid')
+      self
+    end
 
-      @text_st[id.to_s] = text
+    def uid
+      @attr_st['uid'].to_i
+    end
+
+    def add_msg(text, date=Time.now)
+      id = @attr_st['uid']
+      @attr_st['uid'] = id.succ
+
+      @text_st[id] = text
       @attr_st["date-#{id}"] = Marshal.dump(date)
       @attr_st["cksum-#{id}"] = 'sha256:' + Digest::SHA256.hexdigest(text)
+
+      id = id.to_i
       save_flags(id, [].to_set)
       save_mboxes(id, [].to_set)
 
-      self
+      id
     end
 
     def load_flags(id)

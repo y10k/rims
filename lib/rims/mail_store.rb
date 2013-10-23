@@ -22,7 +22,7 @@ module RIMS
 
     def open
       @global_db = GlobalDB.new(kvs_open_attr('global.db')).setup
-      @msg_db = MessageDB.new(kvs_open_text('msg_text.db'), kvs_open_attr('msg_attr.db'))
+      @msg_db = MessageDB.new(kvs_open_text('msg_text.db'), kvs_open_attr('msg_attr.db')).setup
 
       @mbox_db = {}
       @global_db.each_mbox_id do |id|
@@ -55,7 +55,7 @@ module RIMS
     end
 
     def uid
-      @global_db.uid
+      @msg_db.uid
     end
 
     def uidvalidity
@@ -128,22 +128,20 @@ module RIMS
       mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
 
       cnum = @global_db.cnum
-      next_id = @global_db.uid
 
-      @global_db.uid = next_id + 1
-      @msg_db.add_msg(next_id, msg_text, msg_date)
-      @msg_db.add_msg_mbox(next_id, mbox_id)
-      @msg_db.set_msg_flag(next_id, 'seen', false)
-      @msg_db.set_msg_flag(next_id, 'answered', false)
-      @msg_db.set_msg_flag(next_id, 'flagged', false)
-      @msg_db.set_msg_flag(next_id, 'draft', false)
-      mbox_db.add_msg(next_id)
+      msg_id = @msg_db.add_msg(msg_text, msg_date)
+      @msg_db.add_msg_mbox(msg_id, mbox_id)
+      @msg_db.set_msg_flag(msg_id, 'seen', false)
+      @msg_db.set_msg_flag(msg_id, 'answered', false)
+      @msg_db.set_msg_flag(msg_id, 'flagged', false)
+      @msg_db.set_msg_flag(msg_id, 'draft', false)
+      mbox_db.add_msg(msg_id)
 
       @global_db.cnum = cnum + 1
 
-      set_msg_flag(mbox_id, next_id, 'recent', true)
+      set_msg_flag(mbox_id, msg_id, 'recent', true)
 
-      next_id
+      msg_id
     end
 
     def copy_msg(msg_id, dest_mbox_id)
