@@ -146,9 +146,37 @@ module RIMS
       @text_st[id.to_s] = text
       @attr_st["date-#{id}"] = Marshal.dump(date)
       @attr_st["cksum-#{id}"] = 'sha256:' + Digest::SHA256.hexdigest(text)
+      save_flags(id, [].to_set)
+      save_mboxes(id, [].to_set)
 
       self
     end
+
+    def load_flags(id)
+      if (flag_list_bin = @attr_st["flags-#{id}"]) then
+        flag_list_bin.split(/,/).to_set
+      end
+    end
+    private :load_flags
+
+    def save_flags(id, flag_set)
+      @attr_st["flags-#{id}"] = flag_set.to_a.join(',')
+      nil
+    end
+    private :save_flags
+
+    def load_mboxes(id)
+      if (mbox_list_bin = @attr_st["mbox-#{id}"]) then
+        mbox_list_bin.split(/,/).map{|id_bin| id_bin.to_i }.to_set
+      end
+    end
+    private :load_mboxes
+
+    def save_mboxes(id, mbox_set)
+      @attr_st["mbox-#{id}"] = mbox_set.to_a.map{|mbox_id| mbox_id.to_s }.join(',')
+      nil
+    end
+    private :save_mboxes
 
     def msg_text(id)
       @text_st[id.to_s]
@@ -173,49 +201,37 @@ module RIMS
     end
 
     def msg_flag(id, name)
-      msg_cksum(id) or raise "not found a message at `#{id}'."
-      case (v = @attr_st["flag_#{name}-#{id}"])
-      when 'true'
-        true
-      when 'false'
-        false
-      else
-        raise "internal error: unexpected #{name} flag value at #{id}: #{v}"
-      end
+      flag_set = load_flags(id) or raise "not found a message at `#{id}'."
+      flag_set.include? name
     end
 
     def set_msg_flag(id, name, value)
-      msg_cksum(id) or raise "not found a message at `#{id}'."
-      old_flag_value = @attr_st["flag_#{name}-#{id}"]
-      new_flag_value = value ? 'true' : 'false'
-      @attr_st["flag_#{name}-#{id}"] = new_flag_value
-      self if (old_flag_value != new_flag_value)
+      flag_set = load_flags(id) or raise "not found amessage at `#{id}'."
+      if (value) then
+        is_modified = flag_set.add?(name)
+      else
+        is_modified = flag_set.delete?(name)
+      end
+      save_flags(id, flag_set)
+      self if is_modified
     end
 
     def msg_mboxes(id)
-      msg_cksum(id) or raise "not found a message at `#{id}'."
-      if (@attr_st.key? "mbox-#{id}") then
-        @attr_st["mbox-#{id}"].split(/,/).map{|s| s.to_i }.to_set
-      else
-        [].to_set
-      end
+      load_mboxes(id) or raise "not found a message at `#{id}'."
     end
 
     def add_msg_mbox(id, mbox_id)
-      msg_cksum(id) or raise "not found a message at `#{id}'."
-      id_set = msg_mboxes(id)
-      id_set << mbox_id
-      @attr_st["mbox-#{id}"] = id_set.to_a.join(',')
-      self
+      mbox_set = load_mboxes(id) or raise "not found a message at `#{id}'."
+      is_modified = mbox_set.add?(mbox_id)
+      save_mboxes(id, mbox_set)
+      self if is_modified
     end
 
     def del_msg_mbox(id, mbox_id)
-      msg_cksum(id) or raise "not found a message at `#{id}'."
-      id_set = msg_mboxes(id)
-      return unless (id_set.include? mbox_id)
-      id_set.delete(mbox_id)
-      @attr_st["mbox-#{id}"] = id_set.to_a.join(',')
-      self
+      mbox_set = load_mboxes(id) or raise "not found a message at `#{id}'."
+      is_modified = mbox_set.delete?(mbox_id)
+      save_mboxes(id, mbox_set)
+      self if is_modified
     end
   end
 
