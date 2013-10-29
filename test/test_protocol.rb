@@ -221,7 +221,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
         end
         RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
       }
-      @mail_store = RIMS::MailStore.new('foo', kvs_open_attr: @kvs_open, kvs_open_text: @kvs_open)
+      @mail_store = RIMS::MailStore.new(@kvs_open, @kvs_open)
       @mail_store.open
       @inbox_id = @mail_store.add_mbox('INBOX')
       @logger = Logger.new(STDOUT)

@@ -15,7 +15,7 @@ module RIMS::Test
         end
         RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
       }
-      @mail_store = RIMS::MailStore.new('foo', kvs_open_attr: @kvs_open, kvs_open_text: @kvs_open)
+      @mail_store = RIMS::MailStore.new(@kvs_open, @kvs_open)
       @mail_store.open
     end
 
