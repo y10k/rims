@@ -21,7 +21,7 @@ module RIMS::Test
     def test_cnum
       @g_db.setup
       assert_equal(0, @g_db.cnum)
-      @g_db.cnum = 1
+      @g_db.cnum_succ!
       assert_equal(1, @g_db.cnum)
     end
 

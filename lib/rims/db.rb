@@ -36,9 +36,8 @@ module RIMS
       @db['cnum'].to_i
     end
 
-    def cnum=(n)
-      @db['cnum'] = n.to_s
-      n
+    def cnum_succ!
+      @db['cnum'] = @db['cnum'].succ!
     end
 
     def uidvalidity

@@ -68,29 +68,25 @@ module RIMS
         raise "duplicated mailbox name: #{name}."
       end
 
-      cnum = @global_db.cnum
-
       next_id = @global_db.add_mbox(name)
       @mbox_db[next_id] = MailboxDB.new(kvs_open_attr("mbox_#{next_id}.db")).setup
       @mbox_db[next_id].mbox_id = next_id
       @mbox_db[next_id].mbox_name = name
 
-      @global_db.cnum = cnum + 1
+      @global_db.cnum_succ!
 
       next_id
     end
 
     def del_mbox(id)
-      cnum = @global_db.cnum
-
       mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
       mbox_db.each_msg_id do |msg_id|
         @msg_db.del_msg_mbox(msg_id, id)
       end
       mbox_db.close
-
       name = @global_db.del_mbox(id) or raise "internal error: not found a mailbox: #{id}"
-      @global_db.cnum = cnum + 1
+
+      @global_db.cnum_succ!
 
       name
     end
@@ -132,8 +128,6 @@ module RIMS
     def add_msg(mbox_id, msg_text, msg_date=Time.now)
       mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
 
-      cnum = @global_db.cnum
-
       msg_id = @msg_db.add_msg(msg_text, msg_date)
       @msg_db.add_msg_mbox(msg_id, mbox_id)
       @msg_db.set_msg_flag(msg_id, 'seen', false)
@@ -142,8 +136,7 @@ module RIMS
       @msg_db.set_msg_flag(msg_id, 'draft', false)
       mbox_db.add_msg(msg_id)
 
-      @global_db.cnum = cnum + 1
-
+      # @g_db.cnum_succ! is called at set_msg_flag.
       set_msg_flag(mbox_id, msg_id, 'recent', true)
 
       msg_id
@@ -152,14 +145,12 @@ module RIMS
     def copy_msg(msg_id, dest_mbox_id)
       mbox_db = @mbox_db[dest_mbox_id] or raise "not found a mailbox: #{dest_mbox_id}."
 
-      cnum = @global_db.cnum
-
       unless (mbox_db.exist_msg? msg_id) then
         @msg_db.add_msg_mbox(msg_id, dest_mbox_id)
         mbox_db.add_msg(msg_id)
       end
 
-      @global_db.cnum = cnum + 1
+      @global_db.cnum_succ!
 
       self
     end
@@ -196,8 +187,6 @@ module RIMS
         raise "not found a message <#{msg_id}> at mailbox <#{mbox_id}>."
       end
 
-      cnum = @global_db.cnum
-
       case (name)
       when 'recent', 'seen', 'answered', 'flagged', 'draft'
         @msg_db.set_msg_flag(msg_id, name, value)
@@ -207,7 +196,7 @@ module RIMS
         raise "unnown flag name: #{name}"
       end
 
-      @global_db.cnum = cnum + 1
+      @global_db.cnum_succ!
 
       self
     end
@@ -224,8 +213,6 @@ module RIMS
     def expunge_mbox(mbox_id)
       mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
 
-      cnum = @global_db.cnum
-
       msg_list = mbox_db.each_msg_id.find_all{|id| mbox_db.msg_flag_del(id) }
       for id in msg_list
         @msg_db.del_msg_mbox(id, mbox_id)
@@ -233,7 +220,7 @@ module RIMS
         yield(id) if block_given?
       end
 
-      @global_db.cnum = cnum + 1
+      @global_db.cnum_succ!
 
       self
     end
