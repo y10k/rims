@@ -96,20 +96,30 @@ module RIMS
     class SyntaxError < StandardError
     end
 
-    def initialize(mail_store, passwd, logger)
-      @mail_store = mail_store
+    def initialize(mail_store_pool, passwd, logger)
+      @mail_store_pool = mail_store_pool
+      @mail_store_holder = nil
+      @folder = nil
       @logger = logger
       @passwd = passwd
-      @is_auth = false
-      @folder = nil
     end
 
     def auth?
-      @is_auth
+      @mail_store_holder != nil
     end
 
     def selected?
       @folder != nil
+    end
+
+    def cleanup
+      if (auth?) then
+        tmp_mail_store = @mail_store_holder
+        @mail_store_holder = nil
+        @mail_store_pool.put(tmp_mail_store)
+      end
+
+      nil
     end
 
     def protect_error(tag)
@@ -159,8 +169,8 @@ module RIMS
       res = []
       if (auth? && selected?) then
         @folder.reload if @folder.updated?
-        res << "* #{@mail_store.mbox_msgs(@folder.id)} EXISTS"
-        res << "* #{@mail_store.mbox_flags(@folder.id, 'resent')} RECENTS"
+        res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS"
+        res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'resent')} RECENTS"
       end
       res << "#{tag} OK NOOP completed"
     end
@@ -171,7 +181,7 @@ module RIMS
         @folder.close
         @folder = nil
       end
-      @is_auth = false
+      cleanup
       res = []
       res << '* BYE server logout'
       res << "#{tag} OK LOGOUT completed"
@@ -184,6 +194,8 @@ module RIMS
     def login(tag, username, password)
       res = []
       if (@passwd.call(username, password)) then
+        cleanup
+        @mail_store_holder = @mail_store_pool.get(username)
         @is_auth = true
         res << "#{tag} OK LOGIN completed"
       else
@@ -195,11 +207,11 @@ module RIMS
       protect_auth(tag) {
         res = []
         @folder = nil
-        if (id = @mail_store.mbox_id(mbox_name)) then
-          @folder = @mail_store.select_mbox(id)
-          all_msgs = @mail_store.mbox_msgs(@folder.id)
-          recent_msgs = @mail_store.mbox_flags(@folder.id, 'recent')
-          unseen_msgs = all_msgs - @mail_store.mbox_flags(@folder.id, 'seen')
+        if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          @folder = @mail_store_holder.to_mst.select_mbox(id)
+          all_msgs = @mail_store_holder.to_mst.mbox_msgs(@folder.id)
+          recent_msgs = @mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')
+          unseen_msgs = all_msgs - @mail_store_holder.to_mst.mbox_flags(@folder.id, 'seen')
           res << "* #{all_msgs} EXISTS"
           res << "* #{recent_msgs} RECENT"
           res << "* [UNSEEN #{unseen_msgs}]"
@@ -221,10 +233,10 @@ module RIMS
     def create(tag, mbox_name)
       protect_auth(tag) {
         res = []
-        if (@mail_store.mbox_id(mbox_name)) then
+        if (@mail_store_holder.to_mst.mbox_id(mbox_name)) then
           res << "#{tag} NO duplicated mailbox"
         else
-          @mail_store.add_mbox(mbox_name)
+          @mail_store_holder.to_mst.add_mbox(mbox_name)
           res << "#{tag} OK CREATE completed"
         end
       }
@@ -233,9 +245,9 @@ module RIMS
     def delete(tag, mbox_name)
       protect_auth(tag) {
         res = []
-        if (id = @mail_store.mbox_id(mbox_name)) then
-          if (id != @mail_store.mbox_id('INBOX')) then
-            @mail_store.del_mbox(id)
+        if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          if (id != @mail_store_holder.to_mst.mbox_id('INBOX')) then
+            @mail_store_holder.to_mst.del_mbox(id)
             res << "#{tag} OK DELETE completed"
           else
             res << "#{tag} NO not delete inbox"
@@ -271,12 +283,12 @@ module RIMS
           res << '* LIST (\Noselect) NIL ""'
         else
           mbox_filter = Protocol.compile_wildcard(mbox_name)
-          mbox_list = @mail_store.each_mbox_id.map{|id| [ id, @mail_store.mbox_name(id) ] }
+          mbox_list = @mail_store_holder.to_mst.each_mbox_id.map{|id| [ id, @mail_store_holder.to_mst.mbox_name(id) ] }
           mbox_list.keep_if{|id, name| name.start_with? ref_name }
           mbox_list.keep_if{|id, name| name[(ref_name.length)..-1] =~ mbox_filter }
           for id, name in mbox_list
             attrs = '\Noinferiors'
-            if (@mail_store.mbox_flags(id, 'recent') > 0) then
+            if (@mail_store_holder.to_mst.mbox_flags(id, 'recent') > 0) then
               attrs << ' \Marked'
             else
               attrs << ' \Unmarked'
@@ -297,7 +309,7 @@ module RIMS
     def status(tag, mbox_name, data_item_group)
       protect_auth(tag) {
         res = []
-        if (id = @mail_store.mbox_id(mbox_name)) then
+        if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
           unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
             raise SyntaxError, 'second arugment is not a group list.'
           end
@@ -306,15 +318,15 @@ module RIMS
           for item in data_item_group[1..-1]
             case (item.upcase)
             when 'MESSAGES'
-              values << 'MESSAGES' << @mail_store.mbox_msgs(id)
+              values << 'MESSAGES' << @mail_store_holder.to_mst.mbox_msgs(id)
             when 'RECENT'
-              values << 'RECENT' << @mail_store.mbox_flags(id, 'recent')
+              values << 'RECENT' << @mail_store_holder.to_mst.mbox_flags(id, 'recent')
             when 'UINDEX'
-              values << 'UINDEX' << @mail_store.uid
+              values << 'UINDEX' << @mail_store_holder.to_mst.uid
             when 'UIDVALIDITY'
               values << 'UIDVALIDITY' << id
             when 'UNSEEN'
-              unseen_flags = @mail_store.mbox_msgs(id) - @mail_store.mbox_flags(id, 'seen')
+              unseen_flags = @mail_store_holder.to_mst.mbox_msgs(id) - @mail_store_holder.to_mst.mbox_flags(id, 'seen')
               values << 'UNSEEN' << unseen_flags
             else
               raise SyntaxError, "unknown status data: #{item}"
@@ -332,7 +344,7 @@ module RIMS
     def append(tag, mbox_name, *opt_args, msg_text)
       protect_auth(tag) {
         res = []
-        if (mbox_id = @mail_store.mbox_id(mbox_name)) then
+        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
           msg_flags = []
           msg_date = Time.now
 
@@ -371,9 +383,9 @@ module RIMS
             raise SyntaxError, 'unknown option.'
           end
 
-          msg_id = @mail_store.add_msg(mbox_id, msg_text, msg_date)
+          msg_id = @mail_store_holder.to_mst.add_msg(mbox_id, msg_text, msg_date)
           for flag_name in msg_flags
-            @mail_store.set_msg_flag(mbox_id, msg_id, flag_name, true)
+            @mail_store_holder.to_mst.set_msg_flag(mbox_id, msg_id, flag_name, true)
           end
 
           res << "#{tag} OK APPEND completed"
@@ -385,14 +397,14 @@ module RIMS
 
     def check(tag)
       protect_select(tag) {
-        @mail_store.sync
+        @mail_store_holder.to_mst.sync
         [ "#{tag} OK CHECK completed" ]
       }
     end
 
     def close(tag)
       protect_select(tag) {
-        @mail_store.sync
+        @mail_store_holder.to_mst.sync
         if (@folder) then
           @folder.reload if @folder.updated?
           @folder.close
@@ -489,18 +501,18 @@ module RIMS
           case (action)
           when :flags_replace
             for name in flag_list
-              @mail_store.set_msg_flag(@folder.id, msg.id, name, true)
+              @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, true)
             end
             for name in rest_flag_list
-              @mail_store.set_msg_flag(@folder.id, msg.id, name, false)
+              @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, false)
             end
           when :flags_add
             for name in flag_list
-              @mail_store.set_msg_flag(@folder.id, msg.id, name, true)
+              @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, true)
             end
           when :flags_del
             for name in flag_list
-              @mail_store.set_msg_flag(@folder.id, msg.id, name, false)
+              @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, false)
             end
           else
             raise "internal error: unknown action: #{action}"
@@ -520,7 +532,7 @@ module RIMS
           for msg in msg_list
             flag_atom_list = []
             for name, atom in name_atom_pair_list
-              if (@mail_store.msg_flag(@folder.id, msg.id, name)) then
+              if (@mail_store_holder.to_mst.msg_flag(@folder.id, msg.id, name)) then
                 flag_atom_list << atom
               end
             end
@@ -537,7 +549,7 @@ module RIMS
         res = []
         msg_set = @folder.parse_msg_set(msg_set, uid: uid)
 
-        if (mbox_id = @mail_store.mbox_id(mbox_name)) then
+        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
           msg_list = @folder.msg_list.find_all{|msg|
             if (uid) then
               msg_set.include? msg.id
@@ -547,7 +559,7 @@ module RIMS
           }
 
           for msg in msg_list
-            @mail_store.copy_msg(msg.id, mbox_id)
+            @mail_store_holder.to_mst.copy_msg(msg.id, mbox_id)
           end
 
           res << "#{tag} OK COPY completed"

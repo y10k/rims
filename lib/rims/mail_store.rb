@@ -322,6 +322,64 @@ module RIMS
       msg_set
     end
   end
+
+  # factory for single mailbox user.
+  # multi-user mailbox will be future challenge.
+  class MailStorePool
+    RefCountEntry = Struct.new(:count, :mail_store_holder)
+
+    class Holder
+      def initialize(mail_store, user_name)
+        @mail_store = mail_store
+        @user_name = user_name
+      end
+
+      attr_reader :mail_store
+      attr_reader :user_name
+
+      alias to_mst mail_store
+    end
+
+    def new_mail_store(user_name)
+      MailStore.new(proc{|db_name| @kvs_open_attr.call(user_name, db_name) },
+                    proc{|db_name| @kvs_open_text.call(user_name, db_name) }).open
+    end
+    private :new_mail_store
+
+    def initialize(kvs_open_attr, kvs_open_text)
+      @kvs_open_attr = kvs_open_attr
+      @kvs_open_text = kvs_open_text
+      @pool_map = Hash.new{|hash, user_name|
+        hash[user_name] = RefCountEntry.new(0, Holder.new(new_mail_store(user_name), user_name))
+      }
+    end
+
+    def empty?
+      @pool_map.empty?
+    end
+
+    def get(user_name)
+      ref_count_entry = @pool_map[user_name]
+      unless (ref_count_entry.count >= 0) then
+        raise 'internal error.'
+      end
+      ref_count_entry.count += 1
+      ref_count_entry.mail_store_holder
+    end
+
+    def put(mail_store_holder)
+      ref_count_entry = @pool_map[mail_store_holder.user_name]
+      unless (ref_count_entry.count >= 1) then
+        raise 'internal error.'
+      end
+      ref_count_entry.count -= 1
+      if (ref_count_entry.count == 0) then
+        @pool_map.delete(mail_store_holder.user_name)
+        ref_count_entry.mail_store_holder.to_mst.close
+      end
+      nil
+    end
+  end
 end
 
 # Local Variables:

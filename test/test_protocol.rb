@@ -211,7 +211,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
   class ProtocolDecoderTest < Test::Unit::TestCase
     def setup
       @kv_store = {}
-      @kvs_open = proc{|path|
+      @kvs_open = proc{|user_name, db_name|
         kvs = {}
         def kvs.sync
           self
@@ -219,19 +219,23 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
         def kvs.close
           self
         end
+        path = "#{user_name}/#{db_name}"
         RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
       }
-      @mail_store = RIMS::MailStore.new(@kvs_open, @kvs_open)
-      @mail_store.open
+      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
+      @mail_store_holder = @mail_store_pool.get('foo')
+      @mail_store = @mail_store_holder.to_mst
       @inbox_id = @mail_store.add_mbox('INBOX')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
       @passwd =proc{|username, password|username == 'foo' && password == 'open_sesame'}
-      @decoder = RIMS::ProtocolDecoder.new(@mail_store, @passwd, @logger)
+      @decoder = RIMS::ProtocolDecoder.new(@mail_store_pool, @passwd, @logger)
     end
 
     def teardown
-      @mail_store.close
+      @decoder.cleanup
+      @mail_store_pool.put(@mail_store_holder)
+      assert(@mail_store_pool.empty?)
     end
 
     def test_capability

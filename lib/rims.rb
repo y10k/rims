@@ -8,6 +8,7 @@ module RIMS
   autoload :KeyValueStore, 'rims/kv'
   autoload :MailFolder, 'rims/mail_store'
   autoload :MailStore, 'rims/mail_store'
+  autoload :MailStorePool, 'rims/mail_store'
   autoload :MailboxDB, 'rims/db'
   autoload :MessageDB, 'rims/db'
   autoload :Protocol, 'rims/protocol'
