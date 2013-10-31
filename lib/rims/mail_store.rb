@@ -225,39 +225,39 @@ module RIMS
 
     def initialize(mbox_id, mail_store)
       @id = mbox_id
-      @st = mail_store
+      @mail_store = mail_store
       reload
     end
 
     def reload
-      @cnum = @st.cnum
-      msg_id_list = @st.each_msg_id(@id).to_a
+      @cnum = @mail_store.cnum
+      msg_id_list = @mail_store.each_msg_id(@id).to_a
       msg_id_list.sort!
       @msg_list = msg_id_list.zip(1..(msg_id_list.length)).map{|id, num| MessageStruct.new(id, num) }
       self
     end
 
     def updated?
-      @st.cnum > @cnum
+      @mail_store.cnum > @cnum
     end
 
     attr_reader :id
     attr_reader :msg_list
 
     def expunge_mbox
-      if (@st.mbox_flags(@id, 'deleted') > 0) then
+      if (@mail_store.mbox_flags(@id, 'deleted') > 0) then
         if (block_given?) then
           id2num = {}
           for msg in @msg_list
             id2num[msg.id] = msg.num
           end
 
-          @st.expunge_mbox(@id) do |id|
+          @mail_store.expunge_mbox(@id) do |id|
             num = id2num[id] or raise "internal error: not found a message id <#{id}> at mailbox <#{@id}>"
             yield(num)
           end
         else
-          @st.expunge_mbox(@id)
+          @mail_store.expunge_mbox(@id)
         end
       end
 
@@ -266,9 +266,9 @@ module RIMS
 
     def close
       expunge_mbox
-      @st.each_msg_id(@id) do |msg_id|
-        if (@st.msg_flag(@id, msg_id, 'recent')) then
-          @st.set_msg_flag(@id, msg_id, 'recent', false)
+      @mail_store.each_msg_id(@id) do |msg_id|
+        if (@mail_store.msg_flag(@id, msg_id, 'recent')) then
+          @mail_store.set_msg_flag(@id, msg_id, 'recent', false)
         end
       end
 
