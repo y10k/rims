@@ -96,17 +96,13 @@ module RIMS
     class SyntaxError < StandardError
     end
 
-    def initialize(mail_store, logger)
+    def initialize(mail_store, passwd, logger)
       @st = mail_store
       @logger = logger
-      @username = nil
-      @password = nil
+      @passwd = passwd
       @is_auth = false
       @folder = nil
     end
-
-    attr_writer :username
-    attr_writer :password
 
     def auth?
       @is_auth
@@ -187,7 +183,7 @@ module RIMS
 
     def login(tag, username, password)
       res = []
-      if (username == @username && password == @password) then
+      if (@passwd.call(username, password)) then
         @is_auth = true
         res << "#{tag} OK LOGIN completed"
       else

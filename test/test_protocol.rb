@@ -226,9 +226,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       @inbox_id = @mail_store.add_mbox('INBOX')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
-      @decoder = RIMS::ProtocolDecoder.new(@mail_store, @logger)
-      @decoder.username = 'foo'
-      @decoder.password = 'open_sesame'
+      @passwd =proc{|username, password|username == 'foo' && password == 'open_sesame'}
+      @decoder = RIMS::ProtocolDecoder.new(@mail_store, @passwd, @logger)
     end
 
     def teardown
