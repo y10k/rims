@@ -654,7 +654,7 @@ module RIMS
         rescue
           logger.error('internal server error.')
           logger.error($!)
-          res = [ "#{tag} BAD internval server error" ]
+          res = [ "#{tag} BAD internal server error" ]
         end
 
         logger.info("server response: #{res[-1]}")

@@ -15,7 +15,7 @@ module RIMS
 
       @mbox_db = {}
       @global_db.each_mbox_id do |id|
-        @mbox_db[id] = MailoxDB.new(@kvs_open_attr.call("mbox_#{id}.db")).setup
+        @mbox_db[id] = MailboxDB.new(@kvs_open_attr.call("mbox_#{id}.db")).setup
       end
 
       self
