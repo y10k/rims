@@ -341,8 +341,13 @@ module RIMS
     end
 
     def new_mail_store(user_name)
-      MailStore.new(proc{|db_name| @kvs_open_attr.call(user_name, db_name) },
-                    proc{|db_name| @kvs_open_text.call(user_name, db_name) }).open
+      mail_store = MailStore.new(proc{|db_name| @kvs_open_attr.call(user_name, db_name) },
+                                 proc{|db_name| @kvs_open_text.call(user_name, db_name) })
+      mail_store.open
+      unless (mail_store.mbox_id('INBOX')) then
+        mail_store.add_mbox('INBOX')
+      end
+      mail_store
     end
     private :new_mail_store
 

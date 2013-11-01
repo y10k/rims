@@ -225,7 +225,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
       @mail_store_holder = @mail_store_pool.get('foo')
       @mail_store = @mail_store_holder.to_mst
-      @inbox_id = @mail_store.add_mbox('INBOX')
+      @inbox_id = @mail_store.mbox_id('INBOX')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
       @passwd =proc{|username, password|username == 'foo' && password == 'open_sesame'}
