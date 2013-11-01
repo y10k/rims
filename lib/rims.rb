@@ -13,6 +13,7 @@ module RIMS
   autoload :MessageDB, 'rims/db'
   autoload :Protocol, 'rims/protocol'
   autoload :ProtocolDecoder, 'rims/protocol'
+  autoload :Server, 'rims/server'
 end
 
 # Local Variables:
