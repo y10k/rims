@@ -147,6 +147,15 @@ module RIMS
       end
       private :parse_bcc
 
+      def parse_before(search_time)
+        proc{|next_cond|
+          proc{|msg|
+            (@mail_store.msg_date(@folder.id, msg.id).to_date < search_time.to_date) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_before
+
       def parse(search_key)
         if (search_key.empty?) then
           return proc{|msg_id| true }
@@ -167,6 +176,17 @@ module RIMS
             raise ProtocolDecoder::SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
           end
           factory = parse_bcc(search_string)
+        when 'BEFORE'
+          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of BEFORE.'
+          unless (search_date.is_a? String) then
+            raise ProtocolDecoder::SyntaxError, "BEFORE search date expected as <String> but was <#{search_date.class}>."
+          end
+          begin
+            t = Time.parse(search_date)
+          rescue ArgumentError
+            raise ProtocolDecoder::SyntaxError, 'BEFORE search date is invalid.'
+          end
+          factory = parse_before(t)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
