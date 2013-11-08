@@ -145,6 +145,11 @@ module RIMS
       self
     end
 
+    def msg_exist?(mbox_id, msg_id)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      mbox_db.exist_msg? msg_id
+    end
+
     def msg_text(mbox_id, msg_id)
       mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
       @msg_db.msg_text(msg_id) if (mbox_db.exist_msg? msg_id)

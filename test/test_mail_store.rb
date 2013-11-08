@@ -55,10 +55,12 @@ module RIMS::Test
       mbox_id = @mail_store.add_mbox('INBOX')
       assert_equal(0, @mail_store.mbox_msgs(mbox_id))
       assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+      assert(! (@mail_store.msg_exist? mbox_id, 1))
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
       msg_id = @mail_store.add_msg(mbox_id, 'foo', Time.parse('1975-11-19 12:34:56'))
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
       assert_equal(1, @mail_store.mbox_msgs(mbox_id))
+      assert((@mail_store.msg_exist? mbox_id, 1))
       assert_equal([ msg_id ], @mail_store.each_msg_id(mbox_id).to_a)
 
       assert_equal('foo', @mail_store.msg_text(mbox_id, msg_id))
