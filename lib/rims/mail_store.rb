@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'set'
+require 'thread'
 
 module RIMS
   class MailStore
@@ -329,13 +330,15 @@ module RIMS
     RefCountEntry = Struct.new(:count, :mail_store_holder)
 
     class Holder
-      def initialize(mail_store, user_name)
+      def initialize(mail_store, user_name, user_lock)
         @mail_store = mail_store
         @user_name = user_name
+        @user_lock = user_lock
       end
 
       attr_reader :mail_store
       attr_reader :user_name
+      attr_reader :user_lock
 
       alias to_mst mail_store
     end
@@ -354,9 +357,9 @@ module RIMS
     def initialize(kvs_open_attr, kvs_open_text)
       @kvs_open_attr = kvs_open_attr
       @kvs_open_text = kvs_open_text
-      @pool_map = Hash.new{|hash, user_name|
-        hash[user_name] = RefCountEntry.new(0, Holder.new(new_mail_store(user_name), user_name))
-      }
+      @pool_map = {}
+      @pool_lock = Mutex.new
+      @user_lock_map = Hash.new{|hash, key| hash[key] = Mutex.new }
     end
 
     def empty?
@@ -364,24 +367,36 @@ module RIMS
     end
 
     def get(user_name)
-      ref_count_entry = @pool_map[user_name]
-      unless (ref_count_entry.count >= 0) then
-        raise 'internal error.'
-      end
-      ref_count_entry.count += 1
-      ref_count_entry.mail_store_holder
+      user_lock = @pool_lock.synchronize{ user_lock = @user_lock_map[user_name] }
+      user_lock.synchronize{
+        if (@pool_map.key? user_name) then
+          ref_count_entry = @pool_map[user_name]
+        else
+          mail_store = new_mail_store(user_name)
+          holder = Holder.new(mail_store, user_name, user_lock)
+          ref_count_entry = RefCountEntry.new(0, holder)
+          @pool_map[user_name] = ref_count_entry
+        end
+        if (ref_count_entry.count < 0) then
+          raise 'internal error.'
+        end
+        ref_count_entry.count += 1
+        ref_count_entry.mail_store_holder
+      }
     end
 
     def put(mail_store_holder)
-      ref_count_entry = @pool_map[mail_store_holder.user_name]
-      unless (ref_count_entry.count >= 1) then
-        raise 'internal error.'
-      end
-      ref_count_entry.count -= 1
-      if (ref_count_entry.count == 0) then
-        @pool_map.delete(mail_store_holder.user_name)
-        ref_count_entry.mail_store_holder.to_mst.close
-      end
+      ref_count_entry = @pool_map[mail_store_holder.user_name] or raise 'internal error.'
+      ref_count_entry.mail_store_holder.user_lock.synchronize{
+        if (ref_count_entry.count < 1) then
+          raise 'internal error.'
+        end
+        ref_count_entry.count -= 1
+        if (ref_count_entry.count == 0) then
+          @pool_map.delete(mail_store_holder.user_name)
+          ref_count_entry.mail_store_holder.to_mst.close
+        end
+      }
       nil
     end
   end

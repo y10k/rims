@@ -109,7 +109,7 @@ module RIMS
     end
 
     def selected?
-      @folder != nil
+      auth? && (@folder != nil)
     end
 
     def cleanup
@@ -140,7 +140,9 @@ module RIMS
     def protect_auth(tag)
       protect_error(tag) {
         if (auth?) then
-          yield
+          @mail_store_holder.user_lock.synchronize{
+            yield
+          }
         else
           [ "#{tag} NO no authentication" ]
         end
@@ -168,18 +170,22 @@ module RIMS
     def noop(tag)
       res = []
       if (auth? && selected?) then
-        @folder.reload if @folder.updated?
-        res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS"
-        res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'resent')} RECENTS"
+        @mail_store_holder.user_lock.synchronize{
+          @folder.reload if @folder.updated?
+          res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS"
+          res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'resent')} RECENTS"
+        }
       end
       res << "#{tag} OK NOOP completed"
     end
 
     def logout(tag)
-      if (@folder) then
-        @folder.reload if @folder.updated?
-        @folder.close
-        @folder = nil
+      if (auth? && selected?) then
+        @mail_store_holder.user_lock.synchronize{
+          @folder.reload if @folder.updated?
+          @folder.close
+          @folder = nil
+        }
       end
       cleanup
       res = []
