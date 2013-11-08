@@ -196,7 +196,6 @@ module RIMS
       if (@passwd.call(username, password)) then
         cleanup
         @mail_store_holder = @mail_store_pool.get(username)
-        @is_auth = true
         res << "#{tag} OK LOGIN completed"
       else
         res << "#{tag} NO failed to login"
