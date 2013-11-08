@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'mail'
 require 'time'
 
 module RIMS
@@ -90,6 +91,89 @@ module RIMS
       nil
     end
     module_function :read_command
+
+    class SearchParser
+      def initialize(mail_store, folder)
+        @mail_store = mail_store
+        @folder = folder
+        @charset = nil
+        @mail_cache = Hash.new{|hash, msg_id|
+          if (text = @mail_store.msg_text(@folder.id, msg_id)) then
+            hash[msg_id] = Mail.new(text)
+          end
+        }
+      end
+
+      attr_accessor :charset
+
+      def string_include?(search_string, text)
+        unless (search_string.ascii_only?) then
+          if (@charset) then
+            search_string = search_string.dup.force_encoding(@charset)
+            text = text.encode(@charset)
+          end
+        end
+
+        text.include? search_string
+      end
+      private :string_include?
+
+      def parse_all
+        proc{|next_cond|
+          proc{|msg|
+            next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_all
+
+      def parse_answered
+        proc{|next_cond|
+          proc{|msg|
+            @mail_store.msg_flag(@folder.id, msg.id, 'answered') && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_answered
+
+      def parse_bcc(search_string)
+        proc{|next_cond|
+          proc{|msg|
+            mail = @mail_cache[msg.id]
+            bcc_string = (mail['bcc']) ? mail['bcc'].to_s : ''
+            string_include?(search_string, bcc_string) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_bcc
+
+      def parse(search_key)
+        if (search_key.empty?) then
+          return proc{|msg_id| true }
+        end
+
+        search_key = search_key.dup
+        op = search_key.shift
+        op = op.upcase if (op.is_a? String)
+
+        case (op)
+        when 'ALL'
+          factory = parse_all
+        when 'ANSWERED'
+          factory = parse_answered
+        when 'BCC'
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BCC.'
+          unless (search_string.is_a? String) then
+            raise ProtocolDecoder::SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
+          end
+          factory = parse_bcc(search_string)
+        else
+          raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
+        end
+
+        factory.call(parse(search_key))
+      end
+    end
   end
 
   class ProtocolDecoder
