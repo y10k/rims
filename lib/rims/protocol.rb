@@ -138,14 +138,14 @@ module RIMS
       end
       private :parse_all
 
-      def parse_answered
+      def parse_msg_flag_enabled(name)
         proc{|next_cond|
           proc{|msg|
-            @mail_store.msg_flag(@folder.id, msg.id, 'answered') && next_cond.call(msg)
+            @mail_store.msg_flag(@folder.id, msg.id, name) && next_cond.call(msg)
           }
         }
       end
-      private :parse_answered
+      private :parse_msg_flag_enabled
 
       def parse_search_header(name, search_string)
         proc{|next_cond|
@@ -195,7 +195,7 @@ module RIMS
         when 'ALL'
           factory = parse_all
         when 'ANSWERED'
-          factory = parse_answered
+          factory = parse_msg_flag_enabled('answered')
         when 'BCC'
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BCC.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
@@ -212,6 +212,12 @@ module RIMS
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of CC.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "CC search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('cc', search_string)
+        when 'DELETED'
+          factory = parse_msg_flag_enabled('deleted')
+        when 'DRAFT'
+          factory = parse_msg_flag_enabled('draft')
+        when 'FLAGGED'
+          factory = parse_msg_flag_enabled('flagged')
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end

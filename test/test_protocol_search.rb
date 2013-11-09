@@ -145,6 +145,48 @@ Content-Type: text/html
 	@parser.parse([ 'CC', [ :group, 'foo' ] ])
       }
     end
+
+    def test_parse_deleted
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, 'foo')
+	@mail_store.add_msg(@inbox_id, 'foo')
+	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+	@mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      }
+      cond = @parser.parse([ 'DELETED' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+    end
+
+    def test_parse_draft
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, 'foo')
+	@mail_store.add_msg(@inbox_id, 'foo')
+	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+	@mail_store.set_msg_flag(@inbox_id, 1, 'draft', true)
+	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
+	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
+      }
+      cond = @parser.parse([ 'DRAFT' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+    end
+
+    def test_parse_flagged
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, 'foo')
+	@mail_store.add_msg(@inbox_id, 'foo')
+	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+	@mail_store.set_msg_flag(@inbox_id, 1, 'flagged', true)
+	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
+	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
+      }
+      cond = @parser.parse([ 'FLAGGED' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+    end
   end
 end
 
