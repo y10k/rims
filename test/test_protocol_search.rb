@@ -187,6 +187,25 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
     end
+
+    def test_parse_from
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, "From: foo\r\n\r\nfoo")
+	@mail_store.add_msg(@inbox_id, "From: bar\r\n\r\foo")
+        @mail_store.add_msg(@inbox_id, 'foo')
+	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'FROM', 'foo' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'From' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'From', [ :group, 'foo' ] ])
+      }
+    end
   end
 end
 

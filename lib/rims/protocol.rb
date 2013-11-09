@@ -218,6 +218,10 @@ module RIMS
           factory = parse_msg_flag_enabled('draft')
         when 'FLAGGED'
           factory = parse_msg_flag_enabled('flagged')
+        when 'FROM'
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of FROM.'
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "FROM search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_search_header('from', search_string)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
