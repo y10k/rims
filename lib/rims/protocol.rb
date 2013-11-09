@@ -147,16 +147,16 @@ module RIMS
       end
       private :parse_answered
 
-      def parse_bcc(search_string)
+      def parse_search_header(name, search_string)
         proc{|next_cond|
           proc{|msg|
             mail = @mail_cache[msg.id]
-            bcc_string = (mail['bcc']) ? mail['bcc'].to_s : ''
-            string_include?(search_string, bcc_string) && next_cond.call(msg)
+            field_string = (mail[name]) ? mail[name].to_s : ''
+            string_include?(search_string, field_string) && next_cond.call(msg)
           }
         }
       end
-      private :parse_bcc
+      private :parse_search_header
 
       def parse_before(search_time)
         proc{|next_cond|
@@ -199,7 +199,7 @@ module RIMS
         when 'BCC'
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BCC.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
-          factory = parse_bcc(search_string)
+          factory = parse_search_header('bcc', search_string)
         when 'BEFORE'
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of BEFORE.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "BEFORE search date is invalid: #{search_date}"
@@ -208,6 +208,10 @@ module RIMS
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BODY.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "BODY search string expected as <String> but was <#{search_string.class}>."
           factory = parse_body(search_string)
+        when 'CC'
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of CC.'
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "CC search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_search_header('cc', search_string)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
