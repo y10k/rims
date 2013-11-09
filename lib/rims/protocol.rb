@@ -222,6 +222,12 @@ module RIMS
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of FROM.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "FROM search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('from', search_string)
+        when 'HEADER'
+          header_name = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a header name of HEADER.'
+          header_name.is_a? String or raise ProtocolDecoder::SyntaxError, "HEADER header name expected as <String> but was <#{header_name.class}>."
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of HEADER.'
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "HEADER search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_search_header(header_name, search_string)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end

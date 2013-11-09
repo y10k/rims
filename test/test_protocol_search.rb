@@ -200,10 +200,48 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'From' ])
+	@parser.parse([ 'FROM' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'From', [ :group, 'foo' ] ])
+	@parser.parse([ 'FROM', [ :group, 'foo' ] ])
+      }
+    end
+
+    def test_parse_header
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, "X-Foo: alice\r\nX-Bar: bob\r\n\r\nfoo")
+	@mail_store.add_msg(@inbox_id, "X-Foo: bob\r\nX-Bar: alice\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, 'foo')
+	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'HEADER', 'x-foo', 'alice' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      cond = @parser.parse([ 'HEADER', 'x-foo', 'bob' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      cond = @parser.parse([ 'HEADER', 'x-bar', 'alice' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      cond = @parser.parse([ 'HEADER', 'x-bar', 'bob' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'HEADER' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'HEADER', 'Received' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'HEADER', 'Received', [ :group, 'foo' ] ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'HEADER', [ :group, 'Received' ], 'foo' ])
       }
     end
   end
