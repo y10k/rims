@@ -106,6 +106,17 @@ module RIMS
 
       attr_accessor :charset
 
+      def str2time(time_string)
+        if (time_string.is_a? String) then
+          begin
+            Time.parse(time_string)
+          rescue ArgumentError
+            nil
+          end
+        end
+      end
+      private :str2time
+
       def string_include?(search_string, text)
         unless (search_string.ascii_only?) then
           if (@charset) then
@@ -172,20 +183,11 @@ module RIMS
           factory = parse_answered
         when 'BCC'
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BCC.'
-          unless (search_string.is_a? String) then
-            raise ProtocolDecoder::SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
-          end
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
           factory = parse_bcc(search_string)
         when 'BEFORE'
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of BEFORE.'
-          unless (search_date.is_a? String) then
-            raise ProtocolDecoder::SyntaxError, "BEFORE search date expected as <String> but was <#{search_date.class}>."
-          end
-          begin
-            t = Time.parse(search_date)
-          rescue ArgumentError
-            raise ProtocolDecoder::SyntaxError, 'BEFORE search date is invalid.'
-          end
+          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "BEFORE search date is invalid: #{search_date}"
           factory = parse_before(t)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
