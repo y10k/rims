@@ -93,6 +93,39 @@ module RIMS::Test
 	@parser.parse([ 'BEFORE', [ :group, '08-Nov-2013'] ])
       }
     end
+
+    def test_parse_body
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\n\r\nbar")
+        @mail_store.add_msg(@inbox_id, "Content-Type: message/rfc822\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, <<-'EOF')
+Content-Type: multipart/alternative; boundary="1383.905529.351297"
+
+--1383.905529.351297
+Content-Type: text/plain
+
+foo
+--1383.905529.351297
+Content-Type: text/html
+
+<html><body><p>foo</p></body></html>
+--1383.905529.351297--
+        EOF
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'BODY', 'foo' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(true, cond.call(@folder.msg_list[2]))
+      assert_equal(false, cond.call(@folder.msg_list[3])) # ignored text part of multipart message.
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'BODY' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'BODY', [ :group, 'foo' ] ])
+      }
+    end
   end
 end
 

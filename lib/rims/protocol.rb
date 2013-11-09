@@ -167,6 +167,21 @@ module RIMS
       end
       private :parse_before
 
+      def parse_body(search_string)
+        proc{|next_cond|
+          proc{|msg|
+            mail = @mail_cache[msg.id]
+            case (mail.content_type)
+            when /^text/i, /^message/i
+              string_include?(search_string, mail.body.to_s) && next_cond.call(msg)
+            else
+              false
+            end
+          }
+        }
+      end
+      private :parse_body
+
       def parse(search_key)
         if (search_key.empty?) then
           return proc{|msg_id| true }
@@ -189,6 +204,10 @@ module RIMS
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of BEFORE.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "BEFORE search date is invalid: #{search_date}"
           factory = parse_before(t)
+        when 'BODY'
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BODY.'
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "BODY search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_body(search_string)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
