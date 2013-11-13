@@ -323,6 +323,10 @@ module RIMS
           next_node1 = fetch_next_node(search_key)
           next_node2 = fetch_next_node(search_key)
           factory = parse_or(next_node1, next_node2)
+        when 'RECENT'
+          factory = parse_msg_flag_enabled('recent')
+        when 'SEEN'
+          factory = parse_msg_flag_enabled('seen')
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
