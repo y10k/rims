@@ -182,6 +182,15 @@ module RIMS
       end
       private :parse_body
 
+      def parse_keyword(search_string)
+        proc{|next_cond|
+          proc{|msg|
+            false
+          }
+        }
+      end
+      private :parse_keyword
+
       def parse(search_key)
         if (search_key.empty?) then
           return proc{|msg_id| true }
@@ -228,6 +237,10 @@ module RIMS
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of HEADER.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "HEADER search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header(header_name, search_string)
+        when 'KEYWORD'
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of KEYWORD.'
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "KEYWORD search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_keyword(search_string)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end

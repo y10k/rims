@@ -244,6 +244,21 @@ Content-Type: text/html
 	@parser.parse([ 'HEADER', [ :group, 'Received' ], 'foo' ])
       }
     end
+
+    def test_parse_keyword
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, 'foo')
+	assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'KEYWORD', 'foo' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'KEYWORD' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'KEYWORD', [ :group, 'foo' ] ])
+      }
+    end
   end
 end
 
