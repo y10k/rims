@@ -281,6 +281,27 @@ Content-Type: text/html
 	@parser.parse([ 'LARGER', 'nonum' ])
       }
     end
+
+    def test_parse_new
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, 'foo')
+	@mail_store.add_msg(@inbox_id, 'bar')
+	@mail_store.add_msg(@inbox_id, 'baz')
+	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 3, 'recent', false)
+        @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      }
+      cond = @parser.parse([ 'NEW' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+    end
   end
 end
 

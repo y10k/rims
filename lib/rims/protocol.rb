@@ -200,6 +200,16 @@ module RIMS
       end
       private :parse_larger
 
+      def parse_new
+        proc{|next_cond|
+          proc{|msg|
+            @mail_store.msg_flag(@folder.id, msg.id, 'recent') && \
+            (! @mail_store.msg_flag(@folder.id, msg.id, 'seen')) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_new
+
       def parse(search_key)
         if (search_key.empty?) then
           return proc{|msg_id| true }
@@ -255,6 +265,8 @@ module RIMS
           (octet_size.is_a? String) && (octet_size =~ /^\d+$/) or
             raise ProtocolDecoder::SyntaxError, "LARGER octet size is expected as numeric string but was <#{octet_size}>."
           factory = parse_larger(octet_size.to_i)
+        when 'NEW'
+          factory = parse_new
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
