@@ -322,6 +322,9 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(true, cond.call(@folder.msg_list[2]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'NOT' ])
+      }
     end
   end
 end
