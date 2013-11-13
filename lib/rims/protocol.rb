@@ -243,6 +243,17 @@ module RIMS
       end
       private :parse_on
 
+      def parse_or(next_node1, next_node2)
+        operand1 = next_node1.call(end_of_cond)
+        operand2 = next_node2.call(end_of_cond)
+        proc{|next_cond|
+          proc{|msg|
+            (operand1.call(msg) || operand2.call(msg)) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_or
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise ProtocolDecoder::SyntaxError, 'unexpected end of search key.'
@@ -308,6 +319,10 @@ module RIMS
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of ON.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "ON search date is invalid: #{search_date}"
           factory = parse_on(t)
+        when 'OR'
+          next_node1 = fetch_next_node(search_key)
+          next_node2 = fetch_next_node(search_key)
+          factory = parse_or(next_node1, next_node2)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
