@@ -259,6 +259,28 @@ Content-Type: text/html
 	@parser.parse([ 'KEYWORD', [ :group, 'foo' ] ])
       }
     end
+
+    def test_parse_larger
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, 'foo')
+	@mail_store.add_msg(@inbox_id, '1234')
+	@mail_store.add_msg(@inbox_id, 'bar')
+	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'LARGER', '3' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'LARGER' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'LARGER', [ :group, '3' ] ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+	@parser.parse([ 'LARGER', 'nonum' ])
+      }
+    end
   end
 end
 

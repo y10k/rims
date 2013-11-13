@@ -191,6 +191,15 @@ module RIMS
       end
       private :parse_keyword
 
+      def parse_larger(octet_size)
+        proc{|next_cond|
+          proc{|msg|
+            (@mail_store.msg_text(@folder.id, msg.id).bytesize > octet_size) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_larger
+
       def parse(search_key)
         if (search_key.empty?) then
           return proc{|msg_id| true }
@@ -241,6 +250,11 @@ module RIMS
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of KEYWORD.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "KEYWORD search string expected as <String> but was <#{search_string.class}>."
           factory = parse_keyword(search_string)
+        when 'LARGER'
+          octet_size = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a octet size of LARGER'
+          (octet_size.is_a? String) && (octet_size =~ /^\d+$/) or
+            raise ProtocolDecoder::SyntaxError, "LARGER octet size is expected as numeric string but was <#{octet_size}>."
+          factory = parse_larger(octet_size.to_i)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
