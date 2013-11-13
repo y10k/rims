@@ -129,6 +129,11 @@ module RIMS
       end
       private :string_include?
 
+      def end_of_cond
+        proc{|msg| true }
+      end
+      private :end_of_cond
+
       def parse_all
         proc{|next_cond|
           proc{|msg|
@@ -210,12 +215,21 @@ module RIMS
       end
       private :parse_new
 
-      def parse(search_key)
+      def parse_not(next_node)
+        operand = next_node.call(end_of_cond)
+        proc{|next_cond|
+          proc{|msg|
+            (! operand.call(msg)) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_not
+
+      def fetch_next_node(search_key)
         if (search_key.empty?) then
-          return proc{|msg_id| true }
+          raise ProtocolDecoder::SyntaxError, 'unexpected end of search key.'
         end
 
-        search_key = search_key.dup
         op = search_key.shift
         op = op.upcase if (op.is_a? String)
 
@@ -267,11 +281,25 @@ module RIMS
           factory = parse_larger(octet_size.to_i)
         when 'NEW'
           factory = parse_new
+        when 'NOT'
+          next_node = fetch_next_node(search_key)
+          factory = parse_not(next_node)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
 
-        factory.call(parse(search_key))
+        factory
+      end
+      private :fetch_next_node
+
+      def parse(search_key)
+        unless (search_key.empty?) then
+          search_key = search_key.dup
+          factory = fetch_next_node(search_key)
+          factory.call(parse(search_key))
+        else
+          return end_of_cond
+        end
       end
     end
   end

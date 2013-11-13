@@ -302,6 +302,27 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
     end
+
+    def test_parse_not
+      make_search_parser{
+	@mail_store.add_msg(@inbox_id, 'foo')
+	@mail_store.add_msg(@inbox_id, '1234')
+	@mail_store.add_msg(@inbox_id, 'bar')
+	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+	@mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
+	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
+	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
+	assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
+      }
+      cond = @parser.parse([ 'NOT', 'LARGER', '3' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(true, cond.call(@folder.msg_list[2]))
+      cond = @parser.parse([ 'NOT', 'ANSWERED' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+      assert_equal(true, cond.call(@folder.msg_list[2]))
+    end
   end
 end
 
