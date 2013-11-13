@@ -225,6 +225,15 @@ module RIMS
       end
       private :parse_not
 
+      def parse_old
+        proc{|next_cond|
+          proc{|msg|
+            (! @mail_store.msg_flag(@folder.id, msg.id, 'recent')) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_old
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise ProtocolDecoder::SyntaxError, 'unexpected end of search key.'
@@ -284,6 +293,8 @@ module RIMS
         when 'NOT'
           next_node = fetch_next_node(search_key)
           factory = parse_not(next_node)
+        when 'OLD'
+          factory = parse_old
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
