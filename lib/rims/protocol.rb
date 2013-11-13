@@ -234,6 +234,15 @@ module RIMS
       end
       private :parse_old
 
+      def parse_on(search_time)
+        proc{|next_cond|
+          proc{|msg|
+            (@mail_store.msg_date(@folder.id, msg.id).to_date == search_time.to_date) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_on
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise ProtocolDecoder::SyntaxError, 'unexpected end of search key.'
@@ -295,6 +304,10 @@ module RIMS
           factory = parse_not(next_node)
         when 'OLD'
           factory = parse_old
+        when 'ON'
+          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of ON.'
+          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "ON search date is invalid: #{search_date}"
+          factory = parse_on(t)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
