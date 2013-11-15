@@ -164,9 +164,10 @@ module RIMS
       private :parse_search_header
 
       def parse_before(search_time)
+        d = search_time.to_date
         proc{|next_cond|
           proc{|msg|
-            (@mail_store.msg_date(@folder.id, msg.id).to_date < search_time.to_date) && next_cond.call(msg)
+            (@mail_store.msg_date(@folder.id, msg.id).to_date < d) && next_cond.call(msg)
           }
         }
       end
@@ -235,9 +236,10 @@ module RIMS
       private :parse_old
 
       def parse_on(search_time)
+        d = search_time.to_date
         proc{|next_cond|
           proc{|msg|
-            (@mail_store.msg_date(@folder.id, msg.id).to_date == search_time.to_date) && next_cond.call(msg)
+            (@mail_store.msg_date(@folder.id, msg.id).to_date == d) && next_cond.call(msg)
           }
         }
       end
