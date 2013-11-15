@@ -163,15 +163,29 @@ module RIMS
       end
       private :parse_search_header
 
-      def parse_before(search_time)
+      def parse_internal_date(search_time) # :yields: mail_date, boundary
         d = search_time.to_date
         proc{|next_cond|
           proc{|msg|
-            (@mail_store.msg_date(@folder.id, msg.id).to_date < d) && next_cond.call(msg)
+            yield(@mail_store.msg_date(@folder.id, msg.id).to_date, d) && next_cond.call(msg)
           }
         }
       end
-      private :parse_before
+      private :parse_internal_date
+
+      def parse_mail_date(search_time) # :yields: internal_date, boundary
+        d = search_time.to_date
+        proc{|next_cond|
+          proc{|msg|
+            if (mail_datetime = @mail_cache[msg.id].date) then
+              yield(mail_datetime.to_date, d) && next_cond.call(msg)
+            else
+              false
+            end
+          }
+        }
+      end
+      private :parse_mail_date
 
       def parse_body(search_string)
         proc{|next_cond|
@@ -235,16 +249,6 @@ module RIMS
       end
       private :parse_old
 
-      def parse_on(search_time)
-        d = search_time.to_date
-        proc{|next_cond|
-          proc{|msg|
-            (@mail_store.msg_date(@folder.id, msg.id).to_date == d) && next_cond.call(msg)
-          }
-        }
-      end
-      private :parse_on
-
       def parse_or(next_node1, next_node2)
         operand1 = next_node1.call(end_of_cond)
         operand2 = next_node2.call(end_of_cond)
@@ -255,48 +259,6 @@ module RIMS
         }
       end
       private :parse_or
-
-      def parse_sentbefore(search_time)
-        d = search_time.to_date
-        proc{|next_cond|
-          proc{|msg|
-            if (mail_datetime = @mail_cache[msg.id].date) then
-              (mail_datetime.to_date < d) && next_cond.call(msg)
-            else
-              false
-            end
-          }
-        }
-      end
-      private :parse_sentbefore
-
-      def parse_senton(search_time)
-        d = search_time.to_date
-        proc{|next_cond|
-          proc{|msg|
-            if (mail_datetime = @mail_cache[msg.id].date) then
-              (mail_datetime.to_date == d) && next_cond.call(msg)
-            else
-              false
-            end
-          }
-        }
-      end
-      private :parse_senton
-
-      def parse_sentsince(search_time)
-        d = search_time.to_date
-        proc{|next_cond|
-          proc{|msg|
-            if (mail_datetime = @mail_cache[msg.id].date) then
-              (mail_datetime.to_date > d) && next_cond.call(msg)
-            else
-              false
-            end
-          }
-        }
-      end
-      private :parse_sentsince
 
       def fetch_next_node(search_key)
         if (search_key.empty?) then
@@ -318,7 +280,7 @@ module RIMS
         when 'BEFORE'
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of BEFORE.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "BEFORE search date is invalid: #{search_date}"
-          factory = parse_before(t)
+          factory = parse_internal_date(t) {|d, boundary| d < boundary }
         when 'BODY'
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BODY.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "BODY search string expected as <String> but was <#{search_string.class}>."
@@ -362,7 +324,7 @@ module RIMS
         when 'ON'
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of ON.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "ON search date is invalid: #{search_date}"
-          factory = parse_on(t)
+          factory = parse_internal_date(t) {|d, boundary| d == boundary }
         when 'OR'
           next_node1 = fetch_next_node(search_key)
           next_node2 = fetch_next_node(search_key)
@@ -374,15 +336,15 @@ module RIMS
         when 'SENTBEFORE'
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTBEFORE.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTBEFORE search date is invalid: #{search_date}"
-          factory = parse_sentbefore(t)
+          factory = parse_mail_date(t) {|d, boundary| d < boundary }
         when 'SENTON'
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTON.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTON search date is invalid: #{search_date}"
-          factory = parse_senton(t)
+          factory = parse_mail_date(t) {|d, boundary| d == boundary }
         when 'SENTSINCE'
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTSINCE.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTSINCE search date is invalid: #{search_date}"
-          factory = parse_sentsince(t)
+          factory = parse_mail_date(t) {|d, boundary| d > boundary }
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
