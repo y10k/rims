@@ -564,6 +564,27 @@ Content-Type: text/html
         @parser.parse([ 'SUBJECT', [ :group, 'foo' ] ])
       }
     end
+
+    def test_parse_text
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nSubject: foo\r\n\r\nbar")
+        assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'TEXT', 'jec' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      cond = @parser.parse([ 'TEXT', 'foo' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      cond = @parser.parse([ 'TEXT', 'bar' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      cond = @parser.parse([ 'TEXT', 'baz' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'TEXT' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'TEXT', [ :group, 'foo'] ])
+      }
+    end
   end
 end
 

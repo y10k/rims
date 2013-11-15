@@ -274,6 +274,19 @@ module RIMS
       end
       private :parse_or
 
+      def parse_text(search_string)
+        search = proc{|text| string_include?(search_string, text) }
+        proc{|next_cond|
+          proc{|msg|
+            mail = @mail_cache[msg.id]
+            names = mail.header.map{|field| field.name.to_s }
+            text = mail_body_text(mail)
+            (names.any?{|n| search.call(n) || search.call(mail[n].to_s) } || (! text.nil? && search.call(text))) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_text
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise ProtocolDecoder::SyntaxError, 'unexpected end of search key.'
@@ -372,6 +385,10 @@ module RIMS
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of SUBJECT.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "SUBJECT search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('subject', search_string)
+        when 'TEXT'
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of TEXT.'
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "TEXT search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_text(search_string)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
