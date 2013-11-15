@@ -498,6 +498,31 @@ Content-Type: text/html
         @parser.parse([ 'SENTSINCE', [ :group, '08-Nov-2013'] ])
       }
     end
+
+    def test_parse_since
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
+        assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
+        assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
+      }
+      cond = @parser.parse([ 'SINCE', '08-Nov-2013' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(true, cond.call(@folder.msg_list[2]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SINCE' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SINCE', '99-Nov-2013' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SINCE', [ :group, '08-Nov-2013'] ])
+      }
+    end
   end
 end
 

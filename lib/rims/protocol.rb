@@ -345,6 +345,10 @@ module RIMS
           search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTSINCE.'
           t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTSINCE search date is invalid: #{search_date}"
           factory = parse_mail_date(t) {|d, boundary| d > boundary }
+        when 'SINCE'
+          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SINCE.'
+          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SINCE search date is invalid: #{search_date}"
+          factory = parse_internal_date(t) {|d, boundary| d > boundary }
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
