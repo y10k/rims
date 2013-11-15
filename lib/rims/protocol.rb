@@ -389,6 +389,10 @@ module RIMS
           search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of TEXT.'
           search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "TEXT search string expected as <String> but was <#{search_string.class}>."
           factory = parse_text(search_string)
+        when 'TO'
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of TO.'
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "TO search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_search_header('to', search_string)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
