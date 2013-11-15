@@ -545,6 +545,25 @@ Content-Type: text/html
         @parser.parse([ 'SMALLER', 'nonum' ])
       }
     end
+
+    def test_parse_subject
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, "Subject: foo\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Subject: bar\r\n\r\foo")
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'SUBJECT', 'foo' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SUBJECT' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SUBJECT', [ :group, 'foo' ] ])
+      }
+    end
   end
 end
 

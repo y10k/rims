@@ -368,6 +368,10 @@ module RIMS
           (octet_size.is_a? String) && (octet_size =~ /^\d+$/) or
             raise ProtocolDecoder::SyntaxError, "SMALLER octet size is expected as numeric string but was <#{octet_size}>."
           factory = parse_mail_bytesize(octet_size.to_i) {|size, boundary| size < boundary }
+        when 'SUBJECT'
+          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of SUBJECT.'
+          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "SUBJECT search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_search_header('subject', search_string)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
