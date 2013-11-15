@@ -523,6 +523,28 @@ Content-Type: text/html
         @parser.parse([ 'SINCE', [ :group, '08-Nov-2013'] ])
       }
     end
+
+    def test_parse_smaller
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, '12')
+        @mail_store.add_msg(@inbox_id, 'bar')
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'SMALLER', '3' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SMALLER' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SMALLER', [ :group, '3' ] ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SMALLER', 'nonum' ])
+      }
+    end
   end
 end
 
