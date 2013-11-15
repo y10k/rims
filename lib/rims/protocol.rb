@@ -129,6 +129,22 @@ module RIMS
       end
       private :string_include?
 
+      def mail_body_text(mail)
+        case (mail.content_type)
+        when /^text/i, /^message/i
+          text = mail.body.to_s
+          if (charset = mail['content-type'].parameters['charset']) then
+            if (text.encoding != Encoding.find(charset)) then
+              text = text.dup.force_encoding(charset)
+            end
+          end
+          text
+        else
+          nil
+        end
+      end
+      private :mail_body_text
+
       def end_of_cond
         proc{|msg| true }
       end
@@ -199,10 +215,8 @@ module RIMS
       def parse_body(search_string)
         proc{|next_cond|
           proc{|msg|
-            mail = @mail_cache[msg.id]
-            case (mail.content_type)
-            when /^text/i, /^message/i
-              string_include?(search_string, mail.body.to_s) && next_cond.call(msg)
+            if (text = mail_body_text(@mail_cache[msg.id])) then
+              string_include?(search_string, text) && next_cond.call(msg)
             else
               false
             end
