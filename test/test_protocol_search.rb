@@ -426,6 +426,78 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
     end
+
+    def test_parse_sentbefore
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, "Date: Thu, 07 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'SENTBEFORE', '08-Nov-2013' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      assert_equal(false, cond.call(@folder.msg_list[3]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTBEFORE' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTBEFORE', '99-Nov-2013' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTBEFORE', [ :group, '08-Nov-2013'] ])
+      }
+    end
+
+    def test_parse_senton
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, "Date: Thu, 07 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'SENTON', '08-Nov-2013' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+      assert_equal(false, cond.call(@folder.msg_list[2]))
+      assert_equal(false, cond.call(@folder.msg_list[3]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTON' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTON', '99-Nov-2013' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTON', [ :group, '08-Nov-2013'] ])
+      }
+    end
+
+    def test_parse_sentsince
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, "Date: Thu, 07 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'SENTSINCE', '08-Nov-2013' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(true, cond.call(@folder.msg_list[2]))
+      assert_equal(false, cond.call(@folder.msg_list[3]))
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTSINCE' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTSINCE', '99-Nov-2013' ])
+      }
+      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+        @parser.parse([ 'SENTSINCE', [ :group, '08-Nov-2013'] ])
+      }
+    end
   end
 end
 

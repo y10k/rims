@@ -256,6 +256,48 @@ module RIMS
       end
       private :parse_or
 
+      def parse_sentbefore(search_time)
+        d = search_time.to_date
+        proc{|next_cond|
+          proc{|msg|
+            if (mail_datetime = @mail_cache[msg.id].date) then
+              (mail_datetime.to_date < d) && next_cond.call(msg)
+            else
+              false
+            end
+          }
+        }
+      end
+      private :parse_sentbefore
+
+      def parse_senton(search_time)
+        d = search_time.to_date
+        proc{|next_cond|
+          proc{|msg|
+            if (mail_datetime = @mail_cache[msg.id].date) then
+              (mail_datetime.to_date == d) && next_cond.call(msg)
+            else
+              false
+            end
+          }
+        }
+      end
+      private :parse_senton
+
+      def parse_sentsince(search_time)
+        d = search_time.to_date
+        proc{|next_cond|
+          proc{|msg|
+            if (mail_datetime = @mail_cache[msg.id].date) then
+              (mail_datetime.to_date > d) && next_cond.call(msg)
+            else
+              false
+            end
+          }
+        }
+      end
+      private :parse_sentsince
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise ProtocolDecoder::SyntaxError, 'unexpected end of search key.'
@@ -329,6 +371,18 @@ module RIMS
           factory = parse_msg_flag_enabled('recent')
         when 'SEEN'
           factory = parse_msg_flag_enabled('seen')
+        when 'SENTBEFORE'
+          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTBEFORE.'
+          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTBEFORE search date is invalid: #{search_date}"
+          factory = parse_sentbefore(t)
+        when 'SENTON'
+          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTON.'
+          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTON search date is invalid: #{search_date}"
+          factory = parse_senton(t)
+        when 'SENTSINCE'
+          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTSINCE.'
+          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTSINCE search date is invalid: #{search_date}"
+          factory = parse_sentsince(t)
         else
           raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
         end
