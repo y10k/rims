@@ -29,8 +29,8 @@ module RIMS::Test
 
     def test_parse_all
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'ALL' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -38,12 +38,12 @@ module RIMS::Test
 
     def test_parse_answered
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	@mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
-	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
-	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
       }
       cond = @parser.parse([ 'ANSWERED' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -52,45 +52,45 @@ module RIMS::Test
 
     def test_parse_bcc
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, "Bcc: foo\r\n\r\nfoo")
-	@mail_store.add_msg(@inbox_id, "Bcc: bar\r\n\r\foo")
+        @mail_store.add_msg(@inbox_id, "Bcc: foo\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Bcc: bar\r\n\r\foo")
         @mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'BCC', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'BCC' ])
+        @parser.parse([ 'BCC' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'BCC', [ :group, 'foo' ] ])
+        @parser.parse([ 'BCC', [ :group, 'foo' ] ])
       }
     end
 
     def test_parse_before
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
-	@mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
-	@mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
-	assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
-	assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
+        assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
+        assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
       }
       cond = @parser.parse([ 'BEFORE', '08-Nov-2013' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'BEFORE' ])
+        @parser.parse([ 'BEFORE' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'BEFORE', '99-Nov-2013' ])
+        @parser.parse([ 'BEFORE', '99-Nov-2013' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'BEFORE', [ :group, '08-Nov-2013'] ])
+        @parser.parse([ 'BEFORE', [ :group, '08-Nov-2013'] ])
       }
     end
 
@@ -120,40 +120,40 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[2]))
       assert_equal(false, cond.call(@folder.msg_list[3])) # ignored text part of multipart message.
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'BODY' ])
+        @parser.parse([ 'BODY' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'BODY', [ :group, 'foo' ] ])
+        @parser.parse([ 'BODY', [ :group, 'foo' ] ])
       }
     end
 
     def test_parse_cc
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, "Cc: foo\r\n\r\nfoo")
-	@mail_store.add_msg(@inbox_id, "Cc: bar\r\n\r\foo")
+        @mail_store.add_msg(@inbox_id, "Cc: foo\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "Cc: bar\r\n\r\foo")
         @mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'CC', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'CC' ])
+        @parser.parse([ 'CC' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'CC', [ :group, 'foo' ] ])
+        @parser.parse([ 'CC', [ :group, 'foo' ] ])
       }
     end
 
     def test_parse_deleted
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	@mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
-	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
-	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
       }
       cond = @parser.parse([ 'DELETED' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -162,12 +162,12 @@ Content-Type: text/html
 
     def test_parse_draft
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	@mail_store.set_msg_flag(@inbox_id, 1, 'draft', true)
-	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
-	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'draft', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
       }
       cond = @parser.parse([ 'DRAFT' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -176,12 +176,12 @@ Content-Type: text/html
 
     def test_parse_flagged
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	@mail_store.set_msg_flag(@inbox_id, 1, 'flagged', true)
-	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
-	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'flagged', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
       }
       cond = @parser.parse([ 'FLAGGED' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -190,29 +190,29 @@ Content-Type: text/html
 
     def test_parse_from
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, "From: foo\r\n\r\nfoo")
-	@mail_store.add_msg(@inbox_id, "From: bar\r\n\r\foo")
+        @mail_store.add_msg(@inbox_id, "From: foo\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "From: bar\r\n\r\foo")
         @mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'FROM', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'FROM' ])
+        @parser.parse([ 'FROM' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'FROM', [ :group, 'foo' ] ])
+        @parser.parse([ 'FROM', [ :group, 'foo' ] ])
       }
     end
 
     def test_parse_header
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, "X-Foo: alice\r\nX-Bar: bob\r\n\r\nfoo")
-	@mail_store.add_msg(@inbox_id, "X-Foo: bob\r\nX-Bar: alice\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "X-Foo: alice\r\nX-Bar: bob\r\n\r\nfoo")
+        @mail_store.add_msg(@inbox_id, "X-Foo: bob\r\nX-Bar: alice\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'HEADER', 'x-foo', 'alice' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -232,62 +232,62 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[2]))
 
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'HEADER' ])
+        @parser.parse([ 'HEADER' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'HEADER', 'Received' ])
+        @parser.parse([ 'HEADER', 'Received' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'HEADER', 'Received', [ :group, 'foo' ] ])
+        @parser.parse([ 'HEADER', 'Received', [ :group, 'foo' ] ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'HEADER', [ :group, 'Received' ], 'foo' ])
+        @parser.parse([ 'HEADER', [ :group, 'Received' ], 'foo' ])
       }
     end
 
     def test_parse_keyword
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'KEYWORD', 'foo' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'KEYWORD' ])
+        @parser.parse([ 'KEYWORD' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'KEYWORD', [ :group, 'foo' ] ])
+        @parser.parse([ 'KEYWORD', [ :group, 'foo' ] ])
       }
     end
 
     def test_parse_larger
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, '1234')
-	@mail_store.add_msg(@inbox_id, 'bar')
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, '1234')
+        @mail_store.add_msg(@inbox_id, 'bar')
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'LARGER', '3' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'LARGER' ])
+        @parser.parse([ 'LARGER' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'LARGER', [ :group, '3' ] ])
+        @parser.parse([ 'LARGER', [ :group, '3' ] ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'LARGER', 'nonum' ])
+        @parser.parse([ 'LARGER', 'nonum' ])
       }
     end
 
     def test_parse_new
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'bar')
-	@mail_store.add_msg(@inbox_id, 'baz')
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'bar')
+        @mail_store.add_msg(@inbox_id, 'baz')
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 3, 'recent', false)
         @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
@@ -305,14 +305,14 @@ Content-Type: text/html
 
     def test_parse_not
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, '1234')
-	@mail_store.add_msg(@inbox_id, 'bar')
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	@mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
-	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
-	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
-	assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, '1234')
+        @mail_store.add_msg(@inbox_id, 'bar')
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
       }
       cond = @parser.parse([ 'NOT', 'LARGER', '3' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -329,10 +329,10 @@ Content-Type: text/html
 
     def test_parse_old
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'bar')
-	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	@mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'bar')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
       }
@@ -343,36 +343,36 @@ Content-Type: text/html
 
     def test_parse_on
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
-	@mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
-	@mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
-	assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
-	assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
-	assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
+        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
+        assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
+        assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
       }
       cond = @parser.parse([ 'ON', '08-Nov-2013' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'ON' ])
+        @parser.parse([ 'ON' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'ON', '99-Nov-2013' ])
+        @parser.parse([ 'ON', '99-Nov-2013' ])
       }
       assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
-	@parser.parse([ 'ON', [ :group, '08-Nov-2013'] ])
+        @parser.parse([ 'ON', [ :group, '08-Nov-2013'] ])
       }
     end
 
     def test_parse_or
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
         @mail_store.set_msg_flag(@inbox_id, 2, 'answered', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
@@ -401,12 +401,12 @@ Content-Type: text/html
 
     def test_parse_recent
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	@mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
-	assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
-	assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
       }
       cond = @parser.parse([ 'RECENT' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
@@ -415,12 +415,12 @@ Content-Type: text/html
 
     def test_parse_seen
       make_search_parser{
-	@mail_store.add_msg(@inbox_id, 'foo')
-	@mail_store.add_msg(@inbox_id, 'foo')
-	assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
-	@mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
-	assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
-	assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       }
       cond = @parser.parse([ 'SEEN' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))

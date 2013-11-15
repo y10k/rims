@@ -204,7 +204,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
 
       input = StringIO.new("A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n")
       assert_equal([ 'A003', 'APPEND', 'saved-messages', [ :group, '\Seen' ], literal ],
-		   RIMS::Protocol.read_command(input))
+                   RIMS::Protocol.read_command(input))
     end
   end
 
