@@ -631,6 +631,91 @@ Content-Type: text/html
       end
       assert_kind_of(RIMS::SyntaxError, error)
     end
+
+    def test_parse_unanswered
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
+      }
+      cond = @parser.parse([ 'UNANSWERED' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+    end
+
+    def test_parse_undeleted
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      }
+      cond = @parser.parse([ 'UNDELETED' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+    end
+
+    def test_parse_undraft
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'draft', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
+      }
+      cond = @parser.parse([ 'UNDRAFT' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+    end
+
+    def test_parse_unflagged
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'flagged', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
+      }
+      cond = @parser.parse([ 'UNFLAGGED' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+    end
+
+    def test_parse_unkeyword
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'UNKEYWORD', 'foo' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_raise(RIMS::SyntaxError) {
+        @parser.parse([ 'UNKEYWORD' ])
+      }
+      assert_raise(RIMS::SyntaxError) {
+        @parser.parse([ 'UNKEYWORD', [ :group, 'foo' ] ])
+      }
+    end
+
+    def test_parse_unseen
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      }
+      cond = @parser.parse([ 'UNSEEN' ])
+      assert_equal(false, cond.call(@folder.msg_list[0]))
+      assert_equal(true, cond.call(@folder.msg_list[1]))
+    end
   end
 end
 

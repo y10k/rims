@@ -168,6 +168,15 @@ module RIMS
       end
       private :parse_msg_flag_enabled
 
+      def parse_msg_flag_disabled(name)
+        proc{|next_cond|
+          proc{|msg|
+            (! @mail_store.msg_flag(@folder.id, msg.id, name)) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_msg_flag_enabled
+
       def parse_search_header(name, search_string)
         proc{|next_cond|
           proc{|msg|
@@ -296,6 +305,11 @@ module RIMS
       end
       private :parse_uid
 
+      def parse_unkeyword(search_string)
+        parse_all
+      end
+      private :parse_unkeyword
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise SyntaxError, 'unexpected end of search key.'
@@ -407,6 +421,20 @@ module RIMS
           mset_string.is_a? String or raise SyntaxError, "UID message set expected as <String> but was <#{search_string.class}>."
           msg_set = @folder.parse_msg_set(mset_string, uid: true)
           factory = parse_uid(msg_set)
+        when 'UNANSWERED'
+          factory = parse_msg_flag_disabled('answered')
+        when 'UNDELETED'
+          factory = parse_msg_flag_disabled('deleted')
+        when 'UNDRAFT'
+          factory = parse_msg_flag_disabled('draft')
+        when 'UNFLAGGED'
+          factory = parse_msg_flag_disabled('flagged')
+        when 'UNKEYWORD'
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of UNKEYWORD.'
+          search_string.is_a? String or raise SyntaxError, "UNKEYWORD search string expected as <String> but was <#{search_string.class}>."
+          factory = parse_unkeyword(search_string)
+        when 'UNSEEN'
+          factory = parse_msg_flag_disabled('seen')
         else
           raise SyntaxError, "unknown search key: #{op}"
         end
