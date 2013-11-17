@@ -297,7 +297,7 @@ module RIMS
       when /^(\d+|\*):(\d+|\*)$/
         msg_seq_pair = [ $1, $2 ]
       else
-        raise "invalid message sequence format: #{msg_seq_desc}"
+        raise MessageSetSyntaxError, "invalid message sequence format: #{msg_seq_desc}"
       end
 
       msg_seq_pair.map!{|num|
@@ -307,7 +307,7 @@ module RIMS
         else
           n = num.to_i
           if (n < 1) then
-            raise "out of range of message sequence number: #{msg_seq_desc}"
+            raise MessageSetSyntaxError, "out of range of message sequence number: #{msg_seq_desc}"
           end
           n
         end

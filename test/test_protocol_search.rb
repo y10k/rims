@@ -61,10 +61,10 @@ module RIMS::Test
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'BCC' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'BCC', [ :group, 'foo' ] ])
       }
     end
@@ -83,13 +83,13 @@ module RIMS::Test
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'BEFORE' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'BEFORE', '99-Nov-2013' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'BEFORE', [ :group, '08-Nov-2013'] ])
       }
     end
@@ -119,10 +119,10 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(true, cond.call(@folder.msg_list[2]))
       assert_equal(false, cond.call(@folder.msg_list[3])) # ignored text part of multipart message.
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'BODY' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'BODY', [ :group, 'foo' ] ])
       }
     end
@@ -138,10 +138,10 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'CC' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'CC', [ :group, 'foo' ] ])
       }
     end
@@ -199,10 +199,10 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'FROM' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'FROM', [ :group, 'foo' ] ])
       }
     end
@@ -231,16 +231,16 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
 
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'HEADER' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'HEADER', 'Received' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'HEADER', 'Received', [ :group, 'foo' ] ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'HEADER', [ :group, 'Received' ], 'foo' ])
       }
     end
@@ -252,10 +252,10 @@ Content-Type: text/html
       }
       cond = @parser.parse([ 'KEYWORD', 'foo' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'KEYWORD' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'KEYWORD', [ :group, 'foo' ] ])
       }
     end
@@ -271,13 +271,13 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'LARGER' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'LARGER', [ :group, '3' ] ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'LARGER', 'nonum' ])
       }
     end
@@ -322,7 +322,7 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(true, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'NOT' ])
       }
     end
@@ -355,13 +355,13 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'ON' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'ON', '99-Nov-2013' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'ON', [ :group, '08-Nov-2013'] ])
       }
     end
@@ -391,10 +391,10 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(true, cond.call(@folder.msg_list[2]))
       assert_equal(false, cond.call(@folder.msg_list[3]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'OR' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'OR', 'ANSWERED' ])
       }
     end
@@ -440,13 +440,13 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_equal(false, cond.call(@folder.msg_list[3]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTBEFORE' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTBEFORE', '99-Nov-2013' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTBEFORE', [ :group, '08-Nov-2013'] ])
       }
     end
@@ -464,13 +464,13 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
       assert_equal(false, cond.call(@folder.msg_list[3]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTON' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTON', '99-Nov-2013' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTON', [ :group, '08-Nov-2013'] ])
       }
     end
@@ -488,13 +488,13 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(true, cond.call(@folder.msg_list[2]))
       assert_equal(false, cond.call(@folder.msg_list[3]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTSINCE' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTSINCE', '99-Nov-2013' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SENTSINCE', [ :group, '08-Nov-2013'] ])
       }
     end
@@ -513,13 +513,13 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(true, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SINCE' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SINCE', '99-Nov-2013' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SINCE', [ :group, '08-Nov-2013'] ])
       }
     end
@@ -535,13 +535,13 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(true, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SMALLER' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SMALLER', [ :group, '3' ] ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SMALLER', 'nonum' ])
       }
     end
@@ -557,10 +557,10 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SUBJECT' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'SUBJECT', [ :group, 'foo' ] ])
       }
     end
@@ -578,10 +578,10 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[0]))
       cond = @parser.parse([ 'TEXT', 'baz' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'TEXT' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'TEXT', [ :group, 'foo'] ])
       }
     end
@@ -597,10 +597,10 @@ Content-Type: text/html
       assert_equal(true, cond.call(@folder.msg_list[0]))
       assert_equal(false, cond.call(@folder.msg_list[1]))
       assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'TO' ])
       }
-      assert_raise(RIMS::ProtocolDecoder::SyntaxError) {
+      assert_raise(RIMS::SyntaxError) {
         @parser.parse([ 'TO', [ :group, 'foo' ] ])
       }
     end

@@ -289,7 +289,7 @@ module RIMS
 
       def fetch_next_node(search_key)
         if (search_key.empty?) then
-          raise ProtocolDecoder::SyntaxError, 'unexpected end of search key.'
+          raise SyntaxError, 'unexpected end of search key.'
         end
 
         op = search_key.shift
@@ -301,20 +301,20 @@ module RIMS
         when 'ANSWERED'
           factory = parse_msg_flag_enabled('answered')
         when 'BCC'
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BCC.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of BCC.'
+          search_string.is_a? String or raise SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('bcc', search_string)
         when 'BEFORE'
-          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of BEFORE.'
-          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "BEFORE search date is invalid: #{search_date}"
+          search_date = search_key.shift or raise SyntaxError, 'need for a search date of BEFORE.'
+          t = str2time(search_date) or raise SyntaxError, "BEFORE search date is invalid: #{search_date}"
           factory = parse_internal_date(t) {|d, boundary| d < boundary }
         when 'BODY'
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of BODY.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "BODY search string expected as <String> but was <#{search_string.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of BODY.'
+          search_string.is_a? String or raise SyntaxError, "BODY search string expected as <String> but was <#{search_string.class}>."
           factory = parse_body(search_string)
         when 'CC'
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of CC.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "CC search string expected as <String> but was <#{search_string.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of CC.'
+          search_string.is_a? String or raise SyntaxError, "CC search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('cc', search_string)
         when 'DELETED'
           factory = parse_msg_flag_enabled('deleted')
@@ -323,23 +323,23 @@ module RIMS
         when 'FLAGGED'
           factory = parse_msg_flag_enabled('flagged')
         when 'FROM'
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of FROM.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "FROM search string expected as <String> but was <#{search_string.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of FROM.'
+          search_string.is_a? String or raise SyntaxError, "FROM search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('from', search_string)
         when 'HEADER'
-          header_name = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a header name of HEADER.'
-          header_name.is_a? String or raise ProtocolDecoder::SyntaxError, "HEADER header name expected as <String> but was <#{header_name.class}>."
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of HEADER.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "HEADER search string expected as <String> but was <#{search_string.class}>."
+          header_name = search_key.shift or raise SyntaxError, 'need for a header name of HEADER.'
+          header_name.is_a? String or raise SyntaxError, "HEADER header name expected as <String> but was <#{header_name.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of HEADER.'
+          search_string.is_a? String or raise SyntaxError, "HEADER search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header(header_name, search_string)
         when 'KEYWORD'
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of KEYWORD.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "KEYWORD search string expected as <String> but was <#{search_string.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of KEYWORD.'
+          search_string.is_a? String or raise SyntaxError, "KEYWORD search string expected as <String> but was <#{search_string.class}>."
           factory = parse_keyword(search_string)
         when 'LARGER'
-          octet_size = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a octet size of LARGER.'
+          octet_size = search_key.shift or raise SyntaxError, 'need for a octet size of LARGER.'
           (octet_size.is_a? String) && (octet_size =~ /^\d+$/) or
-            raise ProtocolDecoder::SyntaxError, "LARGER octet size is expected as numeric string but was <#{octet_size}>."
+            raise SyntaxError, "LARGER octet size is expected as numeric string but was <#{octet_size}>."
           factory = parse_mail_bytesize(octet_size.to_i) {|size, boundary| size > boundary }
         when 'NEW'
           factory = parse_new
@@ -349,8 +349,8 @@ module RIMS
         when 'OLD'
           factory = parse_old
         when 'ON'
-          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of ON.'
-          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "ON search date is invalid: #{search_date}"
+          search_date = search_key.shift or raise SyntaxError, 'need for a search date of ON.'
+          t = str2time(search_date) or raise SyntaxError, "ON search date is invalid: #{search_date}"
           factory = parse_internal_date(t) {|d, boundary| d == boundary }
         when 'OR'
           next_node1 = fetch_next_node(search_key)
@@ -361,40 +361,40 @@ module RIMS
         when 'SEEN'
           factory = parse_msg_flag_enabled('seen')
         when 'SENTBEFORE'
-          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTBEFORE.'
-          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTBEFORE search date is invalid: #{search_date}"
+          search_date = search_key.shift or raise SyntaxError, 'need for a search date of SENTBEFORE.'
+          t = str2time(search_date) or raise SyntaxError, "SENTBEFORE search date is invalid: #{search_date}"
           factory = parse_mail_date(t) {|d, boundary| d < boundary }
         when 'SENTON'
-          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTON.'
-          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTON search date is invalid: #{search_date}"
+          search_date = search_key.shift or raise SyntaxError, 'need for a search date of SENTON.'
+          t = str2time(search_date) or raise SyntaxError, "SENTON search date is invalid: #{search_date}"
           factory = parse_mail_date(t) {|d, boundary| d == boundary }
         when 'SENTSINCE'
-          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SENTSINCE.'
-          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SENTSINCE search date is invalid: #{search_date}"
+          search_date = search_key.shift or raise SyntaxError, 'need for a search date of SENTSINCE.'
+          t = str2time(search_date) or raise SyntaxError, "SENTSINCE search date is invalid: #{search_date}"
           factory = parse_mail_date(t) {|d, boundary| d > boundary }
         when 'SINCE'
-          search_date = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search date of SINCE.'
-          t = str2time(search_date) or raise ProtocolDecoder::SyntaxError, "SINCE search date is invalid: #{search_date}"
+          search_date = search_key.shift or raise SyntaxError, 'need for a search date of SINCE.'
+          t = str2time(search_date) or raise SyntaxError, "SINCE search date is invalid: #{search_date}"
           factory = parse_internal_date(t) {|d, boundary| d > boundary }
         when 'SMALLER'
-          octet_size = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a octet size of SMALLER.'
+          octet_size = search_key.shift or raise SyntaxError, 'need for a octet size of SMALLER.'
           (octet_size.is_a? String) && (octet_size =~ /^\d+$/) or
-            raise ProtocolDecoder::SyntaxError, "SMALLER octet size is expected as numeric string but was <#{octet_size}>."
+            raise SyntaxError, "SMALLER octet size is expected as numeric string but was <#{octet_size}>."
           factory = parse_mail_bytesize(octet_size.to_i) {|size, boundary| size < boundary }
         when 'SUBJECT'
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of SUBJECT.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "SUBJECT search string expected as <String> but was <#{search_string.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of SUBJECT.'
+          search_string.is_a? String or raise SyntaxError, "SUBJECT search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('subject', search_string)
         when 'TEXT'
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of TEXT.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "TEXT search string expected as <String> but was <#{search_string.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of TEXT.'
+          search_string.is_a? String or raise SyntaxError, "TEXT search string expected as <String> but was <#{search_string.class}>."
           factory = parse_text(search_string)
         when 'TO'
-          search_string = search_key.shift or raise ProtocolDecoder::SyntaxError, 'need for a search string of TO.'
-          search_string.is_a? String or raise ProtocolDecoder::SyntaxError, "TO search string expected as <String> but was <#{search_string.class}>."
+          search_string = search_key.shift or raise SyntaxError, 'need for a search string of TO.'
+          search_string.is_a? String or raise SyntaxError, "TO search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('to', search_string)
         else
-          raise ProtocolDecoder::SyntaxError, "unknown search key: #{op}"
+          raise SyntaxError, "unknown search key: #{op}"
         end
 
         factory
@@ -414,9 +414,6 @@ module RIMS
   end
 
   class ProtocolDecoder
-    class SyntaxError < StandardError
-    end
-
     def initialize(mail_store_pool, passwd, logger)
       @mail_store_pool = mail_store_pool
       @mail_store_holder = nil

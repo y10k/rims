@@ -371,6 +371,10 @@ module RIMS::Test
       assert_equal((1..50).to_set, folder.parse_msg_set('1:*'))
       assert_equal((1..50).to_set, folder.parse_msg_set('1:*', uid: false))
       assert_equal((1..99).to_set, folder.parse_msg_set('1:*', uid: true))
+
+      assert_raise(RIMS::MessageSetSyntaxError) {
+        folder.parse_msg_set('detarame')
+      }
     end
   end
 
@@ -381,6 +385,9 @@ module RIMS::Test
       assert_equal(1..10, RIMS::MailFolder.parse_msg_seq('1:10', 99))
       assert_equal(1..99, RIMS::MailFolder.parse_msg_seq('1:*', 99))
       assert_equal(99..99, RIMS::MailFolder.parse_msg_seq('*:*', 99))
+      assert_raise(RIMS::MessageSetSyntaxError) {
+        RIMS::MailFolder.parse_msg_seq('detarame', 99)
+      }
     end
 
     def test_parse_msg_set
@@ -393,6 +400,13 @@ module RIMS::Test
       assert_equal([ 1, 5, 7, 99 ].to_set, RIMS::MailFolder.parse_msg_set('1,5,7,*', 99))
       assert_equal([ 1, 2, 3, 11, 97, 98, 99 ].to_set, RIMS::MailFolder.parse_msg_set('1:3,11,97:*', 99))
       assert_equal((1..99).to_set, RIMS::MailFolder.parse_msg_set('1:70,30:*', 99))
+
+      assert_raise(RIMS::MessageSetSyntaxError) {
+        RIMS::MailFolder.parse_msg_set('detarame', 99)
+      }
+      assert_raise(RIMS::MessageSetSyntaxError) {
+        RIMS::MailFolder.parse_msg_set('1,2,X', 99)
+      }
     end
   end
 end
