@@ -826,7 +826,29 @@ module RIMS
 
     def search(tag, *cond_args, uid: false)
       protect_select(tag) {
-        [ "#{tag} BAD not implemented" ]
+        @folder.reload if @folder.updated?
+        parser = Protocol::SearchParser.new(@mail_store_holder.to_mst, @folder)
+        if (cond_args[0].upcase == 'CHARSET') then
+          cond_args.shift
+          charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
+          charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
+          parser.charset = charset_string
+        end
+        cond = parser.parse(cond_args)
+        msg_list = @folder.msg_list.find_all{|msg| cond.call(msg) }
+
+        search_resp = '* SEARCH'
+        for msg in msg_list
+          if (uid) then
+            search_resp << " #{msg.id}"
+          else
+            search_resp << " #{msg.num}"
+          end
+        end
+
+        [ search_resp,
+          "#{tag} OK SEARCH completed"
+        ]
       }
     end
 

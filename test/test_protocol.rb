@@ -949,6 +949,77 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_search
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.search('T001', 'ALL').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.search('T003', 'ALL').each
+      assert_match(/^T003 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.select('T004', 'INBOX').each
+      res.next while (res.peek =~ /^\* /)
+      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.search('T005', 'ALL').each
+      assert_equal('* SEARCH', res.next)
+      assert_equal('T005 OK SEARCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\napple")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\nbnana")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\norange")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\nmelon")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\npineapple")
+      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
+      @mail_store.set_msg_flag(@inbox_id, 4, 'deleted', true)
+      @mail_store.expunge_mbox(@inbox_id)
+      assert_equal([ 1, 3, 5 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      res = @decoder.search('T006', 'ALL').each
+      assert_equal('* SEARCH 1 2 3', res.next)
+      assert_equal('T006 OK SEARCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.search('T007', 'ALL', uid: true).each
+      assert_equal('* SEARCH 1 3 5', res.next)
+      assert_equal('T007 OK SEARCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.search('T008', 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple').each
+      assert_equal('* SEARCH 1 3', res.next)
+      assert_equal('T008 OK SEARCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.search('T009', 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', uid: true).each
+      assert_equal('* SEARCH 1 5', res.next)
+      assert_equal('T009 OK SEARCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.logout('T010').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T010 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_store
       msg_src = Enumerator.new{|y|
         s = 'a'
@@ -2841,6 +2912,60 @@ T009 LOGOUT
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'seen'))
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'draft'))
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+    end
+
+    def test_command_loop_search
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 SEARCH ALL
+T002 LOGIN foo open_sesame
+T003 SEARCH ALL
+T004 SELECT INBOX
+T006 SEARCH ALL
+T007 UID SEARCH ALL
+T008 SEARCH OR FROM alice FROM bob BODY apple
+T009 UID SEARCH OR FROM alice FROM bob BODY apple
+T010 LOGOUT
+      EOF
+
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\napple")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\nbnana")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\norange")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\nmelon")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\npineapple")
+      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
+      @mail_store.set_msg_flag(@inbox_id, 4, 'deleted', true)
+      @mail_store.expunge_mbox(@inbox_id)
+      assert_equal([ 1, 3, 5 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      res.next while (res.peek =~ /^\* /)
+      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_equal("* SEARCH 1 2 3\r\n", res.next)
+      assert_equal("T006 OK SEARCH completed\r\n", res.next)
+
+      assert_equal("* SEARCH 1 3 5\r\n", res.next)
+      assert_equal("T007 OK SEARCH completed\r\n", res.next)
+
+      assert_equal("* SEARCH 1 3\r\n", res.next)
+      assert_equal("T008 OK SEARCH completed\r\n", res.next)
+
+      assert_equal("* SEARCH 1 5\r\n", res.next)
+      assert_equal("T009 OK SEARCH completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T010 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
     end
 
     def test_command_loop_store
