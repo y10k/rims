@@ -716,6 +716,29 @@ Content-Type: text/html
       assert_equal(false, cond.call(@folder.msg_list[0]))
       assert_equal(true, cond.call(@folder.msg_list[1]))
     end
+
+    def test_parse_msg_set
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+        @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
+        @mail_store.set_msg_flag(@inbox_id, 5, 'deleted', true)
+        @mail_store.expunge_mbox(@inbox_id)
+        assert_equal([ 2, 4, 6 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ '1,*' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(true, cond.call(@folder.msg_list[2]))
+      assert_raise(RIMS::SyntaxError) {
+        @parser.parse([ 'detarame' ])
+      }
+    end
   end
 end
 

@@ -310,6 +310,15 @@ module RIMS
       end
       private :parse_unkeyword
 
+      def parse_msg_set(msg_set)
+        proc{|next_cond|
+          proc{|msg|
+            (msg_set.include? msg.num) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_msg_set
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise SyntaxError, 'unexpected end of search key.'
@@ -435,6 +444,13 @@ module RIMS
           factory = parse_unkeyword(search_string)
         when 'UNSEEN'
           factory = parse_msg_flag_disabled('seen')
+        when String
+          begin
+            msg_set = @folder.parse_msg_set(op, uid: false)
+            factory = parse_msg_set(msg_set)
+          rescue MessageSetSyntaxError
+            raise SyntaxError, "unknown search key: #{op}"
+          end
         else
           raise SyntaxError, "unknown search key: #{op}"
         end
