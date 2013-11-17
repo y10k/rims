@@ -287,6 +287,15 @@ module RIMS
       end
       private :parse_text
 
+      def parse_uid(msg_set)
+        proc{|next_cond|
+          proc{|msg|
+            (msg_set.include? msg.id) && next_cond.call(msg)
+          }
+        }
+      end
+      private :parse_uid
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise SyntaxError, 'unexpected end of search key.'
@@ -393,6 +402,11 @@ module RIMS
           search_string = search_key.shift or raise SyntaxError, 'need for a search string of TO.'
           search_string.is_a? String or raise SyntaxError, "TO search string expected as <String> but was <#{search_string.class}>."
           factory = parse_search_header('to', search_string)
+        when 'UID'
+          mset_string = search_key.shift or raise SyntaxError, 'need for a message set of UID.'
+          mset_string.is_a? String or raise SyntaxError, "UID message set expected as <String> but was <#{search_string.class}>."
+          msg_set = @folder.parse_msg_set(mset_string, uid: true)
+          factory = parse_uid(msg_set)
         else
           raise SyntaxError, "unknown search key: #{op}"
         end

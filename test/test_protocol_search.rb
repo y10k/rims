@@ -604,6 +604,33 @@ Content-Type: text/html
         @parser.parse([ 'TO', [ :group, 'foo' ] ])
       }
     end
+
+    def test_parse_uid
+      make_search_parser{
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.add_msg(@inbox_id, 'foo')
+        @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+        @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
+        @mail_store.set_msg_flag(@inbox_id, 5, 'deleted', true)
+        @mail_store.expunge_mbox(@inbox_id)
+        assert_equal([ 2, 4, 6 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+      cond = @parser.parse([ 'UID', '2,*' ])
+      assert_equal(true, cond.call(@folder.msg_list[0]))
+      assert_equal(false, cond.call(@folder.msg_list[1]))
+      assert_equal(true, cond.call(@folder.msg_list[2]))
+
+      begin
+        @parser.parse([ 'UID', 'detarame' ])
+      rescue
+        error = $!
+      end
+      assert_kind_of(RIMS::SyntaxError, error)
+    end
   end
 end
 
