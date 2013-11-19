@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
 
 require 'mail'
 require 'time'
@@ -34,10 +34,13 @@ module RIMS
 
     def scan_line(line, input)
       atom_list = line.scan(/[\[\]()]|".*?"|[^\[\]()\s]+/).map{|s|
-        if (s.upcase == 'NIL') then
-          :NIL
-        else
+        case (s)
+        when '(', ')', '[', ']', /^NIL$/
+          s.upcase.intern
+        when /^"/
           s.sub(/^"/, '').sub(/"$/, '')
+        else
+          s
         end
       }
       if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /^{\d+}$/)) then
@@ -57,10 +60,10 @@ module RIMS
         case (atom)
         when last_atom
           break
-        when '('
-          syntax_list.push([ :group ] + parse(atom_list, ')'))
-        when '['
-          syntax_list.push([ :block ] + parse(atom_list, ']'))
+        when :'('
+          syntax_list.push([ :group ] + parse(atom_list, :')'))
+        when :'['
+          syntax_list.push([ :block ] + parse(atom_list, :']'))
         else
           syntax_list.push(atom)
         end

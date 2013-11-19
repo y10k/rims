@@ -58,19 +58,19 @@ module RIMS::Test
                    RIMS::Protocol.scan_line('* CAPABILITY IMAP4rev1 AUTH=KERBEROS_V4', StringIO.new))
       assert_equal(%w[ * 172 EXISTS ],
                    RIMS::Protocol.scan_line('* 172 EXISTS', StringIO.new))
-      assert_equal(%w[ * OK [ UNSEEN 12 ] Message 12 is first unseen ],
+      assert_equal([ '*', 'OK', '['.intern, 'UNSEEN', '12', ']'.intern, 'Message', '12', 'is', 'first', 'unseen' ],
                    RIMS::Protocol.scan_line('* OK [UNSEEN 12] Message 12 is first unseen', StringIO.new))
-      assert_equal(%w[ * FLAGS ( \\Answered \\Flagged \\Deleted \\Seen \\Draft ) ],
+      assert_equal([ '*', 'FLAGS', '('.intern, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft', ')'.intern ],
                    RIMS::Protocol.scan_line('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', StringIO.new))
-      assert_equal(%w[ * OK [ PERMANENTFLAGS ( \\Deleted \\Seen \\* ) ] Limited ],
+      assert_equal([ '*', 'OK', '['.intern, 'PERMANENTFLAGS', '('.intern, '\Deleted', '\Seen', '\*', ')'.intern, ']'.intern, 'Limited' ],
                    RIMS::Protocol.scan_line('* OK [PERMANENTFLAGS (\Deleted \Seen \*)] Limited', StringIO.new))
       assert_equal([ 'A82', 'LIST', '', '*' ],
                    RIMS::Protocol.scan_line('A82 LIST "" *', StringIO.new))
-      assert_equal([ '*', 'LIST', '(', '\Noselect', ')', '/', 'foo' ],
+      assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo' ],
                    RIMS::Protocol.scan_line('* LIST (\Noselect) "/" foo', StringIO.new))
-      assert_equal([ '*', 'LIST', '(', '\Noselect', ')', '/', 'foo [bar] (baz)' ],
+      assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo [bar] (baz)' ],
                    RIMS::Protocol.scan_line('* LIST (\Noselect) "/" "foo [bar] (baz)"', StringIO.new))
-      assert_equal([ '*', 'LIST', '(', '\Noselect', ')', :NIL, '' ],
+      assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ],
                    RIMS::Protocol.scan_line('* LIST (\Noselect) NIL ""', StringIO.new))
     end
 
@@ -90,7 +90,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       line = 'A003 APPEND saved-messages (\Seen) ' + "{#{literal.bytesize}}"
       input = StringIO.new(literal + "\n")
 
-      assert_equal([ 'A003', 'APPEND', 'saved-messages', '(', '\Seen', ')', literal ],
+      assert_equal([ 'A003', 'APPEND', 'saved-messages', '('.intern, '\Seen', ')'.intern, literal ],
                    RIMS::Protocol.scan_line(line, input))
       assert_equal('', input.read)
     end
@@ -106,19 +106,19 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    RIMS::Protocol.read_line(StringIO.new("* CAPABILITY IMAP4rev1 AUTH=KERBEROS_V4\n")))
       assert_equal(%w[ * 172 EXISTS ],
                    RIMS::Protocol.read_line(StringIO.new("* 172 EXISTS\n")))
-      assert_equal(%w[ * OK [ UNSEEN 12 ] Message 12 is first unseen ],
+      assert_equal([ '*', 'OK', '['.intern, 'UNSEEN', '12', ']'.intern, 'Message', '12', 'is', 'first', 'unseen', ],
                    RIMS::Protocol.read_line(StringIO.new("* OK [UNSEEN 12] Message 12 is first unseen\n")))
-      assert_equal(%w[ * FLAGS ( \\Answered \\Flagged \\Deleted \\Seen \\Draft ) ],
+      assert_equal([ '*', 'FLAGS', '('.intern, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft', ')'.intern ],
                    RIMS::Protocol.read_line(StringIO.new("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\n")))
-      assert_equal(%w[ * OK [ PERMANENTFLAGS ( \\Deleted \\Seen \\* ) ] Limited ],
+      assert_equal([ '*', 'OK', '['.intern, 'PERMANENTFLAGS', '('.intern, '\Deleted', '\Seen', '\*', ')'.intern, ']'.intern, 'Limited' ],
                    RIMS::Protocol.read_line(StringIO.new("* OK [PERMANENTFLAGS (\\Deleted \\Seen \\*)] Limited\n")))
       assert_equal([ 'A82', 'LIST', '', '*' ],
                    RIMS::Protocol.read_line(StringIO.new("A82 LIST \"\" *\n")))
-      assert_equal([ '*', 'LIST', '(', '\Noselect', ')', '/', 'foo' ],
+      assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo' ],
                    RIMS::Protocol.read_line(StringIO.new("* LIST (\\Noselect) \"/\" foo\n")))
-      assert_equal([ '*', 'LIST', '(', '\Noselect', ')', '/', 'foo [bar] (baz)' ],
+      assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo [bar] (baz)' ],
                    RIMS::Protocol.read_line(StringIO.new("* LIST (\\Noselect) \"/\" \"foo [bar] (baz)\"")))
-      assert_equal([ '*', 'LIST', '(', '\Noselect', ')', :NIL, '' ],
+      assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ],
                    RIMS::Protocol.read_line(StringIO.new('* LIST (\Noselect) NIL ""')))
     end
 
@@ -136,7 +136,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       EOF
 
       input = StringIO.new("A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n")
-      assert_equal([ 'A003', 'APPEND', 'saved-messages', '(', '\Seen', ')', literal ],
+      assert_equal([ 'A003', 'APPEND', 'saved-messages', '('.intern, '\Seen', ')'.intern, literal ],
                    RIMS::Protocol.read_line(input))
       assert_equal('', input.read)
     end
@@ -157,7 +157,7 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       EOF
 
       input = StringIO.new("* ({#{literal1.bytesize}}\n" + literal1 + " {#{literal2.bytesize}}\n" + literal2 + ")\n")
-      assert_equal([ '*', '(', literal1, literal2, ')' ], RIMS::Protocol.read_line(input))
+      assert_equal([ '*', '('.intern, literal1, literal2, ')'.intern ], RIMS::Protocol.read_line(input))
       assert_equal('', input.read)
     end
 
@@ -168,13 +168,13 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal(%w[ abcd OK CAPABILITY completed ],
                    RIMS::Protocol.parse(%w[ abcd OK CAPABILITY completed ]))
       assert_equal([ '*', 'OK', [ :block, 'UNSEEN', '12' ], 'Message', '12', 'is', 'first', 'unseen' ],
-                   RIMS::Protocol.parse(%w[ * OK [ UNSEEN 12 ] Message 12 is first unseen ]))
+                   RIMS::Protocol.parse([ '*', 'OK', '['.intern, 'UNSEEN', '12', ']'.intern, 'Message', '12', 'is', 'first', 'unseen' ]))
       assert_equal([ '*', 'FLAGS', [ :group,  '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ] ],
-                   RIMS::Protocol.parse(%w[ * FLAGS ( \\Answered \\Flagged \\Deleted \\Seen \\Draft ) ]))
+                   RIMS::Protocol.parse([ '*', 'FLAGS', '('.intern, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft', ')'.intern ]))
       assert_equal([ '*', 'OK', [ :block, 'PERMANENTFLAGS', [ :group, '\Deleted', '\Seen', '\*' ] ], 'Limited' ],
-                   RIMS::Protocol.parse(%w[ * OK [ PERMANENTFLAGS ( \\Deleted \\Seen \\* ) ] Limited ]))
+                   RIMS::Protocol.parse([ '*', 'OK', '['.intern, 'PERMANENTFLAGS', '('.intern, '\Deleted', '\Seen', '\*', ')'.intern, ']'.intern, 'Limited' ]))
       assert_equal([ '*', 'LIST', [ :group, '\Noselect' ], :NIL, '' ],
-                   RIMS::Protocol.parse([ '*', 'LIST', '(', '\Noselect', ')', :NIL, '' ]))
+                   RIMS::Protocol.parse([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ]))
     end
 
     def test_read_command
@@ -189,6 +189,39 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    RIMS::Protocol.read_command(StringIO.new("abcd OK CAPABILITY completed\n")))
       assert_equal([ 'A003', 'STORE', '2:4', '+FLAGS', [ :group, '\Deleted' ] ],
                    RIMS::Protocol.read_command(StringIO.new("A003 STORE 2:4 +FLAGS (\\Deleted)\n")))
+      assert_equal([ 'abcd', 'SEARCH',
+                     [ :group,
+                       'OR',
+                       [ :group, 'FROM', 'foo' ],
+                       [ :group, 'FROM', 'bar' ]
+                     ]
+                   ],
+                   RIMS::Protocol.read_command(StringIO.new("abcd SEARCH (OR (FROM foo) (FROM bar))\n")))
+      assert_equal([ 'abcd', 'SEARCH', 'SUBJECT', 'NIL'  ],
+                   RIMS::Protocol.read_command(StringIO.new("abcd SEARCH SUBJECT \"NIL\"\n")))
+      assert_equal([ 'abcd', 'SEARCH', 'SUBJECT', '('  ],
+                   RIMS::Protocol.read_command(StringIO.new("abcd SEARCH SUBJECT \"(\"\n")))
+      assert_equal([ 'abcd', 'SEARCH', 'SUBJECT', ')'  ],
+                   RIMS::Protocol.read_command(StringIO.new("abcd SEARCH SUBJECT \")\"\n")))
+      assert_equal([ 'abcd', 'SEARCH', 'SUBJECT', '['  ],
+                   RIMS::Protocol.read_command(StringIO.new("abcd SEARCH SUBJECT \"[\"\n")))
+      assert_equal([ 'abcd', 'SEARCH', 'SUBJECT', ']'  ],
+                   RIMS::Protocol.read_command(StringIO.new("abcd SEARCH SUBJECT \"]\"\n")))
+      assert_equal([ 'A654', 'FETCH', '2:4',
+                     [ :group,
+                       'FLAGS',
+                       'BODY',
+                       [ :block,
+                         'HEADER.FIELDS',
+                         [ :group,
+                           'DATE',
+                           'FROM'
+                         ]
+                       ],
+                       '<0,1500>'
+                     ]
+                   ],
+                   RIMS::Protocol.read_command(StringIO.new("A654 FETCH 2:4 (FLAGS BODY[HEADER.FIELDS (DATE FROM)]<0,1500>)\n")))
 
       literal = <<-'EOF'
 Date: Mon, 7 Feb 1994 21:52:25 -0800 (PST)
