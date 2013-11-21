@@ -519,6 +519,13 @@ module RIMS
       end
       private :parse_internaldate
 
+      def parse_uid
+        proc{|msg|
+          "UID #{msg.id}"
+        }
+      end
+      private :parse_uid
+
       def parse_group(fetch_attrs)
         group_fetch_list = fetch_attrs.map{|fetch_att| parse(fetch_att) }
         proc{|msg|
@@ -532,6 +539,8 @@ module RIMS
         case (fetch_att)
         when 'INTERNALDATE'
           fetch = parse_internaldate
+        when 'UID'
+          fetch = parse_uid
         when Array
           case (fetch_att[0])
           when :group

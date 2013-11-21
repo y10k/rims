@@ -115,6 +115,12 @@ Content-Type: text/html: charset=us-ascii
       assert_equal('INTERNALDATE "08-11-2013 19:31:03 +0900"', fetch.call(@folder.msg_list[1]))
     end
 
+    def test_parse_uid
+      fetch = @parser.parse('UID')
+      assert_equal('UID 1', fetch.call(@folder.msg_list[0]))
+      assert_equal('UID 2', fetch.call(@folder.msg_list[1]))
+    end
+
     def test_parse_group_empty
       fetch = @parser.parse([ :group ])
       assert_equal('()', fetch.call(@folder.msg_list[0]))
