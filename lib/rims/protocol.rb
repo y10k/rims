@@ -499,6 +499,44 @@ module RIMS
         end
       end
     end
+
+    class FetchParser
+      def initialize(mail_store, folder)
+        @mail_store = mail_store
+        @folder = folder
+        @charset = nil
+        @mail_cache = Hash.new{|hash, msg_id|
+          if (text = @mail_store.msg_text(@folder.id, msg_id)) then
+            hash[msg_id] = Mail.new(text)
+          end
+        }
+      end
+
+      def parse_group(fetch_attrs)
+        group_fetch_list = fetch_attrs.map{|fetch_att| parse(fetch_att) }
+        proc{|msg|
+          '(' << group_fetch_list.map{|fetch| fetch.call(msg) }.join(' ') << ')'
+        }
+      end
+      private :parse_group
+
+      def parse(fetch_att)
+        fetch_att = fetch_att.upcase if (fetch_att.is_a? String)
+        case (fetch_att)
+        when Array
+          case (fetch_att[0])
+          when :group
+            fetch = parse_group(fetch_att[1..-1])
+          else
+            raise SyntaxError, "unknown fetch attribute: #{fetch_att[0]}"
+          end
+        else
+          raise SyntaxError, "unknown fetch attribute: #{fetch_att}"
+        end
+
+        fetch
+      end
+    end
   end
 
   class ProtocolDecoder
