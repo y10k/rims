@@ -512,6 +512,13 @@ module RIMS
         }
       end
 
+      def parse_internaldate
+        proc{|msg|
+          @mail_store.msg_date(@folder.id, msg.id).strftime('INTERNALDATE "%d-%m-%Y %H:%M:%S %z"')
+        }
+      end
+      private :parse_internaldate
+
       def parse_group(fetch_attrs)
         group_fetch_list = fetch_attrs.map{|fetch_att| parse(fetch_att) }
         proc{|msg|
@@ -523,6 +530,8 @@ module RIMS
       def parse(fetch_att)
         fetch_att = fetch_att.upcase if (fetch_att.is_a? String)
         case (fetch_att)
+        when 'INTERNALDATE'
+          fetch = parse_internaldate
         when Array
           case (fetch_att[0])
           when :group
