@@ -207,21 +207,27 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    RIMS::Protocol.read_command(StringIO.new("abcd SEARCH SUBJECT \"[\"\n")))
       assert_equal([ 'abcd', 'SEARCH', 'SUBJECT', ']'  ],
                    RIMS::Protocol.read_command(StringIO.new("abcd SEARCH SUBJECT \"]\"\n")))
+      assert_equal([ 'A654', 'FETCH', '2:4', [ :group, 'BODY' ] ],
+                   RIMS::Protocol.read_command(StringIO.new("A654 FETCH 2:4 (BODY)\n")))
+      assert_equal([ 'A654', 'FETCH', '2:4', [ :group, [ :body, 'BODY[]', nil, [], nil ] ] ],
+                   RIMS::Protocol.read_command(StringIO.new("A654 FETCH 2:4 (BODY[])\n")))
       assert_equal([ 'A654', 'FETCH', '2:4',
                      [ :group,
                        'FLAGS',
-                       'BODY',
-                       [ :block,
-                         'HEADER.FIELDS',
-                         [ :group,
-                           'DATE',
-                           'FROM'
-                         ]
-                       ],
-                       '<0,1500>'
+                       [ :body,
+                         'BODY[HEADER.FIELDS (DATE FROM)]', # partical description is removed.
+                         nil,
+                         [ 'HEADER.FIELDS',
+                           [ :group,
+                             'DATE',
+                             'FROM'
+                           ]
+                         ],
+                         [ 0, 1500 ]
+                       ]
                      ]
                    ],
-                   RIMS::Protocol.read_command(StringIO.new("A654 FETCH 2:4 (FLAGS BODY[HEADER.FIELDS (DATE FROM)]<0,1500>)\n")))
+                   RIMS::Protocol.read_command(StringIO.new("A654 FETCH 2:4 (FLAGS BODY[HEADER.FIELDS (DATE FROM)]<0.1500>)\n")))
 
       literal = <<-'EOF'
 Date: Mon, 7 Feb 1994 21:52:25 -0800 (PST)

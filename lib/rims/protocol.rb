@@ -33,7 +33,7 @@ module RIMS
     module_function :read_line
 
     def scan_line(line, input)
-      atom_list = line.scan(/[\[\]()]|".*?"|[^\[\]()\s]+/).map{|s|
+      atom_list = line.scan(/BODY(?:\.\S+)?\[.*?\](?:<\d+\.\d+>)?|[\[\]()]|".*?"|[^\[\]()\s]+/i).map{|s|
         case (s)
         when '(', ')', '[', ']', /^NIL$/
           s.upcase.intern
@@ -64,6 +64,16 @@ module RIMS
           syntax_list.push([ :group ] + parse(atom_list, :')'))
         when :'['
           syntax_list.push([ :block ] + parse(atom_list, :']'))
+        when /^(?<body_source>BODY(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\])(?:<(?<body_offset>\d+)\.(?<body_size>\d+)>)?/i
+          body_source = $~[:body_source]
+          body_option = $~[:body_option]
+          body_section = $~[:body_section]
+          if ($~[:body_offset] && $~[:body_size]) then
+            body_partial = [ $~[:body_offset].to_i, $~[:body_size].to_i ]
+          else
+            body_partial = nil
+          end
+          syntax_list.push([ :body, body_source, body_option, parse(scan_line(body_section, nil)), body_partial ])
         else
           syntax_list.push(atom)
         end
