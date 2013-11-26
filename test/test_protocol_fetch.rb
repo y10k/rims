@@ -105,8 +105,66 @@ Content-Type: text/html: charset=us-ascii
 --1383.905529.351297--
       EOF
 
+      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 19:31:03 +0900'))
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Subject: =?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?=
+From: foo@nonet.com, bar <bar@nonet.com>
+Sender: foo@nonet.com
+Reply-To: foo@nonet.com
+To: alice@test.com, bob <bob@test.com>
+Cc: Kate <kate@test.com>
+Bcc: foo@nonet.com
+In-Reply-To: <20131106081723.5KJU1774292@smtp.testt.com>
+Message-Id: <20131107214750.445A1255B9F@smtp.nonet.com>
+
+Hello world.
+      EOF
+
       @folder = @mail_store.select_mbox(@inbox_id)
       @parser = RIMS::Protocol::FetchParser.new(@mail_store, @folder)
+    end
+
+    def test_parse_envelope
+      fetch = @parser.parse('ENVELOPE')
+      assert_equal('ENVELOPE (' + [
+                     '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
+                     '"test"',                                  # Subject
+                     '("bar@nonet.org")',                       # From
+                     'NIL',                                     # Sender
+                     'NIL',                                     # Reply-To
+                     '("foo@nonet.org")',                       # To
+                     'NIL',                                     # Cc
+                     'NIL',                                     # Bcc
+                     'NIL',                                     # In-Reply-To
+                     'NIL'                                      # Message-Id
+                   ].join(' ') +')',
+                   fetch.call(@folder.msg_list[0]))
+      assert_equal('ENVELOPE (' + [
+                     '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
+                     '"multipart test"',                        # Subject
+                     '("foo@nonet.com")',                       # From
+                     'NIL',                                     # Sender
+                     'NIL',                                     # Reply-To
+                     '("bar@nonet.com")',                       # To
+                     'NIL',                                     # Cc
+                     'NIL',                                     # Bcc
+                     'NIL',                                     # In-Reply-To
+                     'NIL'                                      # Message-Id
+                   ].join(' ') +')',
+                   fetch.call(@folder.msg_list[1]))
+      assert_equal('ENVELOPE (' + [
+                     '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
+                     '"=?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?="',    # Subject
+                     '("foo@nonet.com" "bar@nonet.com")',       # From
+                     '("foo@nonet.com")',                       # Sender
+                     '("foo@nonet.com")',                       # Reply-To
+                     '("alice@test.com" "bob@test.com")',       # To
+                     '("kate@test.com")',                       # Cc
+                     '("foo@nonet.com")',                       # Bcc
+                     '"20131106081723.5KJU1774292@smtp.testt.com"',# In-Reply-To
+                     '"20131107214750.445A1255B9F@smtp.nonet.com"' # Message-Id
+                   ].join(' ') +')',
+                   fetch.call(@folder.msg_list[2]))
     end
 
     def test_parse_internaldate

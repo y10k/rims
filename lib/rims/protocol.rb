@@ -1,4 +1,4 @@
- # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 require 'mail'
 require 'time'
@@ -512,6 +512,53 @@ module RIMS
         }
       end
 
+      def make_array(value)
+        if (value) then
+          unless (value.is_a? Array) then
+            [ value ]
+          else
+            value
+          end
+        end
+      end
+      private :make_array
+
+      def get_envelope_data(mail)
+        env_data = []
+        env_data << (mail['Date'] && mail['Date'].value)
+        env_data << (mail['Subject'] && mail['Subject'].value)
+        env_data << make_array(mail.from)
+        env_data << make_array(mail.sender)
+        env_data << make_array(mail.reply_to)
+        env_data << make_array(mail.to)
+        env_data << make_array(mail.cc)
+        env_data << make_array(mail.bcc)
+        env_data << mail.in_reply_to
+        env_data << mail.message_id
+        env_data.map!{|v|
+          case (v)
+          when String
+            Protocol.quote(v)
+          when Array
+            '(' << v.map{|s| Protocol.quote(s) }.join(' ') << ')'
+          when nil
+            'NIL'
+          else
+            raise 'internal error.'
+          end
+        }
+        '(' << env_data.join(' ') << ')'
+      end
+      private :get_envelope_data
+
+      def parse_envelope
+        proc{|msg|
+          mail = @mail_cache[msg.id] or raise 'internal error.'
+          "ENVELOPE #{get_envelope_data(mail)}"
+        }
+      end
+      private :parse_envelope
+
       def parse_internaldate
         proc{|msg|
           @mail_store.msg_date(@folder.id, msg.id).strftime('INTERNALDATE "%d-%m-%Y %H:%M:%S %z"')
@@ -537,6 +584,8 @@ module RIMS
       def parse(fetch_att)
         fetch_att = fetch_att.upcase if (fetch_att.is_a? String)
         case (fetch_att)
+        when 'ENVELOPE'
+          fetch = parse_envelope
         when 'INTERNALDATE'
           fetch = parse_internaldate
         when 'UID'
