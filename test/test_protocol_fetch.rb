@@ -6,6 +6,8 @@ require 'time'
 
 module RIMS::Test
   class ProtocolFetchParserTest < Test::Unit::TestCase
+    include RIMS::Protocol::FetchParser::Utils
+
     def setup
       @kv_store = {}
       @kvs_open = proc{|path|
@@ -24,7 +26,7 @@ To: foo@nonet.org
 From: bar@nonet.org
 Subject: test
 MIME-Version: 1.0
-Content-Type: text/plain;us-ascii
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
 
@@ -44,7 +46,7 @@ Content-Type: text/plain; charset=us-ascii
 
 Multipart test.
 --1383.905529.351297
-Content-Type: application/octet-steram
+Content-Type: application/octet-stream
 
 0123456789
 --1383.905529.351297
@@ -90,11 +92,11 @@ HALO
 Content-Type: multipart/alternative; boundary="1383.905529.351301"
 
 --1383.905529.351301
-Content-Type: text/plain: charset=us-ascii
+Content-Type: text/plain; charset=us-ascii
 
 alternative message.
 --1383.905529.351301
-Content-Type: text/html: charset=us-ascii
+Content-Type: text/html; charset=us-ascii
 
 <html>
 <body><p>HTML message</p></body>
@@ -122,6 +124,61 @@ Hello world.
 
       @folder = @mail_store.select_mbox(@inbox_id)
       @parser = RIMS::Protocol::FetchParser.new(@mail_store, @folder)
+    end
+
+    def test_parse_bodystructure
+      fetch = @parser.parse('BODYSTRUCTURE')
+      assert_equal('BODYSTRUCTURE ' +
+                   encode_list([ 'TEXT',
+                                 'plain',
+                                 %w[ charset us-ascii ],
+                                 nil,
+                                 nil,
+                                 '7bit',
+                                 212,
+                                 9
+                               ]),
+                   fetch.call(@folder.msg_list[0]))
+      assert_equal('BODYSTRUCTURE ' +
+                   encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
+                                 [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                 [
+                                   'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
+                                   [
+                                     'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                     %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                   ],
+                                   [
+                                     [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
+                                     [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                     'mixed'
+                                   ],
+                                   19
+                                 ],
+                                 [
+                                   [ 'image', 'gif', [], nil, nil, nil, 27 ],
+                                   [
+                                     'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
+                                     [
+                                       'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                       %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                     ],
+                                     [
+                                       [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
+                                       [
+                                         [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
+                                         [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
+                                         'alternative'
+                                       ],
+                                       'mixed'
+                                     ],
+                                     29
+                                   ],
+                                   'mixed',
+                                 ],
+                                 'mixed'
+                               ]),
+                   fetch.call(@folder.msg_list[1]))
     end
 
     def test_parse_envelope

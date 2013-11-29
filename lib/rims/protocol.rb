@@ -546,6 +546,72 @@ module RIMS
       end
       private :make_array
 
+      def get_bodystructure_data(mail)
+        if (mail.multipart?) then
+          # body_type_mpart
+          mpart_data = []
+          mpart_data.concat(mail.parts.map{|part| get_bodystructure_data(part) })
+          mpart_data << mail['Content-Type'].sub_type
+        else
+          case (mail.content_type)
+          when /^text/i         # body_type_text
+            text_data = []
+
+            # media_text
+            text_data << 'TEXT'
+            text_data << mail['Content-Type'].sub_type
+
+            # body_fields
+            text_data << mail['Content-Type'].parameters.map{|n, v| [ n, v ] }.flatten
+            text_data << mail.content_id
+            text_data << mail.content_description
+            text_data << mail.content_transfer_encoding
+            text_data << mail.raw_source.bytesize
+
+            # body_fld_lines
+            text_data << mail.raw_source.each_line.count
+          when /^message/i      # body_type_msg
+            msg_data = []
+
+            # message_media
+            msg_data << 'MESSAGE'
+            msg_data << 'RFC822'
+
+            # body_fields
+            msg_data << mail['Content-Type'].parameters.map{|n, v| [ n, v ] }.flatten
+            msg_data << mail.content_id
+            msg_data << mail.content_description
+            msg_data << mail.content_transfer_encoding
+            msg_data << mail.raw_source.bytesize
+
+            body_mail = Mail.new(mail.body.raw_source)
+
+            # envelope
+            msg_data << get_envelope_data(body_mail)
+
+            # body
+            msg_data << get_bodystructure_data(body_mail)
+
+            # body_fld_lines
+            msg_data << mail.raw_source.each_line.count
+          else                  # body_type_basic
+            basic_data = []
+
+            # media_basic
+            basic_data << mail['Content-Type'].main_type
+            basic_data << mail['Content-Type'].sub_type
+
+            # body_fields
+            basic_data << mail['Content-Type'].parameters.map{|n, v| [ n, v ] }.flatten
+            basic_data << mail.content_id
+            basic_data << mail.content_description
+            basic_data << mail.content_transfer_encoding
+            basic_data << mail.raw_source.bytesize
+          end
+        end
+      end
+      private :get_bodystructure_data
+
       def get_envelope_data(mail)
         env_data = []
         env_data << (mail['Date'] && mail['Date'].value)
@@ -560,6 +626,14 @@ module RIMS
         env_data << mail.message_id
       end
       private :get_envelope_data
+
+      def parse_bodystructure
+        proc{|msg|
+          mail = @mail_cache[msg.id] or raise 'internal error.'
+          "BODYSTRUCTURE #{encode_list(get_bodystructure_data(mail))}"
+        }
+      end
+      private :parse_bodystructure
 
       def parse_envelope
         proc{|msg|
@@ -594,6 +668,8 @@ module RIMS
       def parse(fetch_att)
         fetch_att = fetch_att.upcase if (fetch_att.is_a? String)
         case (fetch_att)
+        when 'BODYSTRUCTURE'
+          fetch = parse_bodystructure
         when 'ENVELOPE'
           fetch = parse_envelope
         when 'INTERNALDATE'
