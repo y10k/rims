@@ -501,6 +501,29 @@ module RIMS
     end
 
     class FetchParser
+      module Utils
+        def encode_list(array)
+          '(' << array.map{|v|
+            case (v)
+            when Symbol
+              v.to_s
+            when String
+              Protocol.quote(v)
+            when Integer
+              v.to_s
+            when NilClass
+              'NIL'
+            when Array
+              encode_list(v)
+            else
+              raise "unknown value: #{v}"
+            end
+          }.join(' ') << ')'
+        end
+        module_function :encode_list
+      end
+      include Utils
+
       def initialize(mail_store, folder)
         @mail_store = mail_store
         @folder = folder
@@ -535,26 +558,13 @@ module RIMS
         env_data << make_array(mail.bcc)
         env_data << mail.in_reply_to
         env_data << mail.message_id
-        env_data.map!{|v|
-          case (v)
-          when String
-            Protocol.quote(v)
-          when Array
-            '(' << v.map{|s| Protocol.quote(s) }.join(' ') << ')'
-          when nil
-            'NIL'
-          else
-            raise 'internal error.'
-          end
-        }
-        '(' << env_data.join(' ') << ')'
       end
       private :get_envelope_data
 
       def parse_envelope
         proc{|msg|
           mail = @mail_cache[msg.id] or raise 'internal error.'
-          "ENVELOPE #{get_envelope_data(mail)}"
+          "ENVELOPE #{encode_list(get_envelope_data(mail))}"
         }
       end
       private :parse_envelope
