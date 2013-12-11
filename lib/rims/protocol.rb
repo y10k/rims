@@ -627,10 +627,14 @@ module RIMS
       end
       private :get_envelope_data
 
-      def parse_bodystructure
+      def parse_bodystructure(body_extension: true)
         proc{|msg|
           mail = @mail_cache[msg.id] or raise 'internal error.'
-          "BODYSTRUCTURE #{encode_list(get_bodystructure_data(mail))}"
+          if (body_extension) then
+            "BODYSTRUCTURE #{encode_list(get_bodystructure_data(mail))}"
+          else
+            "BODY #{encode_list(get_bodystructure_data(mail))}"
+          end
         }
       end
       private :parse_bodystructure
@@ -680,8 +684,10 @@ module RIMS
       def parse(fetch_att)
         fetch_att = fetch_att.upcase if (fetch_att.is_a? String)
         case (fetch_att)
+        when 'BODY'
+          fetch = parse_bodystructure(body_extension: false)
         when 'BODYSTRUCTURE'
-          fetch = parse_bodystructure
+          fetch = parse_bodystructure(body_extension: true)
         when 'ENVELOPE'
           fetch = parse_envelope
         when 'FLAGS'

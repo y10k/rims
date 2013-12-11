@@ -144,7 +144,19 @@ Hello world.
         add_mail_simple
         add_mail_multipart
       }
-      fetch = @parser.parse('BODYSTRUCTURE')
+      fetch_body = @parser.parse('BODY')
+      fetch_bodystructure = @parser.parse('BODYSTRUCTURE')
+      assert_equal('BODY ' +
+                   encode_list([ 'TEXT',
+                                 'plain',
+                                 %w[ charset us-ascii ],
+                                 nil,
+                                 nil,
+                                 '7bit',
+                                 212,
+                                 9
+                               ]),
+                   fetch_body.call(@folder.msg_list[0]))
       assert_equal('BODYSTRUCTURE ' +
                    encode_list([ 'TEXT',
                                  'plain',
@@ -155,7 +167,47 @@ Hello world.
                                  212,
                                  9
                                ]),
-                   fetch.call(@folder.msg_list[0]))
+                   fetch_bodystructure.call(@folder.msg_list[0]))
+      assert_equal('BODY ' +
+                   encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
+                                 [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                 [
+                                   'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
+                                   [
+                                     'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                     %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                   ],
+                                   [
+                                     [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
+                                     [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                     'mixed'
+                                   ],
+                                   19
+                                 ],
+                                 [
+                                   [ 'image', 'gif', [], nil, nil, nil, 27 ],
+                                   [
+                                     'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
+                                     [
+                                       'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                       %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                     ],
+                                     [
+                                       [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
+                                       [
+                                         [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
+                                         [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
+                                         'alternative'
+                                       ],
+                                       'mixed'
+                                     ],
+                                     29
+                                   ],
+                                   'mixed',
+                                 ],
+                                 'mixed'
+                               ]),
+                   fetch_body.call(@folder.msg_list[1]))
       assert_equal('BODYSTRUCTURE ' +
                    encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
                                  [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
@@ -195,7 +247,7 @@ Hello world.
                                  ],
                                  'mixed'
                                ]),
-                   fetch.call(@folder.msg_list[1]))
+                   fetch_bodystructure.call(@folder.msg_list[1]))
     end
 
     def test_parse_envelope
