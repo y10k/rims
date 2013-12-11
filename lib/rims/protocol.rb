@@ -904,7 +904,7 @@ module RIMS
               raise SyntaxError, "invalid flag: #{flag_atom}"
             end
           end
-          rest_flag_list = %w[ answered flagged deleted seen draft ] - flag_list
+          rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
         else
           raise SyntaxError, 'third arugment is not a group list.'
         end
@@ -940,20 +940,11 @@ module RIMS
         end
 
         unless (is_silent) then
-          name_atom_pair_list = [
-            %w[ answered \Answered ],
-            %w[ flagged \Flagged ],
-            %w[ deleted \Deleted ],
-            %w[ seen \Seen ],
-            %w[ draft \Draft ],
-            %w[ recent \Recent ]
-          ]
-
           for msg in msg_list
             flag_atom_list = []
-            for name, atom in name_atom_pair_list
+            for name in MailStore::MSG_FLAG_NAMES
               if (@mail_store_holder.to_mst.msg_flag(@folder.id, msg.id, name)) then
-                flag_atom_list << atom
+                flag_atom_list << "\\#{name.capitalize}"
               end
             end
             res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})"

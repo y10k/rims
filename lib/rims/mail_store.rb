@@ -5,6 +5,8 @@ require 'thread'
 
 module RIMS
   class MailStore
+    MSG_FLAG_NAMES = %w[ answered flagged deleted seen draft recent ].each{|n| n.freeze }.freeze
+
     def initialize(kvs_open_attr, kvs_open_text)
       @kvs_open_attr = kvs_open_attr
       @kvs_open_text = kvs_open_text
