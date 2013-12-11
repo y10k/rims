@@ -643,6 +643,18 @@ module RIMS
       end
       private :parse_envelope
 
+      def parse_flags
+        proc{|msg|
+          flag_list = MailStore::MSG_FLAG_NAMES.find_all{|name|
+            @mail_store.msg_flag(@folder.id, msg.id, name)
+          }.map{|name|
+            "\\#{name.capitalize}"
+          }.join(' ')
+          "FLAGS (#{flag_list})"
+        }
+      end
+      private :parse_flags
+
       def parse_internaldate
         proc{|msg|
           @mail_store.msg_date(@folder.id, msg.id).strftime('INTERNALDATE "%d-%m-%Y %H:%M:%S %z"')
@@ -672,6 +684,8 @@ module RIMS
           fetch = parse_bodystructure
         when 'ENVELOPE'
           fetch = parse_envelope
+        when 'FLAGS'
+          fetch = parse_flags
         when 'INTERNALDATE'
           fetch = parse_internaldate
         when 'UID'

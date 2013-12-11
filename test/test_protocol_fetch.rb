@@ -246,6 +246,55 @@ Hello world.
                    fetch.call(@folder.msg_list[2]))
     end
 
+    def test_parse_flags
+      make_fetch_parser{
+        id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
+
+        id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, id, 'recent', true)
+
+        id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
+        @mail_store.set_msg_flag(@inbox_id, id, 'answered', true)
+
+        id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
+        @mail_store.set_msg_flag(@inbox_id, id, 'flagged', true)
+
+        id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
+        @mail_store.set_msg_flag(@inbox_id, id, 'deleted', true)
+
+        id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
+        @mail_store.set_msg_flag(@inbox_id, id, 'seen', true)
+
+        id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
+        @mail_store.set_msg_flag(@inbox_id, id, 'draft', true)
+
+        id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, id, 'recent', true)
+        @mail_store.set_msg_flag(@inbox_id, id, 'answered', true)
+        @mail_store.set_msg_flag(@inbox_id, id, 'flagged', true)
+        @mail_store.set_msg_flag(@inbox_id, id, 'deleted', true)
+        @mail_store.set_msg_flag(@inbox_id, id, 'seen', true)
+        @mail_store.set_msg_flag(@inbox_id, id, 'draft', true)
+      }
+      fetch = @parser.parse('FLAGS')
+      assert_equal('FLAGS ()', fetch.call(@folder.msg_list[0]))
+      assert_equal('FLAGS (\Recent)', fetch.call(@folder.msg_list[1]))
+      assert_equal('FLAGS (\Answered)', fetch.call(@folder.msg_list[2]))
+      assert_equal('FLAGS (\Flagged)', fetch.call(@folder.msg_list[3]))
+      assert_equal('FLAGS (\Deleted)', fetch.call(@folder.msg_list[4]))
+      assert_equal('FLAGS (\Seen)', fetch.call(@folder.msg_list[5]))
+      assert_equal('FLAGS (\Draft)', fetch.call(@folder.msg_list[6]))
+      assert_equal('FLAGS (' +
+                   RIMS::MailStore::MSG_FLAG_NAMES.map{|n| "\\#{n.capitalize}" }.join(' ') +
+                   ')', fetch.call(@folder.msg_list[7]))
+    end
+
     def test_parse_internaldate
       make_fetch_parser{
         add_mail_simple
