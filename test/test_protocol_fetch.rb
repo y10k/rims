@@ -139,6 +139,354 @@ Hello world.
     end
     private :add_mail_mime_subject
 
+    def test_parse_body
+      make_fetch_parser{
+        add_mail_simple
+        add_mail_multipart
+      }
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], nil ])
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal("FLAGS (\\Seen \\Recent) BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal("BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+
+      fetch = @parser.parse([ :body, 'BODY[TEXT]', nil, [ 'TEXT' ], nil ])
+      s = "Hello world.\r\n"
+      assert_equal("BODY[TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[HEADER]', nil, [ 'HEADER' ], nil ])
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      assert_equal("BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "To: bar@nonet.com\r\n"
+      s << "From: foo@nonet.com\r\n"
+      s << "Subject: multipart test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
+      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
+      s << "\r\n"
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
+      assert_equal("FLAGS (\\Seen \\Recent) BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
+      assert_equal("BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
+
+      fetch = @parser.parse([ :body, 'BODY[HEADER.FIELDS (From To)]', nil, [ 'HEADER.FIELDS', [ :group, 'From', 'To' ] ], nil ])
+      s = ''
+      s << "From: bar@nonet.org\r\n"
+      s << "To: foo@nonet.org\r\n"
+      s << "\r\n"
+      assert_equal("BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "From: foo@nonet.com\r\n"
+      s << "To: bar@nonet.com\r\n"
+      s << "\r\n"
+      assert_equal("BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[HEADER.FIELDS.NOT (From To Subject)]', nil, [ 'HEADER.FIELDS.NOT', [ :group, 'From', 'To', 'Subject' ] ], nil ])
+      s = ''
+      s << "Date: Fri, 08 Nov 2013 06:47:50 +0900\r\n"
+      s << "Mime-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "\r\n"
+      assert_equal("BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "Date: Fri, 08 Nov 2013 19:31:03 +0900\r\n"
+      s << "Mime-Version: 1.0\r\n"
+      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
+      s << "\r\n"
+      assert_equal("BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[1]', nil, [ '1' ], nil ])
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+      assert_equal("BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      s << "Multipart test."
+      assert_equal("BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3]', nil, [ '3' ], nil ])
+      assert_equal("BODY[3] NIL", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "\r\n"
+      s << "Content-Type: message/rfc822\r\n"
+      s << "\r\n"
+      s << "To: bar@nonet.com\r\n"
+      s << "From: foo@nonet.com\r\n"
+      s << "Subject: inner multipart\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
+      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351298\"\r\n"
+      s << "\r\n"
+      s << "--1383.905529.351298\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+      s << "--1383.905529.351298\r\n"
+      s << "Content-Type: application/octet-stream\r\n"
+      s << "\r\n"
+      s << "9876543210\r\n"
+      s << "--1383.905529.351298--"
+      assert_equal("BODY[3] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.1]', nil, [ '3.1' ], nil ])
+      assert_equal("BODY[3.1] NIL", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      s << "Hello world."
+      assert_equal("BODY[3.1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[4.2.2]', nil, [ '4.2.2' ], nil ])
+      assert_equal("BODY[4.2.2] NIL", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "\r\n"
+      s << "Content-Type: multipart/alternative; boundary=\"1383.905529.351301\"\r\n"
+      s << "\r\n"
+      s << "--1383.905529.351301\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      s << "alternative message.\r\n"
+      s << "--1383.905529.351301\r\n"
+      s << "Content-Type: text/html; charset=us-ascii\r\n"
+      s << "\r\n"
+      s << "<html>\r\n"
+      s << "<body><p>HTML message</p></body>\r\n"
+      s << "</html>\r\n"
+      s << "--1383.905529.351301--"
+      assert_equal("BODY[4.2.2] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[1.MIME]', nil, [ '1.MIME' ], nil ])
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      assert_equal("BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      assert_equal("BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.MIME]', nil, [ '3.MIME' ], nil ])
+      assert_equal('BODY[3.MIME] NIL', fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "Content-Type: message/rfc822\r\n"
+      s << "\r\n"
+      assert_equal("BODY[3.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.1.MIME]', nil, [ '3.1.MIME' ], nil ])
+      assert_equal('BODY[3.1.MIME] NIL', fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      assert_equal("BODY[3.1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[4.2.2.MIME]', nil, [ '4.2.2.MIME' ], nil ])
+      assert_equal('BODY[4.2.2.MIME] NIL', fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "Content-Type: multipart/alternative; boundary=\"1383.905529.351301\"\r\n"
+      s << "\r\n"
+      assert_equal("BODY[4.2.2.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[1.TEXT]', nil, [ '1.TEXT' ], nil ])
+      assert_equal("BODY[1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.TEXT]', nil, [ '3.TEXT' ], nil ])
+      assert_equal("BODY[3.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "--1383.905529.351298\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+      s << "--1383.905529.351298\r\n"
+      s << "Content-Type: application/octet-stream\r\n"
+      s << "\r\n"
+      s << "9876543210\r\n"
+      s << "--1383.905529.351298--"
+      assert_equal("BODY[3.TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.1.TEXT]', nil, [ '3.1.TEXT' ], nil ])
+      assert_equal("BODY[3.1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[3.1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[4.2.2.TEXT]', nil, [ '4.2.2.TEXT' ], nil ])
+      assert_equal("BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      assert_equal("BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[1.HEADER]', nil, [ '1.HEADER' ], nil ])
+      assert_equal('BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.HEADER]', nil, [ '3.HEADER' ], nil ])
+      assert_equal('BODY[3.HEADER] NIL', fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "To: bar@nonet.com\r\n"
+      s << "From: foo@nonet.com\r\n"
+      s << "Subject: inner multipart\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
+      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351298\"\r\n"
+      s << "\r\n"
+      assert_equal("BODY[3.HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.1.HEADER]', nil, [ '3.1.HEADER' ], nil ])
+      assert_equal('BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[4.2.2.HEADER]', nil, [ '4.2.2.HEADER' ], nil ])
+      assert_equal("BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[0]))
+      assert_equal("BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[1.HEADER.FIELDS (To)]', nil, [ '1.HEADER.FIELDS', [ :group, 'To' ] ], nil ])
+      assert_equal('BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.HEADER.FIELDS (To)]', nil, [ '3.HEADER.FIELDS', [ :group, 'To' ] ], nil ])
+      assert_equal('BODY[3.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "To: bar@nonet.com\r\n"
+      s << "\r\n"
+      assert_equal("BODY[3.HEADER.FIELDS (To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.1.HEADER.FIELDS (To)]', nil, [ '3.1.HEADER.FIELDS', [ :group, 'To' ] ], nil ])
+      assert_equal('BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[4.2.2.HEADER.FIELDS (To)]', nil, [ '4.2.2.HEADER.FIELDS', [ :group, 'To' ] ], nil ])
+      assert_equal('BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[1.HEADER.FIELDS.NOT (To From Subject)]', nil, [ '1.HEADER.FIELDS.NOT', [ :group, 'To', 'From', 'Subject' ] ], nil ])
+      assert_equal('BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.HEADER.FIELDS.NOT (To From Subject)]', nil, [ '3.HEADER.FIELDS.NOT', [ :group, 'To', 'From', 'Subject' ] ], nil ])
+      assert_equal('BODY[3.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      s = ''
+      s << "Date: Fri, 08 Nov 2013 19:31:03 +0900\r\n"
+      s << "Mime-Version: 1.0\r\n"
+      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351298\"\r\n"
+      s << "\r\n"
+      assert_equal("BODY[3.HEADER.FIELDS.NOT (To From Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)]', nil, [ '1.3.HEADER.FIELDS.NOT', [ :group, 'To', 'From', 'Subject' ] ], nil ])
+      assert_equal('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+
+      fetch = @parser.parse([ :body, 'BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)]', nil, [ '4.2.2.HEADER.FIELDS.NOT', [ :group, 'To', 'From', 'Subject' ] ], nil ])
+      assert_equal('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_equal('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+
+      assert_raise(RIMS::SyntaxError) {
+        @parser.parse([ :body, 'BODY[MIME]', nil, [ 'MIME' ], nil ])
+      }
+    end
+
+    def test_parse_body_peek
+      make_fetch_parser{
+        add_mail_simple
+      }
+
+      fetch = @parser.parse([ :body, 'BODY.PEEK[]', 'PEEK', [], nil ])
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal("BODY.PEEK[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+    end
+
+    def test_parse_body_partial
+      make_fetch_parser{
+        msg_id = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, msg_id, 'seen', true)
+      }
+
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 0, 100 ] ])
+      assert_equal("BODY[]<0> {100}\r\n#{s.byteslice(0, 100)}", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 0, 1000 ] ])
+      assert_equal("BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 100, 100 ] ])
+      assert_equal("BODY[]<100> {100}\r\n#{s.byteslice(100, 100)}", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 211, 1 ] ])
+      assert_equal("BODY[]<211> {1}\r\n\n", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 212, 1 ] ])
+      assert_equal("BODY[]<212> NIL", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 0, 0 ] ])
+      assert_equal("BODY[]<0> \"\"", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 100, 0 ] ])
+      assert_equal("BODY[]<100> \"\"", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 211, 0 ] ])
+      assert_equal("BODY[]<211> \"\"", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 212, 0 ] ])
+      assert_equal("BODY[]<212> NIL", fetch.call(@folder.msg_list[0]))
+    end
+
     def test_parse_bodystructure
       make_fetch_parser{
         add_mail_simple

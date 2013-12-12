@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'mail'
+require 'set'
 require 'time'
 
 module RIMS
@@ -672,6 +673,135 @@ module RIMS
       end
       private :get_envelope_data
 
+      def parse_body(source, option, section, partial)
+        enable_seen = true
+        if (option) then
+          case (option.upcase)
+          when 'PEEK'
+            enable_seen = false
+          else
+            raise SyntaxError, "unknown fetch body option: #{option}"
+          end
+        end
+
+        if (enable_seen) then
+          fetch_flags = parse_flags
+          fetch_flags_changed = proc{|msg|
+            unless (@mail_store.msg_flag(@folder.id, msg.id, 'seen')) then
+              @mail_store.set_msg_flag(@folder.id, msg.id, 'seen', true)
+              fetch_flags.call(msg) + ' '
+            else
+              ''
+            end
+          }
+        else
+          fetch_flags_changed = proc{|msg|
+            ''
+          }
+        end
+
+        if (section.empty?) then
+          section_text = nil
+          section_index_list = []
+        else
+          if (section[0] =~ /^(?<index>\d+(?:\.\d+)*)(?:\.(?<text>.+))?$/) then
+            section_text = $~[:text]
+            section_index_list = $~[:index].split(/\./).map{|i| i.to_i }
+          else
+            section_text = section[0]
+            section_index_list = []
+          end
+        end
+
+        unless (section_text) then
+          fetch_body_content = proc{|mail|
+            mail.raw_source
+          }
+        else
+          section_text = section_text.upcase
+          is_root = section_index_list.empty?
+
+          case (section_text)
+          when 'MIME'
+            if (section_index_list.empty?) then
+              raise SyntaxError, "need for section index at #{section_text}."
+            else
+              fetch_body_content = proc{|mail|
+                if (header = get_body_content(mail, :header)) then
+                  header.raw_source.strip + ("\r\n" * 2)
+                end
+              }
+            end
+          when 'HEADER'
+            fetch_body_content = proc{|mail|
+              if (header = get_body_content(mail, :header, nest_mail: ! is_root)) then
+                header.raw_source.strip + ("\r\n" * 2)
+              end
+            }
+          when 'HEADER.FIELDS', 'HEADER.FIELDS.NOT'
+            if (section.length != 2) then
+              raise SyntaxError, "need for argument of #{section_text}."
+            end
+            field_name_list = section[1]
+            unless ((field_name_list.is_a? Array) && (field_name_list[0] == :group)) then
+              raise SyntaxError, "invalid argument of #{section_text}: #{field_name_list}"
+            end
+            field_name_list = field_name_list[1..-1]
+            case (section_text)
+            when 'HEADER.FIELDS'
+              fetch_body_content = proc{|mail|
+                if (header = get_body_content(mail, :header, nest_mail: ! is_root)) then
+                  encode_header(field_name_list.map{|n| header[n] }.compact)
+                end
+              }
+            when 'HEADER.FIELDS.NOT'
+              fetch_body_content = proc{|mail|
+                if (header = get_body_content(mail, :header, nest_mail: ! is_root)) then
+                  field_name_set = field_name_list.map{|n| header[n] }.compact.map{|i| i.name }.to_set
+                  encode_header(header.reject{|i| (field_name_set.include? i.name) })
+                end
+              }
+            else
+              raise 'internal error.'
+            end
+          when 'TEXT'
+            fetch_body_content = proc{|mail|
+              if (body = get_body_content(mail, :body, nest_mail: ! is_root)) then
+                body.raw_source
+              end
+            }
+          else
+            raise SyntaxError, "unknown fetch body section text: #{section_text}"
+          end
+        end
+
+        pos, size = partial if partial
+        proc{|msg|
+          res = ''
+          res << fetch_flags_changed.call(msg)
+          res << source
+          res << "<#{pos}>" if pos
+          res << ' '
+
+          mail = get_body_section(@mail_cache[msg.id], section_index_list)
+          content = fetch_body_content.call(mail) if mail
+          if (content) then
+            if (partial) then
+              if (content.bytesize > pos) then
+                res << Protocol.quote(content.byteslice(pos, size))
+              else
+                res << 'NIL'
+              end
+            else
+              res << Protocol.quote(content)
+            end
+          else
+            res << 'NIL'
+          end
+        }
+      end
+      private :parse_body
+
       def parse_bodystructure(body_extension: true)
         proc{|msg|
           mail = @mail_cache[msg.id] or raise 'internal error.'
@@ -745,6 +875,8 @@ module RIMS
           case (fetch_att[0])
           when :group
             fetch = parse_group(fetch_att[1..-1])
+          when :body
+            fetch = parse_body(fetch_att[1], fetch_att[2], fetch_att[3], fetch_att[4])
           else
             raise SyntaxError, "unknown fetch attribute: #{fetch_att[0]}"
           end
