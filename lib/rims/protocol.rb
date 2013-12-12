@@ -521,6 +521,33 @@ module RIMS
           }.join(' ') << ')'
         end
         module_function :encode_list
+
+        def get_body_section(mail, index_list)
+          if (index_list.empty?) then
+            mail
+          else
+            i, *next_index_list = index_list
+            unless (i > 0) then
+              raise SyntaxError, "not a none-zero body section number: #{i}"
+            end
+            if (mail.multipart?) then
+              get_body_section(mail.parts[i - 1], next_index_list)
+            elsif (mail.content_type == 'message/rfc822') then
+              get_body_section(Mail.new(mail.body.raw_source), index_list)
+            else
+              if (i == 1) then
+                if (next_index_list.empty?) then
+                  mail
+                else
+                  nil
+                end
+              else
+                nil
+              end
+            end
+          end
+        end
+        module_function :get_body_section
       end
       include Utils
 

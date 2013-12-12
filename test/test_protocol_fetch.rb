@@ -377,6 +377,138 @@ Hello world.
       assert_equal('()', fetch.call(@folder.msg_list[1]))
     end
   end
+
+  class ProtocolFetchParserUtilsTest < Test::Unit::TestCase
+    def setup
+      @mail_simple = Mail.new(<<-'EOF')
+To: foo@nonet.org
+From: bar@nonet.org
+Subject: test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
+
+Hello world.
+      EOF
+
+      @mail_multipart = Mail.new(<<-'EOF')
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: multipart test
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351297"
+
+--1383.905529.351297
+Content-Type: text/plain; charset=us-ascii
+
+Multipart test.
+--1383.905529.351297
+Content-Type: application/octet-stream
+
+0123456789
+--1383.905529.351297
+Content-Type: message/rfc822
+
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351298"
+
+--1383.905529.351298
+Content-Type: text/plain; charset=us-ascii
+
+Hello world.
+--1383.905529.351298
+Content-Type: application/octet-stream
+
+9876543210
+--1383.905529.351298--
+--1383.905529.351297
+Content-Type: multipart/mixed; boundary="1383.905529.351299"
+
+--1383.905529.351299
+Content-Type: image/gif
+
+--1383.905529.351299
+Content-Type: message/rfc822
+
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351300"
+
+--1383.905529.351300
+Content-Type: text/plain; charset=us-ascii
+
+HALO
+--1383.905529.351300
+Content-Type: multipart/alternative; boundary="1383.905529.351301"
+
+--1383.905529.351301
+Content-Type: text/plain; charset=us-ascii
+
+alternative message.
+--1383.905529.351301
+Content-Type: text/html; charset=us-ascii
+
+<html>
+<body><p>HTML message</p></body>
+</html>
+--1383.905529.351301--
+--1383.905529.351300--
+--1383.905529.351299--
+--1383.905529.351297--
+      EOF
+    end
+
+    def test_get_body_section
+      assert_equal(@mail_simple, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, []))
+      assert_equal(@mail_simple, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, [ 1 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, [ 1, 1 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, [ 2 ]))
+
+      assert_equal(@mail_multipart.raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, []).raw_source)
+      assert_equal(@mail_multipart.parts[0].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 1 ]).raw_source)
+      assert_equal(@mail_multipart.parts[1].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 2 ]).raw_source)
+      assert_equal(@mail_multipart.parts[2].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 3 ]).raw_source)
+      assert_equal(Mail.new(@mail_multipart.parts[2].body.raw_source).parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 3, 1 ]).raw_source)
+      assert_equal(Mail.new(@mail_multipart.parts[2].body.raw_source).parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 3, 2 ]).raw_source)
+      assert_equal(@mail_multipart.parts[3].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4 ]).raw_source)
+      assert_equal(@mail_multipart.parts[3].parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 1 ]).raw_source)
+      assert_equal(@mail_multipart.parts[3].parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2 ]).raw_source)
+      assert_equal(Mail.new(@mail_multipart.parts[3].parts[1].body.raw_source).parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 1 ]).raw_source)
+      assert_equal(Mail.new(@mail_multipart.parts[3].parts[1].body.raw_source).parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2 ]).raw_source)
+      assert_equal(Mail.new(@mail_multipart.parts[3].parts[1].body.raw_source).parts[1].parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 1 ]).raw_source)
+      assert_equal(Mail.new(@mail_multipart.parts[3].parts[1].body.raw_source).parts[1].parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 2 ]).raw_source)
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 5 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 3, 3 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 3 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 3 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 3 ]))
+
+      assert_raise(RIMS::SyntaxError) {
+        RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, [ 0 ])
+      }
+      assert_raise(RIMS::SyntaxError) {
+        RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 0 ])
+      }
+    end
+  end
 end
 
 # Local Variables:
