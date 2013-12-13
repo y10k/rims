@@ -522,6 +522,11 @@ module RIMS
         end
         module_function :encode_list
 
+        def encode_header(header)
+          header.map{|field| "#{field.name}: #{field.value}" }.join("\r\n") + ("\r\n" * 2)
+        end
+        module_function :encode_header
+
         def get_body_section(mail, index_list)
           if (index_list.empty?) then
             mail
