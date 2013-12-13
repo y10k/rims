@@ -548,6 +548,19 @@ module RIMS
           end
         end
         module_function :get_body_section
+
+        def get_body_content(mail, name, nest_mail: false)
+          if (nest_mail) then
+            if (mail.content_type == 'message/rfc822') then
+              Mail.new(mail.body.raw_source).send(name)
+            else
+              nil
+            end
+          else
+            mail.send(name)
+          end
+        end
+        module_function :get_body_content
       end
       include Utils
 

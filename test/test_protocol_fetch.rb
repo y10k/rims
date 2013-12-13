@@ -508,6 +508,14 @@ Content-Type: text/html; charset=us-ascii
         RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 0 ])
       }
     end
+
+    def test_get_body_content
+      assert_equal('test', RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_simple, :subject))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_simple, :subject, nest_mail: true))
+      assert_equal('multipart test', RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_multipart, :subject))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_multipart, :subject, nest_mail: true))
+      assert_equal('inner multipart', RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_multipart.parts[2], :subject, nest_mail: true))
+    end
   end
 end
 
