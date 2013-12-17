@@ -751,6 +751,95 @@ Hello world.
                    ')', fetch.call(@folder.msg_list[7]))
     end
 
+    def test_parse_full
+      make_fetch_parser{
+        add_mail_simple
+        add_mail_multipart
+      }
+      fetch = @parser.parse('FULL')
+      assert_equal('FLAGS (\Recent) ' +
+                   'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                   'RFC822.SIZE 212 ' +
+                   'ENVELOPE (' + [
+                     '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
+                     '"test"',                                  # Subject
+                     '("bar@nonet.org")',                       # From
+                     'NIL',                                     # Sender
+                     'NIL',                                     # Reply-To
+                     '("foo@nonet.org")',                       # To
+                     'NIL',                                     # Cc
+                     'NIL',                                     # Bcc
+                     'NIL',                                     # In-Reply-To
+                     'NIL'                                      # Message-Id
+                   ].join(' ') +') ' +
+                   'BODY ' +
+                   encode_list([ 'TEXT',
+                                 'plain',
+                                 %w[ charset us-ascii ],
+                                 nil,
+                                 nil,
+                                 '7bit',
+                                 212,
+                                 9
+                               ]),
+                   fetch.call(@folder.msg_list[0]))
+      assert_equal('FLAGS (\Recent) ' +
+                   'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                   'RFC822.SIZE 1616 ' +
+                   'ENVELOPE (' + [
+                     '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
+                     '"multipart test"',                        # Subject
+                     '("foo@nonet.com")',                       # From
+                     'NIL',                                     # Sender
+                     'NIL',                                     # Reply-To
+                     '("bar@nonet.com")',                       # To
+                     'NIL',                                     # Cc
+                     'NIL',                                     # Bcc
+                     'NIL',                                     # In-Reply-To
+                     'NIL'                                      # Message-Id
+                   ].join(' ') +') ' +
+                   'BODY ' +
+                   encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
+                                 [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                 [
+                                   'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
+                                   [
+                                     'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                     %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                   ],
+                                   [
+                                     [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
+                                     [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                     'mixed'
+                                   ],
+                                   19
+                                 ],
+                                 [
+                                   [ 'image', 'gif', [], nil, nil, nil, 27 ],
+                                   [
+                                     'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
+                                     [
+                                       'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                       %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                     ],
+                                     [
+                                       [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
+                                       [
+                                         [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
+                                         [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
+                                         'alternative'
+                                       ],
+                                       'mixed'
+                                     ],
+                                     29
+                                   ],
+                                   'mixed',
+                                 ],
+                                 'mixed'
+                               ]),
+                   fetch.call(@folder.msg_list[1]))
+    end
+
     def test_parse_internaldate
       make_fetch_parser{
         add_mail_simple

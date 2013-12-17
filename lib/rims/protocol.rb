@@ -883,6 +883,8 @@ module RIMS
           fetch = expand_macro(%w[ FLAGS INTERNALDATE RFC822.SIZE ])
         when 'FLAGS'
           fetch = parse_flags(fetch_att)
+        when 'FULL'
+          fetch = expand_macro(%w[ FLAGS INTERNALDATE RFC822.SIZE ENVELOPE BODY ])
         when 'INTERNALDATE'
           fetch = parse_internaldate(fetch_att)
         when 'RFC822'
