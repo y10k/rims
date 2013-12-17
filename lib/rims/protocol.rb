@@ -871,6 +871,8 @@ module RIMS
       def parse(fetch_att)
         fetch_att = fetch_att.upcase if (fetch_att.is_a? String)
         case (fetch_att)
+        when 'ALL'
+          fetch = expand_macro(%w[ FLAGS INTERNALDATE RFC822.SIZE ENVELOPE ])
         when 'BODY'
           fetch = parse_bodystructure(fetch_att)
         when 'BODYSTRUCTURE'

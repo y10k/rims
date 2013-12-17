@@ -139,6 +139,46 @@ Hello world.
     end
     private :add_mail_mime_subject
 
+    def test_parse_all
+      make_fetch_parser{
+        add_mail_simple
+        add_mail_multipart
+      }
+      fetch = @parser.parse('ALL')
+      assert_equal('FLAGS (\Recent) ' +
+                   'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                   'RFC822.SIZE 212 ' +
+                   'ENVELOPE (' + [
+                     '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
+                     '"test"',                                  # Subject
+                     '("bar@nonet.org")',                       # From
+                     'NIL',                                     # Sender
+                     'NIL',                                     # Reply-To
+                     '("foo@nonet.org")',                       # To
+                     'NIL',                                     # Cc
+                     'NIL',                                     # Bcc
+                     'NIL',                                     # In-Reply-To
+                     'NIL'                                      # Message-Id
+                   ].join(' ') +')',
+                   fetch.call(@folder.msg_list[0]))
+      assert_equal('FLAGS (\Recent) ' +
+                   'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                   'RFC822.SIZE 1616 ' +
+                   'ENVELOPE (' + [
+                     '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
+                     '"multipart test"',                        # Subject
+                     '("foo@nonet.com")',                       # From
+                     'NIL',                                     # Sender
+                     'NIL',                                     # Reply-To
+                     '("bar@nonet.com")',                       # To
+                     'NIL',                                     # Cc
+                     'NIL',                                     # Bcc
+                     'NIL',                                     # In-Reply-To
+                     'NIL'                                      # Message-Id
+                   ].join(' ') +')',
+                   fetch.call(@folder.msg_list[1]))
+    end
+
     def test_parse_body
       make_fetch_parser{
         add_mail_simple
