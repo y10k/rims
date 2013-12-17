@@ -685,7 +685,7 @@ module RIMS
         end
 
         if (enable_seen) then
-          fetch_flags = parse_flags
+          fetch_flags = parse_flags('FLAGS')
           fetch_flags_changed = proc{|msg|
             unless (@mail_store.msg_flag(@folder.id, msg.id, 'seen')) then
               @mail_store.set_msg_flag(@folder.id, msg.id, 'seen', true)
@@ -802,48 +802,44 @@ module RIMS
       end
       private :parse_body
 
-      def parse_bodystructure(body_extension: true)
+      def parse_bodystructure(name)
         proc{|msg|
           mail = @mail_cache[msg.id] or raise 'internal error.'
-          if (body_extension) then
-            "BODYSTRUCTURE #{encode_list(get_bodystructure_data(mail))}"
-          else
-            "BODY #{encode_list(get_bodystructure_data(mail))}"
-          end
+          "#{name} #{encode_list(get_bodystructure_data(mail))}"
         }
       end
       private :parse_bodystructure
 
-      def parse_envelope
+      def parse_envelope(name)
         proc{|msg|
           mail = @mail_cache[msg.id] or raise 'internal error.'
-          "ENVELOPE #{encode_list(get_envelope_data(mail))}"
+          "#{name} #{encode_list(get_envelope_data(mail))}"
         }
       end
       private :parse_envelope
 
-      def parse_flags
+      def parse_flags(name)
         proc{|msg|
           flag_list = MailStore::MSG_FLAG_NAMES.find_all{|name|
             @mail_store.msg_flag(@folder.id, msg.id, name)
           }.map{|name|
             "\\#{name.capitalize}"
           }.join(' ')
-          "FLAGS (#{flag_list})"
+          "#{name} (#{flag_list})"
         }
       end
       private :parse_flags
 
-      def parse_internaldate
+      def parse_internaldate(name)
         proc{|msg|
-          @mail_store.msg_date(@folder.id, msg.id).strftime('INTERNALDATE "%d-%m-%Y %H:%M:%S %z"')
+          name + @mail_store.msg_date(@folder.id, msg.id).strftime(' "%d-%m-%Y %H:%M:%S %z"')
         }
       end
       private :parse_internaldate
 
-      def parse_uid
+      def parse_uid(name)
         proc{|msg|
-          "UID #{msg.id}"
+          "#{name} #{msg.id}"
         }
       end
       private :parse_uid
@@ -860,17 +856,17 @@ module RIMS
         fetch_att = fetch_att.upcase if (fetch_att.is_a? String)
         case (fetch_att)
         when 'BODY'
-          fetch = parse_bodystructure(body_extension: false)
+          fetch = parse_bodystructure(fetch_att)
         when 'BODYSTRUCTURE'
-          fetch = parse_bodystructure(body_extension: true)
+          fetch = parse_bodystructure(fetch_att)
         when 'ENVELOPE'
-          fetch = parse_envelope
+          fetch = parse_envelope(fetch_att)
         when 'FLAGS'
-          fetch = parse_flags
+          fetch = parse_flags(fetch_att)
         when 'INTERNALDATE'
-          fetch = parse_internaldate
+          fetch = parse_internaldate(fetch_att)
         when 'UID'
-          fetch = parse_uid
+          fetch = parse_uid(fetch_att)
         when Array
           case (fetch_att[0])
           when :group
