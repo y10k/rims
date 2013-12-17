@@ -750,6 +750,14 @@ Hello world.
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 
+    def test_parse_rfc822_sie
+      make_fetch_parser{
+        add_mail_simple
+      }
+      fetch = @parser.parse('RFC822.SIZE')
+      assert_equal('RFC822.SIZE 212', fetch.call(@folder.msg_list[0]))
+    end
+
     def test_parse_rfc822_text
       make_fetch_parser{
         add_mail_simple

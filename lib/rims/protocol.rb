@@ -837,6 +837,14 @@ module RIMS
       end
       private :parse_internaldate
 
+      def parse_rfc822_size(name)
+        proc{|msg|
+          mail = @mail_cache[msg.id] or raise 'internal error.'
+          "#{name} #{mail.raw_source.bytesize}"
+        }
+      end
+      private :parse_rfc822_size
+
       def parse_uid(name)
         proc{|msg|
           "#{name} #{msg.id}"
@@ -869,6 +877,8 @@ module RIMS
           fetch = parse_body(fetch_att, nil, [], nil)
         when 'RFC822.HEADER'
           fetch = parse_body(fetch_att, 'PEEK', [ 'HEADER' ], nil)
+        when 'RFC822.SIZE'
+          fetch = parse_rfc822_size(fetch_att)
         when 'RFC822.TEXT'
           fetch = parse_body(fetch_att, nil, [ 'TEXT' ], nil)
         when 'UID'
