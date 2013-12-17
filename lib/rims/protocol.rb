@@ -865,6 +865,12 @@ module RIMS
           fetch = parse_flags(fetch_att)
         when 'INTERNALDATE'
           fetch = parse_internaldate(fetch_att)
+        when 'RFC822'
+          fetch = parse_body(fetch_att, nil, [], nil)
+        when 'RFC822.HEADER'
+          fetch = parse_body(fetch_att, 'PEEK', [ 'HEADER' ], nil)
+        when 'RFC822.TEXT'
+          fetch = parse_body(fetch_att, nil, [ 'TEXT' ], nil)
         when 'UID'
           fetch = parse_uid(fetch_att)
         when Array

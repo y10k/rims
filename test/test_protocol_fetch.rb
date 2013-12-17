@@ -705,6 +705,67 @@ Hello world.
       assert_equal('INTERNALDATE "08-11-2013 19:31:03 +0900"', fetch.call(@folder.msg_list[1]))
     end
 
+    def test_parse_rfc822
+      make_fetch_parser{
+        add_mail_simple
+      }
+
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+
+      fetch = @parser.parse('RFC822')
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal("FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal("RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+    end
+
+    def test_parse_rfc822_header
+      make_fetch_parser{
+        add_mail_simple
+      }
+
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+
+      fetch = @parser.parse('RFC822.HEADER')
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal("RFC822.HEADER {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+    end
+
+    def test_parse_rfc822_text
+      make_fetch_parser{
+        add_mail_simple
+      }
+
+      s = ''
+      s << "Hello world.\r\n"
+
+      fetch = @parser.parse('RFC822.TEXT')
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal("FLAGS (\\Seen \\Recent) RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal("RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+    end
+
     def test_parse_uid
       make_fetch_parser{
         add_mail_simple
