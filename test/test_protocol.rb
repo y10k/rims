@@ -1059,6 +1059,225 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_fetch
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      @mail_store.expunge_mbox(@inbox_id)
+
+      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 06:47:50 +0900'))
+To: foo@nonet.org
+From: bar@nonet.org
+Subject: test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
+
+Hello world.
+      EOF
+
+      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 19:31:03 +0900'))
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: multipart test
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351297"
+
+--1383.905529.351297
+Content-Type: text/plain; charset=us-ascii
+
+Multipart test.
+--1383.905529.351297
+Content-Type: application/octet-stream
+
+0123456789
+--1383.905529.351297
+Content-Type: message/rfc822
+
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351298"
+
+--1383.905529.351298
+Content-Type: text/plain; charset=us-ascii
+
+Hello world.
+--1383.905529.351298
+Content-Type: application/octet-stream
+
+9876543210
+--1383.905529.351298--
+--1383.905529.351297
+Content-Type: multipart/mixed; boundary="1383.905529.351299"
+
+--1383.905529.351299
+Content-Type: image/gif
+
+--1383.905529.351299
+Content-Type: message/rfc822
+
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351300"
+
+--1383.905529.351300
+Content-Type: text/plain; charset=us-ascii
+
+HALO
+--1383.905529.351300
+Content-Type: multipart/alternative; boundary="1383.905529.351301"
+
+--1383.905529.351301
+Content-Type: text/plain; charset=us-ascii
+
+alternative message.
+--1383.905529.351301
+Content-Type: text/html; charset=us-ascii
+
+<html>
+<body><p>HTML message</p></body>
+</html>
+--1383.905529.351301--
+--1383.905529.351300--
+--1383.905529.351299--
+--1383.905529.351297--
+      EOF
+
+      assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.fetch('T001', '1:*', 'FAST').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.fetch('T003', '1:*', 'FAST').each
+      assert_match(/^T003 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.select('T004', 'INBOX').each
+      res.next while (res.peek =~ /^\* /)
+      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.fetch('T005', '1:*', 'FAST').each
+      assert_equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)', res.next)
+      assert_equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)', res.next)
+      assert_equal('T005 OK FETCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.fetch('T006', '1:*', [ :group, 'FAST' ]).each
+      assert_equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)', res.next)
+      assert_equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)', res.next)
+      assert_equal('T006 OK FETCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER' ]).each
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      assert_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s})", res.next)
+      s = ''
+      s << "To: bar@nonet.com\r\n"
+      s << "From: foo@nonet.com\r\n"
+      s << "Subject: multipart test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
+      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
+      s << "\r\n"
+      assert_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal('T007 OK FETCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      res = @decoder.fetch('T008', '1', 'RFC822').each
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+      assert_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal('T008 OK FETCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      res = @decoder.fetch('T009', '2', [ :body, 'BODY[1]', nil, [ '1' ], nil ]).each
+      s = ''
+      s << "\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      s << "Multipart test."
+      assert_equal("* 2 FETCH (FLAGS (\\Seen \\Recent) BODY[1] {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal('T009 OK FETCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      res = @decoder.fetch('T010', '2', 'RFC822', uid: true).each
+      s = ''
+      s << "To: foo@nonet.org\r\n"
+      s << "From: bar@nonet.org\r\n"
+      s << "Subject: test\r\n"
+      s << "MIME-Version: 1.0\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "Content-Transfer-Encoding: 7bit\r\n"
+      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+      s << "\r\n"
+      s << "Hello world.\r\n"
+      assert_equal("* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal('T010 OK FETCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.fetch('T011', '3', [ :body, 'BODY[1]', nil, [ '1' ], nil ], uid: true).each
+      s = ''
+      s << "\r\n"
+      s << "Content-Type: text/plain; charset=us-ascii\r\n"
+      s << "\r\n"
+      s << "Multipart test."
+      assert_equal("* 2 FETCH (UID 3 BODY[1] {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal('T011 OK FETCH completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.logout('T012').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T012 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_store
       msg_src = Enumerator.new{|y|
         s = 'a'
@@ -3005,6 +3224,208 @@ T010 LOGOUT
       assert_equal("T010 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
+    end
+
+    def test_command_loop_fetch
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      @mail_store.expunge_mbox(@inbox_id)
+
+      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 06:47:50 +0900'))
+To: foo@nonet.org
+From: bar@nonet.org
+Subject: test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
+
+Hello world.
+      EOF
+
+      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 19:31:03 +0900'))
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: multipart test
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351297"
+
+--1383.905529.351297
+Content-Type: text/plain; charset=us-ascii
+
+Multipart test.
+--1383.905529.351297
+Content-Type: application/octet-stream
+
+0123456789
+--1383.905529.351297
+Content-Type: message/rfc822
+
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351298"
+
+--1383.905529.351298
+Content-Type: text/plain; charset=us-ascii
+
+Hello world.
+--1383.905529.351298
+Content-Type: application/octet-stream
+
+9876543210
+--1383.905529.351298--
+--1383.905529.351297
+Content-Type: multipart/mixed; boundary="1383.905529.351299"
+
+--1383.905529.351299
+Content-Type: image/gif
+
+--1383.905529.351299
+Content-Type: message/rfc822
+
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351300"
+
+--1383.905529.351300
+Content-Type: text/plain; charset=us-ascii
+
+HALO
+--1383.905529.351300
+Content-Type: multipart/alternative; boundary="1383.905529.351301"
+
+--1383.905529.351301
+Content-Type: text/plain; charset=us-ascii
+
+alternative message.
+--1383.905529.351301
+Content-Type: text/html; charset=us-ascii
+
+<html>
+<body><p>HTML message</p></body>
+</html>
+--1383.905529.351301--
+--1383.905529.351300--
+--1383.905529.351299--
+--1383.905529.351297--
+      EOF
+
+      assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 FETCH 1:* FAST
+T002 LOGIN foo open_sesame
+T003 FETCH 1:* FAST
+T004 SELECT INBOX
+T005 FETCH 1:* FAST
+T006 FETCH 1:* (FAST)
+T007 FETCH 1:* (FLAGS RFC822.HEADER)
+T008 FETCH 1 RFC822
+T009 FETCH 2 BODY[1]
+T010 UID FETCH 2 RFC822
+T011 UID FETCH 3 BODY[1]
+T012 LOGOUT
+      EOF
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      res.next while (res.peek =~ /^\* /)
+      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE 212)\r\n", res.next)
+      assert_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE 1616)\r\n", res.next)
+      assert_equal("T005 OK FETCH completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE 212)\r\n", res.next)
+      assert_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE 1616)\r\n", res.next)
+      assert_equal("T006 OK FETCH completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {198}\r\n", res.next)
+      assert_equal("To: foo@nonet.org\r\n", res.next)
+      assert_equal("From: bar@nonet.org\r\n", res.next)
+      assert_equal("Subject: test\r\n", res.next)
+      assert_equal("MIME-Version: 1.0\r\n", res.next)
+      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
+      assert_equal("Content-Transfer-Encoding: 7bit\r\n", res.next)
+      assert_equal("Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n", res.next)
+      assert_equal("\r\n", res.next)
+      assert_equal(")\r\n", res.next)
+      assert_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {186}\r\n", res.next)
+      assert_equal("To: bar@nonet.com\r\n", res.next)
+      assert_equal("From: foo@nonet.com\r\n", res.next)
+      assert_equal("Subject: multipart test\r\n", res.next)
+      assert_equal("MIME-Version: 1.0\r\n", res.next)
+      assert_equal("Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n", res.next)
+      assert_equal("Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n", res.next)
+      assert_equal("\r\n", res.next)
+      assert_equal(")\r\n", res.next)
+      assert_equal("T007 OK FETCH completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {212}\r\n", res.next)
+      assert_equal("To: foo@nonet.org\r\n", res.next)
+      assert_equal("From: bar@nonet.org\r\n", res.next)
+      assert_equal("Subject: test\r\n", res.next)
+      assert_equal("MIME-Version: 1.0\r\n", res.next)
+      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
+      assert_equal("Content-Transfer-Encoding: 7bit\r\n", res.next)
+      assert_equal("Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n", res.next)
+      assert_equal("\r\n", res.next)
+      assert_equal("Hello world.\r\n", res.next)
+      assert_equal(")\r\n", res.next)
+      assert_equal("T008 OK FETCH completed\r\n", res.next)
+
+      assert_equal("* 2 FETCH (FLAGS (\\Seen \\Recent) BODY[1] {63}\r\n", res.next)
+      assert_equal("\r\n", res.next)
+      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
+      assert_equal("\r\n", res.next)
+      assert_equal("Multipart test.)\r\n", res.next)
+      assert_equal("T009 OK FETCH completed\r\n", res.next)
+
+      assert_equal("* 1 FETCH (UID 2 RFC822 {212}\r\n", res.next)
+      assert_equal("To: foo@nonet.org\r\n", res.next)
+      assert_equal("From: bar@nonet.org\r\n", res.next)
+      assert_equal("Subject: test\r\n", res.next)
+      assert_equal("MIME-Version: 1.0\r\n", res.next)
+      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
+      assert_equal("Content-Transfer-Encoding: 7bit\r\n", res.next)
+      assert_equal("Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n", res.next)
+      assert_equal("\r\n", res.next)
+      assert_equal("Hello world.\r\n", res.next)
+      assert_equal(")\r\n", res.next)
+      assert_equal("T010 OK FETCH completed\r\n", res.next)
+
+      assert_equal("* 2 FETCH (UID 3 BODY[1] {63}\r\n", res.next)
+      assert_equal("\r\n", res.next)
+      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
+      assert_equal("\r\n", res.next)
+      assert_equal("Multipart test.)\r\n", res.next)
+      assert_equal("T011 OK FETCH completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T012 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
     end
 
     def test_command_loop_store

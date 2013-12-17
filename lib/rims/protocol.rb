@@ -1281,7 +1281,32 @@ module RIMS
 
     def fetch(tag, msg_set, data_item_group, uid: false)
       protect_select(tag) {
-        [ "#{tag} BAD not implemented" ]
+        @folder.reload if @folder.updated?
+
+        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+        msg_list = @folder.msg_list.find_all{|msg|
+          if (uid) then
+            msg_set.include? msg.id
+          else
+            msg_set.include? msg.num
+          end
+        }
+
+        unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
+          data_item_group = [ :group, data_item_group ]
+        end
+        if (uid) then
+          data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
+        end
+
+        parser = Protocol::FetchParser.new(@mail_store_holder.to_mst, @folder)
+        fetch = parser.parse(data_item_group)
+
+        res = []
+        for msg in msg_list
+          res << "* #{msg.num} FETCH #{fetch.call(msg)}"
+        end
+        res << "#{tag} OK FETCH completed"
       }
     end
 
