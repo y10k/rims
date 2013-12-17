@@ -879,6 +879,8 @@ module RIMS
           fetch = parse_bodystructure(fetch_att)
         when 'ENVELOPE'
           fetch = parse_envelope(fetch_att)
+        when 'FAST'
+          fetch = expand_macro(%w[ FLAGS INTERNALDATE RFC822.SIZE ])
         when 'FLAGS'
           fetch = parse_flags(fetch_att)
         when 'INTERNALDATE'

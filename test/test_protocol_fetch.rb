@@ -686,6 +686,22 @@ Hello world.
                    fetch.call(@folder.msg_list[2]))
     end
 
+    def test_parse_fast
+      make_fetch_parser{
+        add_mail_simple
+        add_mail_multipart
+      }
+      fetch = @parser.parse('FAST')
+      assert_equal('FLAGS (\Recent) ' +
+                   'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                   'RFC822.SIZE 212',
+                   fetch.call(@folder.msg_list[0]))
+      assert_equal('FLAGS (\Recent) ' +
+                   'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                   'RFC822.SIZE 1616',
+                   fetch.call(@folder.msg_list[1]))
+    end
+
     def test_parse_flags
       make_fetch_parser{
         id = add_mail_simple
