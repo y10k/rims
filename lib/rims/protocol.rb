@@ -592,6 +592,14 @@ module RIMS
       end
       private :make_array
 
+      def expand_macro(cmd_list)
+        func_list = cmd_list.map{|name| parse(name) }
+        proc{|msg|
+          func_list.map{|f| f.call(msg) }.join(' ')
+        }
+      end
+      private :expand_macro
+
       def get_bodystructure_data(mail)
         if (mail.multipart?) then
           # body_type_mpart
