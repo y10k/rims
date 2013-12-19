@@ -376,6 +376,24 @@ module RIMS::Test
         folder.parse_msg_set('detarame')
       }
     end
+
+    def test_mail_folder_parse_msg_set_empty
+      mbox_id = @mail_store.add_mbox('INBOX')
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+      folder = @mail_store.select_mbox(mbox_id)
+
+      assert_equal([].to_set, folder.parse_msg_set('1'))
+      assert_equal([].to_set, folder.parse_msg_set('1', uid: false))
+      assert_equal([].to_set, folder.parse_msg_set('1', uid: true))
+
+      assert_equal([].to_set, folder.parse_msg_set('*'))
+      assert_equal([].to_set, folder.parse_msg_set('*', uid: false))
+      assert_equal([].to_set, folder.parse_msg_set('*', uid: true))
+
+      assert_equal([].to_set, folder.parse_msg_set('1:*'))
+      assert_equal([].to_set, folder.parse_msg_set('1:*', uid: false))
+      assert_equal([].to_set, folder.parse_msg_set('1:*', uid: true))
+    end
   end
 
   class MailFolderClassMethodTest < Test::Unit::TestCase

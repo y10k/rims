@@ -284,12 +284,16 @@ module RIMS
     end
 
     def parse_msg_set(msg_set_desc, uid: false)
-      if (uid) then
-        last_number = @msg_list[-1].id
+      if (@msg_list.empty?) then
+        [].to_set
       else
-        last_number = @msg_list[-1].num
+        if (uid) then
+          last_number = @msg_list[-1].id
+        else
+          last_number = @msg_list[-1].num
+        end
+        self.class.parse_msg_set(msg_set_desc, last_number)
       end
-      self.class.parse_msg_set(msg_set_desc, last_number)
     end
 
     def self.parse_msg_seq(msg_seq_desc, last_number)
