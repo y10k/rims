@@ -981,6 +981,10 @@ module RIMS
     end
     private :protect_select
 
+    def ok_greeting
+      [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready." ]
+    end
+
     def capability(tag)
       [ '* CAPABILITY IMAP4rev1',
         "#{tag} OK CAPABILITY completed"
@@ -1433,6 +1437,17 @@ module RIMS
     end
 
     def self.repl(decoder, input, output, logger)
+      response_write = proc{|res|
+        logger.info("server response: #{res[-1]}")
+        for line in res
+          logger.debug(line) if logger.debug?
+          output << line << "\r\n"
+        end
+        output.flush
+      }
+
+      response_write.call(decoder.ok_greeting)
+
       loop do
         begin
           atom_list = Protocol.read_command(input)
@@ -1532,12 +1547,7 @@ module RIMS
           res = [ "#{tag} BAD internal server error" ]
         end
 
-        logger.info("server response: #{res[-1]}")
-        for line in res
-          logger.debug(line) if logger.debug?
-          output << line << "\r\n"
-        end
-        output.flush
+        response_write.call(res)
 
         if (command.upcase == 'LOGOUT') then
           break
