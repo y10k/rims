@@ -1150,8 +1150,8 @@ module RIMS
               values << 'MESSAGES' << @mail_store_holder.to_mst.mbox_msgs(id)
             when 'RECENT'
               values << 'RECENT' << @mail_store_holder.to_mst.mbox_flags(id, 'recent')
-            when 'UINDEX'
-              values << 'UINDEX' << @mail_store_holder.to_mst.uid
+            when 'UIDNEXT'
+              values << 'UIDNEXT' << @mail_store_holder.to_mst.uid
             when 'UIDVALIDITY'
               values << 'UIDVALIDITY' << id
             when 'UNSEEN'

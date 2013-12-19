@@ -592,39 +592,39 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal('T004 OK STATUS completed', res.next)
       assert_raise(StopIteration) { res.next }
 
-      res = @decoder.status('T005', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 0 RECENT 0 UINDEX 1 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
+      res = @decoder.status('T005', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 0 RECENT 0 UIDNEXT 1 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
       assert_equal('T005 OK STATUS completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       @mail_store.add_msg(@inbox_id, 'foo')
-      res = @decoder.status('T006', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UINDEX 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
+      res = @decoder.status('T006', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
       assert_equal('T006 OK STATUS completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
-      res = @decoder.status('T007', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UINDEX 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
+      res = @decoder.status('T007', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
       assert_equal('T007 OK STATUS completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
-      res = @decoder.status('T008', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UINDEX 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
+      res = @decoder.status('T008', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
       assert_equal('T008 OK STATUS completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       @mail_store.add_msg(@inbox_id, 'bar')
-      res = @decoder.status('T009', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UINDEX 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
+      res = @decoder.status('T009', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
       assert_equal('T009 OK STATUS completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
       @mail_store.expunge_mbox(@inbox_id)
-      res = @decoder.status('T010', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UINDEX', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UINDEX 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
+      res = @decoder.status('T010', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
       assert_equal('T010 OK STATUS completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -2949,7 +2949,7 @@ T010 LOGOUT
 T001 STATUS nobox (MESSAGES)
 T002 LOGIN foo open_sesame
 T003 STATUS nobox (MESSAGES)
-T009 STATUS INBOX (MESSAGES RECENT UINDEX UIDVALIDITY UNSEEN)
+T009 STATUS INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)
 T011 STATUS INBOX MESSAGES
 T012 STATUS INBOX (DETARAME)
 T013 LOGOUT
@@ -2972,7 +2972,7 @@ T013 LOGOUT
 
       assert_match(/^T003 NO /, res.next)
 
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UINDEX 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)\r\n", res.next)
+      assert_equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)\r\n", res.next)
       assert_equal("T009 OK STATUS completed\r\n", res.next)
 
       assert_match(/^T011 BAD /, res.next)
