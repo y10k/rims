@@ -340,7 +340,7 @@ module RIMS::Test
     end
     private :each_msg_src
 
-    def test_mail_folder_parse_msg_seq
+    def test_mail_folder_parse_msg_set
       mbox_id = @mail_store.add_mbox('INBOX')
 
       msg_src = each_msg_src
