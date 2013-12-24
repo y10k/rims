@@ -106,6 +106,90 @@ module RIMS
     end
     module_function :read_command
 
+    class RequestReader
+      def initialize(input, logger)
+        @input = input
+        @logger = logger
+      end
+
+      def read_line
+        line = @input.gets or return
+        line.chomp!("\n")
+        line.chomp!("\r")
+        scan_line(line)
+      end
+
+      def scan_line(line)
+        atom_list = line.scan(/BODY(?:\.\S+)?\[.*?\](?:<\d+\.\d+>)?|[\[\]()]|".*?"|[^\[\]()\s]+/i).map{|s|
+          case (s)
+          when '(', ')', '[', ']', /^NIL$/
+            s.upcase.intern
+          when /^"/
+            s.sub(/^"/, '').sub(/"$/, '')
+          else
+            s
+          end
+        }
+        if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /^{\d+}$/)) then
+          next_size = $&[1..-2].to_i
+          atom_list[-1] = @input.read(next_size) or raise 'unexpected client close.'
+          next_atom_list = read_line or raise 'unexpected client close.'
+          atom_list += next_atom_list
+        end
+
+        atom_list
+      end
+
+      def parse(atom_list, last_atom=nil)
+        syntax_list = []
+        while (atom = atom_list.shift)
+          case (atom)
+          when last_atom
+            break
+          when :'('
+            syntax_list.push([ :group ] + parse(atom_list, :')'))
+          when :'['
+            syntax_list.push([ :block ] + parse(atom_list, :']'))
+          when /^(?<body_source>BODY(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\])(?:<(?<body_offset>\d+)\.(?<body_size>\d+)>)?/i
+            body_source = $~[:body_source]
+            body_option = $~[:body_option]
+            body_section = $~[:body_section]
+            if ($~[:body_offset] && $~[:body_size]) then
+              body_partial = [ $~[:body_offset].to_i, $~[:body_size].to_i ]
+            else
+              body_partial = nil
+            end
+            syntax_list.push([ :body, body_source, body_option, parse(scan_line(body_section)), body_partial ])
+          else
+            syntax_list.push(atom)
+          end
+        end
+
+        if (atom == nil && last_atom != nil) then
+          raise 'syntax error.'
+        end
+
+        syntax_list
+      end
+
+      def read_command
+        while (atom_list = read_line)
+          if (atom_list.empty?) then
+            next
+          end
+          if (atom_list.length < 2) then
+            raise 'need for tag and command.'
+          end
+          if (atom_list[0] =~ /^[*+]/) then
+            raise "invalid command tag: #{atom_list[0]}"
+          end
+          return parse(atom_list)
+        end
+
+        nil
+      end
+    end
+
     class SearchParser
       def initialize(mail_store, folder)
         @mail_store = mail_store
