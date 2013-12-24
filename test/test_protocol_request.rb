@@ -7,10 +7,11 @@ require 'test/unit'
 module RIMS::Test
   class ProtocolRequestReaderTest < Test::Unit::TestCase
     def setup
-      @input = StringIO.new
+      @input = StringIO.new('', 'r')
+      @output = StringIO.new('', 'w')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
-      @reader = RIMS::Protocol::RequestReader.new(@input, @logger)
+      @reader = RIMS::Protocol::RequestReader.new(@input, @output, @logger)
     end
 
     def test_scan_line

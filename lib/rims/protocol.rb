@@ -26,8 +26,9 @@ module RIMS
     module_function :compile_wildcard
 
     class RequestReader
-      def initialize(input, logger)
+      def initialize(input, output, logger)
         @input = input
+        @output = output
         @logger = logger
       end
 
@@ -1454,7 +1455,7 @@ module RIMS
 
       response_write.call(decoder.ok_greeting)
 
-      request_reader = Protocol::RequestReader.new(input, logger)
+      request_reader = Protocol::RequestReader.new(input, output, logger)
       loop do
         begin
           atom_list = request_reader.read_command
