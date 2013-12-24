@@ -1532,9 +1532,10 @@ module RIMS
 
       response_write.call(decoder.ok_greeting)
 
+      request_reader = Protocol::RequestReader.new(input, logger)
       loop do
         begin
-          atom_list = Protocol.read_command(input)
+          atom_list = request_reader.read_command
         rescue
           logger.error('invalid client command.')
           logger.error($!)
