@@ -2811,16 +2811,28 @@ T012 LOGOUT
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
 
       assert_match(/^T001 NO /, res.next)
+
       assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
       assert_equal("T003 OK APPEND completed\r\n", res.next)
+
       assert_equal("T004 OK APPEND completed\r\n", res.next)
+
+      assert_match(/^\+ /, res.next)
       assert_equal("T005 OK APPEND completed\r\n", res.next)
+
       assert_equal("T006 OK APPEND completed\r\n", res.next)
+
       assert_match(/^T007 BAD /, res.next)
+
       assert_match(/^T008 BAD /, res.next)
+
       assert_match(/^T009 BAD /, res.next)
+
       assert_match(/^T010 BAD /, res.next)
+
       assert_match(/^T011 NO \[TRYCREATE\]/, res.next)
+
       assert_match(/^\* BYE /, res.next)
       assert_equal("T012 OK LOGOUT completed\r\n", res.next)
       assert_raise(StopIteration) { res.next }

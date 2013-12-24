@@ -31,6 +31,8 @@ module RIMS::Test
       assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo [bar] (baz)' ],
                    @reader.scan_line('* LIST (\Noselect) "/" "foo [bar] (baz)"'))
       assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ], @reader.scan_line('* LIST (\Noselect) NIL ""'))
+
+      assert_equal('', @output.string)
     end
 
     def test_scan_line_string_literal
@@ -51,6 +53,10 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
 
       assert_equal([ 'A003', 'APPEND', 'saved-messages', '('.intern, '\Seen', ')'.intern, literal ], @reader.scan_line(line))
       assert_equal('', @input.read)
+
+      cmd_cont_req = @output.string.each_line
+      assert_match(/^\+ /, cmd_cont_req.next)
+      assert_raise(StopIteration) { cmd_cont_req.next }
     end
 
     def test_read_line
@@ -94,6 +100,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
 
       @input.string = '* LIST (\Noselect) NIL ""'
       assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ], @reader.read_line)
+
+      assert_equal('', @output.string)
     end
 
     def test_read_line_string_literal
@@ -112,6 +120,10 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       @input.string = "A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n"
       assert_equal([ 'A003', 'APPEND', 'saved-messages', '('.intern, '\Seen', ')'.intern, literal ], @reader.read_line)
       assert_equal('', @input.read)
+
+      cmd_cont_req = @output.string.each_line
+      assert_match(/^\+ /, cmd_cont_req.next)
+      assert_raise(StopIteration) { cmd_cont_req.next }
     end
 
     def test_read_line_string_literal_multi
@@ -132,6 +144,11 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       @input.string = "* ({#{literal1.bytesize}}\n" + literal1 + " {#{literal2.bytesize}}\n" + literal2 + ")\n"
       assert_equal([ '*', '('.intern, literal1, literal2, ')'.intern ], @reader.read_line)
       assert_equal('', @input.read)
+
+      cmd_cont_req = @output.string.each_line
+      assert_match(/^\+ /, cmd_cont_req.next)
+      assert_match(/^\+ /, cmd_cont_req.next)
+      assert_raise(StopIteration) { cmd_cont_req.next }
     end
 
     def test_parse
@@ -146,6 +163,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    @reader.parse([ '*', 'OK', '['.intern, 'PERMANENTFLAGS', '('.intern, '\Deleted', '\Seen', '\*', ')'.intern, ']'.intern, 'Limited' ]))
       assert_equal([ '*', 'LIST', [ :group, '\Noselect' ], :NIL, '' ],
                    @reader.parse([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ]))
+
+      assert_equal('', @output.string)
     end
 
     def test_read_command
@@ -219,6 +238,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    ],
                    @reader.read_command)
 
+      assert_equal('', @output.string)
+
       literal = <<-'EOF'
 Date: Mon, 7 Feb 1994 21:52:25 -0800 (PST)
 From: Fred Foobar <foobar@Blurdybloop.COM>
@@ -233,6 +254,10 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
 
       @input.string = "A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n"
       assert_equal([ 'A003', 'APPEND', 'saved-messages', [ :group, '\Seen' ], literal ], @reader.read_command)
+
+      cmd_cont_req = @output.string.each_line
+      assert_match(/^\+ /, cmd_cont_req.next)
+      assert_raise(StopIteration) { cmd_cont_req.next }
     end
   end
 end
