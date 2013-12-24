@@ -997,7 +997,7 @@ module RIMS
         @mail_store_holder.user_lock.synchronize{
           @folder.reload if @folder.updated?
           res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS"
-          res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'resent')} RECENTS"
+          res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')} RECENTS"
         }
       end
       res << "#{tag} OK NOOP completed"
