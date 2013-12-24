@@ -35,6 +35,7 @@ module RIMS
         line = @input.gets or return
         line.chomp!("\n")
         line.chomp!("\r")
+        @logger.debug("read line: #{line}") if @logger.debug?
         scan_line(line)
       end
 
@@ -51,7 +52,9 @@ module RIMS
         }
         if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /^{\d+}$/)) then
           next_size = $&[1..-2].to_i
+          @logger.debug("found literal: #{next_size} octets.")
           atom_list[-1] = @input.read(next_size) or raise 'unexpected client close.'
+          @logger.debug("read literal: #{atom_list[-1]}") if @logger.debug?
           next_atom_list = read_line or raise 'unexpected client close.'
           atom_list += next_atom_list
         end
