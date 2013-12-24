@@ -1043,8 +1043,8 @@ module RIMS
           unseen_msgs = all_msgs - @mail_store_holder.to_mst.mbox_flags(@folder.id, 'seen')
           res << "* #{all_msgs} EXISTS"
           res << "* #{recent_msgs} RECENT"
-          res << "* [UNSEEN #{unseen_msgs}]"
-          res << "* [UIDVALIDITY #{@folder.id}]"
+          res << "* OK [UNSEEN #{unseen_msgs}]"
+          res << "* OK [UIDVALIDITY #{@folder.id}]"
           res << "* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)"
           res << "#{tag} OK [READ-WRITE] SELECT completed"
         else

@@ -335,8 +335,8 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       res = @decoder.select('T003', 'INBOX').each
       assert_equal('* 0 EXISTS', res.next)
       assert_equal('* 0 RECENT', res.next)
-      assert_equal('* [UNSEEN 0]', res.next)
-      assert_equal('* [UIDVALIDITY 1]', res.next)
+      assert_equal('* OK [UNSEEN 0]', res.next)
+      assert_equal('* OK [UIDVALIDITY 1]', res.next)
       assert_equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', res.next)
       assert_equal('T003 OK [READ-WRITE] SELECT completed', res.next)
       assert_raise(StopIteration) { res.next }
@@ -2824,8 +2824,8 @@ T004 LOGOUT
 
       assert_equal("* 0 EXISTS\r\n", res.next)
       assert_equal("* 0 RECENT\r\n", res.next)
-      assert_equal("* [UNSEEN 0]\r\n", res.next)
-      assert_equal("* [UIDVALIDITY 1]\r\n", res.next)
+      assert_equal("* OK [UNSEEN 0]\r\n", res.next)
+      assert_equal("* OK [UIDVALIDITY 1]\r\n", res.next)
       assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
       assert_equal("T003 OK [READ-WRITE] SELECT completed\r\n", res.next)
 
