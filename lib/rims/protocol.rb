@@ -1460,7 +1460,7 @@ module RIMS
         break unless atom_list
 
         tag, command, *opt_args = atom_list
-        logger.info("client command: #{command}")
+        logger.info("client command: #{tag} #{command}")
         logger.debug("client command parameter: #{opt_args.inspect}") if logger.debug?
 
         begin
