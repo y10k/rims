@@ -1139,13 +1139,21 @@ module RIMS
 
     def subscribe(tag, mbox_name)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          [ "#{tag} OK SUBSCRIBE completed" ]
+        else
+          [ "#{tag} NO not found a mailbox" ]
+        end
       }
     end
 
     def unsubscribe(tag, mbox_name)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          [ "#{tag} NO not implemented subscribe/unsbscribe command" ]
+        else
+          [ "#{tag} NO not found a mailbox" ]
+        end
       }
     end
 
@@ -1183,7 +1191,15 @@ module RIMS
 
     def lsub(tag, ref_name, mbox_name)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        res = []
+        if (mbox_name.empty?) then
+          res << '* LSUB (\Noselect) NIL ""'
+        else
+          list_mbox(ref_name, mbox_name) do |mbox_entry|
+            res << "* LSUB #{mbox_entry}"
+          end
+        end
+        res << "#{tag} OK LSUB completed"
       }
     end
 
