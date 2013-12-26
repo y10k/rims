@@ -1309,7 +1309,9 @@ module RIMS
           data_item_group = [ :group, data_item_group ]
         end
         if (uid) then
-          data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
+          unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
+            data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
+          end
         end
 
         parser = Protocol::FetchParser.new(@mail_store_holder.to_mst, @folder)
