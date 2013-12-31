@@ -1525,7 +1525,7 @@ module RIMS
             unless (opt_args.empty?) then
               uid_command, *uid_args = opt_args
               logger.info("uid command: #{uid_command}")
-              logger.debug("uid parameter: (#{uid_args.join(' ')})") if logger.debug?
+              logger.debug("uid parameter: #{uid_args}") if logger.debug?
               case (uid_command.upcase)
               when 'SEARCH'
                 res = decoder.search(tag, *uid_args, uid: true)
