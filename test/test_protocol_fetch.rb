@@ -466,7 +466,7 @@ Hello world.
         add_mail_simple
       }
 
-      fetch = @parser.parse([ :body, 'BODY.PEEK[]', 'PEEK', [], nil ])
+      fetch = @parser.parse([ :body, 'BODY[]', 'PEEK', [], nil ])
       s = ''
       s << "To: foo@nonet.org\r\n"
       s << "From: bar@nonet.org\r\n"
@@ -478,7 +478,7 @@ Hello world.
       s << "\r\n"
       s << "Hello world.\r\n"
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("BODY.PEEK[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal("BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 

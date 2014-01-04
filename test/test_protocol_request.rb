@@ -219,13 +219,13 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       @input.string = "A654 FETCH 2:4 (BODY[])\n"
       assert_equal([ 'A654', 'FETCH', '2:4', [ :group, [ :body, 'BODY[]', nil, [], nil ] ] ], @reader.read_command)
 
-      @input.string = "A654 FETCH 2:4 (FLAGS BODY[HEADER.FIELDS (DATE FROM)]<0.1500>)\n"
+      @input.string = "A654 FETCH 2:4 (FLAGS BODY.PEEK[HEADER.FIELDS (DATE FROM)]<0.1500>)\n"
       assert_equal([ 'A654', 'FETCH', '2:4',
                      [ :group,
                        'FLAGS',
                        [ :body,
                          'BODY[HEADER.FIELDS (DATE FROM)]', # partical description is removed.
-                         nil,
+                         'PEEK',
                          [ 'HEADER.FIELDS',
                            [ :group,
                              'DATE',

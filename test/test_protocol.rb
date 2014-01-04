@@ -1036,18 +1036,18 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
-      res = @decoder.fetch('T009', '2', [ :body, 'BODY[1]', nil, [ '1' ], nil ]).each
+      res = @decoder.fetch('T009', '2', [ :body, 'BODY[1]', 'PEEK', [ '1' ], nil ]).each
       s = ''
       s << "\r\n"
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
       s << "\r\n"
       s << "Multipart test."
-      assert_equal("* 2 FETCH (FLAGS (\\Seen \\Recent) BODY[1] {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal("* 2 FETCH (BODY[1] {#{s.bytesize}}\r\n#{s})", res.next)
       assert_equal('T009 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       res = @decoder.fetch('T010', '2', 'RFC822', uid: true).each
       s = ''
@@ -1064,7 +1064,10 @@ Content-Type: text/html; charset=us-ascii
       assert_equal('T010 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
-      res = @decoder.fetch('T011', '3', [ :body, 'BODY[1]', nil, [ '1' ], nil ], uid: true).each
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      res = @decoder.fetch('T011', '3', [ :body, 'BODY[1]', 'PEEK', [ '1' ], nil ], uid: true).each
       s = ''
       s << "\r\n"
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
@@ -1073,6 +1076,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal("* 2 FETCH (UID 3 BODY[1] {#{s.bytesize}}\r\n#{s})", res.next)
       assert_equal('T011 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       res = @decoder.logout('T012').each
       assert_match(/^\* BYE /, res.next)
@@ -3167,9 +3173,9 @@ T005 FETCH 1:* FAST
 T006 FETCH 1:* (FAST)
 T007 FETCH 1:* (FLAGS RFC822.HEADER)
 T008 FETCH 1 RFC822
-T009 FETCH 2 BODY[1]
+T009 FETCH 2 BODY.PEEK[1]
 T010 UID FETCH 2 RFC822
-T011 UID FETCH 3 BODY[1]
+T011 UID FETCH 3 BODY.PEEK[1]
 T012 LOGOUT
       EOF
 
@@ -3232,7 +3238,7 @@ T012 LOGOUT
       assert_equal(")\r\n", res.next)
       assert_equal("T008 OK FETCH completed\r\n", res.next)
 
-      assert_equal("* 2 FETCH (FLAGS (\\Seen \\Recent) BODY[1] {63}\r\n", res.next)
+      assert_equal("* 2 FETCH (BODY[1] {63}\r\n", res.next)
       assert_equal("\r\n", res.next)
       assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
       assert_equal("\r\n", res.next)
@@ -3265,7 +3271,7 @@ T012 LOGOUT
       assert_raise(StopIteration) { res.next }
 
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
     end
 
     def test_command_loop_store
