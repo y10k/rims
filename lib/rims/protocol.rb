@@ -75,8 +75,8 @@ module RIMS
             syntax_list.push([ :group ] + parse(atom_list, :')'))
           when :'['
             syntax_list.push([ :block ] + parse(atom_list, :']'))
-          when /^(?<body_source>BODY(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\])(?:<(?<body_offset>\d+)\.(?<body_size>\d+)>)?/i
-            body_source = $~[:body_source]
+          when /^(?<body_symbol>BODY)(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\](?:<(?<body_offset>\d+\.(?<body_size>\d+)>))?/i
+            body_source = $~[:body_symbol] + '[' + $~[:body_section] + ']'
             body_option = $~[:body_option]
             body_section = $~[:body_section]
             if ($~[:body_offset] && $~[:body_size]) then
