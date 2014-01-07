@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'rims'
+require 'stringio'
 require 'test/unit'
 require 'time'
 
@@ -139,6 +141,12 @@ Hello world.
     end
     private :add_mail_mime_subject
 
+    def make_body(description)
+      reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
+      reader.parse([ description ])[0]
+    end
+    private :make_body
+
     def test_parse_all
       make_fetch_parser{
         add_mail_simple
@@ -185,7 +193,7 @@ Hello world.
         add_mail_multipart
       }
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], nil ])
+      fetch = @parser.parse(make_body('BODY[]'))
       s = ''
       s << "To: foo@nonet.org\r\n"
       s << "From: bar@nonet.org\r\n"
@@ -202,11 +210,11 @@ Hello world.
       assert_equal("BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
 
-      fetch = @parser.parse([ :body, 'BODY[TEXT]', nil, [ 'TEXT' ], nil ])
+      fetch = @parser.parse(make_body('BODY[TEXT]'))
       s = "Hello world.\r\n"
       assert_equal("BODY[TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[HEADER]', nil, [ 'HEADER' ], nil ])
+      fetch = @parser.parse(make_body('BODY[HEADER]'))
       s = ''
       s << "To: foo@nonet.org\r\n"
       s << "From: bar@nonet.org\r\n"
@@ -231,7 +239,7 @@ Hello world.
       assert_equal("BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
 
-      fetch = @parser.parse([ :body, 'BODY[HEADER.FIELDS (From To)]', nil, [ 'HEADER.FIELDS', [ :group, 'From', 'To' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[HEADER.FIELDS (From To)]'))
       s = ''
       s << "From: bar@nonet.org\r\n"
       s << "To: foo@nonet.org\r\n"
@@ -243,7 +251,7 @@ Hello world.
       s << "\r\n"
       assert_equal("BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[HEADER.FIELDS.NOT (From To Subject)]', nil, [ 'HEADER.FIELDS.NOT', [ :group, 'From', 'To', 'Subject' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[HEADER.FIELDS.NOT (From To Subject)]'))
       s = ''
       s << "Date: Fri, 08 Nov 2013 06:47:50 +0900\r\n"
       s << "Mime-Version: 1.0\r\n"
@@ -258,7 +266,7 @@ Hello world.
       s << "\r\n"
       assert_equal("BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[1]', nil, [ '1' ], nil ])
+      fetch = @parser.parse(make_body('BODY[1]'))
       s = ''
       s << "To: foo@nonet.org\r\n"
       s << "From: bar@nonet.org\r\n"
@@ -277,7 +285,7 @@ Hello world.
       s << "Multipart test."
       assert_equal("BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3]', nil, [ '3' ], nil ])
+      fetch = @parser.parse(make_body('BODY[3]'))
       assert_equal("BODY[3] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "\r\n"
@@ -301,7 +309,7 @@ Hello world.
       s << "--1383.905529.351298--"
       assert_equal("BODY[3] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.1]', nil, [ '3.1' ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.1]'))
       assert_equal("BODY[3.1] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "\r\n"
@@ -310,7 +318,7 @@ Hello world.
       s << "Hello world."
       assert_equal("BODY[3.1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[4.2.2]', nil, [ '4.2.2' ], nil ])
+      fetch = @parser.parse(make_body('BODY[4.2.2]'))
       assert_equal("BODY[4.2.2] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "\r\n"
@@ -329,7 +337,7 @@ Hello world.
       s << "--1383.905529.351301--"
       assert_equal("BODY[4.2.2] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[1.MIME]', nil, [ '1.MIME' ], nil ])
+      fetch = @parser.parse(make_body('BODY[1.MIME]'))
       s = ''
       s << "To: foo@nonet.org\r\n"
       s << "From: bar@nonet.org\r\n"
@@ -345,32 +353,32 @@ Hello world.
       s << "\r\n"
       assert_equal("BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.MIME]', nil, [ '3.MIME' ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.MIME]'))
       assert_equal('BODY[3.MIME] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Content-Type: message/rfc822\r\n"
       s << "\r\n"
       assert_equal("BODY[3.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.1.MIME]', nil, [ '3.1.MIME' ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.1.MIME]'))
       assert_equal('BODY[3.1.MIME] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
       s << "\r\n"
       assert_equal("BODY[3.1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[4.2.2.MIME]', nil, [ '4.2.2.MIME' ], nil ])
+      fetch = @parser.parse(make_body('BODY[4.2.2.MIME]'))
       assert_equal('BODY[4.2.2.MIME] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Content-Type: multipart/alternative; boundary=\"1383.905529.351301\"\r\n"
       s << "\r\n"
       assert_equal("BODY[4.2.2.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[1.TEXT]', nil, [ '1.TEXT' ], nil ])
+      fetch = @parser.parse(make_body('BODY[1.TEXT]'))
       assert_equal("BODY[1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.TEXT]', nil, [ '3.TEXT' ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.TEXT]'))
       assert_equal("BODY[3.TEXT] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "--1383.905529.351298\r\n"
@@ -384,19 +392,19 @@ Hello world.
       s << "--1383.905529.351298--"
       assert_equal("BODY[3.TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.1.TEXT]', nil, [ '3.1.TEXT' ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.1.TEXT]'))
       assert_equal("BODY[3.1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[3.1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[4.2.2.TEXT]', nil, [ '4.2.2.TEXT' ], nil ])
+      fetch = @parser.parse(make_body('BODY[4.2.2.TEXT]'))
       assert_equal("BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[0]))
       assert_equal("BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[1.HEADER]', nil, [ '1.HEADER' ], nil ])
+      fetch = @parser.parse(make_body('BODY[1.HEADER]'))
       assert_equal('BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.HEADER]', nil, [ '3.HEADER' ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.HEADER]'))
       assert_equal('BODY[3.HEADER] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "To: bar@nonet.com\r\n"
@@ -408,38 +416,38 @@ Hello world.
       s << "\r\n"
       assert_equal("BODY[3.HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.1.HEADER]', nil, [ '3.1.HEADER' ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.1.HEADER]'))
       assert_equal('BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[4.2.2.HEADER]', nil, [ '4.2.2.HEADER' ], nil ])
+      fetch = @parser.parse(make_body('BODY[4.2.2.HEADER]'))
       assert_equal("BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[0]))
       assert_equal("BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[1.HEADER.FIELDS (To)]', nil, [ '1.HEADER.FIELDS', [ :group, 'To' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[1.HEADER.FIELDS (To)]'))
       assert_equal('BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.HEADER.FIELDS (To)]', nil, [ '3.HEADER.FIELDS', [ :group, 'To' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.HEADER.FIELDS (To)]'))
       assert_equal('BODY[3.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "To: bar@nonet.com\r\n"
       s << "\r\n"
       assert_equal("BODY[3.HEADER.FIELDS (To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.1.HEADER.FIELDS (To)]', nil, [ '3.1.HEADER.FIELDS', [ :group, 'To' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.1.HEADER.FIELDS (To)]'))
       assert_equal('BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[4.2.2.HEADER.FIELDS (To)]', nil, [ '4.2.2.HEADER.FIELDS', [ :group, 'To' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[4.2.2.HEADER.FIELDS (To)]'))
       assert_equal('BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[1.HEADER.FIELDS.NOT (To From Subject)]', nil, [ '1.HEADER.FIELDS.NOT', [ :group, 'To', 'From', 'Subject' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[1.HEADER.FIELDS.NOT (To From Subject)]'))
       assert_equal('BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.HEADER.FIELDS.NOT (To From Subject)]', nil, [ '3.HEADER.FIELDS.NOT', [ :group, 'To', 'From', 'Subject' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.HEADER.FIELDS.NOT (To From Subject)]'))
       assert_equal('BODY[3.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Date: Fri, 08 Nov 2013 19:31:03 +0900\r\n"
@@ -448,16 +456,16 @@ Hello world.
       s << "\r\n"
       assert_equal("BODY[3.HEADER.FIELDS.NOT (To From Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)]', nil, [ '1.3.HEADER.FIELDS.NOT', [ :group, 'To', 'From', 'Subject' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)]'))
       assert_equal('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse([ :body, 'BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)]', nil, [ '4.2.2.HEADER.FIELDS.NOT', [ :group, 'To', 'From', 'Subject' ] ], nil ])
+      fetch = @parser.parse(make_body('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)]'))
       assert_equal('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
       assert_equal('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
 
       assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ :body, 'BODY[MIME]', nil, [ 'MIME' ], nil ])
+        @parser.parse(make_body('BODY[MIME]'))
       }
     end
 
@@ -466,7 +474,7 @@ Hello world.
         add_mail_simple
       }
 
-      fetch = @parser.parse([ :body, 'BODY[]', 'PEEK', [], nil ])
+      fetch = @parser.parse(make_body('BODY.PEEK[]'))
       s = ''
       s << "To: foo@nonet.org\r\n"
       s << "From: bar@nonet.org\r\n"
@@ -499,31 +507,31 @@ Hello world.
       s << "\r\n"
       s << "Hello world.\r\n"
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 0, 100 ] ])
+      fetch = @parser.parse(make_body('BODY[]<0.100>'))
       assert_equal("BODY[]<0> {100}\r\n#{s.byteslice(0, 100)}", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 0, 1000 ] ])
+      fetch = @parser.parse(make_body('BODY[]<0.1000>'))
       assert_equal("BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 100, 100 ] ])
+      fetch = @parser.parse(make_body('BODY[]<100.100>'))
       assert_equal("BODY[]<100> {100}\r\n#{s.byteslice(100, 100)}", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 211, 1 ] ])
+      fetch = @parser.parse(make_body('BODY[]<211.1>'))
       assert_equal("BODY[]<211> {1}\r\n\n", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 212, 1 ] ])
+      fetch = @parser.parse(make_body('BODY[]<212.1>'))
       assert_equal("BODY[]<212> NIL", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 0, 0 ] ])
+      fetch = @parser.parse(make_body('BODY[]<0.0>'))
       assert_equal("BODY[]<0> \"\"", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 100, 0 ] ])
+      fetch = @parser.parse(make_body('BODY[]<100.0>'))
       assert_equal("BODY[]<100> \"\"", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 211, 0 ] ])
+      fetch = @parser.parse(make_body('BODY[]<211.0>'))
       assert_equal("BODY[]<211> \"\"", fetch.call(@folder.msg_list[0]))
 
-      fetch = @parser.parse([ :body, 'BODY[]', nil, [], [ 212, 0 ] ])
+      fetch = @parser.parse(make_body('BODY[]<212.0>'))
       assert_equal("BODY[]<212> NIL", fetch.call(@folder.msg_list[0]))
     end
 

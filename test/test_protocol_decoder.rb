@@ -994,7 +994,8 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
-      res = @decoder.fetch('T009', '2', [ :body, 'BODY[1]', 'PEEK', [ '1' ], nil ]).each
+      body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
+      res = @decoder.fetch('T009', '2', [ :body, body ]).each
       s = ''
       s << "\r\n"
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
@@ -1025,7 +1026,8 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
-      res = @decoder.fetch('T011', '3', [ :body, 'BODY[1]', 'PEEK', [ '1' ], nil ], uid: true).each
+      body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
+      res = @decoder.fetch('T011', '3', [ :body, body ], uid: true).each
       s = ''
       s << "\r\n"
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
