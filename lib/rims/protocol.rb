@@ -25,6 +25,38 @@ module RIMS
     end
     module_function :compile_wildcard
 
+    FetchBody = Struct.new(:symbol, :option, :section, :section_list, :partial_origin, :partial_size)
+
+    class FetchBody
+      def fetch_att_name
+        s = ''
+        s << symbol
+        s << '.' << option if option
+        s << '[' << section << ']'
+        if (partial_origin) then
+          s << '<' << partial_origin.to_s << '.' << partial_size.to_s << '>'
+        end
+
+        s
+      end
+
+      def msg_att_name
+        s = ''
+        s << symbol
+        s << '[' << section << ']'
+        if (partial_origin) then
+          s << '<' << partial_origin.to_s << '>'
+        end
+
+        s
+      end
+    end
+
+    def body(symbol: nil, option: nil, section: nil, section_list: nil, partial_origin: nil, partial_size: nil)
+      body = FetchBody.new(symbol, option, section, section_list, partial_origin, partial_size)
+    end
+    module_function :body
+
     class RequestReader
       def initialize(input, output, logger)
         @input = input
@@ -75,16 +107,20 @@ module RIMS
             syntax_list.push([ :group ] + parse(atom_list, :')'))
           when :'['
             syntax_list.push([ :block ] + parse(atom_list, :']'))
-          when /^(?<body_symbol>BODY)(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\](?:<(?<body_offset>\d+\.(?<body_size>\d+)>))?/i
-            body_source = $~[:body_symbol] + '[' + $~[:body_section] + ']'
+          when /^(?<body_symbol>BODY)(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\](?:<(?<partial_origin>\d+\.(?<partial_size>\d+)>))?/i
+            body_symbol = $~[:body_symbol]
             body_option = $~[:body_option]
             body_section = $~[:body_section]
-            if ($~[:body_offset] && $~[:body_size]) then
-              body_partial = [ $~[:body_offset].to_i, $~[:body_size].to_i ]
-            else
-              body_partial = nil
-            end
-            syntax_list.push([ :body, body_source, body_option, parse(scan_line(body_section)), body_partial ])
+            partial_origin = $~[:partial_origin] && $~[:partial_origin].to_i
+            partial_size = $~[:partial_size] && $~[:partial_size].to_i
+            syntax_list.push([ :body,
+                               Protocol.body(symbol: body_symbol,
+                                             option: body_option,
+                                             section: body_section,
+                                             section_list: parse(scan_line(body_section)),
+                                             partial_origin: partial_origin,
+                                             partial_size: partial_size)
+                             ])
           else
             syntax_list.push(atom)
           end
@@ -690,10 +726,10 @@ module RIMS
       end
       private :get_envelope_data
 
-      def parse_body(source, option, section, partial)
+      def parse_body(body, msg_att_name)
         enable_seen = true
-        if (option) then
-          case (option.upcase)
+        if (body.option) then
+          case (body.option.upcase)
           when 'PEEK'
             enable_seen = false
           else
@@ -717,15 +753,15 @@ module RIMS
           }
         end
 
-        if (section.empty?) then
+        if (body.section_list.empty?) then
           section_text = nil
           section_index_list = []
         else
-          if (section[0] =~ /^(?<index>\d+(?:\.\d+)*)(?:\.(?<text>.+))?$/) then
+          if (body.section_list[0] =~ /^(?<index>\d+(?:\.\d+)*)(?:\.(?<text>.+))?$/) then
             section_text = $~[:text]
             section_index_list = $~[:index].split(/\./).map{|i| i.to_i }
           else
-            section_text = section[0]
+            section_text = body.section_list[0]
             section_index_list = []
           end
         end
@@ -756,10 +792,10 @@ module RIMS
               end
             }
           when 'HEADER.FIELDS', 'HEADER.FIELDS.NOT'
-            if (section.length != 2) then
+            if (body.section_list.length != 2) then
               raise SyntaxError, "need for argument of #{section_text}."
             end
-            field_name_list = section[1]
+            field_name_list = body.section_list[1]
             unless ((field_name_list.is_a? Array) && (field_name_list[0] == :group)) then
               raise SyntaxError, "invalid argument of #{section_text}: #{field_name_list}"
             end
@@ -783,8 +819,8 @@ module RIMS
             end
           when 'TEXT'
             fetch_body_content = proc{|mail|
-              if (body = get_body_content(mail, :body, nest_mail: ! is_root)) then
-                body.raw_source
+              if (mail_body = get_body_content(mail, :body, nest_mail: ! is_root)) then
+                mail_body.raw_source
               end
             }
           else
@@ -792,20 +828,18 @@ module RIMS
           end
         end
 
-        pos, size = partial if partial
         proc{|msg|
           res = ''
           res << fetch_flags_changed.call(msg)
-          res << source
-          res << "<#{pos}>" if pos
+          res << msg_att_name
           res << ' '
 
           mail = get_body_section(@mail_cache[msg.id], section_index_list)
           content = fetch_body_content.call(mail) if mail
           if (content) then
-            if (partial) then
-              if (content.bytesize > pos) then
-                res << Protocol.quote(content.byteslice(pos, size))
+            if (body.partial_origin) then
+              if (content.bytesize > body.partial_origin) then
+                res << Protocol.quote(content.byteslice(body.partial_origin, body.partial_size))
               else
                 res << 'NIL'
               end
@@ -897,13 +931,13 @@ module RIMS
         when 'INTERNALDATE'
           fetch = parse_internaldate(fetch_att)
         when 'RFC822'
-          fetch = parse_body(fetch_att, nil, [], nil)
+          fetch = parse_body(Protocol.body(section_list: []), fetch_att)
         when 'RFC822.HEADER'
-          fetch = parse_body(fetch_att, 'PEEK', [ 'HEADER' ], nil)
+          fetch = parse_body(Protocol.body(option: 'PEEK', section_list: %w[ HEADER ]), fetch_att)
         when 'RFC822.SIZE'
           fetch = parse_rfc822_size(fetch_att)
         when 'RFC822.TEXT'
-          fetch = parse_body(fetch_att, nil, [ 'TEXT' ], nil)
+          fetch = parse_body(Protocol.body(section_list: %w[ TEXT ]), fetch_att)
         when 'UID'
           fetch = parse_uid(fetch_att)
         when Array
@@ -911,7 +945,8 @@ module RIMS
           when :group
             fetch = parse_group(fetch_att[1..-1])
           when :body
-            fetch = parse_body(fetch_att[1], fetch_att[2], fetch_att[3], fetch_att[4])
+            body = fetch_att[1]
+            fetch = parse_body(body, body.msg_att_name)
           else
             raise SyntaxError, "unknown fetch attribute: #{fetch_att[0]}"
           end

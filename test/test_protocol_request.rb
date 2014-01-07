@@ -217,22 +217,27 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal([ 'A654', 'FETCH', '2:4', [ :group, 'BODY' ] ], @reader.read_command)
 
       @input.string = "A654 FETCH 2:4 (BODY[])\n"
-      assert_equal([ 'A654', 'FETCH', '2:4', [ :group, [ :body, 'BODY[]', nil, [], nil ] ] ], @reader.read_command)
+      assert_equal([ 'A654', 'FETCH', '2:4', [
+                       :group, [
+                         :body,
+                         RIMS::Protocol.body(symbol: 'BODY',
+                                             section: '',
+                                             section_list: [])
+                       ]
+                     ]
+                   ], @reader.read_command)
 
       @input.string = "A654 FETCH 2:4 (FLAGS BODY.PEEK[HEADER.FIELDS (DATE FROM)]<0.1500>)\n"
       assert_equal([ 'A654', 'FETCH', '2:4',
                      [ :group,
                        'FLAGS',
                        [ :body,
-                         'BODY[HEADER.FIELDS (DATE FROM)]', # partical description is removed.
-                         'PEEK',
-                         [ 'HEADER.FIELDS',
-                           [ :group,
-                             'DATE',
-                             'FROM'
-                           ]
-                         ],
-                         [ 0, 1500 ]
+                         RIMS::Protocol.body(symbol: 'BODY',
+                                             option: 'PEEK',
+                                             section: 'HEADER.FIELDS (DATE FROM)',
+                                             section_list: [ 'HEADER.FIELDS', [ :group, 'DATE', 'FROM' ] ],
+                                             partial_origin: 0,
+                                             partial_size: 1500)
                        ]
                      ]
                    ],
