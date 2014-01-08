@@ -950,7 +950,7 @@ Content-Type: text/html; charset=us-ascii
       assert_equal('T006 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
-      res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER' ]).each
+      res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]).each
       s = ''
       s << "To: foo@nonet.org\r\n"
       s << "From: bar@nonet.org\r\n"
@@ -960,7 +960,7 @@ Content-Type: text/html; charset=us-ascii
       s << "Content-Transfer-Encoding: 7bit\r\n"
       s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
       s << "\r\n"
-      assert_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)", res.next)
       s = ''
       s << "To: bar@nonet.com\r\n"
       s << "From: foo@nonet.com\r\n"
@@ -969,7 +969,7 @@ Content-Type: text/html; charset=us-ascii
       s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
       s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
       s << "\r\n"
-      assert_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)", res.next)
       assert_equal('T007 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -1027,7 +1027,7 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
-      res = @decoder.fetch('T011', '3', [ :body, body ], uid: true).each
+      res = @decoder.fetch('T011', '3', [ :group, 'UID', [ :body, body ] ], uid: true).each
       s = ''
       s << "\r\n"
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
@@ -3131,11 +3131,11 @@ T003 FETCH 1:* FAST
 T004 SELECT INBOX
 T005 FETCH 1:* FAST
 T006 FETCH 1:* (FAST)
-T007 FETCH 1:* (FLAGS RFC822.HEADER)
+T007 FETCH 1:* (FLAGS RFC822.HEADER UID)
 T008 FETCH 1 RFC822
 T009 FETCH 2 BODY.PEEK[1]
 T010 UID FETCH 2 RFC822
-T011 UID FETCH 3 BODY.PEEK[1]
+T011 UID FETCH 3 (UID BODY.PEEK[1])
 T012 LOGOUT
       EOF
 
@@ -3173,7 +3173,7 @@ T012 LOGOUT
       assert_equal("Content-Transfer-Encoding: 7bit\r\n", res.next)
       assert_equal("Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n", res.next)
       assert_equal("\r\n", res.next)
-      assert_equal(")\r\n", res.next)
+      assert_equal(" UID 2)\r\n", res.next)
       assert_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {186}\r\n", res.next)
       assert_equal("To: bar@nonet.com\r\n", res.next)
       assert_equal("From: foo@nonet.com\r\n", res.next)
@@ -3182,7 +3182,7 @@ T012 LOGOUT
       assert_equal("Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n", res.next)
       assert_equal("Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n", res.next)
       assert_equal("\r\n", res.next)
-      assert_equal(")\r\n", res.next)
+      assert_equal(" UID 3)\r\n", res.next)
       assert_equal("T007 OK FETCH completed\r\n", res.next)
 
       assert_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {212}\r\n", res.next)
