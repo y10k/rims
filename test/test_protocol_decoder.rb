@@ -244,7 +244,11 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.subscribe('T003', 'INBOX').each
-      assert_equal('T003 BAD not implemented', res.next)
+      assert_equal('T003 OK SUBSCRIBE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.subscribe('T004', 'NOBOX').each
+      assert_equal('T004 NO not found a mailbox', res.next)
       assert_raise(StopIteration) { res.next }
     end
 
@@ -264,7 +268,7 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.unsubscribe('T003', 'INBOX').each
-      assert_equal('T003 BAD not implemented', res.next)
+      assert_equal('T003 NO not implemented subscribe/unsbscribe command', res.next)
       assert_raise(StopIteration) { res.next }
     end
 
@@ -405,7 +409,7 @@ module RIMS::Test
     def test_lsub_not_implemented
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.lsub('T001', '', '').each
+      res = @decoder.lsub('T001', '', '*').each
       assert_match(/^T001 NO /, res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -417,8 +421,9 @@ module RIMS::Test
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.lsub('T003', '', '').each
-      assert_equal('T003 BAD not implemented', res.next)
+      res = @decoder.lsub('T003', '', '*').each
+      assert_equal('* LSUB (\Noinferiors \Unmarked) NIL "INBOX"', res.next)
+      assert_equal('T003 OK LSUB completed', res.next)
       assert_raise(StopIteration) { res.next }
     end
 

@@ -1139,15 +1139,41 @@ module RIMS
 
     def subscribe(tag, mbox_name)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          [ "#{tag} OK SUBSCRIBE completed" ]
+        else
+          [ "#{tag} NO not found a mailbox" ]
+        end
       }
     end
 
     def unsubscribe(tag, mbox_name)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          [ "#{tag} NO not implemented subscribe/unsbscribe command" ]
+        else
+          [ "#{tag} NO not found a mailbox" ]
+        end
       }
     end
+
+    def list_mbox(ref_name, mbox_name)
+      mbox_filter = Protocol.compile_wildcard(mbox_name)
+      mbox_list = @mail_store_holder.to_mst.each_mbox_id.map{|id| [ id, @mail_store_holder.to_mst.mbox_name(id) ] }
+      mbox_list.keep_if{|id, name| name.start_with? ref_name }
+      mbox_list.keep_if{|id, name| name[(ref_name.length)..-1] =~ mbox_filter }
+      for id, name in mbox_list
+        attrs = '\Noinferiors'
+        if (@mail_store_holder.to_mst.mbox_flags(id, 'recent') > 0) then
+          attrs << ' \Marked'
+        else
+          attrs << ' \Unmarked'
+        end
+        yield("(#{attrs}) NIL #{Protocol.quote(name)}")
+      end
+      nil
+    end
+    private :list_mbox
 
     def list(tag, ref_name, mbox_name)
       protect_auth(tag) {
@@ -1155,18 +1181,8 @@ module RIMS
         if (mbox_name.empty?) then
           res << '* LIST (\Noselect) NIL ""'
         else
-          mbox_filter = Protocol.compile_wildcard(mbox_name)
-          mbox_list = @mail_store_holder.to_mst.each_mbox_id.map{|id| [ id, @mail_store_holder.to_mst.mbox_name(id) ] }
-          mbox_list.keep_if{|id, name| name.start_with? ref_name }
-          mbox_list.keep_if{|id, name| name[(ref_name.length)..-1] =~ mbox_filter }
-          for id, name in mbox_list
-            attrs = '\Noinferiors'
-            if (@mail_store_holder.to_mst.mbox_flags(id, 'recent') > 0) then
-              attrs << ' \Marked'
-            else
-              attrs << ' \Unmarked'
-            end
-            res << "* LIST (#{attrs}) NIL #{Protocol.quote(name)}"
+          list_mbox(ref_name, mbox_name) do |mbox_entry|
+            res << "* LIST #{mbox_entry}"
           end
         end
         res << "#{tag} OK LIST completed"
@@ -1175,7 +1191,15 @@ module RIMS
 
     def lsub(tag, ref_name, mbox_name)
       protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
+        res = []
+        if (mbox_name.empty?) then
+          res << '* LSUB (\Noselect) NIL ""'
+        else
+          list_mbox(ref_name, mbox_name) do |mbox_entry|
+            res << "* LSUB #{mbox_entry}"
+          end
+        end
+        res << "#{tag} OK LSUB completed"
       }
     end
 
