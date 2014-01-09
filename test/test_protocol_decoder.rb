@@ -2523,6 +2523,26 @@ Content-Type: text/html; charset=us-ascii
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", output.string)
     end
 
+    def test_command_loop_client_syntax_error
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 FETCH 1 (BODY
+T002 LOGOUT
+      EOF
+
+      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
+
+      assert_equal("* BAD client command syntax error.\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T002 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_command_loop_capability
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')

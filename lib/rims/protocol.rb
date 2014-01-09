@@ -1531,6 +1531,7 @@ module RIMS
         rescue
           logger.error('invalid client command.')
           logger.error($!)
+          response_write.call([ '* BAD client command syntax error.' ])
           next
         end
 
