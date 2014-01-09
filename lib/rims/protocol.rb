@@ -766,14 +766,19 @@ module RIMS
           end
         end
 
+        is_root = section_index_list.empty?
         unless (section_text) then
-          fetch_body_content = proc{|mail|
-            mail.raw_source
-          }
+          if (is_root) then
+            fetch_body_content = proc{|mail|
+              mail.raw_source
+            }
+          else
+            fetch_body_content = proc{|mail|
+              mail.body.raw_source
+            }
+          end
         else
           section_text = section_text.upcase
-          is_root = section_index_list.empty?
-
           case (section_text)
           when 'MIME'
             if (section_index_list.empty?) then

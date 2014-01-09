@@ -996,12 +996,7 @@ Content-Type: text/html; charset=us-ascii
 
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T009', '2', [ :body, body ]).each
-      s = ''
-      s << "\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
-      s << "Multipart test."
-      assert_equal("* 2 FETCH (BODY[1] {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal('* 2 FETCH (BODY[1] "Multipart test.")', res.next)
       assert_equal('T009 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -1028,12 +1023,7 @@ Content-Type: text/html; charset=us-ascii
 
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T011', '3', [ :group, 'UID', [ :body, body ] ], uid: true).each
-      s = ''
-      s << "\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
-      s << "Multipart test."
-      assert_equal("* 2 FETCH (UID 3 BODY[1] {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_equal('* 2 FETCH (UID 3 BODY[1] "Multipart test.")', res.next)
       assert_equal('T011 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -3198,11 +3188,7 @@ T012 LOGOUT
       assert_equal(")\r\n", res.next)
       assert_equal("T008 OK FETCH completed\r\n", res.next)
 
-      assert_equal("* 2 FETCH (BODY[1] {63}\r\n", res.next)
-      assert_equal("\r\n", res.next)
-      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
-      assert_equal("\r\n", res.next)
-      assert_equal("Multipart test.)\r\n", res.next)
+      assert_equal("* 2 FETCH (BODY[1] \"Multipart test.\")\r\n", res.next)
       assert_equal("T009 OK FETCH completed\r\n", res.next)
 
       assert_equal("* 1 FETCH (UID 2 RFC822 {212}\r\n", res.next)
@@ -3218,11 +3204,7 @@ T012 LOGOUT
       assert_equal(")\r\n", res.next)
       assert_equal("T010 OK FETCH completed\r\n", res.next)
 
-      assert_equal("* 2 FETCH (UID 3 BODY[1] {63}\r\n", res.next)
-      assert_equal("\r\n", res.next)
-      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
-      assert_equal("\r\n", res.next)
-      assert_equal("Multipart test.)\r\n", res.next)
+      assert_equal("* 2 FETCH (UID 3 BODY[1] \"Multipart test.\")\r\n", res.next)
       assert_equal("T011 OK FETCH completed\r\n", res.next)
 
       assert_match(/^\* BYE /, res.next)

@@ -268,29 +268,13 @@ Hello world.
 
       fetch = @parser.parse(make_body('BODY[1]'))
       s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
       s << "Hello world.\r\n"
       assert_equal("BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
-      s << "Multipart test."
-      assert_equal("BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_equal('BODY[1] "Multipart test."', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3]'))
       assert_equal("BODY[3] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
-      s << "\r\n"
-      s << "Content-Type: message/rfc822\r\n"
-      s << "\r\n"
       s << "To: bar@nonet.com\r\n"
       s << "From: foo@nonet.com\r\n"
       s << "Subject: inner multipart\r\n"
@@ -311,19 +295,11 @@ Hello world.
 
       fetch = @parser.parse(make_body('BODY[3.1]'))
       assert_equal("BODY[3.1] NIL", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
-      s << "Hello world."
-      assert_equal("BODY[3.1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_equal('BODY[3.1] "Hello world."', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2]'))
       assert_equal("BODY[4.2.2] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
-      s << "\r\n"
-      s << "Content-Type: multipart/alternative; boundary=\"1383.905529.351301\"\r\n"
-      s << "\r\n"
       s << "--1383.905529.351301\r\n"
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
       s << "\r\n"
