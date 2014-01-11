@@ -147,44 +147,52 @@ Hello world.
     end
     private :make_body
 
+    def assert_strenc_equal(expected_enc, expected_str, expr_str)
+      assert_equal(Encoding.find(expected_enc), expr_str.encoding)
+      assert_equal(expected_str.dup.force_encoding(expected_enc), expr_str)
+    end
+    private :assert_strenc_equal
+
     def test_parse_all
       make_fetch_parser{
         add_mail_simple
         add_mail_multipart
       }
       fetch = @parser.parse('ALL')
-      assert_equal('FLAGS (\Recent) ' +
-                   'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
-                   'RFC822.SIZE 212 ' +
-                   'ENVELOPE (' + [
-                     '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
-                     '"test"',                                  # Subject
-                     '("bar@nonet.org")',                       # From
-                     'NIL',                                     # Sender
-                     'NIL',                                     # Reply-To
-                     '("foo@nonet.org")',                       # To
-                     'NIL',                                     # Cc
-                     'NIL',                                     # Bcc
-                     'NIL',                                     # In-Reply-To
-                     'NIL'                                      # Message-Id
-                   ].join(' ') +')',
-                   fetch.call(@folder.msg_list[0]))
-      assert_equal('FLAGS (\Recent) ' +
-                   'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
-                   'RFC822.SIZE 1616 ' +
-                   'ENVELOPE (' + [
-                     '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
-                     '"multipart test"',                        # Subject
-                     '("foo@nonet.com")',                       # From
-                     'NIL',                                     # Sender
-                     'NIL',                                     # Reply-To
-                     '("bar@nonet.com")',                       # To
-                     'NIL',                                     # Cc
-                     'NIL',                                     # Bcc
-                     'NIL',                                     # In-Reply-To
-                     'NIL'                                      # Message-Id
-                   ].join(' ') +')',
-                   fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit',
+                          'FLAGS (\Recent) ' +
+                          'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                          'RFC822.SIZE 212 ' +
+                          'ENVELOPE (' + [
+                            '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
+                            '"test"',                                  # Subject
+                            '("bar@nonet.org")',                       # From
+                            'NIL',                                     # Sender
+                            'NIL',                                     # Reply-To
+                            '("foo@nonet.org")',                       # To
+                            'NIL',                                     # Cc
+                            'NIL',                                     # Bcc
+                            'NIL',                                     # In-Reply-To
+                            'NIL'                                      # Message-Id
+                          ].join(' ') +')',
+                          fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit',
+                          'FLAGS (\Recent) ' +
+                          'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                          'RFC822.SIZE 1616 ' +
+                          'ENVELOPE (' + [
+                            '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
+                            '"multipart test"',                        # Subject
+                            '("foo@nonet.com")',                       # From
+                            'NIL',                                     # Sender
+                            'NIL',                                     # Reply-To
+                            '("bar@nonet.com")',                       # To
+                            'NIL',                                     # Cc
+                            'NIL',                                     # Bcc
+                            'NIL',                                     # In-Reply-To
+                            'NIL'                                      # Message-Id
+                          ].join(' ') +')',
+                          fetch.call(@folder.msg_list[1]))
     end
 
     def test_parse_body
@@ -205,14 +213,14 @@ Hello world.
       s << "\r\n"
       s << "Hello world.\r\n"
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("FLAGS (\\Seen \\Recent) BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
 
       fetch = @parser.parse(make_body('BODY[TEXT]'))
       s = "Hello world.\r\n"
-      assert_equal("BODY[TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[HEADER]'))
       s = ''
@@ -224,7 +232,7 @@ Hello world.
       s << "Content-Transfer-Encoding: 7bit\r\n"
       s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
       s << "\r\n"
-      assert_equal("BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "To: bar@nonet.com\r\n"
       s << "From: foo@nonet.com\r\n"
@@ -234,9 +242,9 @@ Hello world.
       s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
       s << "\r\n"
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
-      assert_equal("FLAGS (\\Seen \\Recent) BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
-      assert_equal("BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
 
       fetch = @parser.parse(make_body('BODY[HEADER.FIELDS (From To)]'))
@@ -244,12 +252,12 @@ Hello world.
       s << "From: bar@nonet.org\r\n"
       s << "To: foo@nonet.org\r\n"
       s << "\r\n"
-      assert_equal("BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "From: foo@nonet.com\r\n"
       s << "To: bar@nonet.com\r\n"
       s << "\r\n"
-      assert_equal("BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[HEADER.FIELDS.NOT (From To Subject)]'))
       s = ''
@@ -258,22 +266,22 @@ Hello world.
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
       s << "Content-Transfer-Encoding: 7bit\r\n"
       s << "\r\n"
-      assert_equal("BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Date: Fri, 08 Nov 2013 19:31:03 +0900\r\n"
       s << "Mime-Version: 1.0\r\n"
       s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
       s << "\r\n"
-      assert_equal("BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1]'))
       s = ''
       s << "Hello world.\r\n"
-      assert_equal("BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[1] "Multipart test."', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[1] "Multipart test."', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3]'))
-      assert_equal("BODY[3] NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[3] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "To: bar@nonet.com\r\n"
       s << "From: foo@nonet.com\r\n"
@@ -291,14 +299,14 @@ Hello world.
       s << "\r\n"
       s << "9876543210\r\n"
       s << "--1383.905529.351298--"
-      assert_equal("BODY[3] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1]'))
-      assert_equal("BODY[3.1] NIL", fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[3.1] "Hello world."', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.1] NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1] "Hello world."', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2]'))
-      assert_equal("BODY[4.2.2] NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.2] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "--1383.905529.351301\r\n"
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
@@ -311,7 +319,7 @@ Hello world.
       s << "<body><p>HTML message</p></body>\r\n"
       s << "</html>\r\n"
       s << "--1383.905529.351301--"
-      assert_equal("BODY[4.2.2] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.2] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.MIME]'))
       s = ''
@@ -323,39 +331,39 @@ Hello world.
       s << "Content-Transfer-Encoding: 7bit\r\n"
       s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
       s << "\r\n"
-      assert_equal("BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
       s << "\r\n"
-      assert_equal("BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.MIME]'))
-      assert_equal('BODY[3.MIME] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.MIME] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Content-Type: message/rfc822\r\n"
       s << "\r\n"
-      assert_equal("BODY[3.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.MIME]'))
-      assert_equal('BODY[3.1.MIME] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1.MIME] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
       s << "\r\n"
-      assert_equal("BODY[3.1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2.MIME]'))
-      assert_equal('BODY[4.2.2.MIME] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.MIME] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Content-Type: multipart/alternative; boundary=\"1383.905529.351301\"\r\n"
       s << "\r\n"
-      assert_equal("BODY[4.2.2.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.TEXT]'))
-      assert_equal("BODY[1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.TEXT]'))
-      assert_equal("BODY[3.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.TEXT] NIL", fetch.call(@folder.msg_list[0]))
       s = ''
       s << "--1383.905529.351298\r\n"
       s << "Content-Type: text/plain; charset=us-ascii\r\n"
@@ -366,22 +374,22 @@ Hello world.
       s << "\r\n"
       s << "9876543210\r\n"
       s << "--1383.905529.351298--"
-      assert_equal("BODY[3.TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.TEXT]'))
-      assert_equal("BODY[3.1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[3.1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2.TEXT]'))
-      assert_equal("BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      assert_equal("BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.HEADER]'))
-      assert_equal('BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.HEADER]'))
-      assert_equal('BODY[3.HEADER] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "To: bar@nonet.com\r\n"
       s << "From: foo@nonet.com\r\n"
@@ -390,55 +398,55 @@ Hello world.
       s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
       s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351298\"\r\n"
       s << "\r\n"
-      assert_equal("BODY[3.HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.HEADER]'))
-      assert_equal('BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2.HEADER]'))
-      assert_equal("BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[0]))
-      assert_equal("BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.HEADER.FIELDS (To)]'))
-      assert_equal('BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.HEADER.FIELDS (To)]'))
-      assert_equal('BODY[3.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "To: bar@nonet.com\r\n"
       s << "\r\n"
-      assert_equal("BODY[3.HEADER.FIELDS (To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.HEADER.FIELDS (To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.HEADER.FIELDS (To)]'))
-      assert_equal('BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2.HEADER.FIELDS (To)]'))
-      assert_equal('BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_equal('BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_equal('BODY[3.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
       s = ''
       s << "Date: Fri, 08 Nov 2013 19:31:03 +0900\r\n"
       s << "Mime-Version: 1.0\r\n"
       s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351298\"\r\n"
       s << "\r\n"
-      assert_equal("BODY[3.HEADER.FIELDS.NOT (To From Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[3.HEADER.FIELDS.NOT (To From Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_equal('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_equal('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_equal('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
 
       assert_raise(RIMS::SyntaxError) {
         @parser.parse(make_body('BODY[MIME]'))
@@ -462,7 +470,7 @@ Hello world.
       s << "\r\n"
       s << "Hello world.\r\n"
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 
@@ -484,31 +492,31 @@ Hello world.
       s << "Hello world.\r\n"
 
       fetch = @parser.parse(make_body('BODY[]<0.100>'))
-      assert_equal("BODY[]<0> {100}\r\n#{s.byteslice(0, 100)}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<0> {100}\r\n#{s.byteslice(0, 100)}", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[]<0.1000>'))
-      assert_equal("BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[]<100.100>'))
-      assert_equal("BODY[]<100> {100}\r\n#{s.byteslice(100, 100)}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<100> {100}\r\n#{s.byteslice(100, 100)}", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[]<211.1>'))
-      assert_equal("BODY[]<211> {1}\r\n\n", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<211> {1}\r\n\n", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[]<212.1>'))
-      assert_equal("BODY[]<212> NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<212> NIL", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[]<0.0>'))
-      assert_equal("BODY[]<0> \"\"", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<0> \"\"", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[]<100.0>'))
-      assert_equal("BODY[]<100> \"\"", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<100> \"\"", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[]<211.0>'))
-      assert_equal("BODY[]<211> \"\"", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<211> \"\"", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[]<212.0>'))
-      assert_equal("BODY[]<212> NIL", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "BODY[]<212> NIL", fetch.call(@folder.msg_list[0]))
     end
 
     def test_parse_bodystructure
@@ -518,108 +526,112 @@ Hello world.
       }
       fetch_body = @parser.parse('BODY')
       fetch_bodystructure = @parser.parse('BODYSTRUCTURE')
-      assert_equal('BODY ' +
-                   encode_list([ 'TEXT',
-                                 'plain',
-                                 %w[ charset us-ascii ],
-                                 nil,
-                                 nil,
-                                 '7bit',
-                                 212,
-                                 9
-                               ]),
-                   fetch_body.call(@folder.msg_list[0]))
-      assert_equal('BODYSTRUCTURE ' +
-                   encode_list([ 'TEXT',
-                                 'plain',
-                                 %w[ charset us-ascii ],
-                                 nil,
-                                 nil,
-                                 '7bit',
-                                 212,
-                                 9
-                               ]),
-                   fetch_bodystructure.call(@folder.msg_list[0]))
-      assert_equal('BODY ' +
-                   encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
-                                 [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
-                                 [
-                                   'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
-                                   [
-                                     'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                     %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
-                                   ],
-                                   [
-                                     [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
-                                     [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
-                                     'mixed'
-                                   ],
-                                   19
-                                 ],
-                                 [
-                                   [ 'image', 'gif', [], nil, nil, nil, 27 ],
-                                   [
-                                     'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
-                                     [
-                                       'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                       %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
-                                     ],
-                                     [
-                                       [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
-                                       [
-                                         [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
-                                         [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
-                                         'alternative'
-                                       ],
-                                       'mixed'
-                                     ],
-                                     29
-                                   ],
-                                   'mixed',
-                                 ],
-                                 'mixed'
-                               ]),
-                   fetch_body.call(@folder.msg_list[1]))
-      assert_equal('BODYSTRUCTURE ' +
-                   encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
-                                 [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
-                                 [
-                                   'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
-                                   [
-                                     'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                     %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
-                                   ],
-                                   [
-                                     [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
-                                     [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
-                                     'mixed'
-                                   ],
-                                   19
-                                 ],
-                                 [
-                                   [ 'image', 'gif', [], nil, nil, nil, 27 ],
-                                   [
-                                     'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
-                                     [
-                                       'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                       %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
-                                     ],
-                                     [
-                                       [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
-                                       [
-                                         [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
-                                         [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
-                                         'alternative'
-                                       ],
-                                       'mixed'
-                                     ],
-                                     29
-                                   ],
-                                   'mixed',
-                                 ],
-                                 'mixed'
-                               ]),
-                   fetch_bodystructure.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODY ' +
+                          encode_list([ 'TEXT',
+                                        'plain',
+                                        %w[ charset us-ascii ],
+                                        nil,
+                                        nil,
+                                        '7bit',
+                                        212,
+                                        9
+                                      ]),
+                          fetch_body.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODYSTRUCTURE ' +
+                          encode_list([ 'TEXT',
+                                        'plain',
+                                        %w[ charset us-ascii ],
+                                        nil,
+                                        nil,
+                                        '7bit',
+                                        212,
+                                        9
+                                      ]),
+                          fetch_bodystructure.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODY ' +
+                          encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
+                                        [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                        [
+                                          'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
+                                          [
+                                            'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                            %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                          ],
+                                          [
+                                            [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
+                                            [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                            'mixed'
+                                          ],
+                                          19
+                                        ],
+                                        [
+                                          [ 'image', 'gif', [], nil, nil, nil, 27 ],
+                                          [
+                                            'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
+                                            [
+                                              'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                              %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                            ],
+                                            [
+                                              [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
+                                              [
+                                                [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
+                                                [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
+                                                'alternative'
+                                              ],
+                                              'mixed'
+                                            ],
+                                            29
+                                          ],
+                                          'mixed',
+                                        ],
+                                        'mixed'
+                                      ]),
+                          fetch_body.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODYSTRUCTURE ' +
+                          encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
+                                        [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                        [
+                                          'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
+                                          [
+                                            'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                            %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                          ],
+                                          [
+                                            [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
+                                            [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                            'mixed'
+                                          ],
+                                          19
+                                        ],
+                                        [
+                                          [ 'image', 'gif', [], nil, nil, nil, 27 ],
+                                          [
+                                            'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
+                                            [
+                                              'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                              %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                            ],
+                                            [
+                                              [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
+                                              [
+                                                [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
+                                                [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
+                                                'alternative'
+                                              ],
+                                              'mixed'
+                                            ],
+                                            29
+                                          ],
+                                          'mixed',
+                                        ],
+                                        'mixed'
+                                      ]),
+                          fetch_bodystructure.call(@folder.msg_list[1]))
     end
 
     def test_parse_envelope
@@ -629,45 +641,48 @@ Hello world.
         add_mail_mime_subject
       }
       fetch = @parser.parse('ENVELOPE')
-      assert_equal('ENVELOPE (' + [
-                     '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
-                     '"test"',                                  # Subject
-                     '("bar@nonet.org")',                       # From
-                     'NIL',                                     # Sender
-                     'NIL',                                     # Reply-To
-                     '("foo@nonet.org")',                       # To
-                     'NIL',                                     # Cc
-                     'NIL',                                     # Bcc
-                     'NIL',                                     # In-Reply-To
-                     'NIL'                                      # Message-Id
-                   ].join(' ') +')',
-                   fetch.call(@folder.msg_list[0]))
-      assert_equal('ENVELOPE (' + [
-                     '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
-                     '"multipart test"',                        # Subject
-                     '("foo@nonet.com")',                       # From
-                     'NIL',                                     # Sender
-                     'NIL',                                     # Reply-To
-                     '("bar@nonet.com")',                       # To
-                     'NIL',                                     # Cc
-                     'NIL',                                     # Bcc
-                     'NIL',                                     # In-Reply-To
-                     'NIL'                                      # Message-Id
-                   ].join(' ') +')',
-                   fetch.call(@folder.msg_list[1]))
-      assert_equal('ENVELOPE (' + [
-                     '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
-                     '"=?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?="',    # Subject
-                     '("foo@nonet.com" "bar@nonet.com")',       # From
-                     '("foo@nonet.com")',                       # Sender
-                     '("foo@nonet.com")',                       # Reply-To
-                     '("alice@test.com" "bob@test.com")',       # To
-                     '("kate@test.com")',                       # Cc
-                     '("foo@nonet.com")',                       # Bcc
-                     '"20131106081723.5KJU1774292@smtp.testt.com"',# In-Reply-To
-                     '"20131107214750.445A1255B9F@smtp.nonet.com"' # Message-Id
-                   ].join(' ') +')',
-                   fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit',
+                          'ENVELOPE (' + [
+                            '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
+                            '"test"',                                  # Subject
+                            '("bar@nonet.org")',                       # From
+                            'NIL',                                     # Sender
+                            'NIL',                                     # Reply-To
+                            '("foo@nonet.org")',                       # To
+                            'NIL',                                     # Cc
+                            'NIL',                                     # Bcc
+                            'NIL',                                     # In-Reply-To
+                            'NIL'                                      # Message-Id
+                          ].join(' ') +')',
+                          fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit',
+                          'ENVELOPE (' + [
+                            '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
+                            '"multipart test"',                        # Subject
+                            '("foo@nonet.com")',                       # From
+                            'NIL',                                     # Sender
+                            'NIL',                                     # Reply-To
+                            '("bar@nonet.com")',                       # To
+                            'NIL',                                     # Cc
+                            'NIL',                                     # Bcc
+                            'NIL',                                     # In-Reply-To
+                            'NIL'                                      # Message-Id
+                          ].join(' ') +')',
+                          fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit',
+                          'ENVELOPE (' + [
+                            '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
+                            '"=?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?="',    # Subject
+                            '("foo@nonet.com" "bar@nonet.com")',       # From
+                            '("foo@nonet.com")',                       # Sender
+                            '("foo@nonet.com")',                       # Reply-To
+                            '("alice@test.com" "bob@test.com")',       # To
+                            '("kate@test.com")',                       # Cc
+                            '("foo@nonet.com")',                       # Bcc
+                            '"20131106081723.5KJU1774292@smtp.testt.com"',# In-Reply-To
+                            '"20131107214750.445A1255B9F@smtp.nonet.com"' # Message-Id
+                          ].join(' ') +')',
+                          fetch.call(@folder.msg_list[2]))
     end
 
     def test_parse_fast
@@ -676,14 +691,16 @@ Hello world.
         add_mail_multipart
       }
       fetch = @parser.parse('FAST')
-      assert_equal('FLAGS (\Recent) ' +
-                   'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
-                   'RFC822.SIZE 212',
-                   fetch.call(@folder.msg_list[0]))
-      assert_equal('FLAGS (\Recent) ' +
-                   'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
-                   'RFC822.SIZE 1616',
-                   fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit',
+                          'FLAGS (\Recent) ' +
+                          'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                          'RFC822.SIZE 212',
+                          fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit',
+                          'FLAGS (\Recent) ' +
+                          'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                          'RFC822.SIZE 1616',
+                          fetch.call(@folder.msg_list[1]))
     end
 
     def test_parse_flags
@@ -723,16 +740,16 @@ Hello world.
         @mail_store.set_msg_flag(@inbox_id, id, 'draft', true)
       }
       fetch = @parser.parse('FLAGS')
-      assert_equal('FLAGS ()', fetch.call(@folder.msg_list[0]))
-      assert_equal('FLAGS (\Recent)', fetch.call(@folder.msg_list[1]))
-      assert_equal('FLAGS (\Answered)', fetch.call(@folder.msg_list[2]))
-      assert_equal('FLAGS (\Flagged)', fetch.call(@folder.msg_list[3]))
-      assert_equal('FLAGS (\Deleted)', fetch.call(@folder.msg_list[4]))
-      assert_equal('FLAGS (\Seen)', fetch.call(@folder.msg_list[5]))
-      assert_equal('FLAGS (\Draft)', fetch.call(@folder.msg_list[6]))
-      assert_equal('FLAGS (' +
-                   RIMS::MailStore::MSG_FLAG_NAMES.map{|n| "\\#{n.capitalize}" }.join(' ') +
-                   ')', fetch.call(@folder.msg_list[7]))
+      assert_strenc_equal('ascii-8bit', 'FLAGS ()', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'FLAGS (\Recent)', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'FLAGS (\Answered)', fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit', 'FLAGS (\Flagged)', fetch.call(@folder.msg_list[3]))
+      assert_strenc_equal('ascii-8bit', 'FLAGS (\Deleted)', fetch.call(@folder.msg_list[4]))
+      assert_strenc_equal('ascii-8bit', 'FLAGS (\Seen)', fetch.call(@folder.msg_list[5]))
+      assert_strenc_equal('ascii-8bit', 'FLAGS (\Draft)', fetch.call(@folder.msg_list[6]))
+      assert_strenc_equal('ascii-8bit',
+                          'FLAGS (' + RIMS::MailStore::MSG_FLAG_NAMES.map{|n| "\\#{n.capitalize}" }.join(' ') + ')',
+                          fetch.call(@folder.msg_list[7]))
     end
 
     def test_parse_full
@@ -741,87 +758,89 @@ Hello world.
         add_mail_multipart
       }
       fetch = @parser.parse('FULL')
-      assert_equal('FLAGS (\Recent) ' +
-                   'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
-                   'RFC822.SIZE 212 ' +
-                   'ENVELOPE (' + [
-                     '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
-                     '"test"',                                  # Subject
-                     '("bar@nonet.org")',                       # From
-                     'NIL',                                     # Sender
-                     'NIL',                                     # Reply-To
-                     '("foo@nonet.org")',                       # To
-                     'NIL',                                     # Cc
-                     'NIL',                                     # Bcc
-                     'NIL',                                     # In-Reply-To
-                     'NIL'                                      # Message-Id
-                   ].join(' ') +') ' +
-                   'BODY ' +
-                   encode_list([ 'TEXT',
-                                 'plain',
-                                 %w[ charset us-ascii ],
-                                 nil,
-                                 nil,
-                                 '7bit',
-                                 212,
-                                 9
-                               ]),
-                   fetch.call(@folder.msg_list[0]))
-      assert_equal('FLAGS (\Recent) ' +
-                   'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
-                   'RFC822.SIZE 1616 ' +
-                   'ENVELOPE (' + [
-                     '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
-                     '"multipart test"',                        # Subject
-                     '("foo@nonet.com")',                       # From
-                     'NIL',                                     # Sender
-                     'NIL',                                     # Reply-To
-                     '("bar@nonet.com")',                       # To
-                     'NIL',                                     # Cc
-                     'NIL',                                     # Bcc
-                     'NIL',                                     # In-Reply-To
-                     'NIL'                                      # Message-Id
-                   ].join(' ') +') ' +
-                   'BODY ' +
-                   encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
-                                 [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
-                                 [
-                                   'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
-                                   [
-                                     'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                     %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
-                                   ],
-                                   [
-                                     [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
-                                     [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
-                                     'mixed'
-                                   ],
-                                   19
-                                 ],
-                                 [
-                                   [ 'image', 'gif', [], nil, nil, nil, 27 ],
-                                   [
-                                     'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
-                                     [
-                                       'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                       %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
-                                     ],
-                                     [
-                                       [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
-                                       [
-                                         [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
-                                         [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
-                                         'alternative'
-                                       ],
-                                       'mixed'
-                                     ],
-                                     29
-                                   ],
-                                   'mixed',
-                                 ],
-                                 'mixed'
-                               ]),
-                   fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit',
+                          'FLAGS (\Recent) ' +
+                          'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                          'RFC822.SIZE 212 ' +
+                          'ENVELOPE (' + [
+                            '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
+                            '"test"',                                  # Subject
+                            '("bar@nonet.org")',                       # From
+                            'NIL',                                     # Sender
+                            'NIL',                                     # Reply-To
+                            '("foo@nonet.org")',                       # To
+                            'NIL',                                     # Cc
+                            'NIL',                                     # Bcc
+                            'NIL',                                     # In-Reply-To
+                            'NIL'                                      # Message-Id
+                          ].join(' ') +') ' +
+                          'BODY ' +
+                          encode_list([ 'TEXT',
+                                        'plain',
+                                        %w[ charset us-ascii ],
+                                        nil,
+                                        nil,
+                                        '7bit',
+                                        212,
+                                        9
+                                      ]),
+                          fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit',
+                          'FLAGS (\Recent) ' +
+                          'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                          'RFC822.SIZE 1616 ' +
+                          'ENVELOPE (' + [
+                            '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
+                            '"multipart test"',                        # Subject
+                            '("foo@nonet.com")',                       # From
+                            'NIL',                                     # Sender
+                            'NIL',                                     # Reply-To
+                            '("bar@nonet.com")',                       # To
+                            'NIL',                                     # Cc
+                            'NIL',                                     # Bcc
+                            'NIL',                                     # In-Reply-To
+                            'NIL'                                      # Message-Id
+                          ].join(' ') +') ' +
+                          'BODY ' +
+                          encode_list([ [ 'TEXT', 'plain', %w[ charset us-ascii], nil, nil, nil, 63, 4 ],
+                                        [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                        [
+                                          'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
+                                          [
+                                            'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                            %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                          ],
+                                          [
+                                            [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
+                                            [ 'application', 'octet-stream', [], nil, nil, nil, 54 ],
+                                            'mixed'
+                                          ],
+                                          19
+                                        ],
+                                        [
+                                          [ 'image', 'gif', [], nil, nil, nil, 27 ],
+                                          [
+                                            'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
+                                            [
+                                              'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                              %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                            ],
+                                            [
+                                              [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
+                                              [
+                                                [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 68, 4 ],
+                                                [ 'TEXT', 'html', %w[ charset us-ascii ], nil, nil, nil, 96, 6 ],
+                                                'alternative'
+                                              ],
+                                              'mixed'
+                                            ],
+                                            29
+                                          ],
+                                          'mixed',
+                                        ],
+                                        'mixed'
+                                      ]),
+                          fetch.call(@folder.msg_list[1]))
     end
 
     def test_parse_internaldate
@@ -830,8 +849,8 @@ Hello world.
         add_mail_multipart
       }
       fetch = @parser.parse('INTERNALDATE')
-      assert_equal('INTERNALDATE "08-11-2013 06:47:50 +0900"', fetch.call(@folder.msg_list[0]))
-      assert_equal('INTERNALDATE "08-11-2013 19:31:03 +0900"', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'INTERNALDATE "08-11-2013 06:47:50 +0900"', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'INTERNALDATE "08-11-2013 19:31:03 +0900"', fetch.call(@folder.msg_list[1]))
     end
 
     def test_parse_rfc822
@@ -852,9 +871,9 @@ Hello world.
 
       fetch = @parser.parse('RFC822')
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 
@@ -875,7 +894,7 @@ Hello world.
 
       fetch = @parser.parse('RFC822.HEADER')
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("RFC822.HEADER {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "RFC822.HEADER {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 
@@ -884,7 +903,7 @@ Hello world.
         add_mail_simple
       }
       fetch = @parser.parse('RFC822.SIZE')
-      assert_equal('RFC822.SIZE 212', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'RFC822.SIZE 212', fetch.call(@folder.msg_list[0]))
     end
 
     def test_parse_rfc822_text
@@ -897,9 +916,9 @@ Hello world.
 
       fetch = @parser.parse('RFC822.TEXT')
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("FLAGS (\\Seen \\Recent) RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
-      assert_equal("RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', "RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 
@@ -909,8 +928,8 @@ Hello world.
         add_mail_multipart
       } 
       fetch = @parser.parse('UID')
-      assert_equal('UID 1', fetch.call(@folder.msg_list[0]))
-      assert_equal('UID 2', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'UID 1', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'UID 2', fetch.call(@folder.msg_list[1]))
     end
 
     def test_parse_group_empty
@@ -919,8 +938,8 @@ Hello world.
         add_mail_multipart
       } 
       fetch = @parser.parse([ :group ])
-      assert_equal('()', fetch.call(@folder.msg_list[0]))
-      assert_equal('()', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', '()', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', '()', fetch.call(@folder.msg_list[1]))
     end
   end
 

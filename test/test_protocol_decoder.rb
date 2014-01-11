@@ -8,6 +8,12 @@ require 'time'
 
 module RIMS::Test
   class ProtocolDecoderTest < Test::Unit::TestCase
+    def assert_strenc_equal(expected_enc, expected_str, expr_str)
+      assert_equal(Encoding.find(expected_enc), expr_str.encoding)
+      assert_equal(expected_str.dup.force_encoding(expected_enc), expr_str)
+    end
+    private :assert_strenc_equal
+
     def setup
       @kv_store = {}
       @kvs_open = proc{|user_name, db_name|
@@ -944,14 +950,14 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.fetch('T005', '1:*', 'FAST').each
-      assert_equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)', res.next)
-      assert_equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)', res.next)
+      assert_strenc_equal('ascii-8bit', '* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)', res.next)
+      assert_strenc_equal('ascii-8bit', '* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)', res.next)
       assert_equal('T005 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       res = @decoder.fetch('T006', '1:*', [ :group, 'FAST' ]).each
-      assert_equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)', res.next)
-      assert_equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)', res.next)
+      assert_strenc_equal('ascii-8bit', '* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)', res.next)
+      assert_strenc_equal('ascii-8bit', '* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)', res.next)
       assert_equal('T006 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -965,7 +971,7 @@ Content-Type: text/html; charset=us-ascii
       s << "Content-Transfer-Encoding: 7bit\r\n"
       s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
       s << "\r\n"
-      assert_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)", res.next)
+      assert_strenc_equal('ascii-8bit', "* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)", res.next)
       s = ''
       s << "To: bar@nonet.com\r\n"
       s << "From: foo@nonet.com\r\n"
@@ -974,7 +980,7 @@ Content-Type: text/html; charset=us-ascii
       s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
       s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
       s << "\r\n"
-      assert_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)", res.next)
+      assert_strenc_equal('ascii-8bit', "* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)", res.next)
       assert_equal('T007 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -992,7 +998,7 @@ Content-Type: text/html; charset=us-ascii
       s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
       s << "\r\n"
       s << "Hello world.\r\n"
-      assert_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_strenc_equal('ascii-8bit', "* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s})", res.next)
       assert_equal('T008 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -1001,7 +1007,7 @@ Content-Type: text/html; charset=us-ascii
 
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T009', '2', [ :body, body ]).each
-      assert_equal('* 2 FETCH (BODY[1] "Multipart test.")', res.next)
+      assert_strenc_equal('ascii-8bit', '* 2 FETCH (BODY[1] "Multipart test.")', res.next)
       assert_equal('T009 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -1019,7 +1025,7 @@ Content-Type: text/html; charset=us-ascii
       s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
       s << "\r\n"
       s << "Hello world.\r\n"
-      assert_equal("* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n#{s})", res.next)
+      assert_strenc_equal('ascii-8bit', "* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n#{s})", res.next)
       assert_equal('T010 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -1028,7 +1034,7 @@ Content-Type: text/html; charset=us-ascii
 
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T011', '3', [ :group, 'UID', [ :body, body ] ], uid: true).each
-      assert_equal('* 2 FETCH (UID 3 BODY[1] "Multipart test.")', res.next)
+      assert_strenc_equal('ascii-8bit', '* 2 FETCH (UID 3 BODY[1] "Multipart test.")', res.next)
       assert_equal('T011 OK FETCH completed', res.next)
       assert_raise(StopIteration) { res.next }
 

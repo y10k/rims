@@ -551,7 +551,7 @@ module RIMS
     class FetchParser
       module Utils
         def encode_list(array)
-          '(' << array.map{|v|
+          '('.b << array.map{|v|
             case (v)
             when Symbol
               v.to_s
@@ -566,12 +566,12 @@ module RIMS
             else
               raise "unknown value: #{v}"
             end
-          }.join(' ') << ')'
+          }.join(' '.b) << ')'.b
         end
         module_function :encode_list
 
         def encode_header(header)
-          header.map{|field| "#{field.name}: #{field.value}" }.join("\r\n") + ("\r\n" * 2)
+          header.map{|field| ''.b << field.name << ': '.b << field.value }.join("\r\n".b) + ("\r\n".b * 2)
         end
         module_function :encode_header
 
@@ -642,7 +642,7 @@ module RIMS
       def expand_macro(cmd_list)
         func_list = cmd_list.map{|name| parse(name) }
         proc{|msg|
-          func_list.map{|f| f.call(msg) }.join(' ')
+          func_list.map{|f| f.call(msg) }.join(' '.b)
         }
       end
       private :expand_macro
@@ -744,14 +744,14 @@ module RIMS
           fetch_flags_changed = proc{|msg|
             unless (@mail_store.msg_flag(@folder.id, msg.id, 'seen')) then
               @mail_store.set_msg_flag(@folder.id, msg.id, 'seen', true)
-              fetch_flags.call(msg) + ' '
+              fetch_flags.call(msg) + ' '.b
             else
-              ''
+              ''.b
             end
           }
         else
           fetch_flags_changed = proc{|msg|
-            ''
+            ''.b
           }
         end
 
@@ -788,14 +788,14 @@ module RIMS
             else
               fetch_body_content = proc{|mail|
                 if (header = get_body_content(mail, :header)) then
-                  header.raw_source.strip + ("\r\n" * 2)
+                  header.raw_source.strip + ("\r\n".b * 2)
                 end
               }
             end
           when 'HEADER'
             fetch_body_content = proc{|mail|
               if (header = get_body_content(mail, :header, nest_mail: ! is_root)) then
-                header.raw_source.strip + ("\r\n" * 2)
+                header.raw_source.strip + ("\r\n".b * 2)
               end
             }
           when 'HEADER.FIELDS', 'HEADER.FIELDS.NOT'
@@ -836,10 +836,10 @@ module RIMS
         end
 
         proc{|msg|
-          res = ''
+          res = ''.b
           res << fetch_flags_changed.call(msg)
           res << msg_att_name
-          res << ' '
+          res << ' '.b
 
           mail = get_body_section(@mail_cache[msg.id], section_index_list)
           content = fetch_body_content.call(mail) if mail
@@ -848,13 +848,13 @@ module RIMS
               if (content.bytesize > body.partial_origin) then
                 res << Protocol.quote(content.byteslice(body.partial_origin, body.partial_size))
               else
-                res << 'NIL'
+                res << 'NIL'.b
               end
             else
               res << Protocol.quote(content)
             end
           else
-            res << 'NIL'
+            res << 'NIL'.b
           end
         }
       end
@@ -863,7 +863,7 @@ module RIMS
       def parse_bodystructure(name)
         proc{|msg|
           mail = @mail_cache[msg.id] or raise 'internal error.'
-          "#{name} #{encode_list(get_bodystructure_data(mail))}"
+          ''.b << name << ' '.b << encode_list(get_bodystructure_data(mail))
         }
       end
       private :parse_bodystructure
@@ -871,7 +871,7 @@ module RIMS
       def parse_envelope(name)
         proc{|msg|
           mail = @mail_cache[msg.id] or raise 'internal error.'
-          "#{name} #{encode_list(get_envelope_data(mail))}"
+          ''.b << name << ' '.b << encode_list(get_envelope_data(mail))
         }
       end
       private :parse_envelope
@@ -881,16 +881,16 @@ module RIMS
           flag_list = MailStore::MSG_FLAG_NAMES.find_all{|name|
             @mail_store.msg_flag(@folder.id, msg.id, name)
           }.map{|name|
-            "\\#{name.capitalize}"
+            "\\".b << name.capitalize
           }.join(' ')
-          "#{name} (#{flag_list})"
+          ''.b << name << ' (' << flag_list << ')'
         }
       end
       private :parse_flags
 
       def parse_internaldate(name)
         proc{|msg|
-          name + @mail_store.msg_date(@folder.id, msg.id).strftime(' "%d-%m-%Y %H:%M:%S %z"')
+          ''.b << name << @mail_store.msg_date(@folder.id, msg.id).strftime(' "%d-%m-%Y %H:%M:%S %z"'.b)
         }
       end
       private :parse_internaldate
@@ -898,14 +898,14 @@ module RIMS
       def parse_rfc822_size(name)
         proc{|msg|
           mail = @mail_cache[msg.id] or raise 'internal error.'
-          "#{name} #{mail.raw_source.bytesize}"
+          ''.b << name << ' '.b << mail.raw_source.bytesize.to_s
         }
       end
       private :parse_rfc822_size
 
       def parse_uid(name)
         proc{|msg|
-          "#{name} #{msg.id}"
+          ''.b << name << ' '.b << msg.id.to_s
         }
       end
       private :parse_uid
@@ -913,7 +913,7 @@ module RIMS
       def parse_group(fetch_attrs)
         group_fetch_list = fetch_attrs.map{|fetch_att| parse(fetch_att) }
         proc{|msg|
-          '(' << group_fetch_list.map{|fetch| fetch.call(msg) }.join(' ') << ')'
+          '('.b << group_fetch_list.map{|fetch| fetch.call(msg) }.join(' '.b) << ')'.b
         }
       end
       private :parse_group
@@ -1385,7 +1385,7 @@ module RIMS
 
         res = []
         for msg in msg_list
-          res << "* #{msg.num} FETCH #{fetch.call(msg)}"
+          res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg))
         end
         res << "#{tag} OK FETCH completed"
       }
