@@ -15,12 +15,31 @@ module RIMS::Test
   end
 
   class ProtocolTest < Test::Unit::TestCase
-    def test_quote
-      assert_equal('""', RIMS::Protocol.quote(''))
-      assert_equal('"foo"', RIMS::Protocol.quote('foo'))
-      assert_equal("{1}\r\n\"", RIMS::Protocol.quote('"'))
-      assert_equal("{8}\r\nfoo\nbar\n", RIMS::Protocol.quote("foo\nbar\n"))
+    def assert_strenc_equal(expected_enc, expected_str, expr_str)
+      assert_equal(Encoding.find(expected_enc), expr_str.encoding)
+      assert_equal(expected_str.dup.force_encoding(expected_enc), expr_str)
     end
+    private :assert_strenc_equal
+
+    def test_quote
+      assert_strenc_equal('utf-8', '""', RIMS::Protocol.quote(''))
+      assert_strenc_equal('ascii-8bit', '""', RIMS::Protocol.quote(''.encode('ascii-8bit')))
+
+      assert_strenc_equal('utf-8', '"foo"', RIMS::Protocol.quote('foo'))
+      assert_strenc_equal('ascii-8bit', '"foo"', RIMS::Protocol.quote('foo'.encode('ascii-8bit')))
+
+      assert_strenc_equal('utf-8', "{1}\r\n\"", RIMS::Protocol.quote('"'))
+      assert_strenc_equal('ascii-8bit', "{1}\r\n\"", RIMS::Protocol.quote('"'.encode('ascii-8bit')))
+
+      assert_strenc_equal('utf-8', "{8}\r\nfoo\nbar\n", RIMS::Protocol.quote("foo\nbar\n"))
+      assert_strenc_equal('ascii-8bit', "{8}\r\nfoo\nbar\n", RIMS::Protocol.quote("foo\nbar\n".encode('ascii-8bit')))
+    end
+
+    def assert_regexp_enc(expected_encoding, regexp)
+      assert_equal(Encoding.find(expected_encoding), regexp.encoding)
+      regexp
+    end
+    private :assert_regexp_enc
 
     def test_compile_wildcard
       assert(RIMS::Protocol.compile_wildcard('xxx') =~ 'xxx')

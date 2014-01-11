@@ -7,11 +7,12 @@ require 'time'
 module RIMS
   module Protocol
     def quote(s)
+      qs = ''.encode(s.encoding)
       case (s)
       when /"/, /\n/
-        "{#{s.bytesize}}\r\n" + s
+        qs << '{' << s.bytesize.to_s << "}\r\n" << s
       else
-        '"' + s + '"'
+        qs << '"' << s << '"'
       end
     end
     module_function :quote
