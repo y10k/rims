@@ -226,14 +226,20 @@ module RIMS
       mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
       MailFolder.new(mbox_id, self)
     end
+
+    def examine_mbox(mbox_id)
+      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      MailFolder.new(mbox_id, self, read_only: true)
+    end
   end
 
   class MailFolder
     MessageStruct = Struct.new(:id, :num)
 
-    def initialize(mbox_id, mail_store)
+    def initialize(mbox_id, mail_store, read_only: false)
       @id = mbox_id
       @mail_store = mail_store
+      @read_only = read_only
       reload
     end
 
@@ -251,6 +257,8 @@ module RIMS
 
     attr_reader :id
     attr_reader :msg_list
+    attr_reader :read_only
+    alias read_only? read_only
 
     def expunge_mbox
       if (@mail_store.mbox_flags(@id, 'deleted') > 0) then
@@ -273,10 +281,12 @@ module RIMS
     end
 
     def close
-      expunge_mbox
-      @mail_store.each_msg_id(@id) do |msg_id|
-        if (@mail_store.msg_flag(@id, msg_id, 'recent')) then
-          @mail_store.set_msg_flag(@id, msg_id, 'recent', false)
+      unless (@read_only) then
+        expunge_mbox
+        @mail_store.each_msg_id(@id) do |msg_id|
+          if (@mail_store.msg_flag(@id, msg_id, 'recent')) then
+            @mail_store.set_msg_flag(@id, msg_id, 'recent', false)
+          end
         end
       end
 
