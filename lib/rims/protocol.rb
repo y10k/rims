@@ -68,7 +68,7 @@ module RIMS
         line = @input.gets or return
         line.chomp!("\n")
         line.chomp!("\r")
-        @logger.debug("read line: <#{line.encoding}> #{line}") if @logger.debug?
+        @logger.debug("read line: <#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line}") if @logger.debug?
         scan_line(line)
       end
 
@@ -89,7 +89,7 @@ module RIMS
           @output.write("+ continue\r\n")
           @logger.debug("continue literal.\r\n") if @logger.debug?
           literal_string = @input.read(next_size) or raise 'unexpected client close.'
-          @logger.debug("read literal: <#{literal_string.encoding}> #{literal_string}") if @logger.debug?
+          @logger.debug("read literal: <#{literal_string.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{literal_string}") if @logger.debug?
           atom_list[-1] = literal_string
           next_atom_list = read_line or raise 'unexpected client close.'
           atom_list += next_atom_list
@@ -1516,7 +1516,7 @@ module RIMS
       response_write = proc{|res|
         logger.info("server response: #{res[-1]}")
         for line in res
-          logger.debug("<#{line.encoding}> #{line}") if logger.debug?
+          logger.debug("<#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line}") if logger.debug?
           output << line << "\r\n"
         end
         output.flush
