@@ -38,9 +38,9 @@ module RIMS
         Thread.start(sv_sock.accept) {|cl_sock|
           begin
             @logger.info("accept client: #{cl_sock.peeraddr[1..2].reverse.join(':')}")
-            decoder = ProtocolDecoder.new(@mail_store_pool, @passwd, @logger)
+            decoder = Protocol::Decoder.new(@mail_store_pool, @passwd, @logger)
             begin
-              ProtocolDecoder.repl(decoder, cl_sock, cl_sock, @logger)
+              Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
             ensure
               decoder.cleanup
             end

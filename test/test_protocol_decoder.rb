@@ -34,7 +34,7 @@ module RIMS::Test
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
       @passwd =proc{|username, password|username == 'foo' && password == 'open_sesame'}
-      @decoder = RIMS::ProtocolDecoder.new(@mail_store_pool, @passwd, @logger)
+      @decoder = RIMS::Protocol::Decoder.new(@mail_store_pool, @passwd, @logger)
     end
 
     def teardown
@@ -2521,11 +2521,11 @@ Content-Type: text/html; charset=us-ascii
 
     def test_command_loop_empty
       output = StringIO.new('', 'w')
-      RIMS::ProtocolDecoder.repl(@decoder, StringIO.new('', 'r'), output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, StringIO.new('', 'r'), output, @logger)
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", output.string)
 
       output = StringIO.new('', 'w')
-      RIMS::ProtocolDecoder.repl(@decoder, StringIO.new("\n\t\n \r\n ", 'r'), output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, StringIO.new("\n\t\n \r\n ", 'r'), output, @logger)
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", output.string)
     end
 
@@ -2536,7 +2536,7 @@ T001 FETCH 1 (BODY
 T002 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -2556,7 +2556,7 @@ T001 CAPABILITY
 T002 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -2578,7 +2578,7 @@ T002 LOGIN foo open_sesame
 T003 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -2602,7 +2602,7 @@ T003 SELECT INBOX
 T004 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -2635,7 +2635,7 @@ T005 LOGOUT
       EOF
 
       assert_nil(@mail_store.mbox_id('foo'))
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       assert_not_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
@@ -2667,7 +2667,7 @@ T006 LOGOUT
       EOF
 
       @mail_store.add_mbox('foo')
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
@@ -2703,7 +2703,7 @@ T010 LOGOUT
 
       @mail_store.add_msg(@inbox_id, 'foo')
       @mail_store.add_mbox('foo')
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
@@ -2749,7 +2749,7 @@ T013 LOGOUT
       @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
       @mail_store.add_msg(@inbox_id, 'bar')
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
@@ -2792,7 +2792,7 @@ T011 APPEND nobox x
 T012 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -2873,7 +2873,7 @@ T005 CHECK
 T006 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -2910,7 +2910,7 @@ T008 LOGOUT
       assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -2963,7 +2963,7 @@ T009 LOGOUT
       assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'draft'))
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'deleted'))
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -3019,7 +3019,7 @@ T010 LOGOUT
       @mail_store.expunge_mbox(@inbox_id)
       assert_equal([ 1, 3, 5 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -3163,7 +3163,7 @@ T012 LOGOUT
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -3294,7 +3294,7 @@ T015 STORE 1:5 -FLAGS (\Draft)
 T016 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -3418,7 +3418,7 @@ T015 STORE 1:5 -FLAGS.SILENT (\Draft)
 T016 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -3507,7 +3507,7 @@ T015 UID STORE 1,3,5,7,9 -FLAGS (\Draft)
 T016 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -3631,7 +3631,7 @@ T015 UID STORE 1,3,5,7,9 -FLAGS.SILENT (\Draft)
 T016 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -3724,7 +3724,7 @@ T008 COPY 1:* nobox
 T009 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
@@ -3823,7 +3823,7 @@ T008 UID COPY 1:* nobox
 T009 LOGOUT
       EOF
 
-      RIMS::ProtocolDecoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)

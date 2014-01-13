@@ -14,7 +14,6 @@ module RIMS
   autoload :MessageDB, 'rims/db'
   autoload :MessageSetSyntaxError, 'rims/error'
   autoload :Protocol, 'rims/protocol'
-  autoload :ProtocolDecoder, 'rims/protocol'
   autoload :ProtocolError, 'rims/error'
   autoload :Server, 'rims/server'
   autoload :SyntaxError, 'rims/error'

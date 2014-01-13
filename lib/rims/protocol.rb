@@ -964,536 +964,483 @@ module RIMS
         fetch
       end
     end
-  end
 
-  class ProtocolDecoder
-    def initialize(mail_store_pool, passwd, logger)
-      @mail_store_pool = mail_store_pool
-      @mail_store_holder = nil
-      @folder = nil
-      @logger = logger
-      @passwd = passwd
-    end
-
-    def auth?
-      @mail_store_holder != nil
-    end
-
-    def selected?
-      auth? && (@folder != nil)
-    end
-
-    def cleanup
-      if (auth?) then
-        tmp_mail_store = @mail_store_holder
+    class Decoder
+      def initialize(mail_store_pool, passwd, logger)
+        @mail_store_pool = mail_store_pool
         @mail_store_holder = nil
-        @mail_store_pool.put(tmp_mail_store)
-      end
-
-      nil
-    end
-
-    def protect_error(tag)
-      begin
-        yield
-      rescue SyntaxError
-        @logger.error('client command syntax error.')
-        @logger.error($!)
-        [ "#{tag} BAD client command syntax error." ]
-      rescue
-        @logger.error('internal server error.')
-        @logger.error($!)
-        [ "#{tag} BAD internal server error" ]
-      end
-    end
-    private :protect_error
-
-    def protect_auth(tag)
-      protect_error(tag) {
-        if (auth?) then
-          @mail_store_holder.user_lock.synchronize{
-            yield
-          }
-        else
-          [ "#{tag} NO no authentication" ]
-        end
-      }
-    end
-    private :protect_auth
-
-    def protect_select(tag)
-      protect_auth(tag) {
-        if (selected?) then
-          yield
-        else
-          [ "#{tag} NO no selected" ]
-        end
-      }
-    end
-    private :protect_select
-
-    def ok_greeting
-      [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready." ]
-    end
-
-    def capability(tag)
-      [ '* CAPABILITY IMAP4rev1',
-        "#{tag} OK CAPABILITY completed"
-      ]
-    end
-
-    def noop(tag)
-      res = []
-      if (auth? && selected?) then
-        @mail_store_holder.user_lock.synchronize{
-          @folder.reload if @folder.updated?
-          res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS"
-          res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')} RECENTS"
-        }
-      end
-      res << "#{tag} OK NOOP completed"
-    end
-
-    def logout(tag)
-      if (auth? && selected?) then
-        @mail_store_holder.user_lock.synchronize{
-          @folder.reload if @folder.updated?
-          @folder.close
-          @folder = nil
-        }
-      end
-      cleanup
-      res = []
-      res << '* BYE server logout'
-      res << "#{tag} OK LOGOUT completed"
-    end
-
-    def authenticate(tag, auth_name)
-      [ "#{tag} NO no support mechanism" ]
-    end
-
-    def login(tag, username, password)
-      res = []
-      if (@passwd.call(username, password)) then
-        cleanup
-        @mail_store_holder = @mail_store_pool.get(username)
-        res << "#{tag} OK LOGIN completed"
-      else
-        res << "#{tag} NO failed to login"
-      end
-    end
-
-    def select(tag, mbox_name)
-      protect_auth(tag) {
-        res = []
         @folder = nil
-        if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
-          @folder = @mail_store_holder.to_mst.select_mbox(id)
-          all_msgs = @mail_store_holder.to_mst.mbox_msgs(@folder.id)
-          recent_msgs = @mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')
-          unseen_msgs = all_msgs - @mail_store_holder.to_mst.mbox_flags(@folder.id, 'seen')
-          res << "* #{all_msgs} EXISTS"
-          res << "* #{recent_msgs} RECENT"
-          res << "* OK [UNSEEN #{unseen_msgs}]"
-          res << "* OK [UIDVALIDITY #{@folder.id}]"
-          res << "* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)"
-          res << "#{tag} OK [READ-WRITE] SELECT completed"
-        else
-          res << "#{tag} NO not found a mailbox"
-        end
-      }
-    end
-
-    def examine(tag, mbox_name)
-      protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
-      }
-    end
-
-    def create(tag, mbox_name)
-      protect_auth(tag) {
-        res = []
-        if (@mail_store_holder.to_mst.mbox_id(mbox_name)) then
-          res << "#{tag} NO duplicated mailbox"
-        else
-          @mail_store_holder.to_mst.add_mbox(mbox_name)
-          res << "#{tag} OK CREATE completed"
-        end
-      }
-    end
-
-    def delete(tag, mbox_name)
-      protect_auth(tag) {
-        res = []
-        if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
-          if (id != @mail_store_holder.to_mst.mbox_id('INBOX')) then
-            @mail_store_holder.to_mst.del_mbox(id)
-            res << "#{tag} OK DELETE completed"
-          else
-            res << "#{tag} NO not delete inbox"
-          end
-        else
-          res << "#{tag} NO not found a mailbox"
-        end
-      }
-    end
-
-    def rename(tag, src_name, dst_name)
-      protect_auth(tag) {
-        [ "#{tag} BAD not implemented" ]
-      }
-    end
-
-    def subscribe(tag, mbox_name)
-      protect_auth(tag) {
-        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
-          [ "#{tag} OK SUBSCRIBE completed" ]
-        else
-          [ "#{tag} NO not found a mailbox" ]
-        end
-      }
-    end
-
-    def unsubscribe(tag, mbox_name)
-      protect_auth(tag) {
-        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
-          [ "#{tag} NO not implemented subscribe/unsbscribe command" ]
-        else
-          [ "#{tag} NO not found a mailbox" ]
-        end
-      }
-    end
-
-    def list_mbox(ref_name, mbox_name)
-      mbox_filter = Protocol.compile_wildcard(mbox_name)
-      mbox_list = @mail_store_holder.to_mst.each_mbox_id.map{|id| [ id, @mail_store_holder.to_mst.mbox_name(id) ] }
-      mbox_list.keep_if{|id, name| name.start_with? ref_name }
-      mbox_list.keep_if{|id, name| name[(ref_name.length)..-1] =~ mbox_filter }
-      for id, name in mbox_list
-        attrs = '\Noinferiors'
-        if (@mail_store_holder.to_mst.mbox_flags(id, 'recent') > 0) then
-          attrs << ' \Marked'
-        else
-          attrs << ' \Unmarked'
-        end
-        yield("(#{attrs}) NIL #{Protocol.quote(name)}")
+        @logger = logger
+        @passwd = passwd
       end
-      nil
-    end
-    private :list_mbox
 
-    def list(tag, ref_name, mbox_name)
-      protect_auth(tag) {
-        res = []
-        if (mbox_name.empty?) then
-          res << '* LIST (\Noselect) NIL ""'
-        else
-          list_mbox(ref_name, mbox_name) do |mbox_entry|
-            res << "* LIST #{mbox_entry}"
-          end
+      def auth?
+        @mail_store_holder != nil
+      end
+
+      def selected?
+        auth? && (@folder != nil)
+      end
+
+      def cleanup
+        if (auth?) then
+          tmp_mail_store = @mail_store_holder
+          @mail_store_holder = nil
+          @mail_store_pool.put(tmp_mail_store)
         end
-        res << "#{tag} OK LIST completed"
-      }
-    end
 
-    def lsub(tag, ref_name, mbox_name)
-      protect_auth(tag) {
-        res = []
-        if (mbox_name.empty?) then
-          res << '* LSUB (\Noselect) NIL ""'
-        else
-          list_mbox(ref_name, mbox_name) do |mbox_entry|
-            res << "* LSUB #{mbox_entry}"
-          end
+        nil
+      end
+
+      def protect_error(tag)
+        begin
+          yield
+        rescue SyntaxError
+          @logger.error('client command syntax error.')
+          @logger.error($!)
+          [ "#{tag} BAD client command syntax error." ]
+        rescue
+          @logger.error('internal server error.')
+          @logger.error($!)
+          [ "#{tag} BAD internal server error" ]
         end
-        res << "#{tag} OK LSUB completed"
-      }
-    end
+      end
+      private :protect_error
 
-    def status(tag, mbox_name, data_item_group)
-      protect_auth(tag) {
-        res = []
-        if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
-          unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
-            raise SyntaxError, 'second arugment is not a group list.'
+      def protect_auth(tag)
+        protect_error(tag) {
+          if (auth?) then
+            @mail_store_holder.user_lock.synchronize{
+              yield
+            }
+          else
+            [ "#{tag} NO no authentication" ]
           end
+        }
+      end
+      private :protect_auth
 
-          values = []
-          for item in data_item_group[1..-1]
-            case (item.upcase)
-            when 'MESSAGES'
-              values << 'MESSAGES' << @mail_store_holder.to_mst.mbox_msgs(id)
-            when 'RECENT'
-              values << 'RECENT' << @mail_store_holder.to_mst.mbox_flags(id, 'recent')
-            when 'UIDNEXT'
-              values << 'UIDNEXT' << @mail_store_holder.to_mst.uid
-            when 'UIDVALIDITY'
-              values << 'UIDVALIDITY' << id
-            when 'UNSEEN'
-              unseen_flags = @mail_store_holder.to_mst.mbox_msgs(id) - @mail_store_holder.to_mst.mbox_flags(id, 'seen')
-              values << 'UNSEEN' << unseen_flags
+      def protect_select(tag)
+        protect_auth(tag) {
+          if (selected?) then
+            yield
+          else
+            [ "#{tag} NO no selected" ]
+          end
+        }
+      end
+      private :protect_select
+
+      def ok_greeting
+        [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready." ]
+      end
+
+      def capability(tag)
+        [ '* CAPABILITY IMAP4rev1',
+          "#{tag} OK CAPABILITY completed"
+        ]
+      end
+
+      def noop(tag)
+        res = []
+        if (auth? && selected?) then
+          @mail_store_holder.user_lock.synchronize{
+            @folder.reload if @folder.updated?
+            res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS"
+            res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')} RECENTS"
+          }
+        end
+        res << "#{tag} OK NOOP completed"
+      end
+
+      def logout(tag)
+        if (auth? && selected?) then
+          @mail_store_holder.user_lock.synchronize{
+            @folder.reload if @folder.updated?
+            @folder.close
+            @folder = nil
+          }
+        end
+        cleanup
+        res = []
+        res << '* BYE server logout'
+        res << "#{tag} OK LOGOUT completed"
+      end
+
+      def authenticate(tag, auth_name)
+        [ "#{tag} NO no support mechanism" ]
+      end
+
+      def login(tag, username, password)
+        res = []
+        if (@passwd.call(username, password)) then
+          cleanup
+          @mail_store_holder = @mail_store_pool.get(username)
+          res << "#{tag} OK LOGIN completed"
+        else
+          res << "#{tag} NO failed to login"
+        end
+      end
+
+      def select(tag, mbox_name)
+        protect_auth(tag) {
+          res = []
+          @folder = nil
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            @folder = @mail_store_holder.to_mst.select_mbox(id)
+            all_msgs = @mail_store_holder.to_mst.mbox_msgs(@folder.id)
+            recent_msgs = @mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')
+            unseen_msgs = all_msgs - @mail_store_holder.to_mst.mbox_flags(@folder.id, 'seen')
+            res << "* #{all_msgs} EXISTS"
+            res << "* #{recent_msgs} RECENT"
+            res << "* OK [UNSEEN #{unseen_msgs}]"
+            res << "* OK [UIDVALIDITY #{@folder.id}]"
+            res << "* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)"
+            res << "#{tag} OK [READ-WRITE] SELECT completed"
+          else
+            res << "#{tag} NO not found a mailbox"
+          end
+        }
+      end
+
+      def examine(tag, mbox_name)
+        protect_auth(tag) {
+          [ "#{tag} BAD not implemented" ]
+        }
+      end
+
+      def create(tag, mbox_name)
+        protect_auth(tag) {
+          res = []
+          if (@mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            res << "#{tag} NO duplicated mailbox"
+          else
+            @mail_store_holder.to_mst.add_mbox(mbox_name)
+            res << "#{tag} OK CREATE completed"
+          end
+        }
+      end
+
+      def delete(tag, mbox_name)
+        protect_auth(tag) {
+          res = []
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            if (id != @mail_store_holder.to_mst.mbox_id('INBOX')) then
+              @mail_store_holder.to_mst.del_mbox(id)
+              res << "#{tag} OK DELETE completed"
             else
-              raise SyntaxError, "unknown status data: #{item}"
+              res << "#{tag} NO not delete inbox"
+            end
+          else
+            res << "#{tag} NO not found a mailbox"
+          end
+        }
+      end
+
+      def rename(tag, src_name, dst_name)
+        protect_auth(tag) {
+          [ "#{tag} BAD not implemented" ]
+        }
+      end
+
+      def subscribe(tag, mbox_name)
+        protect_auth(tag) {
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            [ "#{tag} OK SUBSCRIBE completed" ]
+          else
+            [ "#{tag} NO not found a mailbox" ]
+          end
+        }
+      end
+
+      def unsubscribe(tag, mbox_name)
+        protect_auth(tag) {
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            [ "#{tag} NO not implemented subscribe/unsbscribe command" ]
+          else
+            [ "#{tag} NO not found a mailbox" ]
+          end
+        }
+      end
+
+      def list_mbox(ref_name, mbox_name)
+        mbox_filter = Protocol.compile_wildcard(mbox_name)
+        mbox_list = @mail_store_holder.to_mst.each_mbox_id.map{|id| [ id, @mail_store_holder.to_mst.mbox_name(id) ] }
+        mbox_list.keep_if{|id, name| name.start_with? ref_name }
+        mbox_list.keep_if{|id, name| name[(ref_name.length)..-1] =~ mbox_filter }
+        for id, name in mbox_list
+          attrs = '\Noinferiors'
+          if (@mail_store_holder.to_mst.mbox_flags(id, 'recent') > 0) then
+            attrs << ' \Marked'
+          else
+            attrs << ' \Unmarked'
+          end
+          yield("(#{attrs}) NIL #{Protocol.quote(name)}")
+        end
+        nil
+      end
+      private :list_mbox
+
+      def list(tag, ref_name, mbox_name)
+        protect_auth(tag) {
+          res = []
+          if (mbox_name.empty?) then
+            res << '* LIST (\Noselect) NIL ""'
+          else
+            list_mbox(ref_name, mbox_name) do |mbox_entry|
+              res << "* LIST #{mbox_entry}"
+            end
+          end
+          res << "#{tag} OK LIST completed"
+        }
+      end
+
+      def lsub(tag, ref_name, mbox_name)
+        protect_auth(tag) {
+          res = []
+          if (mbox_name.empty?) then
+            res << '* LSUB (\Noselect) NIL ""'
+          else
+            list_mbox(ref_name, mbox_name) do |mbox_entry|
+              res << "* LSUB #{mbox_entry}"
+            end
+          end
+          res << "#{tag} OK LSUB completed"
+        }
+      end
+
+      def status(tag, mbox_name, data_item_group)
+        protect_auth(tag) {
+          res = []
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
+              raise SyntaxError, 'second arugment is not a group list.'
+            end
+
+            values = []
+            for item in data_item_group[1..-1]
+              case (item.upcase)
+              when 'MESSAGES'
+                values << 'MESSAGES' << @mail_store_holder.to_mst.mbox_msgs(id)
+              when 'RECENT'
+                values << 'RECENT' << @mail_store_holder.to_mst.mbox_flags(id, 'recent')
+              when 'UIDNEXT'
+                values << 'UIDNEXT' << @mail_store_holder.to_mst.uid
+              when 'UIDVALIDITY'
+                values << 'UIDVALIDITY' << id
+              when 'UNSEEN'
+                unseen_flags = @mail_store_holder.to_mst.mbox_msgs(id) - @mail_store_holder.to_mst.mbox_flags(id, 'seen')
+                values << 'UNSEEN' << unseen_flags
+              else
+                raise SyntaxError, "unknown status data: #{item}"
+              end
+            end
+
+            res << "* STATUS #{Protocol.quote(mbox_name)} (#{values.join(' ')})"
+            res << "#{tag} OK STATUS completed"
+          else
+            res << "#{tag} NO not found a mailbox"
+          end
+        }
+      end
+
+      def append(tag, mbox_name, *opt_args, msg_text)
+        protect_auth(tag) {
+          res = []
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            msg_flags = []
+            msg_date = Time.now
+
+            if ((! opt_args.empty?) && (opt_args[0].is_a? Array)) then
+              opt_flags = opt_args.shift
+              if (opt_flags[0] != :group) then
+                raise SyntaxError, 'bad flag list.'
+              end
+              for flag_atom in opt_flags[1..-1]
+                case (flag_atom.upcase)
+                when '\ANSWERED'
+                  msg_flags << 'answered'
+                when '\FLAGGED'
+                  msg_flags << 'flagged'
+                when '\DELETED'
+                  msg_flags << 'deleted'
+                when '\SEEN'
+                  msg_flags << 'seen'
+                when '\DRAFT'
+                  msg_flags << 'draft'
+                else
+                  raise SyntaxError, "invalid flag: #{flag_atom}"
+                end
+              end
+            end
+
+            if ((! opt_args.empty?) && (opt_args[0].is_a? String)) then
+              begin
+                msg_date = Time.parse(opt_args.shift)
+              rescue ArgumentError
+                raise SyntaxError, $!.message
+              end
+            end
+
+            unless (opt_args.empty?) then
+              raise SyntaxError, 'unknown option.'
+            end
+
+            msg_id = @mail_store_holder.to_mst.add_msg(mbox_id, msg_text, msg_date)
+            for flag_name in msg_flags
+              @mail_store_holder.to_mst.set_msg_flag(mbox_id, msg_id, flag_name, true)
+            end
+
+            res << "#{tag} OK APPEND completed"
+          else
+            res << "#{tag} NO [TRYCREATE] not found a mailbox"
+          end
+        }
+      end
+
+      def check(tag)
+        protect_select(tag) {
+          @mail_store_holder.to_mst.sync
+          [ "#{tag} OK CHECK completed" ]
+        }
+      end
+
+      def close(tag)
+        protect_select(tag) {
+          @mail_store_holder.to_mst.sync
+          if (@folder) then
+            @folder.reload if @folder.updated?
+            @folder.close
+            @folder = nil
+          end
+          [ "#{tag} OK CLOSE completed" ]
+        }
+      end
+
+      def expunge(tag)
+        protect_select(tag) {
+          res = []
+          @folder.reload if @folder.updated?
+          @folder.expunge_mbox do |msg_num|
+            res << "* #{msg_num} EXPUNGE"
+          end
+          @folder.reload if @folder.updated?
+          res << "#{tag} OK EXPUNGE completed"
+        }
+      end
+
+      def search(tag, *cond_args, uid: false)
+        protect_select(tag) {
+          @folder.reload if @folder.updated?
+          parser = Protocol::SearchParser.new(@mail_store_holder.to_mst, @folder)
+          if (cond_args[0].upcase == 'CHARSET') then
+            cond_args.shift
+            charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
+            charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
+            parser.charset = charset_string
+          end
+          cond = parser.parse(cond_args)
+          msg_list = @folder.msg_list.find_all{|msg| cond.call(msg) }
+
+          search_resp = '* SEARCH'
+          for msg in msg_list
+            if (uid) then
+              search_resp << " #{msg.id}"
+            else
+              search_resp << " #{msg.num}"
             end
           end
 
-          res << "* STATUS #{Protocol.quote(mbox_name)} (#{values.join(' ')})"
-          res << "#{tag} OK STATUS completed"
-        else
-          res << "#{tag} NO not found a mailbox"
-        end
-      }
-    end
+          [ search_resp,
+            "#{tag} OK SEARCH completed"
+          ]
+        }
+      end
 
-    def append(tag, mbox_name, *opt_args, msg_text)
-      protect_auth(tag) {
-        res = []
-        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
-          msg_flags = []
-          msg_date = Time.now
+      def fetch(tag, msg_set, data_item_group, uid: false)
+        protect_select(tag) {
+          @folder.reload if @folder.updated?
 
-          if ((! opt_args.empty?) && (opt_args[0].is_a? Array)) then
-            opt_flags = opt_args.shift
-            if (opt_flags[0] != :group) then
-              raise SyntaxError, 'bad flag list.'
+          msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+          msg_list = @folder.msg_list.find_all{|msg|
+            if (uid) then
+              msg_set.include? msg.id
+            else
+              msg_set.include? msg.num
             end
-            for flag_atom in opt_flags[1..-1]
+          }
+
+          unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
+            data_item_group = [ :group, data_item_group ]
+          end
+          if (uid) then
+            unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
+              data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
+            end
+          end
+
+          parser = Protocol::FetchParser.new(@mail_store_holder.to_mst, @folder)
+          fetch = parser.parse(data_item_group)
+
+          res = []
+          for msg in msg_list
+            res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg))
+          end
+          res << "#{tag} OK FETCH completed"
+        }
+      end
+
+      def store(tag, msg_set, data_item_name, data_item_value, uid: false)
+        protect_select(tag) {
+          @folder.reload if @folder.updated?
+
+          res = []
+          msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+          name, option = data_item_name.split(/\./, 2)
+
+          case (name.upcase)
+          when 'FLAGS'
+            action = :flags_replace
+          when '+FLAGS'
+            action = :flags_add
+          when '-FLAGS'
+            action = :flags_del
+          else
+            raise "unknown store action: #{name}"
+          end
+
+          case (option && option.upcase)
+          when 'SILENT'
+            is_silent = true
+          when nil
+            is_silent = false
+          else
+            raise "unknown store option: #{option.inspect}"
+          end
+
+          if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
+            flag_list = []
+            for flag_atom in data_item_value[1..-1]
               case (flag_atom.upcase)
               when '\ANSWERED'
-                msg_flags << 'answered'
+                flag_list << 'answered'
               when '\FLAGGED'
-                msg_flags << 'flagged'
+                flag_list << 'flagged'
               when '\DELETED'
-                msg_flags << 'deleted'
+                flag_list << 'deleted'
               when '\SEEN'
-                msg_flags << 'seen'
+                flag_list << 'seen'
               when '\DRAFT'
-                msg_flags << 'draft'
+                flag_list << 'draft'
               else
                 raise SyntaxError, "invalid flag: #{flag_atom}"
               end
             end
-          end
-
-          if ((! opt_args.empty?) && (opt_args[0].is_a? String)) then
-            begin
-              msg_date = Time.parse(opt_args.shift)
-            rescue ArgumentError
-              raise SyntaxError, $!.message
-            end
-          end
-
-          unless (opt_args.empty?) then
-            raise SyntaxError, 'unknown option.'
-          end
-
-          msg_id = @mail_store_holder.to_mst.add_msg(mbox_id, msg_text, msg_date)
-          for flag_name in msg_flags
-            @mail_store_holder.to_mst.set_msg_flag(mbox_id, msg_id, flag_name, true)
-          end
-
-          res << "#{tag} OK APPEND completed"
-        else
-          res << "#{tag} NO [TRYCREATE] not found a mailbox"
-        end
-      }
-    end
-
-    def check(tag)
-      protect_select(tag) {
-        @mail_store_holder.to_mst.sync
-        [ "#{tag} OK CHECK completed" ]
-      }
-    end
-
-    def close(tag)
-      protect_select(tag) {
-        @mail_store_holder.to_mst.sync
-        if (@folder) then
-          @folder.reload if @folder.updated?
-          @folder.close
-          @folder = nil
-        end
-        [ "#{tag} OK CLOSE completed" ]
-      }
-    end
-
-    def expunge(tag)
-      protect_select(tag) {
-        res = []
-        @folder.reload if @folder.updated?
-        @folder.expunge_mbox do |msg_num|
-          res << "* #{msg_num} EXPUNGE"
-        end
-        @folder.reload if @folder.updated?
-        res << "#{tag} OK EXPUNGE completed"
-      }
-    end
-
-    def search(tag, *cond_args, uid: false)
-      protect_select(tag) {
-        @folder.reload if @folder.updated?
-        parser = Protocol::SearchParser.new(@mail_store_holder.to_mst, @folder)
-        if (cond_args[0].upcase == 'CHARSET') then
-          cond_args.shift
-          charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
-          charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
-          parser.charset = charset_string
-        end
-        cond = parser.parse(cond_args)
-        msg_list = @folder.msg_list.find_all{|msg| cond.call(msg) }
-
-        search_resp = '* SEARCH'
-        for msg in msg_list
-          if (uid) then
-            search_resp << " #{msg.id}"
+            rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
           else
-            search_resp << " #{msg.num}"
+            raise SyntaxError, 'third arugment is not a group list.'
           end
-        end
 
-        [ search_resp,
-          "#{tag} OK SEARCH completed"
-        ]
-      }
-    end
-
-    def fetch(tag, msg_set, data_item_group, uid: false)
-      protect_select(tag) {
-        @folder.reload if @folder.updated?
-
-        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-        msg_list = @folder.msg_list.find_all{|msg|
-          if (uid) then
-            msg_set.include? msg.id
-          else
-            msg_set.include? msg.num
-          end
-        }
-
-        unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
-          data_item_group = [ :group, data_item_group ]
-        end
-        if (uid) then
-          unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
-            data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
-          end
-        end
-
-        parser = Protocol::FetchParser.new(@mail_store_holder.to_mst, @folder)
-        fetch = parser.parse(data_item_group)
-
-        res = []
-        for msg in msg_list
-          res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg))
-        end
-        res << "#{tag} OK FETCH completed"
-      }
-    end
-
-    def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-      protect_select(tag) {
-        @folder.reload if @folder.updated?
-
-        res = []
-        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-        name, option = data_item_name.split(/\./, 2)
-
-        case (name.upcase)
-        when 'FLAGS'
-          action = :flags_replace
-        when '+FLAGS'
-          action = :flags_add
-        when '-FLAGS'
-          action = :flags_del
-        else
-          raise "unknown store action: #{name}"
-        end
-
-        case (option && option.upcase)
-        when 'SILENT'
-          is_silent = true
-        when nil
-          is_silent = false
-        else
-          raise "unknown store option: #{option.inspect}"
-        end
-
-        if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
-          flag_list = []
-          for flag_atom in data_item_value[1..-1]
-            case (flag_atom.upcase)
-            when '\ANSWERED'
-              flag_list << 'answered'
-            when '\FLAGGED'
-              flag_list << 'flagged'
-            when '\DELETED'
-              flag_list << 'deleted'
-            when '\SEEN'
-              flag_list << 'seen'
-            when '\DRAFT'
-              flag_list << 'draft'
-            else
-              raise SyntaxError, "invalid flag: #{flag_atom}"
-            end
-          end
-          rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
-        else
-          raise SyntaxError, 'third arugment is not a group list.'
-        end
-
-        msg_list = @folder.msg_list.find_all{|msg|
-          if (uid) then
-            msg_set.include? msg.id
-          else
-            msg_set.include? msg.num
-          end
-        }
-
-        for msg in msg_list
-          case (action)
-          when :flags_replace
-            for name in flag_list
-              @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, true)
-            end
-            for name in rest_flag_list
-              @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, false)
-            end
-          when :flags_add
-            for name in flag_list
-              @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, true)
-            end
-          when :flags_del
-            for name in flag_list
-              @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, false)
-            end
-          else
-            raise "internal error: unknown action: #{action}"
-          end
-        end
-
-        unless (is_silent) then
-          for msg in msg_list
-            flag_atom_list = []
-            for name in MailStore::MSG_FLAG_NAMES
-              if (@mail_store_holder.to_mst.msg_flag(@folder.id, msg.id, name)) then
-                flag_atom_list << "\\#{name.capitalize}"
-              end
-            end
-            res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})"
-          end
-        end
-
-        res << "#{tag} OK STORE completed"
-      }
-    end
-
-    def copy(tag, msg_set, mbox_name, uid: false)
-      protect_select(tag) {
-        res = []
-        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-
-        if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
           msg_list = @folder.msg_list.find_all{|msg|
             if (uid) then
               msg_set.include? msg.id
@@ -1503,137 +1450,190 @@ module RIMS
           }
 
           for msg in msg_list
-            @mail_store_holder.to_mst.copy_msg(msg.id, mbox_id)
-          end
-
-          res << "#{tag} OK COPY completed"
-        else
-          res << "#{tag} NO [TRYCREATE] not found a mailbox"
-        end
-      }
-    end
-
-    def self.repl(decoder, input, output, logger)
-      response_write = proc{|res|
-        logger.info("server response: #{res[-1]}")
-        for line in res
-          logger.debug("<#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line}") if logger.debug?
-          output << line << "\r\n"
-        end
-        output.flush
-      }
-
-      response_write.call(decoder.ok_greeting)
-
-      request_reader = Protocol::RequestReader.new(input, output, logger)
-      loop do
-        begin
-          atom_list = request_reader.read_command
-        rescue
-          logger.error('invalid client command.')
-          logger.error($!)
-          response_write.call([ '* BAD client command syntax error.' ])
-          next
-        end
-
-        break unless atom_list
-
-        tag, command, *opt_args = atom_list
-        logger.info("client command: #{tag} #{command}")
-        logger.debug("client command parameter: #{opt_args.inspect}") if logger.debug?
-
-        begin
-          case (command.upcase)
-          when 'CAPABILITY'
-            res = decoder.capability(tag, *opt_args)
-          when 'NOOP'
-            res = decoder.noop(tag, *opt_args)
-          when 'LOGOUT'
-            res = decoder.logout(tag, *opt_args)
-          when 'AUTHENTICATE'
-            res = decoder.authenticate(tag, *opt_args)
-          when 'LOGIN'
-            res = decoder.login(tag, *opt_args)
-          when 'SELECT'
-            res = decoder.select(tag, *opt_args)
-          when 'EXAMINE'
-            res = decoder.examine(tag, *opt_args)
-          when 'CREATE'
-            res = decoder.create(tag, *opt_args)
-          when 'DELETE'
-            res = decoder.delete(tag, *opt_args)
-          when 'RENAME'
-            res = decoder.rename(tag, *opt_args)
-          when 'SUBSCRIBE'
-            res = decoder.subscribe(tag, *opt_args)
-          when 'UNSUBSCRIBE'
-            res = decoder.unsubscribe(tag, *opt_args)
-          when 'LIST'
-            res = decoder.list(tag, *opt_args)
-          when 'LSUB'
-            res = decoder.lsub(tag, *opt_args)
-          when 'STATUS'
-            res = decoder.status(tag, *opt_args)
-          when 'APPEND'
-            res = decoder.append(tag, *opt_args)
-          when 'CHECK'
-            res = decoder.check(tag, *opt_args)
-          when 'CLOSE'
-            res = decoder.close(tag, *opt_args)
-          when 'EXPUNGE'
-            res = decoder.expunge(tag, *opt_args)
-          when 'SEARCH'
-            res = decoder.search(tag, *opt_args)
-          when 'FETCH'
-            res = decoder.fetch(tag, *opt_args)
-          when 'STORE'
-            res = decoder.store(tag, *opt_args)
-          when 'COPY'
-            res = decoder.copy(tag, *opt_args)
-          when 'UID'
-            unless (opt_args.empty?) then
-              uid_command, *uid_args = opt_args
-              logger.info("uid command: #{uid_command}")
-              logger.debug("uid parameter: #{uid_args}") if logger.debug?
-              case (uid_command.upcase)
-              when 'SEARCH'
-                res = decoder.search(tag, *uid_args, uid: true)
-              when 'FETCH'
-                res = decoder.fetch(tag, *uid_args, uid: true)
-              when 'STORE'
-                res = decoder.store(tag, *uid_args, uid: true)
-              when 'COPY'
-                res = decoder.copy(tag, *uid_args, uid: true)
-              else
-                logger.error("unknown uid command: #{uid_command}")
-                res = [ "#{tag} BAD unknown uid command" ]
+            case (action)
+            when :flags_replace
+              for name in flag_list
+                @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, true)
+              end
+              for name in rest_flag_list
+                @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, false)
+              end
+            when :flags_add
+              for name in flag_list
+                @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, true)
+              end
+            when :flags_del
+              for name in flag_list
+                @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, false)
               end
             else
-              logger.error('empty uid parameter.')
-              res = [ "#{tag} BAD empty uid parameter" ]
+              raise "internal error: unknown action: #{action}"
             end
-          else
-            logger.error("unknown command: #{command}")
-            res = [ "#{tag} BAD unknown command" ]
           end
-        rescue ArgumentError
-          logger.error('invalid command parameter.')
-          logger.error($!)
-          res = [ "#{tag} BAD invalid command parameter" ]
-        rescue
-          logger.error('internal server error.')
-          logger.error($!)
-          res = [ "#{tag} BAD internal server error" ]
-        end
 
-        response_write.call(res)
+          unless (is_silent) then
+            for msg in msg_list
+              flag_atom_list = []
+              for name in MailStore::MSG_FLAG_NAMES
+                if (@mail_store_holder.to_mst.msg_flag(@folder.id, msg.id, name)) then
+                  flag_atom_list << "\\#{name.capitalize}"
+                end
+              end
+              res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})"
+            end
+          end
 
-        if (command.upcase == 'LOGOUT') then
-          break
-        end
+          res << "#{tag} OK STORE completed"
+        }
       end
 
-      nil
+      def copy(tag, msg_set, mbox_name, uid: false)
+        protect_select(tag) {
+          res = []
+          msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            msg_list = @folder.msg_list.find_all{|msg|
+              if (uid) then
+                msg_set.include? msg.id
+              else
+                msg_set.include? msg.num
+              end
+            }
+
+            for msg in msg_list
+              @mail_store_holder.to_mst.copy_msg(msg.id, mbox_id)
+            end
+
+            res << "#{tag} OK COPY completed"
+          else
+            res << "#{tag} NO [TRYCREATE] not found a mailbox"
+          end
+        }
+      end
+
+      def self.repl(decoder, input, output, logger)
+        response_write = proc{|res|
+          logger.info("server response: #{res[-1]}")
+          for line in res
+            logger.debug("<#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line}") if logger.debug?
+            output << line << "\r\n"
+          end
+          output.flush
+        }
+
+        response_write.call(decoder.ok_greeting)
+
+        request_reader = Protocol::RequestReader.new(input, output, logger)
+        loop do
+          begin
+            atom_list = request_reader.read_command
+          rescue
+            logger.error('invalid client command.')
+            logger.error($!)
+            response_write.call([ '* BAD client command syntax error.' ])
+            next
+          end
+
+          break unless atom_list
+
+          tag, command, *opt_args = atom_list
+          logger.info("client command: #{tag} #{command}")
+          logger.debug("client command parameter: #{opt_args.inspect}") if logger.debug?
+
+          begin
+            case (command.upcase)
+            when 'CAPABILITY'
+              res = decoder.capability(tag, *opt_args)
+            when 'NOOP'
+              res = decoder.noop(tag, *opt_args)
+            when 'LOGOUT'
+              res = decoder.logout(tag, *opt_args)
+            when 'AUTHENTICATE'
+              res = decoder.authenticate(tag, *opt_args)
+            when 'LOGIN'
+              res = decoder.login(tag, *opt_args)
+            when 'SELECT'
+              res = decoder.select(tag, *opt_args)
+            when 'EXAMINE'
+              res = decoder.examine(tag, *opt_args)
+            when 'CREATE'
+              res = decoder.create(tag, *opt_args)
+            when 'DELETE'
+              res = decoder.delete(tag, *opt_args)
+            when 'RENAME'
+              res = decoder.rename(tag, *opt_args)
+            when 'SUBSCRIBE'
+              res = decoder.subscribe(tag, *opt_args)
+            when 'UNSUBSCRIBE'
+              res = decoder.unsubscribe(tag, *opt_args)
+            when 'LIST'
+              res = decoder.list(tag, *opt_args)
+            when 'LSUB'
+              res = decoder.lsub(tag, *opt_args)
+            when 'STATUS'
+              res = decoder.status(tag, *opt_args)
+            when 'APPEND'
+              res = decoder.append(tag, *opt_args)
+            when 'CHECK'
+              res = decoder.check(tag, *opt_args)
+            when 'CLOSE'
+              res = decoder.close(tag, *opt_args)
+            when 'EXPUNGE'
+              res = decoder.expunge(tag, *opt_args)
+            when 'SEARCH'
+              res = decoder.search(tag, *opt_args)
+            when 'FETCH'
+              res = decoder.fetch(tag, *opt_args)
+            when 'STORE'
+              res = decoder.store(tag, *opt_args)
+            when 'COPY'
+              res = decoder.copy(tag, *opt_args)
+            when 'UID'
+              unless (opt_args.empty?) then
+                uid_command, *uid_args = opt_args
+                logger.info("uid command: #{uid_command}")
+                logger.debug("uid parameter: #{uid_args}") if logger.debug?
+                case (uid_command.upcase)
+                when 'SEARCH'
+                  res = decoder.search(tag, *uid_args, uid: true)
+                when 'FETCH'
+                  res = decoder.fetch(tag, *uid_args, uid: true)
+                when 'STORE'
+                  res = decoder.store(tag, *uid_args, uid: true)
+                when 'COPY'
+                  res = decoder.copy(tag, *uid_args, uid: true)
+                else
+                  logger.error("unknown uid command: #{uid_command}")
+                  res = [ "#{tag} BAD unknown uid command" ]
+                end
+              else
+                logger.error('empty uid parameter.')
+                res = [ "#{tag} BAD empty uid parameter" ]
+              end
+            else
+              logger.error("unknown command: #{command}")
+              res = [ "#{tag} BAD unknown command" ]
+            end
+          rescue ArgumentError
+            logger.error('invalid command parameter.')
+            logger.error($!)
+            res = [ "#{tag} BAD invalid command parameter" ]
+          rescue
+            logger.error('internal server error.')
+            logger.error($!)
+            res = [ "#{tag} BAD internal server error" ]
+          end
+
+          response_write.call(res)
+
+          if (command.upcase == 'LOGOUT') then
+            break
+          end
+        end
+
+        nil
+      end
     end
   end
 end
