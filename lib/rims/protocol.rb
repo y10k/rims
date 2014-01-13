@@ -1082,20 +1082,28 @@ module RIMS
         end
       end
 
+      def folder_open_msgs
+        all_msgs = @mail_store_holder.to_mst.mbox_msgs(@folder.id)
+        recent_msgs = @mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')
+        unseen_msgs = all_msgs - @mail_store_holder.to_mst.mbox_flags(@folder.id, 'seen')
+        yield("* #{all_msgs} EXISTS")
+        yield("* #{recent_msgs} RECENT")
+        yield("* OK [UNSEEN #{unseen_msgs}]")
+        yield("* OK [UIDVALIDITY #{@folder.id}]")
+        yield("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)")
+        nil
+      end
+      private :folder_open_msgs
+
       def select(tag, mbox_name)
         protect_auth(tag) {
           res = []
           @folder = nil
           if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
             @folder = @mail_store_holder.to_mst.select_mbox(id)
-            all_msgs = @mail_store_holder.to_mst.mbox_msgs(@folder.id)
-            recent_msgs = @mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')
-            unseen_msgs = all_msgs - @mail_store_holder.to_mst.mbox_flags(@folder.id, 'seen')
-            res << "* #{all_msgs} EXISTS"
-            res << "* #{recent_msgs} RECENT"
-            res << "* OK [UNSEEN #{unseen_msgs}]"
-            res << "* OK [UIDVALIDITY #{@folder.id}]"
-            res << "* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)"
+            folder_open_msgs do |msg|
+              res << msg
+            end
             res << "#{tag} OK [READ-WRITE] SELECT completed"
           else
             res << "#{tag} NO not found a mailbox"
