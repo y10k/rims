@@ -119,24 +119,43 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
     end
 
-    def test_examine_not_implemented
+    def test_examine
       assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
 
       res = @decoder.examine('T001', 'INBOX').each
       assert_match(/^T001 NO /, res.next)
       assert_raise(StopIteration) { res.next }
 
       assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
       assert_equal('T002 OK LOGIN completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
 
       res = @decoder.examine('T003', 'INBOX').each
-      assert_equal('T003 BAD not implemented', res.next)
+      assert_equal('* 0 EXISTS', res.next)
+      assert_equal('* 0 RECENT', res.next)
+      assert_equal('* OK [UNSEEN 0]', res.next)
+      assert_equal('* OK [UIDVALIDITY 1]', res.next)
+      assert_equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', res.next)
+      assert_equal('T003 OK [READ-ONLY] EXAMINE completed', res.next)
       assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.logout('T004').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T004 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
     end
 
     def test_create
@@ -2617,6 +2636,37 @@ T004 LOGOUT
       assert_equal("* OK [UIDVALIDITY 1]\r\n", res.next)
       assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
       assert_equal("T003 OK [READ-WRITE] SELECT completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T004 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+    end
+
+    def test_command_loop_examine
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 EXAMINE INBOX
+T002 LOGIN foo open_sesame
+T003 EXAMINE INBOX
+T004 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_equal("* 0 EXISTS\r\n", res.next)
+      assert_equal("* 0 RECENT\r\n", res.next)
+      assert_equal("* OK [UNSEEN 0]\r\n", res.next)
+      assert_equal("* OK [UIDVALIDITY 1]\r\n", res.next)
+      assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
+      assert_equal("T003 OK [READ-ONLY] EXAMINE completed\r\n", res.next)
 
       assert_match(/^\* BYE /, res.next)
       assert_equal("T004 OK LOGOUT completed\r\n", res.next)

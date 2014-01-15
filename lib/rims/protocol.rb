@@ -1113,7 +1113,17 @@ module RIMS
 
       def examine(tag, mbox_name)
         protect_auth(tag) {
-          [ "#{tag} BAD not implemented" ]
+          res = []
+          @folder = nil
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+            @folder = @mail_store_holder.to_mst.examine_mbox(id)
+            folder_open_msgs do |msg|
+              res << msg
+            end
+            res << "#{tag} OK [READ-ONLY] EXAMINE completed"
+          else
+            res << "#{tag} NO not found a mailbox"
+          end
         }
       end
 
