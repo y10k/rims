@@ -928,6 +928,54 @@ module RIMS::Test
       assert_raise(StopIteration) { res.next }
     end
 
+    def test_expunge_read_only
+      @mail_store.add_msg(@inbox_id, 'a')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.expunge('T001').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.expunge('T003').each
+      assert_match(/^T003 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      res = @decoder.examine('T004', 'INBOX').each
+      res.next while (res.peek =~ /^\* /)
+      assert_equal('T004 OK [READ-ONLY] EXAMINE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.expunge('T005').each
+      assert_match(/^T005 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+
+      res = @decoder.logout('T006').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T006 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+    end
+
     def test_search
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -3370,6 +3418,45 @@ T009 LOGOUT
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'seen'))
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'draft'))
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+    end
+
+    def test_command_loop_expunge_read_only
+      @mail_store.add_msg(@inbox_id, 'a')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 EXPUNGE
+T002 LOGIN foo open_sesame
+T003 EXPUNGE
+T004 EXAMINE INBOX
+T005 EXPUNGE
+T006 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      res.next while (res.peek =~ /^\* /)
+      assert_equal("T004 OK [READ-ONLY] EXAMINE completed\r\n", res.next)
+
+      assert_match(/^T005 NO /, res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T006 OK LOGOUT completed\r\n", res.next)
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
     end
 
     def test_command_loop_search
