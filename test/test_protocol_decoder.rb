@@ -81,6 +81,29 @@ module RIMS::Test
     end
 
     def test_select
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
@@ -99,9 +122,9 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.select('T003', 'INBOX').each
-      assert_equal('* 0 EXISTS', res.next)
-      assert_equal('* 0 RECENT', res.next)
-      assert_equal('* OK [UNSEEN 0]', res.next)
+      assert_equal('* 3 EXISTS', res.next)
+      assert_equal('* 1 RECENT', res.next)
+      assert_equal('* OK [UNSEEN 1]', res.next)
       assert_equal('* OK [UIDVALIDITY 1]', res.next)
       assert_equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', res.next)
       assert_equal('T003 OK [READ-WRITE] SELECT completed', res.next)
@@ -117,9 +140,43 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
+
+      assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
     end
 
     def test_examine
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
@@ -138,9 +195,9 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.examine('T003', 'INBOX').each
-      assert_equal('* 0 EXISTS', res.next)
-      assert_equal('* 0 RECENT', res.next)
-      assert_equal('* OK [UNSEEN 0]', res.next)
+      assert_equal('* 3 EXISTS', res.next)
+      assert_equal('* 1 RECENT', res.next)
+      assert_equal('* OK [UNSEEN 1]', res.next)
       assert_equal('* OK [UIDVALIDITY 1]', res.next)
       assert_equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', res.next)
       assert_equal('T003 OK [READ-ONLY] EXAMINE completed', res.next)
@@ -156,6 +213,20 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
     end
 
     def test_create
@@ -591,6 +662,29 @@ module RIMS::Test
     end
 
     def test_close
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
@@ -613,7 +707,11 @@ module RIMS::Test
       assert_raise(StopIteration) { res.next }
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
+      assert_equal('* 3 EXISTS', res.next)
+      assert_equal('* 1 RECENT', res.next)
+      assert_equal('* OK [UNSEEN 1]', res.next)
+      assert_equal('* OK [UIDVALIDITY 1]', res.next)
+      assert_equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', res.next)
       assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
       assert_raise(StopIteration) { res.next }
 
@@ -627,59 +725,111 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      @mail_store.add_msg(@inbox_id, 'foo')
-      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
-      assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'recent'))
+      assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
-      res = @decoder.select('T006', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T006 OK [READ-WRITE] SELECT completed', res.next)
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
+      res = @decoder.logout('T006').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T006 OK LOGOUT completed', res.next)
       assert_raise(StopIteration) { res.next }
 
-      assert_equal(true, @decoder.auth?)
-      assert_equal(true, @decoder.selected?)
-      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
-      assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'recent'))
-
-      res = @decoder.close('T007').each
-      assert_equal('T007 OK CLOSE completed', res.next)
-      assert_raise(StopIteration) { res.next }
-
-      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
-      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
-      assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent'))
+    end
 
-      res = @decoder.select('T008', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T008 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
-
-      assert_equal(true, @decoder.auth?)
-      assert_equal(true, @decoder.selected?)
-      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
-      assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent'))
-
+    def test_close_read_only
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
 
-      res = @decoder.close('T009').each
-      assert_equal('T009 OK CLOSE completed', res.next)
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.close('T001').each
+      assert_match(/^T001 NO /, res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_equal('T002 OK LOGIN completed', res.next)
       assert_raise(StopIteration) { res.next }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
-      assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
-      assert_equal(0, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
-      res = @decoder.logout('T010').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T010 OK LOGOUT completed', res.next)
+      res = @decoder.close('T003').each
+      assert_match(/^T003 NO /, res.next)
       assert_raise(StopIteration) { res.next }
+
+      res = @decoder.examine('T004', 'INBOX').each
+      assert_equal('* 3 EXISTS', res.next)
+      assert_equal('* 1 RECENT', res.next)
+      assert_equal('* OK [UNSEEN 1]', res.next)
+      assert_equal('* OK [UIDVALIDITY 1]', res.next)
+      assert_equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', res.next)
+      assert_equal('T004 OK [READ-ONLY] EXAMINE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.close('T005').each
+      assert_equal('T005 OK CLOSE completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
+      res = @decoder.logout('T006').each
+      assert_match(/^\* BYE /, res.next)
+      assert_equal('T006 OK LOGOUT completed', res.next)
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
     end
 
     def test_expunge
@@ -2613,6 +2763,29 @@ T003 LOGOUT
     end
 
     def test_command_loop_select
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 SELECT INBOX
@@ -2630,9 +2803,9 @@ T004 LOGOUT
 
       assert_equal("T002 OK LOGIN completed\r\n", res.next)
 
-      assert_equal("* 0 EXISTS\r\n", res.next)
-      assert_equal("* 0 RECENT\r\n", res.next)
-      assert_equal("* OK [UNSEEN 0]\r\n", res.next)
+      assert_equal("* 3 EXISTS\r\n", res.next)
+      assert_equal("* 1 RECENT\r\n", res.next)
+      assert_equal("* OK [UNSEEN 1]\r\n", res.next)
       assert_equal("* OK [UIDVALIDITY 1]\r\n", res.next)
       assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
       assert_equal("T003 OK [READ-WRITE] SELECT completed\r\n", res.next)
@@ -2641,9 +2814,43 @@ T004 LOGOUT
       assert_equal("T004 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
     end
 
     def test_command_loop_examine
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 EXAMINE INBOX
@@ -2661,9 +2868,9 @@ T004 LOGOUT
 
       assert_equal("T002 OK LOGIN completed\r\n", res.next)
 
-      assert_equal("* 0 EXISTS\r\n", res.next)
-      assert_equal("* 0 RECENT\r\n", res.next)
-      assert_equal("* OK [UNSEEN 0]\r\n", res.next)
+      assert_equal("* 3 EXISTS\r\n", res.next)
+      assert_equal("* 1 RECENT\r\n", res.next)
+      assert_equal("* OK [UNSEEN 1]\r\n", res.next)
       assert_equal("* OK [UIDVALIDITY 1]\r\n", res.next)
       assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
       assert_equal("T003 OK [READ-ONLY] EXAMINE completed\r\n", res.next)
@@ -2672,6 +2879,20 @@ T004 LOGOUT
       assert_equal("T004 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
     end
 
     def test_command_loop_create
@@ -2946,19 +3167,38 @@ T006 LOGOUT
     end
 
     def test_command_loop_close
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 CLOSE
 T002 LOGIN foo open_sesame
 T003 CLOSE
-T006 SELECT INBOX
-T007 CLOSE
-T008 LOGOUT
+T004 SELECT INBOX
+T005 CLOSE
+T006 LOGOUT
       EOF
-
-      @mail_store.add_msg(@inbox_id, 'foo')
-      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
 
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
@@ -2971,17 +3211,104 @@ T008 LOGOUT
 
       assert_match(/^T003 NO /, res.next)
 
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T006 OK [READ-WRITE] SELECT completed\r\n", res.next)
+      assert_equal("* 3 EXISTS\r\n", res.next)
+      assert_equal("* 1 RECENT\r\n", res.next)
+      assert_equal("* OK [UNSEEN 1]\r\n", res.next)
+      assert_equal("* OK [UIDVALIDITY 1]\r\n", res.next)
+      assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
+      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
 
-      assert_equal("T007 OK CLOSE completed\r\n", res.next)
+      assert_equal("T005 OK CLOSE completed\r\n", res.next)
 
       assert_match(/^\* BYE /, res.next)
-      assert_equal("T008 OK LOGOUT completed\r\n", res.next)
+      assert_equal("T006 OK LOGOUT completed\r\n", res.next)
 
       assert_raise(StopIteration) { res.next }
 
-      assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+    end
+
+    def test_command_loop_close_read_only
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 CLOSE
+T002 LOGIN foo open_sesame
+T003 CLOSE
+T004 EXAMINE INBOX
+T005 CLOSE
+T006 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
+
+      assert_match(/^T001 NO /, res.next)
+
+      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+
+      assert_match(/^T003 NO /, res.next)
+
+      assert_equal("* 3 EXISTS\r\n", res.next)
+      assert_equal("* 1 RECENT\r\n", res.next)
+      assert_equal("* OK [UNSEEN 1]\r\n", res.next)
+      assert_equal("* OK [UIDVALIDITY 1]\r\n", res.next)
+      assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
+      assert_equal("T004 OK [READ-ONLY] EXAMINE completed\r\n", res.next)
+
+      assert_equal("T005 OK CLOSE completed\r\n", res.next)
+
+      assert_match(/^\* BYE /, res.next)
+      assert_equal("T006 OK LOGOUT completed\r\n", res.next)
+
+      assert_raise(StopIteration) { res.next }
+
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
     end
 
     def test_command_loop_expunge
