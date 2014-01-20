@@ -8,11 +8,82 @@ require 'time'
 
 module RIMS::Test
   class ProtocolDecoderTest < Test::Unit::TestCase
-    def assert_strenc_equal(expected_enc, expected_str, expr_str)
-      assert_equal(Encoding.find(expected_enc), expr_str.encoding)
-      assert_equal(expected_str.dup.force_encoding(expected_enc), expr_str)
+    class IMAPResponseAssertionDSL
+      include Test::Unit::Assertions
+
+      def initialize(crlf_at_eol: false)
+        @crlf_at_eol = crlf_at_eol
+        @assertions = []
+      end
+
+      attr_reader :assertions
+
+      def fetch_line(response_lines, peek_next_line: false)
+        if (peek_next_line) then
+          response_lines.peek
+        else
+          response_lines.next
+        end
+      end
+      private :fetch_line
+
+      def skip_while(&cond)
+        @assertions << proc{|lines|
+          while (cond.call(lines.peek))
+            lines.next
+          end
+        }
+        self
+      end
+
+      def equal(expected_string, peek_next_line: false)
+        expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n$/)
+        @assertions << proc{|lines|
+          line = fetch_line(lines, peek_next_line: peek_next_line)
+          assert_equal(expected_string, line)
+        }
+        self
+      end
+
+      def strenc_equal(expected_string, peek_next_line: false)
+        expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n$/)
+        @assertions << proc{|lines|
+          line = fetch_line(lines, peek_next_line: peek_next_line)
+          assert_equal(expected_string.encoding, line.encoding)
+          assert_equal(expected_string, line)
+        }
+        self
+      end
+
+      def match(expected_regexp, peek_next_line: false)
+        @assertions << proc{|lines|
+          line = fetch_line(lines, peek_next_line: peek_next_line)
+          assert_match(expected_regexp, line)
+        }
+        self
+      end
+
+      def no_match(expected_regexp, peek_next_line: false)
+        @assertions << proc{|lines|
+          line = fetch_line(lines, peek_next_line: peek_next_line)
+          assert_not_nil(expected_regexp, line)
+        }
+        self
+      end
     end
-    private :assert_strenc_equal
+
+    def assert_imap_response(response_lines, crlf_at_eol: false)
+      dsl = IMAPResponseAssertionDSL.new(crlf_at_eol: crlf_at_eol)
+      yield(dsl)
+
+      for a in dsl.assertions
+        a.call(response_lines)
+      end
+      assert_raise(StopIteration) { response_lines.next }
+
+      nil
+    end
+    private :assert_imap_response
 
     def setup
       @kv_store = {}
@@ -45,37 +116,42 @@ module RIMS::Test
 
     def test_capability
       res = @decoder.capability('T001').each
-      assert_equal('* CAPABILITY IMAP4rev1', res.next)
-      assert_equal('T001 OK CAPABILITY completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* CAPABILITY IMAP4rev1')
+        a.equal('T001 OK CAPABILITY completed')
+      }
     end
 
     def test_logout
       res = @decoder.logout('T003').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T003 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
     end
 
     def test_login
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T001', 'foo', 'detarame').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.logout('T003').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T003 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
 
       assert_equal(false, @decoder.auth?)
     end
@@ -85,35 +161,39 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.select('T001', 'INBOX').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.select('T003', 'INBOX').each
-      assert_equal('* 0 EXISTS', res.next)
-      assert_equal('* 0 RECENT', res.next)
-      assert_equal('* OK [UNSEEN 0]', res.next)
-      assert_equal('* OK [UIDVALIDITY 1]', res.next)
-      assert_equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', res.next)
-      assert_equal('T003 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 0 EXISTS')
+        a.equal('* 0 RECENT')
+        a.equal('* OK [UNSEEN 0]')
+        a.equal('* OK [UIDVALIDITY 1]')
+        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        a.equal('T003 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.logout('T004').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T004 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -123,87 +203,105 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.examine('T001', 'INBOX').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.examine('T003', 'INBOX').each
-      assert_equal('T003 BAD not implemented', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T003 BAD not implemented')
+      }
     end
 
     def test_create
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.create('T001', 'foo').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
-
       assert_nil(@mail_store.mbox_id('foo'))
+
       res = @decoder.create('T003', 'foo').each
-      assert_equal('T003 OK CREATE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T003 OK CREATE completed')
+      }
+
       assert_not_nil(@mail_store.mbox_id('foo'))
 
       res = @decoder.create('T004', 'inbox').each
-      assert_match(/^T004 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T004 NO /)
+      }
 
       res = @decoder.logout('T005').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T005 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T005 OK LOGOUT completed')
+      }
     end
 
     def test_delete
       @mail_store.add_mbox('foo')
+      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('bar'))
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.delete('T001', 'foo').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
+
       assert_not_nil(@mail_store.mbox_id('foo'))
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.delete('T003', 'foo').each
-      assert_equal('T003 OK DELETE completed', res.next)
-      assert_raise(StopIteration) { res.next }
-      assert_nil(@mail_store.mbox_id('foo'))
+      assert_imap_response(res) {|a|
+        a.equal('T003 OK DELETE completed')
+      }
 
       res = @decoder.delete('T004', 'bar').each
-      assert_match(/^T004 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T004 NO /)
+      }
 
       res = @decoder.delete('T005', 'inbox').each
-      assert_match(/^T005 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T005 NO /)
+      }
+
       assert_not_nil(@mail_store.mbox_id('inbox'))
 
       res = @decoder.logout('T006').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T006 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T006 OK LOGOUT completed')
+      }
     end
 
     def test_rename_not_implemented
@@ -214,22 +312,27 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.rename('T001', 'foo', 'bar').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
+
       assert_not_nil(@mail_store.mbox_id('foo'))
       assert_nil(@mail_store.mbox_id('bar'))
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.rename('T003', 'foo', 'bar').each
-      assert_equal('T003 BAD not implemented', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T003 BAD not implemented')
+      }
+
       assert_not_nil(@mail_store.mbox_id('foo'))
       assert_nil(@mail_store.mbox_id('bar'))
     end
@@ -238,221 +341,259 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.subscribe('T001', 'INBOX').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.subscribe('T003', 'INBOX').each
-      assert_equal('T003 OK SUBSCRIBE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T003 OK SUBSCRIBE completed')
+      }
 
       res = @decoder.subscribe('T004', 'NOBOX').each
-      assert_equal('T004 NO not found a mailbox', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T004 NO not found a mailbox')
+      }
     end
 
     def test_unsubscribe_not_implemented
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.unsubscribe('T001', 'INBOX').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.unsubscribe('T003', 'INBOX').each
-      assert_equal('T003 NO not implemented subscribe/unsbscribe command', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T003 NO not implemented subscribe/unsbscribe command')
+      }
     end
 
     def test_list
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.list('T001', '', '').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.list('T003', '', '').each
-      assert_equal('* LIST (\Noselect) NIL ""', res.next)
-      assert_equal('T003 OK LIST completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* LIST (\Noselect) NIL ""')
+        a.equal('T003 OK LIST completed')
+      }
 
       res = @decoder.list('T004', '', 'nobox').each
-      assert_equal('T004 OK LIST completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T004 OK LIST completed')
+      }
 
       res = @decoder.list('T005', '', '*').each
-      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "INBOX"', res.next)
-      assert_equal('T005 OK LIST completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "INBOX"')
+        a.equal('T005 OK LIST completed')
+      }
 
       @mail_store.add_msg(@inbox_id, 'foo')
 
       res = @decoder.list('T006', '', '*').each
-      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"', res.next)
-      assert_equal('T006 OK LIST completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        a.equal('T006 OK LIST completed')
+      }
 
       @mail_store.add_mbox('foo')
 
       res = @decoder.list('T007', '', '*').each
-      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"', res.next)
-      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "foo"', res.next)
-      assert_equal('T007 OK LIST completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
+        a.equal('T007 OK LIST completed')
+      }
 
       res = @decoder.list('T008', '', 'f*').each
-      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "foo"', res.next)
-      assert_equal('T008 OK LIST completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
+        a.equal('T008 OK LIST completed')
+      }
 
       res = @decoder.list('T009', 'IN', '*').each
-      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"', res.next)
-      assert_equal('T009 OK LIST completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        a.equal('T009 OK LIST completed')
+      }
 
       res = @decoder.logout('T010').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T010 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T010 OK LOGOUT completed')
+      }
     end
 
     def test_status
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.status('T001', 'nobox', [ :group, 'MESSAGES' ]).each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.status('T003', 'nobox', [ :group, 'MESSAGES' ]).each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       res = @decoder.status('T004', 'INBOX', [ :group, 'MESSAGES' ]).each
-      assert_equal('* STATUS "INBOX" (MESSAGES 0)', res.next)
-      assert_equal('T004 OK STATUS completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* STATUS "INBOX" (MESSAGES 0)')
+        a.equal('T004 OK STATUS completed')
+      }
 
       res = @decoder.status('T005', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 0 RECENT 0 UIDNEXT 1 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
-      assert_equal('T005 OK STATUS completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal("* STATUS \"INBOX\" (MESSAGES 0 RECENT 0 UIDNEXT 1 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
+        a.equal('T005 OK STATUS completed')
+      }
 
       @mail_store.add_msg(@inbox_id, 'foo')
       res = @decoder.status('T006', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
-      assert_equal('T006 OK STATUS completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
+        a.equal('T006 OK STATUS completed')
+      }
 
       @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
       res = @decoder.status('T007', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
-      assert_equal('T007 OK STATUS completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
+        a.equal('T007 OK STATUS completed')
+      }
 
       @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
       res = @decoder.status('T008', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
-      assert_equal('T008 OK STATUS completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
+        a.equal('T008 OK STATUS completed')
+      }
 
       @mail_store.add_msg(@inbox_id, 'bar')
+
       res = @decoder.status('T009', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)", res.next)
-      assert_equal('T009 OK STATUS completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
+        a.equal('T009 OK STATUS completed')
+      }
 
       @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
       @mail_store.expunge_mbox(@inbox_id)
+
       res = @decoder.status('T010', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)", res.next)
-      assert_equal('T010 OK STATUS completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
+        a.equal('T010 OK STATUS completed')
+      }
 
       res = @decoder.status('T011', 'INBOX', 'MESSAGES').each
-      assert_match(/^T011 BAD /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T011 BAD /)
+      }
 
       res = @decoder.status('T012', 'INBOX', [ :group, 'DETARAME' ]).each
-      assert_match(/^T012 BAD /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T012 BAD /)
+      }
 
       res = @decoder.logout('T013').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T013 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T013 OK LOGOUT completed')
+      }
     end
 
     def test_lsub_not_implemented
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.lsub('T001', '', '*').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.lsub('T003', '', '*').each
-      assert_equal('* LSUB (\Noinferiors \Unmarked) NIL "INBOX"', res.next)
-      assert_equal('T003 OK LSUB completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* LSUB (\Noinferiors \Unmarked) NIL "INBOX"')
+        a.equal('T003 OK LSUB completed')
+      }
     end
 
     def test_append
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.append('T001', 'INBOX', 'a').each
-      assert_match(/^T001 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-      assert_raise(StopIteration) { res.next }
-      assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+      }
 
+      assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
 
       res = @decoder.append('T003', 'INBOX', 'a').each
-      assert_equal('T003 OK APPEND completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T003 OK APPEND completed')
+      }
+
       assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal('a', @mail_store.msg_text(@inbox_id, 1))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
@@ -463,8 +604,10 @@ module RIMS::Test
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
 
       res = @decoder.append('T004', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'b').each
-      assert_equal('T004 OK APPEND completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T004 OK APPEND completed')
+      }
+
       assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal('b', @mail_store.msg_text(@inbox_id, 2))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
@@ -475,8 +618,10 @@ module RIMS::Test
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
 
       res = @decoder.append('T005', 'INBOX', '19-Nov-1975 12:34:56 +0900', 'c').each
-      assert_equal('T005 OK APPEND completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T005 OK APPEND completed')
+      }
+
       assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal('c', @mail_store.msg_text(@inbox_id, 3))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
@@ -488,8 +633,10 @@ module RIMS::Test
       assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 3))
 
       res = @decoder.append('T006', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'd').each
-      assert_equal('T006 OK APPEND completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T006 OK APPEND completed')
+      }
+
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal('d', @mail_store.msg_text(@inbox_id, 4))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'answered'))
@@ -501,34 +648,44 @@ module RIMS::Test
       assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 4))
 
       res = @decoder.append('T007', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', :NIL, 'x').each
-      assert_match(/^T007 BAD /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T007 BAD /)
+      }
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.append('T008', 'INBOX', '19-Nov-1975 12:34:56 +0900', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'x').each
-      assert_match(/^T008 BAD /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T008 BAD /)
+      }
+
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.append('T009', 'INBOX', [ :group, '\Recent' ], 'x').each
-      assert_match(/^T009 BAD /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T009 BAD /)
+      }
+
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.append('T010', 'INBOX', 'bad date-time', 'x').each
-      assert_match(/^T010 BAD /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T010 BAD /)
+      }
+
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.append('T011', 'nobox', 'x').each
-      assert_match(/^T011 NO \[TRYCREATE\]/, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T011 NO \[TRYCREATE\]/)
+      }
+
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.logout('T012').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T012 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T012 OK LOGOUT completed')
+      }
     end
 
     def test_check
@@ -536,39 +693,45 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.check('T001').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.check('T003').each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* /}
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.check('T005').each
-      assert_equal('T005 OK CHECK completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T005 OK CHECK completed')
+      }
 
       res = @decoder.logout('T006').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T006 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T006 OK LOGOUT completed')
+      }
     end
 
     def test_close
@@ -576,47 +739,54 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.close('T001').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.close('T003').each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.close('T005').each
-      assert_equal('T005 OK CLOSE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T005 OK CLOSE completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       @mail_store.add_msg(@inbox_id, 'foo')
+
       assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_msgs(@inbox_id))
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.select('T006', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T006 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T006 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
@@ -625,8 +795,9 @@ module RIMS::Test
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.close('T007').each
-      assert_equal('T007 OK CLOSE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T007 OK CLOSE completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -635,9 +806,10 @@ module RIMS::Test
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.select('T008', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T008 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T008 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
@@ -648,8 +820,9 @@ module RIMS::Test
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
 
       res = @decoder.close('T009').each
-      assert_equal('T009 OK CLOSE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T009 OK CLOSE completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -658,9 +831,10 @@ module RIMS::Test
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.logout('T010').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T010 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T010 OK LOGOUT completed')
+      }
     end
 
     def test_expunge
@@ -668,34 +842,39 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.expunge('T001').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.expunge('T003').each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.expunge('T005').each
-      assert_equal('T005 OK EXPUNGE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T005 OK EXPUNGE completed')
+      }
 
       @mail_store.add_msg(@inbox_id, 'a')
       @mail_store.add_msg(@inbox_id, 'b')
@@ -703,8 +882,9 @@ module RIMS::Test
       assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.expunge('T006').each
-      assert_equal('T006 OK EXPUNGE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T006 OK EXPUNGE completed')
+      }
 
       for name in %w[ answered flagged seen draft ]
         @mail_store.set_msg_flag(@inbox_id, 2, name, true)
@@ -722,9 +902,10 @@ module RIMS::Test
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'deleted'))
 
       res = @decoder.expunge('T007').each
-      assert_equal('* 2 EXPUNGE', res.next)
-      assert_equal('T007 OK EXPUNGE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 2 EXPUNGE')
+        a.equal('T007 OK EXPUNGE completed')
+      }
 
       assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
@@ -748,15 +929,17 @@ module RIMS::Test
       assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'deleted'))
 
       res = @decoder.expunge('T008').each
-      assert_equal('* 1 EXPUNGE', res.next)
-      assert_equal('* 2 EXPUNGE', res.next)
-      assert_equal('T008 OK EXPUNGE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 EXPUNGE')
+        a.equal('* 2 EXPUNGE')
+        a.equal('T008 OK EXPUNGE completed')
+      }
 
       res = @decoder.logout('T009').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T009 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T009 OK LOGOUT completed')
+      }
     end
 
     def test_search
@@ -764,35 +947,40 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.search('T001', 'ALL').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.search('T003', 'ALL').each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.search('T005', 'ALL').each
-      assert_equal('* SEARCH', res.next)
-      assert_equal('T005 OK SEARCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* SEARCH')
+        a.equal('T005 OK SEARCH completed')
+      }
 
       @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\napple")
       @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\nbnana")
@@ -805,29 +993,34 @@ module RIMS::Test
       assert_equal([ 1, 3, 5 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.search('T006', 'ALL').each
-      assert_equal('* SEARCH 1 2 3', res.next)
-      assert_equal('T006 OK SEARCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* SEARCH 1 2 3')
+        a.equal('T006 OK SEARCH completed')
+      }
 
       res = @decoder.search('T007', 'ALL', uid: true).each
-      assert_equal('* SEARCH 1 3 5', res.next)
-      assert_equal('T007 OK SEARCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* SEARCH 1 3 5')
+        a.equal('T007 OK SEARCH completed')
+      }
 
       res = @decoder.search('T008', 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple').each
-      assert_equal('* SEARCH 1 3', res.next)
-      assert_equal('T008 OK SEARCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* SEARCH 1 3')
+        a.equal('T008 OK SEARCH completed')
+      }
 
       res = @decoder.search('T009', 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', uid: true).each
-      assert_equal('* SEARCH 1 5', res.next)
-      assert_equal('T009 OK SEARCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* SEARCH 1 5')
+        a.equal('T009 OK SEARCH completed')
+      }
 
       res = @decoder.logout('T010').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T010 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T010 OK LOGOUT completed')
+      }
     end
 
     def test_fetch
@@ -927,124 +1120,140 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.fetch('T001', '1:*', 'FAST').each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.fetch('T003', '1:*', 'FAST').each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.fetch('T005', '1:*', 'FAST').each
-      assert_strenc_equal('ascii-8bit', '* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)', res.next)
-      assert_strenc_equal('ascii-8bit', '* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)', res.next)
-      assert_equal('T005 OK FETCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.strenc_equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)'.b)
+        a.strenc_equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)'.b)
+        a.equal('T005 OK FETCH completed')
+      }
 
       res = @decoder.fetch('T006', '1:*', [ :group, 'FAST' ]).each
-      assert_strenc_equal('ascii-8bit', '* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)', res.next)
-      assert_strenc_equal('ascii-8bit', '* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)', res.next)
-      assert_equal('T006 OK FETCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.strenc_equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)'.b)
+        a.strenc_equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)'.b)
+        a.equal('T006 OK FETCH completed')
+      }
 
       res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]).each
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
-      assert_strenc_equal('ascii-8bit', "* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)", res.next)
-      s = ''
-      s << "To: bar@nonet.com\r\n"
-      s << "From: foo@nonet.com\r\n"
-      s << "Subject: multipart test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
-      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
-      s << "\r\n"
-      assert_strenc_equal('ascii-8bit', "* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)", res.next)
-      assert_equal('T007 OK FETCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        s = ''
+        s << "To: foo@nonet.org\r\n"
+        s << "From: bar@nonet.org\r\n"
+        s << "Subject: test\r\n"
+        s << "MIME-Version: 1.0\r\n"
+        s << "Content-Type: text/plain; charset=us-ascii\r\n"
+        s << "Content-Transfer-Encoding: 7bit\r\n"
+        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+        s << "\r\n"
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)".b)
+
+        s = ''
+        s << "To: bar@nonet.com\r\n"
+        s << "From: foo@nonet.com\r\n"
+        s << "Subject: multipart test\r\n"
+        s << "MIME-Version: 1.0\r\n"
+        s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
+        s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
+        s << "\r\n"
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)".b)
+
+        a.equal('T007 OK FETCH completed')
+      }
 
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       res = @decoder.fetch('T008', '1', 'RFC822').each
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
-      s << "Hello world.\r\n"
-      assert_strenc_equal('ascii-8bit', "* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s})", res.next)
-      assert_equal('T008 OK FETCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        s = ''
+        s << "To: foo@nonet.org\r\n"
+        s << "From: bar@nonet.org\r\n"
+        s << "Subject: test\r\n"
+        s << "MIME-Version: 1.0\r\n"
+        s << "Content-Type: text/plain; charset=us-ascii\r\n"
+        s << "Content-Transfer-Encoding: 7bit\r\n"
+        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+        s << "\r\n"
+        s << "Hello world.\r\n"
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s})".b)
+
+        a.equal('T008 OK FETCH completed')
+      }
 
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T009', '2', [ :body, body ]).each
-      assert_strenc_equal('ascii-8bit', '* 2 FETCH (BODY[1] "Multipart test.")', res.next)
-      assert_equal('T009 OK FETCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.strenc_equal('* 2 FETCH (BODY[1] "Multipart test.")'.b)
+        a.equal('T009 OK FETCH completed')
+      }
 
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       res = @decoder.fetch('T010', '2', 'RFC822', uid: true).each
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
-      s << "Hello world.\r\n"
-      assert_strenc_equal('ascii-8bit', "* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n#{s})", res.next)
-      assert_equal('T010 OK FETCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        s = ''
+        s << "To: foo@nonet.org\r\n"
+        s << "From: bar@nonet.org\r\n"
+        s << "Subject: test\r\n"
+        s << "MIME-Version: 1.0\r\n"
+        s << "Content-Type: text/plain; charset=us-ascii\r\n"
+        s << "Content-Transfer-Encoding: 7bit\r\n"
+        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+        s << "\r\n"
+        s << "Hello world.\r\n"
+        a.strenc_equal("* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n#{s})".b)
+
+        a.equal('T010 OK FETCH completed')
+      }
 
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T011', '3', [ :group, 'UID', [ :body, body ] ], uid: true).each
-      assert_strenc_equal('ascii-8bit', '* 2 FETCH (UID 3 BODY[1] "Multipart test.")', res.next)
-      assert_equal('T011 OK FETCH completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.strenc_equal('* 2 FETCH (UID 3 BODY[1] "Multipart test.")'.b)
+        a.equal('T011 OK FETCH completed')
+      }
 
       assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       res = @decoder.logout('T012').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T012 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T012 OK LOGOUT completed')
+      }
     end
 
     def test_store
@@ -1077,19 +1286,22 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.store('T001', '1', '+FLAGS', [ :group, '\Answered' ]).each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.store('T003', '1', '+FLAGS', [ :group, '\Answered' ]).each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1100,17 +1312,19 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.store('T005', '1', '+FLAGS', [ :group, '\Answered' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Recent)', res.next)
-      assert_equal('T005 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Recent)')
+        a.equal('T005 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1122,10 +1336,11 @@ Content-Type: text/html; charset=us-ascii
       assert(@mail_store.msg_flag(@inbox_id, 1, 'answered'))
 
       res = @decoder.store('T006', '1:2', '+FLAGS', [ :group, '\Flagged' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Flagged \Recent)', res.next)
-      assert_equal('T006 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Recent)')
+        a.equal('T006 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1139,11 +1354,12 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T007', '1:3', '+FLAGS', [ :group, '\Deleted' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Deleted \Recent)', res.next)
-      assert_equal('T007 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Recent)')
+        a.equal('T007 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1160,12 +1376,13 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T008', '1:4', '+FLAGS', [ :group, '\Seen' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Seen \Recent)', res.next)
-      assert_equal('T008 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Seen \Recent)')
+        a.equal('T008 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1186,13 +1403,14 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T009', '1:5', '+FLAGS', [ :group, '\Draft' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)', res.next)
-      assert_equal('* 5 FETCH FLAGS (\Draft \Recent)', res.next)
-      assert_equal('T009 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Draft \Recent)')
+        a.equal('T009 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1218,13 +1436,14 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T010', '1:*', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('T010 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('T010 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1235,9 +1454,10 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T011', '1', '-FLAGS', [ :group, '\Answered' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('T011 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('T011 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1249,10 +1469,11 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T012', '1:2', '-FLAGS', [ :group, '\Flagged' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('T012 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)')
+        a.equal('T012 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1266,11 +1487,12 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T013', '1:3', '-FLAGS', [ :group, '\Deleted' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)', res.next)
-      assert_equal('T013 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)')
+        a.equal('T013 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1287,12 +1509,13 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T014', '1:4', '-FLAGS', [ :group, '\Seen' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)', res.next)
-      assert_equal('T014 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)')
+        a.equal('T014 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1313,13 +1536,14 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T015', '1:5', '-FLAGS', [ :group, '\Draft' ]).each
-      assert_equal('* 1 FETCH FLAGS (\Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)', res.next)
-      assert_equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)', res.next)
-      assert_equal('T015 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        a.equal('T015 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1345,9 +1569,10 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.logout('T016').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T016 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T016 OK LOGOUT completed')
+      }
     end
 
     def test_store_silent
@@ -1380,19 +1605,22 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.store('T001', '1', '+FLAGS.SILENT', [ :group, '\Answered' ]).each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.store('T003', '1', '+FLAGS.SILENT', [ :group, '\Answered' ]).each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1403,16 +1631,18 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.store('T005', '1', '+FLAGS.SILENT', [ :group, '\Answered' ]).each
-      assert_equal('T005 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T005 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1424,8 +1654,9 @@ Content-Type: text/html; charset=us-ascii
       assert(@mail_store.msg_flag(@inbox_id, 1, 'answered'))
 
       res = @decoder.store('T006', '1:2', '+FLAGS.SILENT', [ :group, '\Flagged' ]).each
-      assert_equal('T006 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T006 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1439,8 +1670,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T007', '1:3', '+FLAGS.SILENT', [ :group, '\Deleted' ]).each
-      assert_equal('T007 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T007 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1457,8 +1689,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T008', '1:4', '+FLAGS.SILENT', [ :group, '\Seen' ]).each
-      assert_equal('T008 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T008 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1479,8 +1712,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T009', '1:5', '+FLAGS.SILENT', [ :group, '\Draft' ]).each
-      assert_equal('T009 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T009 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1506,8 +1740,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T010', '1:*', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_equal('T010 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T010 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1518,8 +1753,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T011', '1', '-FLAGS.SILENT', [ :group, '\Answered' ]).each
-      assert_equal('T011 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T011 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1531,8 +1767,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T012', '1:2', '-FLAGS.SILENT', [ :group, '\Flagged' ]).each
-      assert_equal('T012 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T012 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1546,8 +1783,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T013', '1:3', '-FLAGS.SILENT', [ :group, '\Deleted' ]).each
-      assert_equal('T013 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T013 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1564,8 +1802,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T014', '1:4', '-FLAGS.SILENT', [ :group, '\Seen' ]).each
-      assert_equal('T014 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T014 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1586,8 +1825,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T015', '1:5', '-FLAGS.SILENT', [ :group, '\Draft' ]).each
-      assert_equal('T015 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T015 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1613,9 +1853,10 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.logout('T016').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T016 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T016 OK LOGOUT completed')
+      }
     end
 
     def test_uid_store
@@ -1648,19 +1889,22 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.store('T001', '1', '+FLAGS', [ :group, '\Answered' ], uid: true).each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.store('T003', '1', '+FLAGS', [ :group, '\Answered' ], uid: true).each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1671,17 +1915,19 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.store('T005', '1', '+FLAGS', [ :group, '\Answered' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Recent)', res.next)
-      assert_equal('T005 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Recent)')
+        a.equal('T005 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1693,10 +1939,11 @@ Content-Type: text/html; charset=us-ascii
       assert(@mail_store.msg_flag(@inbox_id, 1, 'answered'))
 
       res = @decoder.store('T006', '1,3', '+FLAGS', [ :group, '\Flagged' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Flagged \Recent)', res.next)
-      assert_equal('T006 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Recent)')
+        a.equal('T006 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1710,11 +1957,12 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T007', '1,3,5', '+FLAGS', [ :group, '\Deleted' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Deleted \Recent)', res.next)
-      assert_equal('T007 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Recent)')
+        a.equal('T007 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1731,12 +1979,13 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T008', '1,3,5,7', '+FLAGS', [ :group, '\Seen' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Seen \Recent)', res.next)
-      assert_equal('T008 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Seen \Recent)')
+        a.equal('T008 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1757,13 +2006,14 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T009', '1,3,5,7,9', '+FLAGS', [ :group, '\Draft' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)', res.next)
-      assert_equal('* 5 FETCH FLAGS (\Draft \Recent)', res.next)
-      assert_equal('T009 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Draft \Recent)')
+        a.equal('T009 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1789,13 +2039,14 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T010', '1:*', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('T010 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('T010 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1806,9 +2057,10 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T011', '1', '-FLAGS', [ :group, '\Answered' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('T011 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('T011 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1820,10 +2072,11 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T012', '1,3', '-FLAGS', [ :group, '\Flagged' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)', res.next)
-      assert_equal('T012 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)')
+        a.equal('T012 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1837,11 +2090,12 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T013', '1,3,5', '-FLAGS', [ :group, '\Deleted' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)', res.next)
-      assert_equal('T013 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)')
+        a.equal('T013 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1858,12 +2112,13 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T014', '1,3,5,7', '-FLAGS', [ :group, '\Seen' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Draft \Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)', res.next)
-      assert_equal('T014 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)')
+        a.equal('T014 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1884,13 +2139,14 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T015', '1,3,5,7,9', '-FLAGS', [ :group, '\Draft' ], uid: true).each
-      assert_equal('* 1 FETCH FLAGS (\Recent)', res.next)
-      assert_equal('* 2 FETCH FLAGS (\Answered \Recent)', res.next)
-      assert_equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)', res.next)
-      assert_equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)', res.next)
-      assert_equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)', res.next)
-      assert_equal('T015 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('* 1 FETCH FLAGS (\Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        a.equal('T015 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1916,9 +2172,10 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.logout('T016').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T016 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T016 OK LOGOUT completed')
+      }
     end
 
     def test_uid_store_silent
@@ -1951,19 +2208,22 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.store('T001', '1', '+FLAGS.SILENT', [ :group, '\Answered' ], uid: true).each
-      assert_match(/^T001 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.store('T003', '1', '+FLAGS.SILENT', [ :group, '\Answered' ], uid: true).each
-      assert_match(/^T003 NO /, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1974,16 +2234,18 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.store('T005', '1', '+FLAGS.SILENT', [ :group, '\Answered' ], uid: true).each
-      assert_equal('T005 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T005 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -1995,8 +2257,9 @@ Content-Type: text/html; charset=us-ascii
       assert(@mail_store.msg_flag(@inbox_id, 1, 'answered'))
 
       res = @decoder.store('T006', '1,3', '+FLAGS.SILENT', [ :group, '\Flagged' ], uid: true).each
-      assert_equal('T006 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T006 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2010,8 +2273,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T007', '1,3,5', '+FLAGS.SILENT', [ :group, '\Deleted' ], uid: true).each
-      assert_equal('T007 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T007 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2028,8 +2292,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T008', '1,3,5,7', '+FLAGS.SILENT', [ :group, '\Seen' ], uid: true).each
-      assert_equal('T008 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T008 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2050,8 +2315,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T009', '1,3,5,7,9', '+FLAGS.SILENT', [ :group, '\Draft' ], uid: true).each
-      assert_equal('T009 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T009 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2077,8 +2343,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T010', '1:*', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
-      assert_equal('T010 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T010 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2089,8 +2356,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T011', '1', '-FLAGS.SILENT', [ :group, '\Answered' ], uid: true).each
-      assert_equal('T011 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T011 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2102,8 +2370,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T012', '1,3', '-FLAGS.SILENT', [ :group, '\Flagged' ], uid: true).each
-      assert_equal('T012 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T012 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2117,8 +2386,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T013', '1,3,5', '-FLAGS.SILENT', [ :group, '\Deleted' ], uid: true).each
-      assert_equal('T013 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T013 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2135,8 +2405,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T014', '1,3,5,7', '-FLAGS.SILENT', [ :group, '\Seen' ], uid: true).each
-      assert_equal('T014 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T014 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2157,8 +2428,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.store('T015', '1,3,5,7,9', '-FLAGS.SILENT', [ :group, '\Draft' ], uid: true).each
-      assert_equal('T015 OK STORE completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T015 OK STORE completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(4, @mail_store.mbox_flags(@inbox_id, 'answered'))
@@ -2184,9 +2456,10 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
 
       res = @decoder.logout('T016').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T016 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T016 OK LOGOUT completed')
+      }
     end
 
     def test_copy
@@ -2231,29 +2504,31 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.copy('T001', '2:4', 'WORK').each
-      assert_match(/^T001 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.copy('T003', '2:4', 'WORK').each
-      assert_match(/^T003 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+      }
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
@@ -2277,8 +2552,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(0, @mail_store.mbox_flags(work_id, 'recent'))
 
       res = @decoder.copy('T005', '2:4', 'WORK').each
-      assert_equal('T005 OK COPY completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T005 OK COPY completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
@@ -2300,8 +2576,9 @@ Content-Type: text/html; charset=us-ascii
 
       # duplicted message copy
       res = @decoder.copy('T006', '2:4', 'WORK').each
-      assert_equal('T006 OK COPY completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T006 OK COPY completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
@@ -2323,8 +2600,9 @@ Content-Type: text/html; charset=us-ascii
 
       # copy of empty messge set
       res = @decoder.copy('T007', '100', 'WORK').each
-      assert_equal('T007 OK COPY completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T007 OK COPY completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
@@ -2345,13 +2623,15 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(3, @mail_store.mbox_flags(work_id, 'recent'))
 
       res = @decoder.copy('T008', '1:*', 'nobox').each
-      assert_match(/^T008 NO \[TRYCREATE\]/, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T008 NO \[TRYCREATE\]/)
+      }
 
       res = @decoder.logout('T009').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T009 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T009 OK LOGOUT completed')
+      }
     end
 
     def test_uid_copy
@@ -2396,29 +2676,31 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.copy('T001', '3,5,7', 'WORK', uid: true).each
-      assert_match(/^T001 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_equal('T002 OK LOGIN completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
       res = @decoder.copy('T003', '3,5,7', 'WORK', uid: true).each
-      assert_match(/^T003 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+      }
 
       res = @decoder.select('T004', 'INBOX').each
-      res.next while (res.peek =~ /^\* /)
-      assert_equal('T004 OK [READ-WRITE] SELECT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
@@ -2442,8 +2724,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(0, @mail_store.mbox_flags(work_id, 'recent'))
 
       res = @decoder.copy('T005', '3,5,7', 'WORK', uid: true).each
-      assert_equal('T005 OK COPY completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T005 OK COPY completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
@@ -2465,8 +2748,9 @@ Content-Type: text/html; charset=us-ascii
 
       # duplicted message copy
       res = @decoder.copy('T006', '3,5,7', 'WORK', uid: true).each
-      assert_equal('T006 OK COPY completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T006 OK COPY completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
@@ -2488,8 +2772,9 @@ Content-Type: text/html; charset=us-ascii
 
       # copy of empty messge set
       res = @decoder.copy('T007', '100', 'WORK', uid: true).each
-      assert_equal('T007 OK COPY completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.equal('T007 OK COPY completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
@@ -2510,13 +2795,15 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(3, @mail_store.mbox_flags(work_id, 'recent'))
 
       res = @decoder.copy('T008', '1:*', 'nobox', uid: true).each
-      assert_match(/^T008 NO \[TRYCREATE\]/, res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^T008 NO \[TRYCREATE\]/)
+      }
 
       res = @decoder.logout('T009').each
-      assert_match(/^\* BYE /, res.next)
-      assert_equal('T009 OK LOGOUT completed', res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T009 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_empty
