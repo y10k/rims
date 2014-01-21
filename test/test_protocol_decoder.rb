@@ -2826,14 +2826,12 @@ T002 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_equal("* BAD client command syntax error.\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T002 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('* BAD client command syntax error.')
+        a.match(/^\* BYE /)
+        a.equal('T002 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_capability
@@ -2846,15 +2844,13 @@ T002 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_equal("* CAPABILITY IMAP4rev1\r\n", res.next)
-      assert_equal("T001 OK CAPABILITY completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T002 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('* CAPABILITY IMAP4rev1')
+        a.equal('T001 OK CAPABILITY completed')
+        a.match(/^\* BYE /)
+        a.equal('T002 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_login
@@ -2868,16 +2864,13 @@ T003 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T003 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.match('T002 OK LOGIN completed')
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_select
@@ -2892,23 +2885,19 @@ T004 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_equal("* 0 EXISTS\r\n", res.next)
-      assert_equal("* 0 RECENT\r\n", res.next)
-      assert_equal("* OK [UNSEEN 0]\r\n", res.next)
-      assert_equal("* OK [UIDVALIDITY 1]\r\n", res.next)
-      assert_equal("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n", res.next)
-      assert_equal("T003 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T004 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.equal('* 0 EXISTS')
+        a.equal('* 0 RECENT')
+        a.equal('* OK [UNSEEN 0]')
+        a.equal('* OK [UIDVALIDITY 1]')
+        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        a.equal('T003 OK [READ-WRITE] SELECT completed')
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_create
@@ -2926,20 +2915,15 @@ T005 LOGOUT
       assert_not_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_equal("T003 OK CREATE completed\r\n", res.next)
-
-      assert_match(/^T004 NO /, res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T005 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.equal('T003 OK CREATE completed')
+        a.match(/^T004 NO /)
+        a.match(/^\* BYE /)
+        a.equal('T005 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_delete
@@ -2958,22 +2942,16 @@ T006 LOGOUT
       assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_equal("T003 OK DELETE completed\r\n", res.next)
-
-      assert_match(/^T004 NO /, res.next)
-
-      assert_match(/^T005 NO /, res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T006 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.equal('T003 OK DELETE completed')
+        a.match(/^T004 NO /)
+        a.match(/^T005 NO /)
+        a.match(/^\* BYE /)
+        a.equal('T006 OK LOGOUT completed')
+      }
     end
 
     def _test_command_loop_list
@@ -2994,29 +2972,22 @@ T010 LOGOUT
       assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_equal('* LIST (\Noselect) NIL ""' + "\r\n", res.next)
-      assert_equal("T003 OK LIST completed\r\n", res.next)
-
-      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"' + "\r\n", res.next)
-      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "foo"' + "\r\n", res.next)
-      assert_equal("T007 OK LIST completed\r\n", res.next)
-
-      assert_equal('* LIST (\Noinferiors \Unmarked) NIL "foo"' + "\r\n", res.next)
-      assert_equal("T008 OK LIST completed\r\n", res.next)
-
-      assert_equal('* LIST (\Noinferiors \Marked) NIL "INBOX"' + "\r\n", res.next)
-      assert_equal("T009 OK LIST completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T010 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.equal('* LIST (\Noselect) NIL ""')
+        a.equal('T003 OK LIST completed')
+        a.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
+        a.equal('T007 OK LIST completed')
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
+        a.equal('T008 OK LIST completed')
+        a.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        a.equal('T009 OK LIST completed')
+        a.match(/^\* BYE /)
+        a.equal('T010 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_status
@@ -3040,25 +3011,18 @@ T013 LOGOUT
       assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      assert_equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)\r\n", res.next)
-      assert_equal("T009 OK STATUS completed\r\n", res.next)
-
-      assert_match(/^T011 BAD /, res.next)
-
-      assert_match(/^T012 BAD /, res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T013 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
+        a.equal('T009 OK STATUS completed')
+        a.match(/^T011 BAD /)
+        a.match(/^T012 BAD /)
+        a.match(/^\* BYE /)
+        a.equal('T013 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_append
@@ -3082,34 +3046,23 @@ T012 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_equal("T003 OK APPEND completed\r\n", res.next)
-
-      assert_equal("T004 OK APPEND completed\r\n", res.next)
-
-      assert_match(/^\+ /, res.next)
-      assert_equal("T005 OK APPEND completed\r\n", res.next)
-
-      assert_equal("T006 OK APPEND completed\r\n", res.next)
-
-      assert_match(/^T007 BAD /, res.next)
-
-      assert_match(/^T008 BAD /, res.next)
-
-      assert_match(/^T009 BAD /, res.next)
-
-      assert_match(/^T010 BAD /, res.next)
-
-      assert_match(/^T011 NO \[TRYCREATE\]/, res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T012 OK LOGOUT completed\r\n", res.next)
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+        a.equal('T002 OK LOGIN completed')
+        a.equal('T003 OK APPEND completed')
+        a.equal('T004 OK APPEND completed')
+        a.match(/^\+ /)
+        a.equal('T005 OK APPEND completed')
+        a.equal('T006 OK APPEND completed')
+        a.match(/^T007 BAD /)
+        a.match(/^T008 BAD /)
+        a.match(/^T009 BAD /)
+        a.match(/^T010 BAD /)
+        a.match(/^T011 NO \[TRYCREATE\]/)
+        a.match(/^\* BYE /)
+        a.equal('T012 OK LOGOUT completed')
+      }
 
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
@@ -3163,23 +3116,17 @@ T006 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("T005 OK CHECK completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T006 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('T005 OK CHECK completed')
+        a.match(/^\* BYE /)
+        a.equal('T006 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_close
@@ -3190,7 +3137,7 @@ T002 LOGIN foo open_sesame
 T003 CLOSE
 T006 SELECT INBOX
 T007 CLOSE
-T008 LOGOUT
+T010 LOGOUT
       EOF
 
       @mail_store.add_msg(@inbox_id, 'foo')
@@ -3200,23 +3147,17 @@ T008 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T006 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("T007 OK CLOSE completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T008 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T006 OK [READ-WRITE] SELECT completed')
+        a.equal('T007 OK CLOSE completed')
+        a.match(/^\* BYE /)
+        a.equal('T010 OK LOGOUT completed')
+      }
 
       assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
     end
@@ -3253,24 +3194,18 @@ T009 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("* 2 EXPUNGE\r\n", res.next)
-      assert_equal("T007 OK EXPUNGE completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T009 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('* 2 EXPUNGE')
+        a.equal('T007 OK EXPUNGE completed')
+        a.match(/^\* BYE /)
+        a.equal('T009 OK LOGOUT completed')
+      }
 
       assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
@@ -3309,33 +3244,24 @@ T010 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("* SEARCH 1 2 3\r\n", res.next)
-      assert_equal("T006 OK SEARCH completed\r\n", res.next)
-
-      assert_equal("* SEARCH 1 3 5\r\n", res.next)
-      assert_equal("T007 OK SEARCH completed\r\n", res.next)
-
-      assert_equal("* SEARCH 1 3\r\n", res.next)
-      assert_equal("T008 OK SEARCH completed\r\n", res.next)
-
-      assert_equal("* SEARCH 1 5\r\n", res.next)
-      assert_equal("T009 OK SEARCH completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T010 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('* SEARCH 1 2 3')
+        a.equal('T006 OK SEARCH completed')
+        a.equal('* SEARCH 1 3 5')
+        a.equal('T007 OK SEARCH completed')
+        a.equal('* SEARCH 1 3')
+        a.equal('T008 OK SEARCH completed')
+        a.equal('* SEARCH 1 5')
+        a.equal('T009 OK SEARCH completed')
+        a.match(/^\* BYE /)
+        a.equal('T010 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_fetch
@@ -3453,85 +3379,93 @@ T012 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('T005 OK FETCH completed')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('T006 OK FETCH completed')
 
-      assert_match(/^T001 NO /, res.next)
+        s = ''
+        s << "To: foo@nonet.org\r\n"
+        s << "From: bar@nonet.org\r\n"
+        s << "Subject: test\r\n"
+        s << "MIME-Version: 1.0\r\n"
+        s << "Content-Type: text/plain; charset=us-ascii\r\n"
+        s << "Content-Transfer-Encoding: 7bit\r\n"
+        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+        s << "\r\n"
+        a.equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
+        s.each_line do |line|
+          a.equal(line)
+        end
+        a.equal(' UID 2)')
 
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
+        s = ''
+        s << "To: bar@nonet.com\r\n"
+        s << "From: foo@nonet.com\r\n"
+        s << "Subject: multipart test\r\n"
+        s << "MIME-Version: 1.0\r\n"
+        s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
+        s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
+        s << "\r\n"
+        a.equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
+        s.each_line do |line|
+          a.equal(line)
+        end
+        a.equal(' UID 3)')
 
-      assert_match(/^T003 NO /, res.next)
+        a.equal('T007 OK FETCH completed')
 
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
+        s = ''
+        s << "To: foo@nonet.org\r\n"
+        s << "From: bar@nonet.org\r\n"
+        s << "Subject: test\r\n"
+        s << "MIME-Version: 1.0\r\n"
+        s << "Content-Type: text/plain; charset=us-ascii\r\n"
+        s << "Content-Transfer-Encoding: 7bit\r\n"
+        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+        s << "\r\n"
+        s << "Hello world.\r\n"
+        a.equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n")
+        s.each_line do |line|
+          a.equal(line)
+        end
+        a.equal(')')
 
-      assert_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE 212)\r\n", res.next)
-      assert_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE 1616)\r\n", res.next)
-      assert_equal("T005 OK FETCH completed\r\n", res.next)
+        a.equal('T008 OK FETCH completed')
+        a.equal('* 2 FETCH (BODY[1] "Multipart test.")')
+        a.equal('T009 OK FETCH completed')
 
-      assert_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE 212)\r\n", res.next)
-      assert_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE 1616)\r\n", res.next)
-      assert_equal("T006 OK FETCH completed\r\n", res.next)
+        s = ''
+        s << "To: foo@nonet.org\r\n"
+        s << "From: bar@nonet.org\r\n"
+        s << "Subject: test\r\n"
+        s << "MIME-Version: 1.0\r\n"
+        s << "Content-Type: text/plain; charset=us-ascii\r\n"
+        s << "Content-Transfer-Encoding: 7bit\r\n"
+        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
+        s << "\r\n"
+        s << "Hello world.\r\n"
+        a.equal("* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n")
+        s.each_line do |line|
+          a.equal(line)
+        end
+        a.equal(')')
 
-      assert_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {198}\r\n", res.next)
-      assert_equal("To: foo@nonet.org\r\n", res.next)
-      assert_equal("From: bar@nonet.org\r\n", res.next)
-      assert_equal("Subject: test\r\n", res.next)
-      assert_equal("MIME-Version: 1.0\r\n", res.next)
-      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
-      assert_equal("Content-Transfer-Encoding: 7bit\r\n", res.next)
-      assert_equal("Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n", res.next)
-      assert_equal("\r\n", res.next)
-      assert_equal(" UID 2)\r\n", res.next)
-      assert_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {186}\r\n", res.next)
-      assert_equal("To: bar@nonet.com\r\n", res.next)
-      assert_equal("From: foo@nonet.com\r\n", res.next)
-      assert_equal("Subject: multipart test\r\n", res.next)
-      assert_equal("MIME-Version: 1.0\r\n", res.next)
-      assert_equal("Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n", res.next)
-      assert_equal("Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n", res.next)
-      assert_equal("\r\n", res.next)
-      assert_equal(" UID 3)\r\n", res.next)
-      assert_equal("T007 OK FETCH completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {212}\r\n", res.next)
-      assert_equal("To: foo@nonet.org\r\n", res.next)
-      assert_equal("From: bar@nonet.org\r\n", res.next)
-      assert_equal("Subject: test\r\n", res.next)
-      assert_equal("MIME-Version: 1.0\r\n", res.next)
-      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
-      assert_equal("Content-Transfer-Encoding: 7bit\r\n", res.next)
-      assert_equal("Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n", res.next)
-      assert_equal("\r\n", res.next)
-      assert_equal("Hello world.\r\n", res.next)
-      assert_equal(")\r\n", res.next)
-      assert_equal("T008 OK FETCH completed\r\n", res.next)
-
-      assert_equal("* 2 FETCH (BODY[1] \"Multipart test.\")\r\n", res.next)
-      assert_equal("T009 OK FETCH completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH (UID 2 RFC822 {212}\r\n", res.next)
-      assert_equal("To: foo@nonet.org\r\n", res.next)
-      assert_equal("From: bar@nonet.org\r\n", res.next)
-      assert_equal("Subject: test\r\n", res.next)
-      assert_equal("MIME-Version: 1.0\r\n", res.next)
-      assert_equal("Content-Type: text/plain; charset=us-ascii\r\n", res.next)
-      assert_equal("Content-Transfer-Encoding: 7bit\r\n", res.next)
-      assert_equal("Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n", res.next)
-      assert_equal("\r\n", res.next)
-      assert_equal("Hello world.\r\n", res.next)
-      assert_equal(")\r\n", res.next)
-      assert_equal("T010 OK FETCH completed\r\n", res.next)
-
-      assert_equal("* 2 FETCH (UID 3 BODY[1] \"Multipart test.\")\r\n", res.next)
-      assert_equal("T011 OK FETCH completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T012 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
-
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+        a.equal('T010 OK FETCH completed')
+        a.equal('* 2 FETCH (UID 3 BODY[1] "Multipart test.")')
+        a.equal('T011 OK FETCH completed')
+        a.match(/^\* BYE /)
+        a.equal('T012 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_store
@@ -3584,78 +3518,62 @@ T016 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Recent)\r\n", res.next)
-      assert_equal("T005 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Recent)\r\n", res.next)
-      assert_equal("T006 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Recent)\r\n", res.next)
-      assert_equal("T007 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Seen \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Seen \\Recent)\r\n", res.next)
-      assert_equal("T008 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 5 FETCH FLAGS (\\Draft \\Recent)\r\n", res.next)
-      assert_equal("T009 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 5 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T010 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T011 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T012 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T013 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T014 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Recent)\r\n", res.next)
-      assert_equal("* 5 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
-      assert_equal("T015 OK STORE completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T016 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Recent)')
+        a.equal('T005 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Recent)')
+        a.equal('T006 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Recent)')
+        a.equal('T007 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Seen \Recent)')
+        a.equal('T008 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Draft \Recent)')
+        a.equal('T009 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('T010 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('T011 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)')
+        a.equal('T012 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)')
+        a.equal('T013 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)')
+        a.equal('T014 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        a.equal('T015 OK STORE completed')
+        a.match(/^\* BYE /)
+        a.equal('T016 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_store_silent
@@ -3708,43 +3626,27 @@ T016 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("T005 OK STORE completed\r\n", res.next)
-
-      assert_equal("T006 OK STORE completed\r\n", res.next)
-
-      assert_equal("T007 OK STORE completed\r\n", res.next)
-
-      assert_equal("T008 OK STORE completed\r\n", res.next)
-
-      assert_equal("T009 OK STORE completed\r\n", res.next)
-
-      assert_equal("T010 OK STORE completed\r\n", res.next)
-
-      assert_equal("T011 OK STORE completed\r\n", res.next)
-
-      assert_equal("T012 OK STORE completed\r\n", res.next)
-
-      assert_equal("T013 OK STORE completed\r\n", res.next)
-
-      assert_equal("T014 OK STORE completed\r\n", res.next)
-
-      assert_equal("T015 OK STORE completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T016 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('T005 OK STORE completed')
+        a.equal('T006 OK STORE completed')
+        a.equal('T007 OK STORE completed')
+        a.equal('T008 OK STORE completed')
+        a.equal('T009 OK STORE completed')
+        a.equal('T010 OK STORE completed')
+        a.equal('T011 OK STORE completed')
+        a.equal('T012 OK STORE completed')
+        a.equal('T013 OK STORE completed')
+        a.equal('T014 OK STORE completed')
+        a.equal('T015 OK STORE completed')
+        a.match(/^\* BYE /)
+        a.equal('T016 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_uid_store
@@ -3797,78 +3699,62 @@ T016 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Recent)\r\n", res.next)
-      assert_equal("T005 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Recent)\r\n", res.next)
-      assert_equal("T006 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Recent)\r\n", res.next)
-      assert_equal("T007 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Seen \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Seen \\Recent)\r\n", res.next)
-      assert_equal("T008 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 5 FETCH FLAGS (\\Draft \\Recent)\r\n", res.next)
-      assert_equal("T009 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 5 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T010 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Flagged \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T011 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Deleted \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T012 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Seen \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T013 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Draft \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Draft \\Recent)\r\n", res.next)
-      assert_equal("T014 OK STORE completed\r\n", res.next)
-
-      assert_equal("* 1 FETCH FLAGS (\\Recent)\r\n", res.next)
-      assert_equal("* 2 FETCH FLAGS (\\Answered \\Recent)\r\n", res.next)
-      assert_equal("* 3 FETCH FLAGS (\\Answered \\Flagged \\Recent)\r\n", res.next)
-      assert_equal("* 4 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Recent)\r\n", res.next)
-      assert_equal("* 5 FETCH FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Recent)\r\n", res.next)
-      assert_equal("T015 OK STORE completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T016 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Recent)')
+        a.equal('T005 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Recent)')
+        a.equal('T006 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Recent)')
+        a.equal('T007 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Seen \Recent)')
+        a.equal('T008 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Draft \Recent)')
+        a.equal('T009 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('T010 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        a.equal('T011 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)')
+        a.equal('T012 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)')
+        a.equal('T013 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Draft \Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)')
+        a.equal('T014 OK STORE completed')
+        a.equal('* 1 FETCH FLAGS (\Recent)')
+        a.equal('* 2 FETCH FLAGS (\Answered \Recent)')
+        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)')
+        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        a.equal('T015 OK STORE completed')
+        a.match(/^\* BYE /)
+        a.equal('T016 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_uid_store_silent
@@ -3921,43 +3807,27 @@ T016 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("T005 OK STORE completed\r\n", res.next)
-
-      assert_equal("T006 OK STORE completed\r\n", res.next)
-
-      assert_equal("T007 OK STORE completed\r\n", res.next)
-
-      assert_equal("T008 OK STORE completed\r\n", res.next)
-
-      assert_equal("T009 OK STORE completed\r\n", res.next)
-
-      assert_equal("T010 OK STORE completed\r\n", res.next)
-
-      assert_equal("T011 OK STORE completed\r\n", res.next)
-
-      assert_equal("T012 OK STORE completed\r\n", res.next)
-
-      assert_equal("T013 OK STORE completed\r\n", res.next)
-
-      assert_equal("T014 OK STORE completed\r\n", res.next)
-
-      assert_equal("T015 OK STORE completed\r\n", res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T016 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('T005 OK STORE completed')
+        a.equal('T006 OK STORE completed')
+        a.equal('T007 OK STORE completed')
+        a.equal('T008 OK STORE completed')
+        a.equal('T009 OK STORE completed')
+        a.equal('T010 OK STORE completed')
+        a.equal('T011 OK STORE completed')
+        a.equal('T012 OK STORE completed')
+        a.equal('T013 OK STORE completed')
+        a.equal('T014 OK STORE completed')
+        a.equal('T015 OK STORE completed')
+        a.match(/^\* BYE /)
+        a.equal('T016 OK LOGOUT completed')
+      }
     end
 
     def test_command_loop_copy
@@ -4014,31 +3884,20 @@ T009 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("T005 OK COPY completed\r\n", res.next)
-
-      assert_equal("T006 OK COPY completed\r\n", res.next)
-
-      assert_equal("T007 OK COPY completed\r\n", res.next)
-
-      assert_match(/^T008 NO \[TRYCREATE\]/, res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T009 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('T005 OK COPY completed')
+        a.equal('T006 OK COPY completed')
+        a.equal('T007 OK COPY completed')
+        a.match(/^T008 NO \[TRYCREATE\]/)
+        a.match(/^\* BYE /)
+        a.equal('T009 OK LOGOUT completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
@@ -4113,31 +3972,20 @@ T009 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", res.next)
-
-      assert_match(/^T001 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-
-      assert_equal("T002 OK LOGIN completed\r\n", res.next)
-
-      assert_match(/^T003 NO /, res.peek)
-      assert_no_match(/\[TRYCREATE\]/, res.next)
-
-      res.next while (res.peek =~ /^\* /)
-      assert_equal("T004 OK [READ-WRITE] SELECT completed\r\n", res.next)
-
-      assert_equal("T005 OK COPY completed\r\n", res.next)
-
-      assert_equal("T006 OK COPY completed\r\n", res.next)
-
-      assert_equal("T007 OK COPY completed\r\n", res.next)
-
-      assert_match(/^T008 NO \[TRYCREATE\]/, res.next)
-
-      assert_match(/^\* BYE /, res.next)
-      assert_equal("T009 OK LOGOUT completed\r\n", res.next)
-
-      assert_raise(StopIteration) { res.next }
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('T005 OK COPY completed')
+        a.equal('T006 OK COPY completed')
+        a.equal('T007 OK COPY completed')
+        a.match(/^T008 NO \[TRYCREATE\]/)
+        a.match(/^\* BYE /)
+        a.equal('T009 OK LOGOUT completed')
+      }
 
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(5, @mail_store.mbox_msgs(@inbox_id))
