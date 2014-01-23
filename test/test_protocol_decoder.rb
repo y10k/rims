@@ -104,7 +104,7 @@ module RIMS::Test
       @inbox_id = @mail_store.mbox_id('INBOX')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
-      @passwd =proc{|username, password|username == 'foo' && password == 'open_sesame'}
+      @passwd = proc{|username, password|username == 'foo' && password == 'open_sesame'}
       @decoder = RIMS::Protocol::Decoder.new(@mail_store_pool, @passwd, @logger)
     end
 
@@ -918,7 +918,7 @@ module RIMS::Test
 
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
       @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
-      
+
       assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
       assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'recent'))

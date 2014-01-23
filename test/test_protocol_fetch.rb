@@ -926,7 +926,7 @@ Hello world.
       make_fetch_parser{
         add_mail_simple
         add_mail_multipart
-      } 
+      }
       fetch = @parser.parse('UID')
       assert_strenc_equal('ascii-8bit', 'UID 1', fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit', 'UID 2', fetch.call(@folder.msg_list[1]))
@@ -936,7 +936,7 @@ Hello world.
       make_fetch_parser{
         add_mail_simple
         add_mail_multipart
-      } 
+      }
       fetch = @parser.parse([ :group ])
       assert_strenc_equal('ascii-8bit', '()', fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit', '()', fetch.call(@folder.msg_list[1]))
