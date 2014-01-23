@@ -871,7 +871,19 @@ module RIMS::Test
       @mail_store.add_msg(@inbox_id, 'a')
       @mail_store.add_msg(@inbox_id, 'b')
       @mail_store.add_msg(@inbox_id, 'c')
+
+      assert_equal(3, @mail_store.mbox_msgs(@inbox_id))
       assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 3, 0, 0, 0, 0, 0 ],
+                   %w[ recent answered flagged seen draft deleted ].map{|name|
+                     @mail_store.mbox_flags(@inbox_id, name)
+                   })
+      assert_equal([ 1, 2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
+      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
+      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
+      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
+      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
+      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
 
       res = @decoder.expunge('T006').each
       assert_imap_response(res) {|a|
@@ -884,14 +896,18 @@ module RIMS::Test
       end
       @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
 
-      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(3, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(3, @mail_store.mbox_flags(@inbox_id, 'recent'))
-      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'answered'))
-      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'flagged'))
-      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'seen'))
-      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'draft'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 3, 2, 2, 2, 2, 1 ],
+                   %w[ recent answered flagged seen draft deleted ].map{|name|
+                     @mail_store.mbox_flags(@inbox_id, name)
+                   })
+      assert_equal([ 1, 2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
+      assert_equal([    2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
+      assert_equal([    2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
+      assert_equal([    2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
+      assert_equal([    2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
+      assert_equal([    2    ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
 
       res = @decoder.expunge('T007').each
       assert_imap_response(res) {|a|
@@ -899,26 +915,34 @@ module RIMS::Test
         a.equal('T007 OK EXPUNGE completed')
       }
 
-      assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'recent'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'flagged'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'seen'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'draft'))
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 2, 1, 1, 1, 1, 0 ],
+                   %w[ recent answered flagged seen draft deleted ].map{|name|
+                     @mail_store.mbox_flags(@inbox_id, name)
+                   })
+      assert_equal([ 1, 3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
+      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
+      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
+      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
+      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
+      assert_equal([      ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
 
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
       @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
 
-      assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(2, @mail_store.mbox_msgs(@inbox_id))
-      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'recent'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'answered'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'flagged'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'seen'))
-      assert_equal(1, @mail_store.mbox_flags(@inbox_id, 'draft'))
-      assert_equal(2, @mail_store.mbox_flags(@inbox_id, 'deleted'))
+      assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 2, 1, 1, 1, 1, 2 ],
+                   %w[ recent answered flagged seen draft deleted ].map{|name|
+                     @mail_store.mbox_flags(@inbox_id, name)
+                   })
+      assert_equal([ 1, 3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
+      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
+      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
+      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
+      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
+      assert_equal([ 1, 3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
 
       res = @decoder.expunge('T008').each
       assert_imap_response(res) {|a|
@@ -926,6 +950,13 @@ module RIMS::Test
         a.equal('* 2 EXPUNGE')
         a.equal('T008 OK EXPUNGE completed')
       }
+
+      assert_equal(0, @mail_store.mbox_msgs(@inbox_id))
+      assert_equal([], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 0, 0, 0, 0, 0, 0 ],
+                   %w[ recent answered flagged seen draft deleted ].map{|name|
+                     @mail_store.mbox_flags(@inbox_id, name)
+                   })
 
       res = @decoder.logout('T009').each
       assert_imap_response(res) {|a|
