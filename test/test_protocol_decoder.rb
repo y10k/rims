@@ -2972,6 +2972,11 @@ T010 LOGOUT
     end
 
     def test_command_loop_status
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.add_msg(@inbox_id, 'bar')
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 STATUS nobox (MESSAGES)
@@ -2983,13 +2988,7 @@ T012 STATUS INBOX (DETARAME)
 T013 LOGOUT
       EOF
 
-      @mail_store.add_msg(@inbox_id, 'foo')
-      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
-      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
-      @mail_store.add_msg(@inbox_id, 'bar')
-
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
       assert_imap_response(res, crlf_at_eol: true) {|a|
