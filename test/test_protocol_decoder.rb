@@ -3230,11 +3230,7 @@ T010 LOGOUT
     end
 
     def test_command_loop_fetch
-      @mail_store.add_msg(@inbox_id, '')
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
-      @mail_store.expunge_mbox(@inbox_id)
-
-      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 06:47:50 +0900'))
+      simple_mail = Mail.new(<<-'EOF')
 To: foo@nonet.org
 From: bar@nonet.org
 Subject: test
@@ -3246,7 +3242,7 @@ Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
 Hello world.
       EOF
 
-      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 19:31:03 +0900'))
+      mpart_mail = Mail.new(<<-'EOF')
 To: bar@nonet.com
 From: foo@nonet.com
 Subject: multipart test
@@ -3320,7 +3316,15 @@ Content-Type: text/html; charset=us-ascii
 --1383.905529.351297--
       EOF
 
+      @mail_store.add_msg(@inbox_id, '')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      @mail_store.expunge_mbox(@inbox_id)
+      @mail_store.add_msg(@inbox_id, simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
+      @mail_store.add_msg(@inbox_id, mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+
       assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
@@ -3338,8 +3342,6 @@ T011 UID FETCH 3 (UID BODY.PEEK[1])
 T012 LOGOUT
       EOF
 
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
 
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
@@ -3358,29 +3360,18 @@ T012 LOGOUT
         a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
         a.equal('T006 OK FETCH completed')
 
-        s = ''
-        s << "To: foo@nonet.org\r\n"
-        s << "From: bar@nonet.org\r\n"
-        s << "Subject: test\r\n"
-        s << "MIME-Version: 1.0\r\n"
-        s << "Content-Type: text/plain; charset=us-ascii\r\n"
-        s << "Content-Transfer-Encoding: 7bit\r\n"
-        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-        s << "\r\n"
+        s = simple_mail.header.raw_source
+        s += "\r\n" unless (s =~ /\r\n$/)
+        s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
         end
         a.equal(' UID 2)')
 
-        s = ''
-        s << "To: bar@nonet.com\r\n"
-        s << "From: foo@nonet.com\r\n"
-        s << "Subject: multipart test\r\n"
-        s << "MIME-Version: 1.0\r\n"
-        s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
-        s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
-        s << "\r\n"
+        s = mpart_mail.header.raw_source
+        s += "\r\n" unless (s =~ /\r\n$/)
+        s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -3389,16 +3380,7 @@ T012 LOGOUT
 
         a.equal('T007 OK FETCH completed')
 
-        s = ''
-        s << "To: foo@nonet.org\r\n"
-        s << "From: bar@nonet.org\r\n"
-        s << "Subject: test\r\n"
-        s << "MIME-Version: 1.0\r\n"
-        s << "Content-Type: text/plain; charset=us-ascii\r\n"
-        s << "Content-Transfer-Encoding: 7bit\r\n"
-        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-        s << "\r\n"
-        s << "Hello world.\r\n"
+        s = simple_mail.raw_source
         a.equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -3406,19 +3388,10 @@ T012 LOGOUT
         a.equal(')')
 
         a.equal('T008 OK FETCH completed')
-        a.equal('* 2 FETCH (BODY[1] "Multipart test.")')
+        a.equal("* 2 FETCH (BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")")
         a.equal('T009 OK FETCH completed')
 
-        s = ''
-        s << "To: foo@nonet.org\r\n"
-        s << "From: bar@nonet.org\r\n"
-        s << "Subject: test\r\n"
-        s << "MIME-Version: 1.0\r\n"
-        s << "Content-Type: text/plain; charset=us-ascii\r\n"
-        s << "Content-Transfer-Encoding: 7bit\r\n"
-        s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-        s << "\r\n"
-        s << "Hello world.\r\n"
+        s = simple_mail.raw_source
         a.equal("* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -3426,11 +3399,14 @@ T012 LOGOUT
         a.equal(')')
 
         a.equal('T010 OK FETCH completed')
-        a.equal('* 2 FETCH (UID 3 BODY[1] "Multipart test.")')
+        a.equal("* 2 FETCH (UID 3 BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")")
         a.equal('T011 OK FETCH completed')
         a.match(/^\* BYE /)
         a.equal('T012 OK LOGOUT completed')
       }
+
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
     end
 
     def test_command_loop_store
