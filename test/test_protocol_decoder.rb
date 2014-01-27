@@ -2873,6 +2873,8 @@ T004 LOGOUT
     end
 
     def test_command_loop_create
+      assert_nil(@mail_store.mbox_id('foo'))
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 CREATE foo
@@ -2882,9 +2884,7 @@ T004 CREATE inbox
 T005 LOGOUT
       EOF
 
-      assert_nil(@mail_store.mbox_id('foo'))
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      assert_not_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
       assert_imap_response(res, crlf_at_eol: true) {|a|
@@ -2896,6 +2896,8 @@ T005 LOGOUT
         a.match(/^\* BYE /)
         a.equal('T005 OK LOGOUT completed')
       }
+
+      assert_not_nil(@mail_store.mbox_id('foo'))
     end
 
     def test_command_loop_delete
