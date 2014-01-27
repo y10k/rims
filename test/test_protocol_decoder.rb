@@ -3087,6 +3087,10 @@ T006 LOGOUT
     end
 
     def test_command_loop_close
+      @mail_store.add_msg(@inbox_id, 'foo')
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 CLOSE
@@ -3096,10 +3100,6 @@ T006 SELECT INBOX
 T007 CLOSE
 T010 LOGOUT
       EOF
-
-      @mail_store.add_msg(@inbox_id, 'foo')
-      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
 
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
