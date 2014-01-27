@@ -3639,15 +3639,19 @@ T016 LOGOUT
           @mail_store.set_msg_flag(@inbox_id, msg_id, 'deleted', true)
         end
       end
-
       @mail_store.expunge_mbox(@inbox_id)
+
       assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_id(@inbox_id).to_a)
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'answered'))
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'flagged'))
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'deleted'))
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'seen'))
-      assert_equal(0, @mail_store.mbox_flags(@inbox_id, 'draft'))
-      assert_equal(5, @mail_store.mbox_flags(@inbox_id, 'recent'))
+      assert_equal([ 0, 0, 0, 0, 0, 5 ],
+                   %w[ answered flagged deleted seen draft recent ].map{|name|
+                     @mail_store.mbox_flags(@inbox_id, name)
+                   })
+      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
+      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
+      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
+      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
+      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
+      assert_equal([ 1, 3, 5, 7, 9 ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
 
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
@@ -3728,6 +3732,18 @@ T016 LOGOUT
         a.match(/^\* BYE /)
         a.equal('T016 OK LOGOUT completed')
       }
+
+      assert_equal([ 1, 3, 5,      ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 2, 1, 0, 0, 0, 0 ],
+                   %w[ answered flagged deleted seen draft recent ].map{|name|
+                     @mail_store.mbox_flags(@inbox_id, name)
+                   })
+      assert_equal([    3, 5,      ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
+      assert_equal([       5,      ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
+      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') }) # expunge by LOGOUT
+      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
+      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
+      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') }) # clear by LOGOUT
     end
 
     def test_command_loop_uid_store_silent
