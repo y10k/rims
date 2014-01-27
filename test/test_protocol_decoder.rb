@@ -3183,6 +3183,16 @@ T009 LOGOUT
     end
 
     def test_command_loop_search
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\napple")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\nbnana")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\norange")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\nmelon")
+      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\npineapple")
+      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
+      @mail_store.set_msg_flag(@inbox_id, 4, 'deleted', true)
+      @mail_store.expunge_mbox(@inbox_id)
+      assert_equal([ 1, 3, 5 ], @mail_store.each_msg_id(@inbox_id).to_a)
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 SEARCH ALL
@@ -3195,16 +3205,6 @@ T008 SEARCH OR FROM alice FROM bob BODY apple
 T009 UID SEARCH OR FROM alice FROM bob BODY apple
 T010 LOGOUT
       EOF
-
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\napple")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\nbnana")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\norange")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\nmelon")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\npineapple")
-      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
-      @mail_store.set_msg_flag(@inbox_id, 4, 'deleted', true)
-      @mail_store.expunge_mbox(@inbox_id)
-      assert_equal([ 1, 3, 5 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
