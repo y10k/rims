@@ -3045,40 +3045,17 @@ T012 LOGOUT
       }
 
       assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
-
       assert_equal('a', @mail_store.msg_text(@inbox_id, 1))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
-
       assert_equal('b', @mail_store.msg_text(@inbox_id, 2))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
-
       assert_equal('c', @mail_store.msg_text(@inbox_id, 3))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'flagged'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'deleted'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'draft'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'recent'))
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 3))
-
-      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal('d', @mail_store.msg_text(@inbox_id, 4))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'answered'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'flagged'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'deleted'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'seen'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'draft'))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 4, 'recent'))
+      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
+      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
+      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
+      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
+      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
+      assert_equal([ 1, 2, 3, 4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 3))
       assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 4))
     end
 
