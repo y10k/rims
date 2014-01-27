@@ -2935,22 +2935,22 @@ T006 LOGOUT
       assert_nil(@mail_store.mbox_id('bar'))
     end
 
-    def _test_command_loop_list
+    def test_command_loop_list
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_mbox('foo')
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 LIST "" ""
 T002 LOGIN foo open_sesame
 T003 LIST "" ""
 T007 LIST "" *
-T008 LIST '' f*
+T008 LIST "" f*
 T009 LIST IN *
 T010 LOGOUT
       EOF
 
-      @mail_store.add_msg(@inbox_id, 'foo')
-      @mail_store.add_mbox('foo')
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
       assert_imap_response(res, crlf_at_eol: true) {|a|
