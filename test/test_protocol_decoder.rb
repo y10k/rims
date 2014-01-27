@@ -2901,6 +2901,11 @@ T005 LOGOUT
     end
 
     def test_command_loop_delete
+      @mail_store.add_mbox('foo')
+      assert_not_nil(@mail_store.mbox_id('inbox'))
+      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('bar'))
+
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF', 'r')
 T001 DELETE foo
@@ -2911,9 +2916,7 @@ T005 DELETE inbox
 T006 LOGOUT
       EOF
 
-      @mail_store.add_mbox('foo')
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      assert_nil(@mail_store.mbox_id('foo'))
       res = output.string.each_line
 
       assert_imap_response(res, crlf_at_eol: true) {|a|
@@ -2926,6 +2929,10 @@ T006 LOGOUT
         a.match(/^\* BYE /)
         a.equal('T006 OK LOGOUT completed')
       }
+
+      assert_not_nil(@mail_store.mbox_id('inbox'))
+      assert_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('bar'))
     end
 
     def _test_command_loop_list
