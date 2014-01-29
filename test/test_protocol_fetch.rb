@@ -793,7 +793,7 @@ Hello world.
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 
-    def test_parse_rfc822_sie
+    def test_parse_rfc822_size
       make_fetch_parser{
         add_mail_simple
       }
