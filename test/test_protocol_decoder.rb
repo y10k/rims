@@ -115,6 +115,102 @@ module RIMS::Test
       assert(@mail_store_pool.empty?)
     end
 
+    def mail_store_add_mail_simple
+      @simple_mail = Mail.new(<<-'EOF')
+To: foo@nonet.org
+From: bar@nonet.org
+Subject: test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
+
+Hello world.
+      EOF
+
+      @mail_store.add_msg(@inbox_id, @simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
+    end
+    private :mail_store_add_mail_simple
+
+    def mail_store_add_mail_multipart
+      @mpart_mail = Mail.new(<<-'EOF')
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: multipart test
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351297"
+
+--1383.905529.351297
+Content-Type: text/plain; charset=us-ascii
+
+Multipart test.
+--1383.905529.351297
+Content-Type: application/octet-stream
+
+0123456789
+--1383.905529.351297
+Content-Type: message/rfc822
+
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351298"
+
+--1383.905529.351298
+Content-Type: text/plain; charset=us-ascii
+
+Hello world.
+--1383.905529.351298
+Content-Type: application/octet-stream
+
+9876543210
+--1383.905529.351298--
+--1383.905529.351297
+Content-Type: multipart/mixed; boundary="1383.905529.351299"
+
+--1383.905529.351299
+Content-Type: image/gif
+
+--1383.905529.351299
+Content-Type: message/rfc822
+
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351300"
+
+--1383.905529.351300
+Content-Type: text/plain; charset=us-ascii
+
+HALO
+--1383.905529.351300
+Content-Type: multipart/alternative; boundary="1383.905529.351301"
+
+--1383.905529.351301
+Content-Type: text/plain; charset=us-ascii
+
+alternative message.
+--1383.905529.351301
+Content-Type: text/html; charset=us-ascii
+
+<html>
+<body><p>HTML message</p></body>
+</html>
+--1383.905529.351301--
+--1383.905529.351300--
+--1383.905529.351299--
+--1383.905529.351297--
+      EOF
+
+      @mail_store.add_msg(@inbox_id, @mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+    end
+    private :mail_store_add_mail_simple
+
     def test_capability
       res = @decoder.capability('T001').each
       assert_imap_response(res) {|a|
@@ -1280,97 +1376,11 @@ module RIMS::Test
     end
 
     def test_fetch
-      simple_mail = Mail.new(<<-'EOF')
-To: foo@nonet.org
-From: bar@nonet.org
-Subject: test
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
-
-Hello world.
-      EOF
-
-      mpart_mail = Mail.new(<<-'EOF')
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: multipart test
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351297"
-
---1383.905529.351297
-Content-Type: text/plain; charset=us-ascii
-
-Multipart test.
---1383.905529.351297
-Content-Type: application/octet-stream
-
-0123456789
---1383.905529.351297
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351298"
-
---1383.905529.351298
-Content-Type: text/plain; charset=us-ascii
-
-Hello world.
---1383.905529.351298
-Content-Type: application/octet-stream
-
-9876543210
---1383.905529.351298--
---1383.905529.351297
-Content-Type: multipart/mixed; boundary="1383.905529.351299"
-
---1383.905529.351299
-Content-Type: image/gif
-
---1383.905529.351299
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351300"
-
---1383.905529.351300
-Content-Type: text/plain; charset=us-ascii
-
-HALO
---1383.905529.351300
-Content-Type: multipart/alternative; boundary="1383.905529.351301"
-
---1383.905529.351301
-Content-Type: text/plain; charset=us-ascii
-
-alternative message.
---1383.905529.351301
-Content-Type: text/html; charset=us-ascii
-
-<html>
-<body><p>HTML message</p></body>
-</html>
---1383.905529.351301--
---1383.905529.351300--
---1383.905529.351299--
---1383.905529.351297--
-      EOF
-
       @mail_store.add_msg(@inbox_id, '')
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
       @mail_store.expunge_mbox(@inbox_id)
-      @mail_store.add_msg(@inbox_id, simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
-      @mail_store.add_msg(@inbox_id, mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+      mail_store_add_mail_simple
+      mail_store_add_mail_multipart
 
       assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
@@ -1406,26 +1416,26 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.fetch('T005', '1:*', 'FAST').each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{mpart_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
         a.equal('T005 OK FETCH completed')
       }
 
       res = @decoder.fetch('T006', '1:*', [ :group, 'FAST' ]).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{mpart_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
         a.equal('T006 OK FETCH completed')
       }
 
       res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]).each
       assert_imap_response(res) {|a|
-        s = simple_mail.header.raw_source
+        s = @simple_mail.header.raw_source
         s += "\r\n" unless (s =~ /\r\n$/)
         s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)".b)
 
-        s = mpart_mail.header.raw_source
+        s = @mpart_mail.header.raw_source
         s += "\r\n" unless (s =~ /\r\n$/)
         s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)".b)
@@ -1438,7 +1448,7 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.fetch('T008', '1', 'RFC822').each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{simple_mail.raw_source.bytesize}}\r\n#{simple_mail.raw_source})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{@simple_mail.raw_source.bytesize}}\r\n#{@simple_mail.raw_source})".b)
         a.equal('T008 OK FETCH completed')
       }
 
@@ -1448,7 +1458,7 @@ Content-Type: text/html; charset=us-ascii
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T009', '2', [ :body, body ]).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 2 FETCH (BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")".b)
+        a.strenc_equal("* 2 FETCH (BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")".b)
         a.equal('T009 OK FETCH completed')
       }
 
@@ -1457,7 +1467,7 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.fetch('T010', '2', 'RFC822', uid: true).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (UID 2 RFC822 {#{simple_mail.raw_source.bytesize}}\r\n#{simple_mail.raw_source})".b)
+        a.strenc_equal("* 1 FETCH (UID 2 RFC822 {#{@simple_mail.raw_source.bytesize}}\r\n#{@simple_mail.raw_source})".b)
         a.equal('T010 OK FETCH completed')
       }
 
@@ -1467,7 +1477,7 @@ Content-Type: text/html; charset=us-ascii
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T011', '3', [ :group, 'UID', [ :body, body ] ], uid: true).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 2 FETCH (UID 3 BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")".b)
+        a.strenc_equal("* 2 FETCH (UID 3 BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")".b)
         a.equal('T011 OK FETCH completed')
       }
 
@@ -1482,97 +1492,11 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_fetch_read_only
-      simple_mail = Mail.new(<<-'EOF')
-To: foo@nonet.org
-From: bar@nonet.org
-Subject: test
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
-
-Hello world.
-      EOF
-
-      mpart_mail = Mail.new(<<-'EOF')
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: multipart test
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351297"
-
---1383.905529.351297
-Content-Type: text/plain; charset=us-ascii
-
-Multipart test.
---1383.905529.351297
-Content-Type: application/octet-stream
-
-0123456789
---1383.905529.351297
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351298"
-
---1383.905529.351298
-Content-Type: text/plain; charset=us-ascii
-
-Hello world.
---1383.905529.351298
-Content-Type: application/octet-stream
-
-9876543210
---1383.905529.351298--
---1383.905529.351297
-Content-Type: multipart/mixed; boundary="1383.905529.351299"
-
---1383.905529.351299
-Content-Type: image/gif
-
---1383.905529.351299
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351300"
-
---1383.905529.351300
-Content-Type: text/plain; charset=us-ascii
-
-HALO
---1383.905529.351300
-Content-Type: multipart/alternative; boundary="1383.905529.351301"
-
---1383.905529.351301
-Content-Type: text/plain; charset=us-ascii
-
-alternative message.
---1383.905529.351301
-Content-Type: text/html; charset=us-ascii
-
-<html>
-<body><p>HTML message</p></body>
-</html>
---1383.905529.351301--
---1383.905529.351300--
---1383.905529.351299--
---1383.905529.351297--
-      EOF
-
       @mail_store.add_msg(@inbox_id, '')
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
       @mail_store.expunge_mbox(@inbox_id)
-      @mail_store.add_msg(@inbox_id, simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
-      @mail_store.add_msg(@inbox_id, mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+      mail_store_add_mail_simple
+      mail_store_add_mail_multipart
 
       assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
@@ -1608,26 +1532,26 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.fetch('T005', '1:*', 'FAST').each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{mpart_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
         a.equal('T005 OK FETCH completed')
       }
 
       res = @decoder.fetch('T006', '1:*', [ :group, 'FAST' ]).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{mpart_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
         a.equal('T006 OK FETCH completed')
       }
 
       res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]).each
       assert_imap_response(res) {|a|
-        s = simple_mail.header.raw_source
+        s = @simple_mail.header.raw_source
         s += "\r\n" unless (s =~ /\r\n$/)
         s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)".b)
 
-        s = mpart_mail.header.raw_source
+        s = @mpart_mail.header.raw_source
         s += "\r\n" unless (s =~ /\r\n$/)
         s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)".b)
@@ -1640,7 +1564,7 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.fetch('T008', '1', 'RFC822').each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (RFC822 {#{simple_mail.raw_source.bytesize}}\r\n#{simple_mail.raw_source})".b)
+        a.strenc_equal("* 1 FETCH (RFC822 {#{@simple_mail.raw_source.bytesize}}\r\n#{@simple_mail.raw_source})".b)
         a.equal('T008 OK FETCH completed')
       }
 
@@ -1650,7 +1574,7 @@ Content-Type: text/html; charset=us-ascii
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T009', '2', [ :body, body ]).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 2 FETCH (BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")".b)
+        a.strenc_equal("* 2 FETCH (BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")".b)
         a.equal('T009 OK FETCH completed')
       }
 
@@ -1659,7 +1583,7 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.fetch('T010', '2', 'RFC822', uid: true).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (UID 2 RFC822 {#{simple_mail.raw_source.bytesize}}\r\n#{simple_mail.raw_source})".b)
+        a.strenc_equal("* 1 FETCH (UID 2 RFC822 {#{@simple_mail.raw_source.bytesize}}\r\n#{@simple_mail.raw_source})".b)
         a.equal('T010 OK FETCH completed')
       }
 
@@ -1669,7 +1593,7 @@ Content-Type: text/html; charset=us-ascii
       body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
       res = @decoder.fetch('T011', '3', [ :group, 'UID', [ :body, body ] ], uid: true).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 2 FETCH (UID 3 BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")".b)
+        a.strenc_equal("* 2 FETCH (UID 3 BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")".b)
         a.equal('T011 OK FETCH completed')
       }
 
@@ -3904,97 +3828,11 @@ T010 LOGOUT
     end
 
     def test_command_loop_fetch
-      simple_mail = Mail.new(<<-'EOF')
-To: foo@nonet.org
-From: bar@nonet.org
-Subject: test
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
-
-Hello world.
-      EOF
-
-      mpart_mail = Mail.new(<<-'EOF')
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: multipart test
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351297"
-
---1383.905529.351297
-Content-Type: text/plain; charset=us-ascii
-
-Multipart test.
---1383.905529.351297
-Content-Type: application/octet-stream
-
-0123456789
---1383.905529.351297
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351298"
-
---1383.905529.351298
-Content-Type: text/plain; charset=us-ascii
-
-Hello world.
---1383.905529.351298
-Content-Type: application/octet-stream
-
-9876543210
---1383.905529.351298--
---1383.905529.351297
-Content-Type: multipart/mixed; boundary="1383.905529.351299"
-
---1383.905529.351299
-Content-Type: image/gif
-
---1383.905529.351299
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351300"
-
---1383.905529.351300
-Content-Type: text/plain; charset=us-ascii
-
-HALO
---1383.905529.351300
-Content-Type: multipart/alternative; boundary="1383.905529.351301"
-
---1383.905529.351301
-Content-Type: text/plain; charset=us-ascii
-
-alternative message.
---1383.905529.351301
-Content-Type: text/html; charset=us-ascii
-
-<html>
-<body><p>HTML message</p></body>
-</html>
---1383.905529.351301--
---1383.905529.351300--
---1383.905529.351299--
---1383.905529.351297--
-      EOF
-
       @mail_store.add_msg(@inbox_id, '')
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
       @mail_store.expunge_mbox(@inbox_id)
-      @mail_store.add_msg(@inbox_id, simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
-      @mail_store.add_msg(@inbox_id, mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+      mail_store_add_mail_simple
+      mail_store_add_mail_multipart
 
       assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
@@ -4034,7 +3872,7 @@ T012 LOGOUT
         a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
         a.equal('T006 OK FETCH completed')
 
-        s = simple_mail.header.raw_source
+        s = @simple_mail.header.raw_source
         s += "\r\n" unless (s =~ /\r\n$/)
         s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
@@ -4043,7 +3881,7 @@ T012 LOGOUT
         end
         a.equal(' UID 2)')
 
-        s = mpart_mail.header.raw_source
+        s = @mpart_mail.header.raw_source
         s += "\r\n" unless (s =~ /\r\n$/)
         s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
@@ -4054,7 +3892,7 @@ T012 LOGOUT
 
         a.equal('T007 OK FETCH completed')
 
-        s = simple_mail.raw_source
+        s = @simple_mail.raw_source
         a.equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -4062,10 +3900,10 @@ T012 LOGOUT
         a.equal(')')
 
         a.equal('T008 OK FETCH completed')
-        a.equal("* 2 FETCH (BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")")
+        a.equal("* 2 FETCH (BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")")
         a.equal('T009 OK FETCH completed')
 
-        s = simple_mail.raw_source
+        s = @simple_mail.raw_source
         a.equal("* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -4073,7 +3911,7 @@ T012 LOGOUT
         a.equal(')')
 
         a.equal('T010 OK FETCH completed')
-        a.equal("* 2 FETCH (UID 3 BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")")
+        a.equal("* 2 FETCH (UID 3 BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")")
         a.equal('T011 OK FETCH completed')
         a.match(/^\* BYE /)
         a.equal('T012 OK LOGOUT completed')
@@ -4084,97 +3922,11 @@ T012 LOGOUT
     end
 
     def test_command_loop_fetch_read_only
-      simple_mail = Mail.new(<<-'EOF')
-To: foo@nonet.org
-From: bar@nonet.org
-Subject: test
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
-
-Hello world.
-      EOF
-
-      mpart_mail = Mail.new(<<-'EOF')
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: multipart test
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351297"
-
---1383.905529.351297
-Content-Type: text/plain; charset=us-ascii
-
-Multipart test.
---1383.905529.351297
-Content-Type: application/octet-stream
-
-0123456789
---1383.905529.351297
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351298"
-
---1383.905529.351298
-Content-Type: text/plain; charset=us-ascii
-
-Hello world.
---1383.905529.351298
-Content-Type: application/octet-stream
-
-9876543210
---1383.905529.351298--
---1383.905529.351297
-Content-Type: multipart/mixed; boundary="1383.905529.351299"
-
---1383.905529.351299
-Content-Type: image/gif
-
---1383.905529.351299
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351300"
-
---1383.905529.351300
-Content-Type: text/plain; charset=us-ascii
-
-HALO
---1383.905529.351300
-Content-Type: multipart/alternative; boundary="1383.905529.351301"
-
---1383.905529.351301
-Content-Type: text/plain; charset=us-ascii
-
-alternative message.
---1383.905529.351301
-Content-Type: text/html; charset=us-ascii
-
-<html>
-<body><p>HTML message</p></body>
-</html>
---1383.905529.351301--
---1383.905529.351300--
---1383.905529.351299--
---1383.905529.351297--
-      EOF
-
       @mail_store.add_msg(@inbox_id, '')
       @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
       @mail_store.expunge_mbox(@inbox_id)
-      @mail_store.add_msg(@inbox_id, simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
-      @mail_store.add_msg(@inbox_id, mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+      mail_store_add_mail_simple
+      mail_store_add_mail_multipart
 
       assert_equal([ 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
       assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
@@ -4214,7 +3966,7 @@ T012 LOGOUT
         a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
         a.equal('T006 OK FETCH completed')
 
-        s = simple_mail.header.raw_source
+        s = @simple_mail.header.raw_source
         s += "\r\n" unless (s =~ /\r\n$/)
         s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
@@ -4223,7 +3975,7 @@ T012 LOGOUT
         end
         a.equal(' UID 2)')
 
-        s = mpart_mail.header.raw_source
+        s = @mpart_mail.header.raw_source
         s += "\r\n" unless (s =~ /\r\n$/)
         s += "\r\n" unless (s =~ /\r\n\r\n$/)
         a.equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
@@ -4234,7 +3986,7 @@ T012 LOGOUT
 
         a.equal('T007 OK FETCH completed')
 
-        s = simple_mail.raw_source
+        s = @simple_mail.raw_source
         a.equal("* 1 FETCH (RFC822 {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -4242,10 +3994,10 @@ T012 LOGOUT
         a.equal(')')
 
         a.equal('T008 OK FETCH completed')
-        a.equal("* 2 FETCH (BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")")
+        a.equal("* 2 FETCH (BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")")
         a.equal('T009 OK FETCH completed')
 
-        s = simple_mail.raw_source
+        s = @simple_mail.raw_source
         a.equal("* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -4253,7 +4005,7 @@ T012 LOGOUT
         a.equal(')')
 
         a.equal('T010 OK FETCH completed')
-        a.equal("* 2 FETCH (UID 3 BODY[1] \"#{mpart_mail.parts[0].body.raw_source}\")")
+        a.equal("* 2 FETCH (UID 3 BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")")
         a.equal('T011 OK FETCH completed')
         a.match(/^\* BYE /)
         a.equal('T012 OK LOGOUT completed')
