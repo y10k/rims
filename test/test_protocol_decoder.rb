@@ -2745,6 +2745,118 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
+    def test_store_read_only
+      @mail_store.add_msg(@inbox_id, '')
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ false, false, false, false, false, true ],
+                   %w[ answered flagged deleted seen draft recent ].map{|name|
+                     @mail_store.msg_flag(@inbox_id, 1, name)
+                   })
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.store('T001', '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
+      assert_imap_response(res) {|a|
+        a.match(/^T001 NO /)
+      }
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.store('T003', '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
+      assert_imap_response(res) {|a|
+        a.match(/^T003 NO /)
+      }
+
+      res = @decoder.examine('T004', 'INBOX').each
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-ONLY] EXAMINE completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.store('T005', '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
+      assert_imap_response(res) {|a|
+        a.match(/^T005 NO /)
+      }
+
+      res = @decoder.store('T006', '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted',  '\Seen','\Draft' ]).each
+      assert_imap_response(res) {|a|
+        a.match(/^T006 NO /)
+      }
+
+      res = @decoder.store('T007', '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
+      assert_imap_response(res) {|a|
+        a.match(/^T007 NO /)
+      }
+
+      res = @decoder.store('T008', '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
+      assert_imap_response(res) {|a|
+        a.match(/^T008 NO /)
+      }
+
+      res = @decoder.store('T009', '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
+      assert_imap_response(res) {|a|
+        a.match(/^T009 NO /)
+      }
+
+      res = @decoder.store('T010', '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
+      assert_imap_response(res) {|a|
+        a.match(/^T010 NO /)
+      }
+
+      res = @decoder.store('T011', '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
+      assert_imap_response(res) {|a|
+        a.match(/^T011 NO /)
+      }
+
+      res = @decoder.store('T012', '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
+      assert_imap_response(res) {|a|
+        a.match(/^T012 NO /)
+      }
+
+      res = @decoder.store('T013', '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
+      assert_imap_response(res) {|a|
+        a.match(/^T013 NO /)
+      }
+
+      res = @decoder.store('T014', '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
+      assert_imap_response(res) {|a|
+        a.match(/^T014 NO /)
+      }
+
+      res = @decoder.store('T015', '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
+      assert_imap_response(res) {|a|
+        a.match(/^T015 NO /)
+      }
+
+      res = @decoder.store('T016', '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
+      assert_imap_response(res) {|a|
+        a.match(/^T016 NO /)
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ false, false, false, false, false, true ],
+                   %w[ answered flagged deleted seen draft recent ].map{|name|
+                     @mail_store.msg_flag(@inbox_id, 1, name)
+                   })
+
+      res = @decoder.logout('T017').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T017 OK LOGOUT completed')
+      }
+    end
+
     def test_copy
       msg_src = Enumerator.new{|y|
         s = 'a'
@@ -4439,6 +4551,69 @@ T016 LOGOUT
       assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
       assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
       assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') }) # clear by LOGOUT
+    end
+
+    def test_command_loop_store_read_only
+      @mail_store.add_msg(@inbox_id, '')
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ false, false, false, false, false, true ],
+                   %w[ answered flagged deleted seen draft recent ].map{|name|
+                     @mail_store.msg_flag(@inbox_id, 1, name)
+                   })
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T002 LOGIN foo open_sesame
+T003 STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T004 EXAMINE INBOX
+T005 STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T006 STORE 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T007 STORE 1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T008 STORE 1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+T009 STORE 1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+T010 STORE 1 0FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+T011 UID STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T012 UID STORE 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T013 UID STORE 1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+T014 UID STORE 1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+T015 UID STORE 1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+T016 UID STORE 1 -FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+T017 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.match(/^T003 NO /)
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T004 OK [READ-ONLY] EXAMINE completed')
+        a.match(/^T005 NO /)
+        a.match(/^T006 NO /)
+        a.match(/^T007 NO /)
+        a.match(/^T008 NO /)
+        a.match(/^T009 NO /)
+        a.match(/^T010 NO /)
+        a.match(/^T011 NO /)
+        a.match(/^T012 NO /)
+        a.match(/^T013 NO /)
+        a.match(/^T014 NO /)
+        a.match(/^T015 NO /)
+        a.match(/^T016 NO /)
+        a.match(/^\* BYE /)
+        a.equal('T017 OK LOGOUT completed')
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ false, false, false, false, false, true ],
+                   %w[ answered flagged deleted seen draft recent ].map{|name|
+                     @mail_store.msg_flag(@inbox_id, 1, name)
+                   })
     end
 
     def test_command_loop_copy

@@ -1417,6 +1417,7 @@ module RIMS
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
         protect_select(tag) {
+          return [ "#{tag} NO cannot store in read-only mode" ] if @folder.read_only?
           @folder.reload if @folder.updated?
 
           res = []
