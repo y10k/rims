@@ -2,6 +2,7 @@
 
 require 'logger'
 require 'rims'
+require 'set'
 require 'stringio'
 require 'test/unit'
 require 'time'
@@ -32,7 +33,7 @@ module RIMS::Test
     private :make_fetch_parser
 
     def add_mail_simple
-      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 06:47:50 +0900'))
+      @simple_mail = Mail.new(<<-'EOF')
 To: foo@nonet.org
 From: bar@nonet.org
 Subject: test
@@ -43,11 +44,12 @@ Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
 
 Hello world.
       EOF
+      @mail_store.add_msg(@inbox_id, @simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
     end
     private :add_mail_simple
 
     def add_mail_multipart
-      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 19:31:03 +0900'))
+      @mpart_mail = Mail.new(<<-'EOF')
 To: bar@nonet.com
 From: foo@nonet.com
 Subject: multipart test
@@ -120,11 +122,12 @@ Content-Type: text/html; charset=us-ascii
 --1383.905529.351299--
 --1383.905529.351297--
       EOF
+      @mail_store.add_msg(@inbox_id, @mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
     end
     private :add_mail_multipart
 
     def add_mail_mime_subject
-      @mail_store.add_msg(@inbox_id, <<-'EOF', Time.parse('2013-11-08 19:31:03 +0900'))
+      @mime_subject_mail = Mail.new(<<-'EOF')
 Date: Fri, 8 Nov 2013 19:31:03 +0900
 Subject: =?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?=
 From: foo@nonet.com, bar <bar@nonet.com>
@@ -138,6 +141,7 @@ Message-Id: <20131107214750.445A1255B9F@smtp.nonet.com>
 
 Hello world.
       EOF
+      @mail_store.add_msg(@inbox_id, @mime_subject_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
     end
     private :add_mail_mime_subject
 
@@ -202,16 +206,7 @@ Hello world.
       }
 
       fetch = @parser.parse(make_body('BODY[]'))
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
-      s << "Hello world.\r\n"
+      s = @simple_mail.raw_source
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
@@ -219,28 +214,17 @@ Hello world.
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
 
       fetch = @parser.parse(make_body('BODY[TEXT]'))
-      s = "Hello world.\r\n"
+      s = @simple_mail.body.raw_source
       assert_strenc_equal('ascii-8bit', "BODY[TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
 
       fetch = @parser.parse(make_body('BODY[HEADER]'))
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
+      s = @simple_mail.header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_strenc_equal('ascii-8bit', "BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "To: bar@nonet.com\r\n"
-      s << "From: foo@nonet.com\r\n"
-      s << "Subject: multipart test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
-      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
-      s << "\r\n"
+      s = @mpart_mail.header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
@@ -248,114 +232,68 @@ Hello world.
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
 
       fetch = @parser.parse(make_body('BODY[HEADER.FIELDS (From To)]'))
-      s = ''
-      s << "From: bar@nonet.org\r\n"
-      s << "To: foo@nonet.org\r\n"
-      s << "\r\n"
+      s = %w[ From To ].map{|n| "#{n}: #{@simple_mail[n].value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "From: foo@nonet.com\r\n"
-      s << "To: bar@nonet.com\r\n"
-      s << "\r\n"
+      s = %w[ From To ].map{|n| "#{n}: #{@mpart_mail[n].value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[HEADER.FIELDS.NOT (From To Subject)]'))
-      s = ''
-      s << "Date: Fri, 08 Nov 2013 06:47:50 +0900\r\n"
-      s << "Mime-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "\r\n"
+      not_fields = %w[ from to subject ].to_set
+      s = @simple_mail.header.reject{|i| not_fields.include? i.name.downcase }.map{|i| "#{i.name}: #{i.value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "Date: Fri, 08 Nov 2013 19:31:03 +0900\r\n"
-      s << "Mime-Version: 1.0\r\n"
-      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351297\"\r\n"
-      s << "\r\n"
+      s = @mpart_mail.header.reject{|i| not_fields.include? i.name.downcase }.map{|i| "#{i.name}: #{i.value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1]'))
-      s = ''
-      s << "Hello world.\r\n"
+      s = @simple_mail.body.raw_source
       assert_strenc_equal('ascii-8bit', "BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[1] "Multipart test."', fetch.call(@folder.msg_list[1]))
+      s = @mpart_mail.parts[0].body.raw_source
+      assert_strenc_equal('ascii-8bit', %Q'BODY[1] "#{s}"', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3]'))
       assert_strenc_equal('ascii-8bit', "BODY[3] NIL", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "To: bar@nonet.com\r\n"
-      s << "From: foo@nonet.com\r\n"
-      s << "Subject: inner multipart\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
-      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351298\"\r\n"
-      s << "\r\n"
-      s << "--1383.905529.351298\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
-      s << "Hello world.\r\n"
-      s << "--1383.905529.351298\r\n"
-      s << "Content-Type: application/octet-stream\r\n"
-      s << "\r\n"
-      s << "9876543210\r\n"
-      s << "--1383.905529.351298--"
+      s = @mpart_mail.parts[2].body.raw_source
       assert_strenc_equal('ascii-8bit', "BODY[3] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1]'))
       assert_strenc_equal('ascii-8bit', "BODY[3.1] NIL", fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1] "Hello world."', fetch.call(@folder.msg_list[1]))
+      s = Mail.new(@mpart_mail.parts[2].body.raw_source).parts[0].body.raw_source
+      assert_strenc_equal('ascii-8bit', %Q'BODY[3.1] "#{s}"', fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2]'))
       assert_strenc_equal('ascii-8bit', "BODY[4.2.2] NIL", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "--1383.905529.351301\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
-      s << "alternative message.\r\n"
-      s << "--1383.905529.351301\r\n"
-      s << "Content-Type: text/html; charset=us-ascii\r\n"
-      s << "\r\n"
-      s << "<html>\r\n"
-      s << "<body><p>HTML message</p></body>\r\n"
-      s << "</html>\r\n"
-      s << "--1383.905529.351301--"
+      s = Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].body.raw_source
       assert_strenc_equal('ascii-8bit', "BODY[4.2.2] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.MIME]'))
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
+      s = @simple_mail.header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_strenc_equal('ascii-8bit', "BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
+      s = @mpart_mail.parts[0].header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_strenc_equal('ascii-8bit', "BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.MIME]'))
       assert_strenc_equal('ascii-8bit', 'BODY[3.MIME] NIL', fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "Content-Type: message/rfc822\r\n"
-      s << "\r\n"
+      s = @mpart_mail.parts[2].header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_strenc_equal('ascii-8bit', "BODY[3.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.MIME]'))
       assert_strenc_equal('ascii-8bit', 'BODY[3.1.MIME] NIL', fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
+      s = Mail.new(@mpart_mail.parts[2].body.raw_source).parts[0].header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_strenc_equal('ascii-8bit', "BODY[3.1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[4.2.2.MIME]'))
       assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.MIME] NIL', fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "Content-Type: multipart/alternative; boundary=\"1383.905529.351301\"\r\n"
-      s << "\r\n"
+      s = Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_strenc_equal('ascii-8bit', "BODY[4.2.2.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.TEXT]'))
@@ -364,25 +302,17 @@ Hello world.
 
       fetch = @parser.parse(make_body('BODY[3.TEXT]'))
       assert_strenc_equal('ascii-8bit', "BODY[3.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "--1383.905529.351298\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "\r\n"
-      s << "Hello world.\r\n"
-      s << "--1383.905529.351298\r\n"
-      s << "Content-Type: application/octet-stream\r\n"
-      s << "\r\n"
-      s << "9876543210\r\n"
-      s << "--1383.905529.351298--"
+      s = Mail.new(@mpart_mail.parts[2].body.raw_source).body.raw_source
       assert_strenc_equal('ascii-8bit', "BODY[3.TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.TEXT]'))
       assert_strenc_equal('ascii-8bit', "BODY[3.1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit', 'BODY[3.1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse(make_body('BODY[4.2.2.TEXT]'))
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.TEXT] NIL", fetch.call(@folder.msg_list[1]))
+      fetch = @parser.parse(make_body('BODY[4.2.TEXT]'))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.TEXT] NIL", fetch.call(@folder.msg_list[0]))
+      s = Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source).body.raw_source
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.HEADER]'))
       assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
@@ -390,23 +320,21 @@ Hello world.
 
       fetch = @parser.parse(make_body('BODY[3.HEADER]'))
       assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER] NIL', fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "To: bar@nonet.com\r\n"
-      s << "From: foo@nonet.com\r\n"
-      s << "Subject: inner multipart\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Date: Fri, 8 Nov 2013 19:31:03 +0900\r\n"
-      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351298\"\r\n"
-      s << "\r\n"
+      s = Mail.new(@mpart_mail.parts[2].body.raw_source).header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_strenc_equal('ascii-8bit', "BODY[3.HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.HEADER]'))
       assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse(make_body('BODY[4.2.2.HEADER]'))
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.HEADER] NIL", fetch.call(@folder.msg_list[1]))
+      fetch = @parser.parse(make_body('BODY[4.2.HEADER]'))
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.HEADER] NIL", fetch.call(@folder.msg_list[0]))
+      s = Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source).header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.HEADER.FIELDS (To)]'))
       assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
@@ -414,18 +342,19 @@ Hello world.
 
       fetch = @parser.parse(make_body('BODY[3.HEADER.FIELDS (To)]'))
       assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "To: bar@nonet.com\r\n"
-      s << "\r\n"
+      m = Mail.new(@mpart_mail.parts[2].body.raw_source)
+      s = %w[ To ].map{|n| "#{n}: #{m[n].value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[3.HEADER.FIELDS (To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.HEADER.FIELDS (To)]'))
       assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse(make_body('BODY[4.2.2.HEADER.FIELDS (To)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+      fetch = @parser.parse(make_body('BODY[4.2.HEADER.FIELDS (To)]'))
+      assert_strenc_equal('ascii-8bit', 'BODY[4.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
+      m = Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source)
+      s = %w[ To ].map{|n| "#{n}: #{m[n].value}" }.join("\r\n") + "\r\n" * 2
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.HEADER.FIELDS (To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[1.HEADER.FIELDS.NOT (To From Subject)]'))
       assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
@@ -433,20 +362,21 @@ Hello world.
 
       fetch = @parser.parse(make_body('BODY[3.HEADER.FIELDS.NOT (To From Subject)]'))
       assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      s = ''
-      s << "Date: Fri, 08 Nov 2013 19:31:03 +0900\r\n"
-      s << "Mime-Version: 1.0\r\n"
-      s << "Content-Type: multipart/mixed; boundary=\"1383.905529.351298\"\r\n"
-      s << "\r\n"
+      not_fields = %w[ to from subject ].to_set
+      m = Mail.new(@mpart_mail.parts[2].body.raw_source)
+      s = m.header.reject{|i| not_fields.include? i.name.downcase }.map{|i| "#{i.name}: #{i.value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[3.HEADER.FIELDS.NOT (To From Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       fetch = @parser.parse(make_body('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)]'))
       assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
 
-      fetch = @parser.parse(make_body('BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+      fetch = @parser.parse(make_body('BODY[4.2.HEADER.FIELDS.NOT (To From Subject)]'))
+      assert_strenc_equal('ascii-8bit', 'BODY[4.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
+      not_fields = %w[ to from subject ].to_set
+      m = Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source)
+      s = m.header.reject{|i| not_fields.include? i.name.downcase }.map{|i| "#{i.name}: #{i.value}" }.join("\r\n") + "\r\n" * 2
+      assert_strenc_equal('ascii-8bit', "BODY[4.2.HEADER.FIELDS.NOT (To From Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
 
       assert_raise(RIMS::SyntaxError) {
         @parser.parse(make_body('BODY[MIME]'))
@@ -459,16 +389,7 @@ Hello world.
       }
 
       fetch = @parser.parse(make_body('BODY.PEEK[]'))
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
-      s << "Hello world.\r\n"
+      s = @simple_mail.raw_source
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
@@ -480,16 +401,7 @@ Hello world.
         @mail_store.set_msg_flag(@inbox_id, msg_id, 'seen', true)
       }
 
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
-      s << "Hello world.\r\n"
+      s = @simple_mail.raw_source
 
       fetch = @parser.parse(make_body('BODY[]<0.100>'))
       assert_strenc_equal('ascii-8bit', "BODY[]<0> {100}\r\n#{s.byteslice(0, 100)}", fetch.call(@folder.msg_list[0]))
@@ -858,18 +770,8 @@ Hello world.
         add_mail_simple
       }
 
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
-      s << "Hello world.\r\n"
-
       fetch = @parser.parse('RFC822')
+      s = @simple_mail.raw_source
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
@@ -882,17 +784,10 @@ Hello world.
         add_mail_simple
       }
 
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "Subject: test\r\n"
-      s << "MIME-Version: 1.0\r\n"
-      s << "Content-Type: text/plain; charset=us-ascii\r\n"
-      s << "Content-Transfer-Encoding: 7bit\r\n"
-      s << "Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)\r\n"
-      s << "\r\n"
-
       fetch = @parser.parse('RFC822.HEADER')
+      s = @simple_mail.header.raw_source
+      s += "\r\n" unless (s =~ /\r\n$/)
+      s += "\r\n" unless (s =~ /\r\n\r\n$/)
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "RFC822.HEADER {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
@@ -903,7 +798,8 @@ Hello world.
         add_mail_simple
       }
       fetch = @parser.parse('RFC822.SIZE')
-      assert_strenc_equal('ascii-8bit', 'RFC822.SIZE 212', fetch.call(@folder.msg_list[0]))
+      s = @simple_mail.raw_source
+      assert_strenc_equal('ascii-8bit', "RFC822.SIZE #{s.bytesize}", fetch.call(@folder.msg_list[0]))
     end
 
     def test_parse_rfc822_text
@@ -911,10 +807,8 @@ Hello world.
         add_mail_simple
       }
 
-      s = ''
-      s << "Hello world.\r\n"
-
       fetch = @parser.parse('RFC822.TEXT')
+      s = @simple_mail.body.raw_source
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
@@ -925,18 +819,24 @@ Hello world.
     def test_parse_uid
       make_fetch_parser{
         add_mail_simple
+        id = add_mail_simple
         add_mail_multipart
-      } 
+
+        @mail_store.set_msg_flag(@inbox_id, id, 'deleted', true)
+        @mail_store.expunge_mbox(@inbox_id)
+        assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      }
+
       fetch = @parser.parse('UID')
       assert_strenc_equal('ascii-8bit', 'UID 1', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'UID 2', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'UID 3', fetch.call(@folder.msg_list[1]))
     end
 
     def test_parse_group_empty
       make_fetch_parser{
         add_mail_simple
         add_mail_multipart
-      } 
+      }
       fetch = @parser.parse([ :group ])
       assert_strenc_equal('ascii-8bit', '()', fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit', '()', fetch.call(@folder.msg_list[1]))
@@ -945,7 +845,7 @@ Hello world.
 
   class ProtocolFetchParserUtilsTest < Test::Unit::TestCase
     def setup
-      @mail_simple = Mail.new(<<-'EOF')
+      @simple_mail = Mail.new(<<-'EOF')
 To: foo@nonet.org
 From: bar@nonet.org
 Subject: test
@@ -957,7 +857,7 @@ Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
 Hello world.
       EOF
 
-      @mail_multipart = Mail.new(<<-'EOF')
+      @mpart_mail = Mail.new(<<-'EOF')
 To: bar@nonet.com
 From: foo@nonet.com
 Subject: multipart test
@@ -1037,57 +937,57 @@ Content-Type: text/html; charset=us-ascii
       s << "To: foo@nonet.org\r\n"
       s << "From: bar@nonet.org\r\n"
       s << "\r\n"
-      assert_equal(s, RIMS::Protocol::FetchParser::Utils.encode_header(%w[ to from ].map{|n| @mail_simple[n] }))
+      assert_equal(s, RIMS::Protocol::FetchParser::Utils.encode_header(%w[ to from ].map{|n| @simple_mail[n] }))
     end
 
     def test_get_body_section
-      assert_equal(@mail_simple, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, []))
-      assert_equal(@mail_simple, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, [ 1 ]))
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, [ 1, 1 ]))
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, [ 2 ]))
+      assert_equal(@simple_mail, RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, []))
+      assert_equal(@simple_mail, RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 1 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 1, 1 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 2 ]))
 
-      assert_equal(@mail_multipart.raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, []).raw_source)
-      assert_equal(@mail_multipart.parts[0].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 1 ]).raw_source)
-      assert_equal(@mail_multipart.parts[1].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 2 ]).raw_source)
-      assert_equal(@mail_multipart.parts[2].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 3 ]).raw_source)
-      assert_equal(Mail.new(@mail_multipart.parts[2].body.raw_source).parts[0].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 3, 1 ]).raw_source)
-      assert_equal(Mail.new(@mail_multipart.parts[2].body.raw_source).parts[1].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 3, 2 ]).raw_source)
-      assert_equal(@mail_multipart.parts[3].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4 ]).raw_source)
-      assert_equal(@mail_multipart.parts[3].parts[0].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 1 ]).raw_source)
-      assert_equal(@mail_multipart.parts[3].parts[1].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2 ]).raw_source)
-      assert_equal(Mail.new(@mail_multipart.parts[3].parts[1].body.raw_source).parts[0].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 1 ]).raw_source)
-      assert_equal(Mail.new(@mail_multipart.parts[3].parts[1].body.raw_source).parts[1].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2 ]).raw_source)
-      assert_equal(Mail.new(@mail_multipart.parts[3].parts[1].body.raw_source).parts[1].parts[0].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 1 ]).raw_source)
-      assert_equal(Mail.new(@mail_multipart.parts[3].parts[1].body.raw_source).parts[1].parts[1].raw_source,
-                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 2 ]).raw_source)
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 5 ]))
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 3, 3 ]))
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 3 ]))
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 3 ]))
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 3 ]))
+      assert_equal(@mpart_mail.raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, []).raw_source)
+      assert_equal(@mpart_mail.parts[0].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 1 ]).raw_source)
+      assert_equal(@mpart_mail.parts[1].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 2 ]).raw_source)
+      assert_equal(@mpart_mail.parts[2].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3 ]).raw_source)
+      assert_equal(Mail.new(@mpart_mail.parts[2].body.raw_source).parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3, 1 ]).raw_source)
+      assert_equal(Mail.new(@mpart_mail.parts[2].body.raw_source).parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3, 2 ]).raw_source)
+      assert_equal(@mpart_mail.parts[3].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4 ]).raw_source)
+      assert_equal(@mpart_mail.parts[3].parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 1 ]).raw_source)
+      assert_equal(@mpart_mail.parts[3].parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2 ]).raw_source)
+      assert_equal(Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 1 ]).raw_source)
+      assert_equal(Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2 ]).raw_source)
+      assert_equal(Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2, 1 ]).raw_source)
+      assert_equal(Mail.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2, 2 ]).raw_source)
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 5 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3, 3 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 3 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 3 ]))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2, 3 ]))
 
       assert_raise(RIMS::SyntaxError) {
-        RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_simple, [ 0 ])
+        RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 0 ])
       }
       assert_raise(RIMS::SyntaxError) {
-        RIMS::Protocol::FetchParser::Utils.get_body_section(@mail_multipart, [ 4, 2, 2, 0 ])
+        RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2, 0 ])
       }
     end
 
     def test_get_body_content
-      assert_equal('test', RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_simple, :subject))
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_simple, :subject, nest_mail: true))
-      assert_equal('multipart test', RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_multipart, :subject))
-      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_multipart, :subject, nest_mail: true))
-      assert_equal('inner multipart', RIMS::Protocol::FetchParser::Utils.get_body_content(@mail_multipart.parts[2], :subject, nest_mail: true))
+      assert_equal('test', RIMS::Protocol::FetchParser::Utils.get_body_content(@simple_mail, :subject))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_content(@simple_mail, :subject, nest_mail: true))
+      assert_equal('multipart test', RIMS::Protocol::FetchParser::Utils.get_body_content(@mpart_mail, :subject))
+      assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_content(@mpart_mail, :subject, nest_mail: true))
+      assert_equal('inner multipart', RIMS::Protocol::FetchParser::Utils.get_body_content(@mpart_mail.parts[2], :subject, nest_mail: true))
     end
   end
 end

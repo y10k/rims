@@ -409,7 +409,7 @@ module RIMS
         else
           del_flags_decrement
         end
-        self 
+        self
       end
     end
 
