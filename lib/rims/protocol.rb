@@ -738,6 +738,9 @@ module RIMS
             raise SyntaxError, "unknown fetch body option: #{option}"
           end
         end
+        if (@folder.read_only?) then
+          enable_seen = false
+        end
 
         if (enable_seen) then
           fetch_flags = parse_flags('FLAGS')

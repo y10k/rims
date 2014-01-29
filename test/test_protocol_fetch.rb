@@ -25,9 +25,13 @@ module RIMS::Test
       @inbox_id = @mail_store.add_mbox('INBOX')
     end
 
-    def make_fetch_parser
+    def make_fetch_parser(read_only: false)
       yield if block_given?
-      @folder = @mail_store.select_mbox(@inbox_id)
+      if (read_only) then
+        @folder = @mail_store.examine_mbox(@inbox_id)
+      else
+        @folder = @mail_store.select_mbox(@inbox_id)
+      end
       @parser = RIMS::Protocol::FetchParser.new(@mail_store, @folder)
     end
     private :make_fetch_parser
@@ -389,6 +393,18 @@ Hello world.
       }
 
       fetch = @parser.parse(make_body('BODY.PEEK[]'))
+      s = @simple_mail.raw_source
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+    end
+
+    def test_parse_body_read_only
+      make_fetch_parser(read_only: true) {
+        add_mail_simple
+      }
+
+      fetch = @parser.parse(make_body('BODY[]'))
       s = @simple_mail.raw_source
       assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
@@ -779,6 +795,18 @@ Hello world.
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 
+    def test_parse_rfc822_read_only
+      make_fetch_parser(read_only: true) {
+        add_mail_simple
+      }
+
+      fetch = @parser.parse('RFC822')
+      s = @simple_mail.raw_source
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_strenc_equal('ascii-8bit', "RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+    end
+
     def test_parse_rfc822_header
       make_fetch_parser{
         add_mail_simple
@@ -814,6 +842,18 @@ Hello world.
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+    end
+
+    def test_parse_rfc822_text_read_only
+      make_fetch_parser(read_only: true) {
+        add_mail_simple
+      }
+
+      fetch = @parser.parse('RFC822.TEXT')
+      s = @simple_mail.body.raw_source
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_strenc_equal('ascii-8bit', "RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
     end
 
     def test_parse_uid
