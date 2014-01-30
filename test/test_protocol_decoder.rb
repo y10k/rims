@@ -491,9 +491,10 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
-    def test_rename_not_implemented
-      @mail_store.add_mbox('foo')
-      assert_not_nil(@mail_store.mbox_id('foo'))
+    def test_rename
+      mbox_id = @mail_store.add_mbox('foo')
+
+      assert_equal(mbox_id, @mail_store.mbox_id('foo'))
       assert_nil(@mail_store.mbox_id('bar'))
 
       assert_equal(false, @decoder.auth?)
@@ -503,7 +504,7 @@ Content-Type: text/html; charset=us-ascii
         a.match(/^T001 NO /)
       }
 
-      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_equal(mbox_id, @mail_store.mbox_id('foo'))
       assert_nil(@mail_store.mbox_id('bar'))
 
       assert_equal(false, @decoder.auth?)
@@ -517,11 +518,36 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.rename('T003', 'foo', 'bar').each
       assert_imap_response(res) {|a|
-        a.equal('T003 BAD not implemented')
+        a.equal('T003 OK RENAME completed')
       }
 
-      assert_not_nil(@mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('bar'))
+      assert_nil(@mail_store.mbox_id('foo'))
+      assert_equal(mbox_id, @mail_store.mbox_id('bar'))
+
+      res = @decoder.rename('T004', 'nobox', 'baz').each
+      assert_imap_response(res) {|a|
+        a.match(/^T004 NO /)
+      }
+
+      res = @decoder.rename('T005', 'INBOX', 'baz').each
+      assert_imap_response(res) {|a|
+        a.match(/^T005 NO /)
+      }
+
+      assert_equal('INBOX', @mail_store.mbox_name(@inbox_id))
+
+      res = @decoder.rename('T006', 'bar', 'inbox').each
+      assert_imap_response(res) {|a|
+        a.match(/^T006 NO /)
+      }
+
+      assert_equal('INBOX', @mail_store.mbox_name(@inbox_id))
+
+      res = @decoder.logout('T007').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T007 OK LOGOUT completed')
+      }
     end
 
     def test_subscribe_not_implemented
@@ -3500,6 +3526,43 @@ T006 LOGOUT
       assert_not_nil(@mail_store.mbox_id('inbox'))
       assert_nil(@mail_store.mbox_id('foo'))
       assert_nil(@mail_store.mbox_id('bar'))
+    end
+
+    def test_command_loop_rename
+      mbox_id = @mail_store.add_mbox('foo')
+
+      assert_equal(mbox_id, @mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('bar'))
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 RENAME foo bar
+T002 LOGIN foo open_sesame
+T003 RENAME foo bar
+T004 RENAME nobox baz
+T005 RENAME INBOX baz
+T006 RENAME bar inbox
+T007 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.match(/^T001 NO /)
+        a.equal('T002 OK LOGIN completed')
+        a.equal('T003 OK RENAME completed')
+        a.match(/^T004 NO /)
+        a.match(/^T005 NO /)
+        a.match(/^T006 NO /)
+        a.match(/^\* BYE /)
+        a.equal('T007 OK LOGOUT completed')
+      }
+
+      assert_nil(@mail_store.mbox_id('foo'))
+      assert_equal(mbox_id, @mail_store.mbox_id('bar'))
+      assert_equal('INBOX', @mail_store.mbox_name(@inbox_id))
     end
 
     def test_command_loop_list
