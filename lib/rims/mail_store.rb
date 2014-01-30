@@ -83,6 +83,16 @@ module RIMS
       name
     end
 
+    def rename_mbox(id, new_name)
+      mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
+      new_name = 'INBOX' if (new_name =~ /^INBOX$/i)
+      old_name = @global_db.rename_mbox(id, new_name)
+
+      @global_db.cnum_succ!
+
+      old_name
+    end
+
     def mbox_name(id)
       @global_db.mbox_name(id)
     end
