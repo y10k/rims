@@ -38,7 +38,7 @@ module RIMS::Test
       assert_equal('INBOX', @mail_store.del_mbox(1))
       assert_equal(2, @mail_store.cnum)
       assert_equal(2, @mail_store.uidvalidity)
-      assert_nil(@mail_store.mbox_name(0))
+      assert_nil(@mail_store.mbox_name(1))
       assert_nil(@mail_store.mbox_id('INBOX'))
       assert_equal([], @mail_store.each_mbox_id.to_a)
 
