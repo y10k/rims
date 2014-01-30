@@ -41,9 +41,17 @@ module RIMS::Test
 
       pp @kv_store if $DEBUG
 
+      assert_equal('INBOX', @g_db.rename_mbox(id, 'foo'))
+      assert_equal('foo', @g_db.mbox_name(id))
+      assert_equal(id, @g_db.mbox_id('foo'))
+      assert_nil(@g_db.mbox_id('INBOX'))
+      assert_equal([ id ], @g_db.each_mbox_id.to_a)
+
+      pp @kv_store if $DEBUG
+
       @g_db.del_mbox(id)
       assert_nil(@g_db.mbox_name(id))
-      assert_nil(@g_db.mbox_id('INBOX'))
+      assert_nil(@g_db.mbox_id('foo'))
       assert_equal([], @g_db.each_mbox_id.to_a)
 
       id2 = @g_db.add_mbox('INBOX')

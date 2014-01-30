@@ -71,6 +71,17 @@ module RIMS
       name
     end
 
+    def rename_mbox(id, new_name)
+      old_name = @db["mbox_id-#{id}"] or raise "not found a mailbox: #{id}"
+      if (@db.key? "mbox_name-#{new_name}") then
+        raise "duplicated mailbox name: #{new_name}"
+      end
+      @db["mbox_id-#{id}"] = new_name
+      @db["mbox_name-#{new_name}"] = id
+      @db.delete("mbox_name-#{old_name}")
+      old_name
+    end
+
     def mbox_name(id)
       @db["mbox_id-#{id}"]
     end
