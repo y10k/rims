@@ -10,7 +10,7 @@ module RIMS
     end
 
     def self.open(path)
-      new(GDBM.new(path))
+      new(GDBM.new(path + '.gdbm'))
     end
 
     def [](key)

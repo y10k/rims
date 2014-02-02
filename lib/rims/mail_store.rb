@@ -13,12 +13,12 @@ module RIMS
     end
 
     def open
-      @global_db = GlobalDB.new(@kvs_open_attr.call('global.db')).setup
-      @msg_db = MessageDB.new(@kvs_open_text.call('msg_text.db'), @kvs_open_attr.call('msg_attr.db')).setup
+      @global_db = GlobalDB.new(@kvs_open_attr.call('global')).setup
+      @msg_db = MessageDB.new(@kvs_open_text.call('msg_text'), @kvs_open_attr.call('msg_attr')).setup
 
       @mbox_db = {}
       @global_db.each_mbox_id do |id|
-        @mbox_db[id] = MailboxDB.new(@kvs_open_attr.call("mbox_#{id}.db")).setup
+        @mbox_db[id] = MailboxDB.new(@kvs_open_attr.call("mbox_#{id}")).setup
       end
 
       self
@@ -61,7 +61,7 @@ module RIMS
       end
 
       next_id = @global_db.add_mbox(name)
-      @mbox_db[next_id] = MailboxDB.new(@kvs_open_attr.call("mbox_#{next_id}.db")).setup
+      @mbox_db[next_id] = MailboxDB.new(@kvs_open_attr.call("mbox_#{next_id}")).setup
       @mbox_db[next_id].mbox_id = next_id
       @mbox_db[next_id].mbox_name = name
 
