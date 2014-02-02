@@ -374,20 +374,10 @@ module RIMS
       alias to_mst mail_store
     end
 
-    def new_mail_store(user_name)
-      mail_store = MailStore.new(proc{|db_name| @kvs_open_attr.call(user_name, db_name) },
-                                 proc{|db_name| @kvs_open_text.call(user_name, db_name) })
-      mail_store.open
-      unless (mail_store.mbox_id('INBOX')) then
-        mail_store.add_mbox('INBOX')
-      end
-      mail_store
-    end
-    private :new_mail_store
-
-    def initialize(kvs_open_attr, kvs_open_text)
+    def initialize(kvs_open_attr, kvs_open_text, make_user_prefix)
       @kvs_open_attr = kvs_open_attr
       @kvs_open_text = kvs_open_text
+      @make_user_prefix = make_user_prefix
       @pool_map = {}
       @pool_lock = Mutex.new
       @user_lock_map = Hash.new{|hash, key| hash[key] = Mutex.new }
@@ -396,6 +386,18 @@ module RIMS
     def empty?
       @pool_map.empty?
     end
+
+    def new_mail_store(user_name)
+      user_prefix = @make_user_prefix.call(user_name)
+      mail_store = MailStore.new(proc{|db_name| @kvs_open_attr.call(user_prefix, db_name) },
+                                 proc{|db_name| @kvs_open_text.call(user_prefix, db_name) })
+      mail_store.open
+      unless (mail_store.mbox_id('INBOX')) then
+        mail_store.add_mbox('INBOX')
+      end
+      mail_store
+    end
+    private :new_mail_store
 
     def get(user_name)
       user_lock = @pool_lock.synchronize{ user_lock = @user_lock_map[user_name] }

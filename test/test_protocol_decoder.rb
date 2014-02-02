@@ -99,7 +99,7 @@ module RIMS::Test
         path = "#{user_name}/#{db_name}"
         RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
       }
-      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
+      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open, proc{|name| 'test' })
       @mail_store_holder = @mail_store_pool.get('foo')
       @mail_store = @mail_store_holder.to_mst
       @inbox_id = @mail_store.mbox_id('INBOX')
