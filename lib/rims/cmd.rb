@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+require 'optparse'
+require 'pp'if $DEBUG
+
 module RIMS
   module Cmd
     CMDs = {}
@@ -18,6 +21,9 @@ module RIMS
       end
 
       cmd_name = args.shift
+      pp cmd_name if $DEBUG
+      pp args if $DEBUG
+
       if (method_name = CMDs[cmd_name]) then
         send(method_name, args)
       else
@@ -41,7 +47,48 @@ module RIMS
     command_function :cmd_help
 
     def cmd_server(args)
-      raise NotImplementedError, 'not implemented.'
+      conf = Config.new
+      conf.load(base_dir: Dir.getwd)
+
+      options = OptionParser.new
+      options.program_name += ' server'
+      options.on('-f', '--config-yaml=CONFIG_FILE') do |path|
+        conf.load_config_yaml(path)
+      end
+      options.on('-d', '--base-dir=DIR', ) do |path|
+        conf.load(base_dir: path)
+      end
+      options.on('--log-file=FILE') do |path|
+        conf.load(log_file: path)
+      end
+      options.on('-l', '--log-level=LEVEL', %w[ debug info warn error fatal ]) do |level|
+        conf.load(log_level: level)
+      end
+      options.on('--kvs-type=TYPE', %w[ gdbm ]) do |type|
+        conf.load(key_value_store_type: type)
+      end
+      options.on('--username=NAME', String) do |name|
+        conf.load(username: name)
+      end
+      options.on('--password=PASS') do |pass|
+        conf.load(password: pass)
+      end
+      options.on('--ip-addr=IP_ADDR') do |ip_addr|
+        conf.load(ip_addr: ip_addr)
+      end
+      options.on('--ip-port=PORT', Integer) do |port|
+        conf.load(ip_port: port)
+      end
+      options.parse!(args)
+
+      pp conf.config if $DEBUG
+      conf.setup
+      pp conf.config if $DEBUG
+
+      server = RIMS::Server.new(**conf.config)
+      server.start
+
+      0
     end
     command_function :cmd_server
   end
