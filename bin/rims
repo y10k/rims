@@ -1,3 +1,6 @@
 #!/usr/bin/env ruby
 
 require 'rims'
+
+status = RIMS::Cmd.run_cmd(ARGV)
+exit(status)
