@@ -88,7 +88,7 @@ module RIMS
           next_size = $&[1..-2].to_i
           @logger.debug("found literal: #{next_size} octets.")
           @output.write("+ continue\r\n")
-          @logger.debug("continue literal.\r\n") if @logger.debug?
+          @logger.debug('continue literal.') if @logger.debug?
           literal_string = @input.read(next_size) or raise 'unexpected client close.'
           @logger.debug("read literal: <#{literal_string.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{literal_string}") if @logger.debug?
           atom_list[-1] = literal_string
