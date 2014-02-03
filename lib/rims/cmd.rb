@@ -10,13 +10,14 @@ module RIMS
     def self.command_function(method_name)
       module_function(method_name)
       method_name = method_name.to_s
-      cmd_name = method_name.sub(/^cmd_/, '')
+      cmd_name = method_name.sub(/^cmd_/, '').gsub(/_/, '-')
       CMDs[cmd_name] = method_name.to_sym
     end
 
     def run_cmd(args)
+      options = OptionParser.new
       if (args.empty?) then
-        cmd_help(args)
+        cmd_help(options, args)
         return 1
       end
 
@@ -25,14 +26,15 @@ module RIMS
       pp args if $DEBUG
 
       if (method_name = CMDs[cmd_name]) then
-        send(method_name, args)
+        options.program_name += " #{cmd_name}"
+        send(method_name, options, args)
       else
         raise "unknown command: #{cmd_name}"
       end
     end
     module_function :run_cmd
 
-    def cmd_help(args)
+    def cmd_help(options, args)
       STDERR.puts "usage: #{File.basename($0)} command options"
       STDERR.puts ""
       STDERR.puts "commands:"
@@ -46,12 +48,10 @@ module RIMS
     end
     command_function :cmd_help
 
-    def cmd_server(args)
+    def cmd_server(options, args)
       conf = Config.new
       conf.load(base_dir: Dir.getwd)
 
-      options = OptionParser.new
-      options.program_name += ' server'
       options.on('-f', '--config-yaml=CONFIG_FILE') do |path|
         conf.load_config_yaml(path)
       end
