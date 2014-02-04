@@ -104,6 +104,11 @@ module RIMS
         username: nil,
         password: nil,
         mailbox: 'INBOX',
+        store_flag_answered: false,
+        store_flag_flagged: false,
+        store_flag_deleted: false,
+        store_flag_seen: false,
+        store_flag_draft: false,
         look_for_date: :servertime
       }
 
@@ -133,6 +138,21 @@ module RIMS
       options.on('-m', '--mailbox') do |mbox|
         conf[:mailbox] = mbox
       end
+      options.on('--[no-]store-flag-answered') do |v|
+        conf[:store_flag_answered] = v
+      end
+      options.on('--[no-]store-flag-flagged') do |v|
+        conf[:store_flag_flagged] = v
+      end
+      options.on('--[no-]store-flag-deleted') do |v|
+        conf[:store_flag_deleted] = v
+      end
+      options.on('--[no-]store-flag-seen') do |v|
+        conf[:store_flag_seen] = v
+      end
+      options.on('--[no-]store-flag-draft') do |v|
+        conf[:store_flag_draft] = v
+      end
       options.on('--look-for-date=PLACE', [ :servertime, :localtime, :filetime, :mailheader ]) do |place|
         conf[:look_for_date] = place
       end
@@ -145,6 +165,19 @@ module RIMS
       unless (conf[:username] && conf[:password]) then
         raise 'need for username and password.'
       end
+
+      store_flags = []
+      [ [ :store_flag_answered, :Answered ],
+        [ :store_flag_flagged, :Flagged ],
+        [ :store_flag_deleted, :Deleted ],
+        [ :store_flag_seen, :Seen ],
+        [ :store_flag_draft, :Draft ]
+      ].each do |key, flag|
+        if (conf[key]) then
+          store_flags << flag
+        end
+      end
+      puts "store flags: (#{store_flags.join(' ')})" if conf[:verbose]
 
       imap = Net::IMAP.new(conf[:imap_host], port: conf[:imap_port], ssl: conf[:imap_ssl])
       begin
@@ -159,12 +192,12 @@ module RIMS
         if (args.empty?) then
           msg = STDIN.read
           t = look_for_date(conf[:look_for_date], msg)
-          imap_append(imap, conf[:mailbox], msg, date_time: t, verbose: conf[:verbose])
+          imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
         else
           for filename in args
             msg = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
             t = look_for_date(conf[:look_for_date], msg, filename)
-            imap_append(imap, conf[:mailbox], msg, date_time: t, verbose: conf[:verbose])
+            imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
           end
         end
       ensure
@@ -200,9 +233,10 @@ module RIMS
     end
     module_function :look_for_date
 
-    def imap_append(imap, mailbox, message, date_time: nil, verbose: false)
+    def imap_append(imap, mailbox, message, store_flags: [], date_time: nil, verbose: false)
       puts "message date: #{date_time}" if (verbose && date_time)
-      res = imap.append(mailbox, message, nil, date_time)
+      store_flags = nil if store_flags.empty?
+      res = imap.append(mailbox, message, store_flags, date_time)
       puts "append: #{imap_res2str(res)}" if verbose
       nil
     end
