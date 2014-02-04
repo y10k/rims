@@ -149,6 +149,16 @@ Hello world.
     end
     private :add_mail_mime_subject
 
+    def add_mail_empty
+      @empty_mail = Mail.new('')
+      @mail_store.add_msg(@inbox_id, @empty_mail.raw_source)
+    end
+
+    def add_mail_no_body
+      @no_body_mail = Mail.new('foo')
+      @mail_store.add_msg(@inbox_id, @no_body_mail.raw_source)
+    end
+
     def make_body(description)
       reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
       reader.parse([ description ])[0]
@@ -207,7 +217,12 @@ Hello world.
       make_fetch_parser{
         add_mail_simple
         add_mail_multipart
+        add_mail_empty
+        add_mail_no_body
       }
+
+      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[2].id, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[3].id, 'seen', true)
 
       fetch = @parser.parse(make_body('BODY[]'))
       s = @simple_mail.raw_source
@@ -216,10 +231,14 @@ Hello world.
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_strenc_equal('ascii-8bit', 'BODY[] ""', fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit', 'BODY[] "foo"', fetch.call(@folder.msg_list[3]))
 
       fetch = @parser.parse(make_body('BODY[TEXT]'))
       s = @simple_mail.body.raw_source
       assert_strenc_equal('ascii-8bit', "BODY[TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'BODY[TEXT] ""', fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit', 'BODY[TEXT] ""', fetch.call(@folder.msg_list[3]))
 
       fetch = @parser.parse(make_body('BODY[HEADER]'))
       s = @simple_mail.header.raw_source
@@ -234,12 +253,16 @@ Hello world.
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
       assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER] {4}\r\n\r\n\r\n", fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER] {7}\r\nfoo\r\n\r\n", fetch.call(@folder.msg_list[3]))
 
       fetch = @parser.parse(make_body('BODY[HEADER.FIELDS (From To)]'))
       s = %w[ From To ].map{|n| "#{n}: #{@simple_mail[n].value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       s = %w[ From To ].map{|n| "#{n}: #{@mpart_mail[n].value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {4}\r\n\r\n\r\n", fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {4}\r\n\r\n\r\n", fetch.call(@folder.msg_list[3]))
 
       fetch = @parser.parse(make_body('BODY[HEADER.FIELDS.NOT (From To Subject)]'))
       not_fields = %w[ from to subject ].to_set
@@ -247,6 +270,8 @@ Hello world.
       assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
       s = @mpart_mail.header.reject{|i| not_fields.include? i.name.downcase }.map{|i| "#{i.name}: #{i.value}" }.join("\r\n") + "\r\n" * 2
       assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {4}\r\n\r\n\r\n", fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {9}\r\nfoo: \r\n\r\n", fetch.call(@folder.msg_list[3]))
 
       fetch = @parser.parse(make_body('BODY[1]'))
       s = @simple_mail.body.raw_source
@@ -451,6 +476,8 @@ Hello world.
       make_fetch_parser{
         add_mail_simple
         add_mail_multipart
+        add_mail_empty
+        add_mail_no_body
       }
       fetch_body = @parser.parse('BODY')
       fetch_bodystructure = @parser.parse('BODYSTRUCTURE')
@@ -560,6 +587,50 @@ Hello world.
                                         'mixed'
                                       ]),
                           fetch_bodystructure.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODY ' +
+                          encode_list([ 'application',
+                                        'octet-stream',
+                                        [],
+                                        nil,
+                                        nil,
+                                        nil,
+                                        0
+                                      ]),
+                          fetch_body.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODYSTRUCTURE ' +
+                          encode_list([ 'application',
+                                        'octet-stream',
+                                        [],
+                                        nil,
+                                        nil,
+                                        nil,
+                                        0
+                                      ]),
+                          fetch_bodystructure.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODY ' +
+                          encode_list([ 'application',
+                                        'octet-stream',
+                                        [],
+                                        nil,
+                                        nil,
+                                        nil,
+                                        3
+                                      ]),
+                          fetch_body.call(@folder.msg_list[3]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODYSTRUCTURE ' +
+                          encode_list([ 'application',
+                                        'octet-stream',
+                                        [],
+                                        nil,
+                                        nil,
+                                        nil,
+                                        3
+                                      ]),
+                          fetch_bodystructure.call(@folder.msg_list[3]))
     end
 
     def test_parse_envelope
@@ -567,6 +638,8 @@ Hello world.
         add_mail_simple
         add_mail_multipart
         add_mail_mime_subject
+        add_mail_empty
+        add_mail_no_body
       }
       fetch = @parser.parse('ENVELOPE')
       assert_strenc_equal('ascii-8bit',
@@ -611,6 +684,12 @@ Hello world.
                             '"20131107214750.445A1255B9F@smtp.nonet.com"' # Message-Id
                           ].join(' ') +')',
                           fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit',
+                          'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)',
+                          fetch.call(@folder.msg_list[3]))
+      assert_strenc_equal('ascii-8bit',
+                          'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)',
+                          fetch.call(@folder.msg_list[4]))
     end
 
     def test_parse_fast
