@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'net/imap'
 require 'optparse'
 require 'pp'if $DEBUG
 
@@ -91,6 +92,83 @@ module RIMS
       0
     end
     command_function :cmd_server
+
+    def cmd_imap_append(options, args)
+      opt_verbose = false
+      imap_host = 'localhost'
+      imap_opts = { port: 1430 }
+      imap_username = nil
+      imap_password = nil
+      imap_mailbox = 'INBOX'
+
+      options.on('-v', '--[no-]verbose') do |v|
+        opt_verbose = v
+      end
+      options.on('--[no-]imap-debug') do |v|
+        Net::IMAP.debug = v
+      end
+      options.on('-n', '--host=HOSTNAME') do |host|
+        imap_host = host
+      end
+      options.on('-o', '--port=PORT', Integer) do |port|
+        imap_opts[:port] = port
+      end
+      options.on('-s', '--[no-]use-ssl') do |v|
+        imap_opts[:ssl] = v
+      end
+      options.on('-u', '--username=NAME') do |name|
+        imap_username = name
+      end
+      options.on('-w', '--password=PASS') do |pass|
+        imap_password = pass
+      end
+      options.on('-m', '--mailbox') do |mbox|
+        imap_mailbox = mbox
+      end
+      options.parse!(args)
+
+      if ($DEBUG) then
+        pp imap_host
+        pp imap_opts
+        pp imap_username
+        pp imap_password
+      end
+
+      unless (imap_username && imap_password) then
+        raise 'need for username and password.'
+      end
+
+      imap = Net::IMAP.new(imap_host, imap_opts)
+      begin
+        if (opt_verbose) then
+          puts "server greeting: #{imap_res2str(imap.greeting)}"
+          puts "server capability: #{imap.capability.join(' ')}"
+        end
+
+        res = imap.login(imap_username, imap_password)
+        puts "login: #{imap_res2str(res)}" if opt_verbose
+
+        if (args.empty?) then
+          res = imap.append(imap_mailbox, STDIN.read)
+          puts "append: #{imap_res2str(res)}" if opt_verbose
+        else
+          for filename in args
+            res = imap.append(imap_mailbox, IO.read(filename, mode: 'rb', encoding: 'ascii-8bit'))
+            puts "append: #{imap_res2str(res)}" if opt_verbose
+          end
+        end
+      ensure
+        imap.logout
+      end
+
+      0
+    end
+    command_function :cmd_imap_append
+
+    def imap_res2str(imap_response)
+      "#{imap_response.name} #{imap_response.data.text}"
+    end
+    module_function :imap_res2str
   end
 end
 
