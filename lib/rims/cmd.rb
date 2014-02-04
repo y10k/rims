@@ -94,67 +94,64 @@ module RIMS
     command_function :cmd_server
 
     def cmd_imap_append(options, args)
-      opt_verbose = false
-      imap_host = 'localhost'
-      imap_opts = { port: 1430 }
-      imap_username = nil
-      imap_password = nil
-      imap_mailbox = 'INBOX'
+      conf = {
+        verbose: false,
+        imap_host: 'localhost',
+        imap_port: 1430,
+        imap_ssl: false,
+        username: nil,
+        password: nil,
+        mailbox: 'INBOX'
+      }
 
       options.on('-v', '--[no-]verbose') do |v|
-        opt_verbose = v
+        conf[:verbose] = v
+      end
+      options.on('-n', '--host=HOSTNAME') do |host|
+        conf[:imap_host] = host
+      end
+      options.on('-o', '--port=PORT', Integer) do |port|
+        conf[:imap_port] = port
+      end
+      options.on('-s', '--[no-]use-ssl') do |v|
+        conf[:imap_ssl] = v
+      end
+      options.on('-u', '--username=NAME') do |name|
+        conf[:username] = name
+      end
+      options.on('-w', '--password=PASS') do |pass|
+        conf[:password] = pass
+      end
+      options.on('-m', '--mailbox') do |mbox|
+        conf[:mailbox] = mbox
       end
       options.on('--[no-]imap-debug') do |v|
         Net::IMAP.debug = v
       end
-      options.on('-n', '--host=HOSTNAME') do |host|
-        imap_host = host
-      end
-      options.on('-o', '--port=PORT', Integer) do |port|
-        imap_opts[:port] = port
-      end
-      options.on('-s', '--[no-]use-ssl') do |v|
-        imap_opts[:ssl] = v
-      end
-      options.on('-u', '--username=NAME') do |name|
-        imap_username = name
-      end
-      options.on('-w', '--password=PASS') do |pass|
-        imap_password = pass
-      end
-      options.on('-m', '--mailbox') do |mbox|
-        imap_mailbox = mbox
-      end
       options.parse!(args)
+      pp conf if $DEBUG
 
-      if ($DEBUG) then
-        pp imap_host
-        pp imap_opts
-        pp imap_username
-        pp imap_password
-      end
-
-      unless (imap_username && imap_password) then
+      unless (conf[:username] && conf[:password]) then
         raise 'need for username and password.'
       end
 
-      imap = Net::IMAP.new(imap_host, imap_opts)
+      imap = Net::IMAP.new(conf[:imap_host], port: conf[:imap_port], ssl: conf[:imap_ssl])
       begin
-        if (opt_verbose) then
+        if (conf[:verbose]) then
           puts "server greeting: #{imap_res2str(imap.greeting)}"
           puts "server capability: #{imap.capability.join(' ')}"
         end
 
-        res = imap.login(imap_username, imap_password)
-        puts "login: #{imap_res2str(res)}" if opt_verbose
+        res = imap.login(conf[:username], conf[:password])
+        puts "login: #{imap_res2str(res)}" if conf[:verbose]
 
         if (args.empty?) then
-          res = imap.append(imap_mailbox, STDIN.read)
-          puts "append: #{imap_res2str(res)}" if opt_verbose
+          res = imap.append(conf[:mailbox], STDIN.read)
+          puts "append: #{imap_res2str(res)}" if conf[:verbose]
         else
           for filename in args
-            res = imap.append(imap_mailbox, IO.read(filename, mode: 'rb', encoding: 'ascii-8bit'))
-            puts "append: #{imap_res2str(res)}" if opt_verbose
+            res = imap.append(conf[:mailbox], IO.read(filename, mode: 'rb', encoding: 'ascii-8bit'))
+            puts "append: #{imap_res2str(res)}" if conf[:verbose]
           end
         end
       ensure
