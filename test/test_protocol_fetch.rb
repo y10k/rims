@@ -149,6 +149,16 @@ Hello world.
     end
     private :add_mail_mime_subject
 
+    def add_mail_empty
+      @empty_mail = Mail.new('')
+      @mail_store.add_msg(@inbox_id, @empty_mail.raw_source)
+    end
+
+    def add_mail_no_body
+      @no_body_mail = Mail.new('foo')
+      @mail_store.add_msg(@inbox_id, @no_body_mail.raw_source)
+    end
+
     def make_body(description)
       reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
       reader.parse([ description ])[0]
@@ -451,6 +461,8 @@ Hello world.
       make_fetch_parser{
         add_mail_simple
         add_mail_multipart
+        add_mail_empty
+        add_mail_no_body
       }
       fetch_body = @parser.parse('BODY')
       fetch_bodystructure = @parser.parse('BODYSTRUCTURE')
@@ -560,6 +572,50 @@ Hello world.
                                         'mixed'
                                       ]),
                           fetch_bodystructure.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODY ' +
+                          encode_list([ 'application',
+                                        'octet-stream',
+                                        [],
+                                        nil,
+                                        nil,
+                                        nil,
+                                        0
+                                      ]),
+                          fetch_body.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODYSTRUCTURE ' +
+                          encode_list([ 'application',
+                                        'octet-stream',
+                                        [],
+                                        nil,
+                                        nil,
+                                        nil,
+                                        0
+                                      ]),
+                          fetch_bodystructure.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODY ' +
+                          encode_list([ 'application',
+                                        'octet-stream',
+                                        [],
+                                        nil,
+                                        nil,
+                                        nil,
+                                        3
+                                      ]),
+                          fetch_body.call(@folder.msg_list[3]))
+      assert_strenc_equal('ascii-8bit',
+                          'BODYSTRUCTURE ' +
+                          encode_list([ 'application',
+                                        'octet-stream',
+                                        [],
+                                        nil,
+                                        nil,
+                                        nil,
+                                        3
+                                      ]),
+                          fetch_bodystructure.call(@folder.msg_list[3]))
     end
 
     def test_parse_envelope

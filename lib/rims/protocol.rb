@@ -647,6 +647,19 @@ module RIMS
       end
       private :expand_macro
 
+      def get_header_field(mail, name, default=nil)
+        if (field = mail[name]) then
+          if (block_given?) then
+            yield(field)
+          else
+            field
+          end
+        else
+          default
+        end
+      end
+      private :get_header_field
+
       def get_bodystructure_data(mail)
         if (mail.multipart?) then
           # body_type_mpart
@@ -699,11 +712,11 @@ module RIMS
             basic_data = []
 
             # media_basic
-            basic_data << mail['Content-Type'].main_type
-            basic_data << mail['Content-Type'].sub_type
+            basic_data << get_header_field(mail, 'Content-Type', 'application') {|field| field.main_type }
+            basic_data << get_header_field(mail, 'Content-Type', 'octet-stream') {|field| field.sub_type }
 
             # body_fields
-            basic_data << mail['Content-Type'].parameters.map{|n, v| [ n, v ] }.flatten
+            basic_data << get_header_field(mail, 'Content-Type', []) {|field| field.parameters.map{|n, v| [ n, v ] }.flatten }
             basic_data << mail.content_id
             basic_data << mail.content_description
             basic_data << mail.content_transfer_encoding
