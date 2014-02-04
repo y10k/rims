@@ -623,6 +623,8 @@ Hello world.
         add_mail_simple
         add_mail_multipart
         add_mail_mime_subject
+        add_mail_empty
+        add_mail_no_body
       }
       fetch = @parser.parse('ENVELOPE')
       assert_strenc_equal('ascii-8bit',
@@ -667,6 +669,12 @@ Hello world.
                             '"20131107214750.445A1255B9F@smtp.nonet.com"' # Message-Id
                           ].join(' ') +')',
                           fetch.call(@folder.msg_list[2]))
+      assert_strenc_equal('ascii-8bit',
+                          'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)',
+                          fetch.call(@folder.msg_list[3]))
+      assert_strenc_equal('ascii-8bit',
+                          'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)',
+                          fetch.call(@folder.msg_list[4]))
     end
 
     def test_parse_fast
