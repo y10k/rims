@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'mail'
 require 'net/imap'
 require 'optparse'
 require 'pp'if $DEBUG
@@ -102,7 +103,8 @@ module RIMS
         imap_ssl: false,
         username: nil,
         password: nil,
-        mailbox: 'INBOX'
+        mailbox: 'INBOX',
+        look_for_date: :servertime
       }
 
       options.on('-v', '--[no-]verbose') do |v|
@@ -131,6 +133,9 @@ module RIMS
       options.on('-m', '--mailbox') do |mbox|
         conf[:mailbox] = mbox
       end
+      options.on('--look-for-date=PLACE', [ :servertime, :localtime, :filetime, :mailheader ]) do |place|
+        conf[:look_for_date] = place
+      end
       options.on('--[no-]imap-debug') do |v|
         Net::IMAP.debug = v
       end
@@ -152,12 +157,14 @@ module RIMS
         puts "login: #{imap_res2str(res)}" if conf[:verbose]
 
         if (args.empty?) then
-          res = imap.append(conf[:mailbox], STDIN.read)
-          puts "append: #{imap_res2str(res)}" if conf[:verbose]
+          msg = STDIN.read
+          t = look_for_date(conf[:look_for_date], msg)
+          imap_append(imap, conf[:mailbox], msg, date_time: t, verbose: conf[:verbose])
         else
           for filename in args
-            res = imap.append(conf[:mailbox], IO.read(filename, mode: 'rb', encoding: 'ascii-8bit'))
-            puts "append: #{imap_res2str(res)}" if conf[:verbose]
+            msg = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
+            t = look_for_date(conf[:look_for_date], msg, filename)
+            imap_append(imap, conf[:mailbox], msg, date_time: t, verbose: conf[:verbose])
           end
         end
       ensure
@@ -172,6 +179,34 @@ module RIMS
       "#{imap_response.name} #{imap_response.data.text}"
     end
     module_function :imap_res2str
+
+    def look_for_date(place, messg, path=nil)
+      case (place)
+      when :servertime
+        nil
+      when :localtime
+        Time.now
+      when :filetime
+        if (path) then
+          File.stat(path).mtime
+        end
+      when :mailheader
+        if (d = Mail.new(messg).date) then
+          d.to_time
+        end
+      else
+        raise "failed to look for date: #{place}"
+      end
+    end
+    module_function :look_for_date
+
+    def imap_append(imap, mailbox, message, date_time: nil, verbose: false)
+      puts "message date: #{date_time}" if (verbose && date_time)
+      res = imap.append(mailbox, message, nil, date_time)
+      puts "append: #{imap_res2str(res)}" if verbose
+      nil
+    end
+    module_function :imap_append
   end
 end
 
