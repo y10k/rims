@@ -96,65 +96,36 @@ module RIMS
     command_function :cmd_server
 
     def cmd_imap_append(options, args)
-      conf = {
-        verbose: false,
-        imap_host: 'localhost',
-        imap_port: 1430,
-        imap_ssl: false,
-        username: nil,
-        password: nil,
-        mailbox: 'INBOX',
-        store_flag_answered: false,
-        store_flag_flagged: false,
-        store_flag_deleted: false,
-        store_flag_seen: false,
-        store_flag_draft: false,
-        look_for_date: :servertime
-      }
+      option_list = [
+        [ :verbose, false, '-v', '--[no-]verbose' ],
+        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME' ],
+        [ :imap_port, 1430, '-o', '--port=PORT', Integer ],
+        [ :imap_ssl, false, '-s', '--[no-]use-ssl' ],
+        [ :username, nil, '-u', '--username=NAME' ],
+        [ :password, nil, '-w', '--password=PASS' ],
+        [ :mailbox, 'INBOX', '-m', '--mailbox' ],
+        [ :store_flag_answered, false, '--[no-]store-flag-answered' ],
+        [ :store_flag_flagged, false, '--[no-]store-flag-flagged' ],
+        [ :store_flag_deleted, false, '--[no-]store-flag-deleted' ],
+        [ :store_flag_seen, false, '--[no-]store-flag-seen' ],
+        [ :store_flag_draft, false, '--[no-]store-flag-draft' ],
+        [ :look_for_date, :servertime, '--look-for-date=PLACE', [ :servertime, :localtime, :filetime, :mailheader ] ]
+      ]
 
-      options.on('-v', '--[no-]verbose') do |v|
-        conf[:verbose] = v
+      conf = {}
+      for key, value, *option_description in option_list
+        conf[key] = value
       end
+
       options.on('-f', '--config-yaml=CONFIG_FILE') do |path|
         for name, value in YAML.load_file(path)
           conf[name.to_sym] = value
         end
       end
-      options.on('-n', '--host=HOSTNAME') do |host|
-        conf[:imap_host] = host
-      end
-      options.on('-o', '--port=PORT', Integer) do |port|
-        conf[:imap_port] = port
-      end
-      options.on('-s', '--[no-]use-ssl') do |v|
-        conf[:imap_ssl] = v
-      end
-      options.on('-u', '--username=NAME') do |name|
-        conf[:username] = name
-      end
-      options.on('-w', '--password=PASS') do |pass|
-        conf[:password] = pass
-      end
-      options.on('-m', '--mailbox') do |mbox|
-        conf[:mailbox] = mbox
-      end
-      options.on('--[no-]store-flag-answered') do |v|
-        conf[:store_flag_answered] = v
-      end
-      options.on('--[no-]store-flag-flagged') do |v|
-        conf[:store_flag_flagged] = v
-      end
-      options.on('--[no-]store-flag-deleted') do |v|
-        conf[:store_flag_deleted] = v
-      end
-      options.on('--[no-]store-flag-seen') do |v|
-        conf[:store_flag_seen] = v
-      end
-      options.on('--[no-]store-flag-draft') do |v|
-        conf[:store_flag_draft] = v
-      end
-      options.on('--look-for-date=PLACE', [ :servertime, :localtime, :filetime, :mailheader ]) do |place|
-        conf[:look_for_date] = place
+      for key, value, *option_description in option_list
+        options.on(*option_description) do |v|
+          conf[key] = v
+        end
       end
       options.on('--[no-]imap-debug') do |v|
         Net::IMAP.debug = v
