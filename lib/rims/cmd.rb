@@ -3,6 +3,7 @@
 require 'net/imap'
 require 'optparse'
 require 'pp'if $DEBUG
+require 'yaml'
 
 module RIMS
   module Cmd
@@ -106,6 +107,11 @@ module RIMS
 
       options.on('-v', '--[no-]verbose') do |v|
         conf[:verbose] = v
+      end
+      options.on('-f', '--config-yaml=CONFIG_FILE') do |path|
+        for name, value in YAML.load_file(path)
+          conf[name.to_sym] = value
+        end
       end
       options.on('-n', '--host=HOSTNAME') do |host|
         conf[:imap_host] = host
