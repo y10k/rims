@@ -10,11 +10,11 @@ module RIMS
   module Cmd
     CMDs = {}
 
-    def self.command_function(method_name)
+    def self.command_function(method_name, description)
       module_function(method_name)
       method_name = method_name.to_s
       cmd_name = method_name.sub(/^cmd_/, '').gsub(/_/, '-')
-      CMDs[cmd_name] = method_name.to_sym
+      CMDs[cmd_name] = { function: method_name.to_sym, description: description }
     end
 
     def run_cmd(args)
@@ -28,12 +28,9 @@ module RIMS
       pp cmd_name if $DEBUG
       pp args if $DEBUG
 
-      if (method_name = CMDs[cmd_name]) then
-        options.program_name += " #{cmd_name}"
-        send(method_name, options, args)
-      else
-        raise "unknown command: #{cmd_name}"
-      end
+      cmd_entry = CMDs[cmd_name] or raise "unknown command: #{cmd_name}"
+      options.program_name += " #{cmd_name}"
+      send(cmd_entry[:function], options, args)
     end
     module_function :run_cmd
 
@@ -41,15 +38,17 @@ module RIMS
       STDERR.puts "usage: #{File.basename($0)} command options"
       STDERR.puts ""
       STDERR.puts "commands:"
-      CMDs.each_key do |cmd_name|
-        STDERR.puts "  #{cmd_name}"
+      w = CMDs.keys.map{|k| k.length }.max + 4
+      fmt = "    %- #{w}s%s"
+      CMDs.each do |cmd_name, cmd_entry|
+        STDERR.puts format(fmt, cmd_name, cmd_entry[:description])
       end
       STDERR.puts ""
       STDERR.puts "command help options:"
-      STDERR.puts "  -h, --help"
+      STDERR.puts "    -h, --help"
       0
     end
-    command_function :cmd_help
+    command_function :cmd_help, "Show this message."
 
     def cmd_server(options, args)
       conf = Config.new
@@ -93,7 +92,7 @@ module RIMS
 
       0
     end
-    command_function :cmd_server
+    command_function :cmd_server, "Run imap server."
 
     def cmd_imap_append(options, args)
       option_list = [
@@ -177,7 +176,7 @@ module RIMS
 
       0
     end
-    command_function :cmd_imap_append
+    command_function :cmd_imap_append, "Append message to imap mailbox."
 
     def imap_res2str(imap_response)
       "#{imap_response.name} #{imap_response.data.text}"
