@@ -1162,7 +1162,8 @@ module RIMS
       def delete(tag, mbox_name)
         protect_auth(tag) {
           res = []
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             if (id != @mail_store_holder.to_mst.mbox_id('INBOX')) then
               @mail_store_holder.to_mst.del_mbox(id)
               res << "#{tag} OK DELETE completed"
