@@ -132,6 +132,7 @@ module RIMS
         conf[key] = value
       end
 
+      options.banner += ' [MESSAGE_FILEs]'
       options.on('-h', '--help', 'Show this message.')do
         puts options
         exit
