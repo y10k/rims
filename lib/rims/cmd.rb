@@ -54,31 +54,45 @@ module RIMS
       conf = Config.new
       conf.load(base_dir: Dir.getwd)
 
-      options.on('-f', '--config-yaml=CONFIG_FILE') do |path|
+      options.on('-h', '--help', 'Show this message.') do
+        puts options
+        exit
+      end
+      options.on('-f', '--config-yaml=CONFIG_FILE',
+                 "Load optional parameters from CONFIG_FILE.") do |path|
         conf.load_config_yaml(path)
       end
-      options.on('-d', '--base-dir=DIR', ) do |path|
+      options.on('-d', '--base-dir=DIR',
+                 "Directory that places log file, mailbox database, etc. default is current directory.") do |path|
         conf.load(base_dir: path)
       end
-      options.on('--log-file=FILE') do |path|
+      options.on('--log-file=FILE',
+                 "Name of log file. the directory part preceding file name is ignored. default is `imap.log'.") do |path|
         conf.load(log_file: path)
       end
-      options.on('-l', '--log-level=LEVEL', %w[ debug info warn error fatal ]) do |level|
+      level_list = %w[ debug info warn error fatal ]
+      options.on('-l', '--log-level=LEVEL', level_list,
+                 "Logging level (#{level_list.join(' ')}). default is `info'.") do |level|
         conf.load(log_level: level)
       end
-      options.on('--kvs-type=TYPE', %w[ gdbm ]) do |type|
+      options.on('--kvs-type=TYPE', %w[ gdbm ],
+                 "Choose the key-value store type of mailbox database. only GDBM can be chosen now.") do |type|
         conf.load(key_value_store_type: type)
       end
-      options.on('--username=NAME', String) do |name|
+      options.on('-u', '--username=NAME',
+                 "Username to login imap server. required parameter to start imap server.") do |name|
         conf.load(username: name)
       end
-      options.on('--password=PASS') do |pass|
+      options.on('-w', '--password=PASS',
+                 "Password to login imap server. required parameter to start imap server.") do |pass|
         conf.load(password: pass)
       end
-      options.on('--ip-addr=IP_ADDR') do |ip_addr|
+      options.on('--ip-addr=IP_ADDR',
+                 "Local IP address or hostname for the server to bind. default is `0.0.0.0'.") do |ip_addr|
         conf.load(ip_addr: ip_addr)
       end
-      options.on('--ip-port=PORT', Integer) do |port|
+      options.on('--ip-port=PORT', Integer,
+                 "Local port number or service name for the server to listen. default is 1430.") do |port|
         conf.load(ip_port: port)
       end
       options.parse!(args)
