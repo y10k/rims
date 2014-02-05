@@ -1149,10 +1149,11 @@ module RIMS
       def create(tag, mbox_name)
         protect_auth(tag) {
           res = []
-          if (@mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (@mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             res << "#{tag} NO duplicated mailbox"
           else
-            @mail_store_holder.to_mst.add_mbox(mbox_name)
+            @mail_store_holder.to_mst.add_mbox(mbox_name_utf8)
             res << "#{tag} OK CREATE completed"
           end
         }
