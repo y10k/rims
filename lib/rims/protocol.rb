@@ -1178,16 +1178,18 @@ module RIMS
 
       def rename(tag, src_name, dst_name)
         protect_auth(tag) {
-          unless (id = @mail_store_holder.to_mst.mbox_id(src_name)) then
+          src_name_utf8 = Net::IMAP.decode_utf7(src_name)
+          dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
+          unless (id = @mail_store_holder.to_mst.mbox_id(src_name_utf8)) then
             return [ "#{tag} NO not found a mailbox" ]
           end
           if (id == @mail_store_holder.to_mst.mbox_id('INBOX')) then
             return [ "#{tag} NO not rename inbox"]
           end
-          if (@mail_store_holder.to_mst.mbox_id(dst_name)) then
+          if (@mail_store_holder.to_mst.mbox_id(dst_name_utf8)) then
             return [ "#{tag} NO duplicated mailbox" ]
           end
-          @mail_store_holder.to_mst.rename_mbox(id, dst_name)
+          @mail_store_holder.to_mst.rename_mbox(id, dst_name_utf8)
           [ "#{tag} OK RENAME completed" ]
         }
       end
