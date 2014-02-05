@@ -103,7 +103,7 @@ module RIMS
         [ :imap_ssl, false, '-s', '--[no-]use-ssl' ],
         [ :username, nil, '-u', '--username=NAME' ],
         [ :password, nil, '-w', '--password=PASS' ],
-        [ :mailbox, 'INBOX', '-m', '--mailbox' ],
+        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME' ],
         [ :store_flag_answered, false, '--[no-]store-flag-answered' ],
         [ :store_flag_flagged, false, '--[no-]store-flag-flagged' ],
         [ :store_flag_deleted, false, '--[no-]store-flag-deleted' ],
