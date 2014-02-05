@@ -1133,7 +1133,8 @@ module RIMS
         protect_auth(tag) {
           res = []
           @folder = nil
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             @folder = @mail_store_holder.to_mst.examine_mbox(id)
             folder_open_msgs do |msg|
               res << msg

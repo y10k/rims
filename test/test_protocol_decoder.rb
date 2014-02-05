@@ -437,6 +437,34 @@ Content-Type: text/html; charset=us-ascii
       assert_equal([ 1       ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
     end
 
+    def test_examine_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.examine('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('* 0 EXISTS')
+        a.equal('* 0 RECENT')
+        a.equal('* OK [UNSEEN 0]')
+        a.equal("* OK [UIDVALIDITY #{mbox_id}]")
+        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        a.equal('T002 OK [READ-ONLY] EXAMINE completed')
+      }
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+    end
+
     def test_create
       assert_equal(false, @decoder.auth?)
 
