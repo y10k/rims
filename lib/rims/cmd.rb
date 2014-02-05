@@ -28,7 +28,7 @@ module RIMS
       pp cmd_name if $DEBUG
       pp args if $DEBUG
 
-      cmd_entry = CMDs[cmd_name] or raise "unknown command: #{cmd_name}"
+      cmd_entry = CMDs[cmd_name] or raise "unknown command: #{cmd_name}. Run `#{options.program_name} help'."
       options.program_name += " #{cmd_name}"
       send(cmd_entry[:function], options, args)
     end
