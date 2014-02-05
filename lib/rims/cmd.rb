@@ -109,20 +109,22 @@ module RIMS
     command_function :cmd_server, "Run imap server."
 
     def cmd_imap_append(options, args)
+      date_place_list = [ :servertime, :localtime, :filetime, :mailheader ]
       option_list = [
-        [ :verbose, false, '-v', '--[no-]verbose' ],
-        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME' ],
-        [ :imap_port, 1430, '-o', '--port=PORT', Integer ],
-        [ :imap_ssl, false, '-s', '--[no-]use-ssl' ],
-        [ :username, nil, '-u', '--username=NAME' ],
-        [ :password, nil, '-w', '--password=PASS' ],
-        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME' ],
-        [ :store_flag_answered, false, '--[no-]store-flag-answered' ],
-        [ :store_flag_flagged, false, '--[no-]store-flag-flagged' ],
-        [ :store_flag_deleted, false, '--[no-]store-flag-deleted' ],
-        [ :store_flag_seen, false, '--[no-]store-flag-seen' ],
-        [ :store_flag_draft, false, '--[no-]store-flag-draft' ],
-        [ :look_for_date, :servertime, '--look-for-date=PLACE', [ :servertime, :localtime, :filetime, :mailheader ] ]
+        [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ],
+        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect imap server. default is `localhost'." ],
+        [ :imap_port, 1430, '-o', '--port=PORT', Integer, "Server port number or service name to connect imap server. default is 1430." ],
+        [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
+        [ :username, nil, '-u', '--username=NAME', "Username to login imap server. required parameter to connect imap server." ],
+        [ :password, nil, '-w', '--password=PASS', "Password to login imap server. required parameter to connect imap server." ],
+        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ],
+        [ :store_flag_answered, false, '--[no-]store-flag-answered', "Store answered flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_flagged, false, '--[no-]store-flag-flagged', "Store flagged flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_deleted, false, '--[no-]store-flag-deleted', "Store deleted flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_seen, false, '--[no-]store-flag-seen', "Store seen flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_draft, false, '--[no-]store-flag-draft', "Store draft flag on appending messages to mailbox. default is no flag." ],
+        [ :look_for_date, :servertime, '--look-for-date=PLACE', date_place_list,
+          "Choose the place (#{date_place_list.join(' ')}) to look for the date that as internaldate is appended with message. default is `servertime'." ]
       ]
 
       conf = {}
@@ -130,7 +132,12 @@ module RIMS
         conf[key] = value
       end
 
-      options.on('-f', '--config-yaml=CONFIG_FILE') do |path|
+      options.on('-h', '--help', 'Show this message.')do
+        puts options
+        exit
+      end
+      options.on('-f', '--config-yaml=CONFIG_FILE',
+                 "Load optional parameters from CONFIG_FILE.") do |path|
         for name, value in YAML.load_file(path)
           conf[name.to_sym] = value
         end
@@ -140,7 +147,8 @@ module RIMS
           conf[key] = v
         end
       end
-      options.on('--[no-]imap-debug') do |v|
+      options.on('--[no-]imap-debug',
+                 "Set the debug flag of Net::IMAP class. default is false.") do |v|
         Net::IMAP.debug = v
       end
       options.parse!(args)
