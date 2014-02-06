@@ -56,6 +56,8 @@ module RIMS
 
     def add_mbox(name)
       name = 'INBOX' if (name =~ /^INBOX$/i)
+      name = name.b
+
       if (@global_db.mbox_id(name)) then
         raise "duplicated mailbox name: #{name}."
       end
@@ -86,7 +88,8 @@ module RIMS
     def rename_mbox(id, new_name)
       mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
       new_name = 'INBOX' if (new_name =~ /^INBOX$/i)
-      old_name = @global_db.rename_mbox(id, new_name)
+      old_name = @global_db.rename_mbox(id, new_name.b)
+      old_name = old_name.dup.force_encoding('utf-8')
 
       @global_db.cnum_succ!
 
@@ -94,12 +97,14 @@ module RIMS
     end
 
     def mbox_name(id)
-      @global_db.mbox_name(id)
+      if (name = @global_db.mbox_name(id)) then
+        name.dup.force_encoding('utf-8')
+      end
     end
 
     def mbox_id(name)
       name = 'INBOX' if (name =~ /^INBOX$/i)
-      @global_db.mbox_id(name)
+      @global_db.mbox_id(name.b)
     end
 
     def each_mbox_id

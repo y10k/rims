@@ -90,6 +90,9 @@ module RIMS::Test
       @kv_store = {}
       @kvs_open = proc{|user_name, db_name|
         kvs = {}
+        def kvs.[](*args)
+          s = super and s.b
+        end
         def kvs.sync
           self
         end
