@@ -1300,7 +1300,8 @@ module RIMS
       def append(tag, mbox_name, *opt_args, msg_text)
         protect_auth(tag) {
           res = []
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             msg_flags = []
             msg_date = Time.now
 
