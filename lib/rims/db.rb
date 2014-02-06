@@ -77,7 +77,7 @@ module RIMS
         raise "duplicated mailbox name: #{new_name}"
       end
       @db["mbox_id-#{id}"] = new_name
-      @db["mbox_name-#{new_name}"] = id
+      @db["mbox_name-#{new_name}"] = id.to_s
       @db.delete("mbox_name-#{old_name}")
       old_name
     end
