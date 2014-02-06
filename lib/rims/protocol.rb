@@ -1264,7 +1264,8 @@ module RIMS
       def status(tag, mbox_name, data_item_group)
         protect_auth(tag) {
           res = []
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
               raise SyntaxError, 'second arugment is not a group list.'
             end
