@@ -1549,9 +1549,10 @@ module RIMS
       def copy(tag, msg_set, mbox_name, uid: false)
         protect_select(tag) {
           res = []
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           msg_set = @folder.parse_msg_set(msg_set, uid: uid)
 
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             msg_list = @folder.msg_list.find_all{|msg|
               if (uid) then
                 msg_set.include? msg.id

@@ -3480,6 +3480,43 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
+    def test_copy_utf7_mbox_name
+      @mail_store.add_msg(@inbox_id, 'Hello world.')
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      res = @decoder.select('T002', 'INBOX').each
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T002 OK [READ-WRITE] SELECT completed')
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+
+      res = @decoder.copy('T003', '1', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('T003 OK COPY completed')
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 1 ], @mail_store.each_msg_id(mbox_id).to_a)
+      assert_equal('Hello world.', @mail_store.msg_text(mbox_id, 1))
+
+      res = @decoder.logout('T004').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
+      }
+    end
+
     def test_command_loop_empty
       output = StringIO.new('', 'w')
       RIMS::Protocol::Decoder.repl(@decoder, StringIO.new('', 'r'), output, @logger)
