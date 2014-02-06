@@ -1216,11 +1216,16 @@ module RIMS
       end
 
       def list_mbox(ref_name, mbox_name)
-        mbox_filter = Protocol.compile_wildcard(mbox_name)
+        ref_name_utf8 = Net::IMAP.decode_utf7(ref_name)
+        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+
+        mbox_filter = Protocol.compile_wildcard(mbox_name_utf8)
         mbox_list = @mail_store_holder.to_mst.each_mbox_id.map{|id| [ id, @mail_store_holder.to_mst.mbox_name(id) ] }
-        mbox_list.keep_if{|id, name| name.start_with? ref_name }
-        mbox_list.keep_if{|id, name| name[(ref_name.length)..-1] =~ mbox_filter }
-        for id, name in mbox_list
+        mbox_list.keep_if{|id, name| name.start_with? ref_name_utf8 }
+        mbox_list.keep_if{|id, name| name[(ref_name_utf8.length)..-1] =~ mbox_filter }
+
+        for id, name_utf8 in mbox_list
+          name = Net::IMAP.encode_utf7(name_utf8)
           attrs = '\Noinferiors'
           if (@mail_store_holder.to_mst.mbox_flags(id, 'recent') > 0) then
             attrs << ' \Marked'
@@ -1229,6 +1234,7 @@ module RIMS
           end
           yield("(#{attrs}) NIL #{Protocol.quote(name)}")
         end
+
         nil
       end
       private :list_mbox
