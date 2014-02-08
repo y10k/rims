@@ -3697,6 +3697,33 @@ T004 LOGOUT
       assert_equal([      ], [ 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
     end
 
+    def test_command_loop_select_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 SELECT "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
+T003 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.equal('* 0 EXISTS')
+        a.equal('* 0 RECENT')
+        a.equal('* OK [UNSEEN 0]')
+        a.equal("* OK [UIDVALIDITY #{mbox_id}]")
+        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        a.equal('T002 OK [READ-WRITE] SELECT completed')
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+    end
+
     def test_command_loop_examine
       @mail_store.add_msg(@inbox_id, '')
       @mail_store.add_msg(@inbox_id, '')
@@ -3759,6 +3786,33 @@ T004 LOGOUT
       assert_equal([ 1       ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
     end
 
+    def test_command_loop_examine_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 EXAMINE "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
+T003 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.equal('* 0 EXISTS')
+        a.equal('* 0 RECENT')
+        a.equal('* OK [UNSEEN 0]')
+        a.equal("* OK [UIDVALIDITY #{mbox_id}]")
+        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        a.equal('T002 OK [READ-ONLY] EXAMINE completed')
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+    end
+
     def test_command_loop_create
       assert_nil(@mail_store.mbox_id('foo'))
 
@@ -3785,6 +3839,28 @@ T005 LOGOUT
       }
 
       assert_not_nil(@mail_store.mbox_id('foo'))
+    end
+
+    def test_command_loop_create_utf7_mbox_name
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 CREATE "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
+T003 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.equal('T002 OK CREATE completed')
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+
+      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
     end
 
     def test_command_loop_delete
@@ -3820,6 +3896,31 @@ T006 LOGOUT
       assert_not_nil(@mail_store.mbox_id('inbox'))
       assert_nil(@mail_store.mbox_id('foo'))
       assert_nil(@mail_store.mbox_id('bar'))
+    end
+
+    def test_command_loop_delete_utf7_mbox_name
+      @mail_store.add_mbox('~peter/mail/日本語/台北')
+      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 DELETE "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
+T003 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.equal('T002 OK DELETE completed')
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+
+      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
     end
 
     def test_command_loop_rename
@@ -3859,6 +3960,38 @@ T007 LOGOUT
       assert_equal('INBOX', @mail_store.mbox_name(@inbox_id))
     end
 
+    def test_command_loop_rename_utf7_mbox_name
+      @mail_store.add_mbox('foo')
+
+      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      assert_nil(@mail_store.mbox_id('bar'))
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 RENAME foo "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
+T003 RENAME "~peter/mail/&ZeVnLIqe-/&U,BTFw-" bar
+T004 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.equal('T002 OK RENAME completed')
+        a.equal('T003 OK RENAME completed')
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
+      }
+
+      assert_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      assert_not_nil(@mail_store.mbox_id('bar'))
+    end
+
     def test_command_loop_list
       @mail_store.add_msg(@inbox_id, 'foo')
       @mail_store.add_mbox('foo')
@@ -3895,6 +4028,32 @@ T010 LOGOUT
       }
     end
 
+    def test_command_loop_list_utf7_mbox_name
+      @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 LIST "~peter/" "*&ZeVnLIqe-*"
+T003 LIST "~peter/mail/&ZeVnLA-" "*&U,A-*"
+T004 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
+        a.equal('T002 OK LIST completed')
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
+        a.equal('T003 OK LIST completed')
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
+      }
+    end
+
     def test_command_loop_status
       @mail_store.add_msg(@inbox_id, 'foo')
       @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
@@ -3926,6 +4085,29 @@ T013 LOGOUT
         a.match(/^T012 BAD /)
         a.match(/^\* BYE /)
         a.equal('T013 OK LOGOUT completed')
+      }
+    end
+
+    def test_command_loop_status_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 STATUS "~peter/mail/&ZeVnLIqe-/&U,BTFw-" (UIDVALIDITY MESSAGES RECENT UNSEEN)
+T003 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.equal("* STATUS \"~peter/mail/&ZeVnLIqe-/&U,BTFw-\" (UIDVALIDITY #{mbox_id} MESSAGES 0 RECENT 0 UNSEEN 0)")
+        a.equal('T002 OK STATUS completed')
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
       }
     end
 
@@ -3981,6 +4163,32 @@ T012 LOGOUT
       assert_equal([ 1, 2, 3, 4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
       assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 3))
       assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 4))
+    end
+
+    def test_command_loop_append_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 APPEND "~peter/mail/&ZeVnLIqe-/&U,BTFw-" "Hello world."
+T003 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.equal('T002 OK APPEND completed')
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(mbox_id).to_a)
+      assert_equal('Hello world.', @mail_store.msg_text(mbox_id, 1))
     end
 
     def test_command_loop_check
@@ -5169,6 +5377,38 @@ T009 LOGOUT
       assert_equal([         ], [ 3, 5, 7 ].find_all{|id| @mail_store.msg_flag(work_id, id, 'seen') })
       assert_equal([         ], [ 3, 5, 7 ].find_all{|id| @mail_store.msg_flag(work_id, id, 'draft') })
       assert_equal([         ], [ 3, 5, 7 ].find_all{|id| @mail_store.msg_flag(work_id, id, 'recent') }) # clear by LOGOUT
+    end
+
+    def test_command_loop_copy_utf7_mbox_name
+      @mail_store.add_msg(@inbox_id, 'Hello world.')
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF', 'r')
+T001 LOGIN foo open_sesame
+T002 SELECT INBOX
+T003 COPY 1 "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
+T004 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res, crlf_at_eol: true) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK LOGIN completed')
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T002 OK [READ-WRITE] SELECT completed')
+        a.equal('T003 OK COPY completed')
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(mbox_id).to_a)
+      assert_equal('Hello world.', @mail_store.msg_text(mbox_id, 1))
     end
   end
 end
