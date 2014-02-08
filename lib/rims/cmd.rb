@@ -80,11 +80,11 @@ module RIMS
         conf.load(key_value_store_type: type)
       end
       options.on('-u', '--username=NAME',
-                 "Username to login imap server. required parameter to start imap server.") do |name|
+                 "Username to login IMAP server. required parameter to start server.") do |name|
         conf.load(username: name)
       end
       options.on('-w', '--password=PASS',
-                 "Password to login imap server. required parameter to start imap server.") do |pass|
+                 "Password to login IMAP server. required parameter to start server.") do |pass|
         conf.load(password: pass)
       end
       options.on('--ip-addr=IP_ADDR',
@@ -106,17 +106,17 @@ module RIMS
 
       0
     end
-    command_function :cmd_server, "Run imap server."
+    command_function :cmd_server, "Run IMAP server."
 
     def cmd_imap_append(options, args)
       date_place_list = [ :servertime, :localtime, :filetime, :mailheader ]
       option_list = [
         [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ],
-        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect imap server. default is `localhost'." ],
-        [ :imap_port, 1430, '-o', '--port=PORT', Integer, "Server port number or service name to connect imap server. default is 1430." ],
+        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `localhost'." ],
+        [ :imap_port, 1430, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is 1430." ],
         [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
-        [ :username, nil, '-u', '--username=NAME', "Username to login imap server. required parameter to connect imap server." ],
-        [ :password, nil, '-w', '--password=PASS', "Password to login imap server. required parameter to connect imap server." ],
+        [ :username, nil, '-u', '--username=NAME', "Username to login IMAP server. required parameter to connect server." ],
+        [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
         [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ],
         [ :store_flag_answered, false, '--[no-]store-flag-answered', "Store answered flag on appending messages to mailbox. default is no flag." ],
         [ :store_flag_flagged, false, '--[no-]store-flag-flagged', "Store flagged flag on appending messages to mailbox. default is no flag." ],
@@ -132,6 +132,7 @@ module RIMS
         conf[key] = value
       end
 
+      options.banner += ' [MESSAGE_FILEs]'
       options.on('-h', '--help', 'Show this message.')do
         puts options
         exit
