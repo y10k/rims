@@ -143,7 +143,7 @@ module RIMS
           conf[name.to_sym] = value
         end
       end
-      for key, value, *option_description in option_list
+      option_list.each do |key, value, *option_description|
         options.on(*option_description) do |v|
           conf[key] = v
         end
