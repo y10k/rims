@@ -90,6 +90,9 @@ module RIMS::Test
       @kv_store = {}
       @kvs_open = proc{|user_name, db_name|
         kvs = {}
+        def kvs.[](*args)
+          s = super and s.b
+        end
         def kvs.sync
           self
         end
@@ -331,6 +334,34 @@ Content-Type: text/html; charset=us-ascii
       assert_equal([      ], [ 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
     end
 
+    def test_select_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.select('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('* 0 EXISTS')
+        a.equal('* 0 RECENT')
+        a.equal('* OK [UNSEEN 0]')
+        a.equal("* OK [UIDVALIDITY #{mbox_id}]")
+        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        a.equal('T002 OK [READ-WRITE] SELECT completed')
+      }
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+    end
+
     def test_examine
       @mail_store.add_msg(@inbox_id, '')
       @mail_store.add_msg(@inbox_id, '')
@@ -409,6 +440,34 @@ Content-Type: text/html; charset=us-ascii
       assert_equal([ 1       ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
     end
 
+    def test_examine_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.examine('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('* 0 EXISTS')
+        a.equal('* 0 RECENT')
+        a.equal('* OK [UNSEEN 0]')
+        a.equal("* OK [UIDVALIDITY #{mbox_id}]")
+        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        a.equal('T002 OK [READ-ONLY] EXAMINE completed')
+      }
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+    end
+
     def test_create
       assert_equal(false, @decoder.auth?)
 
@@ -443,6 +502,28 @@ Content-Type: text/html; charset=us-ascii
       assert_imap_response(res) {|a|
         a.match(/^\* BYE /)
         a.equal('T005 OK LOGOUT completed')
+      }
+    end
+
+    def test_create_utf7_mbox_name
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+
+      res = @decoder.create('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK CREATE completed')
+      }
+
+      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
       }
     end
 
@@ -488,6 +569,30 @@ Content-Type: text/html; charset=us-ascii
       assert_imap_response(res) {|a|
         a.match(/^\* BYE /)
         a.equal('T006 OK LOGOUT completed')
+      }
+    end
+
+    def test_delete_utf7_mbox_name
+      @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+
+      res = @decoder.delete('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK DELETE completed')
+      }
+
+      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
       }
     end
 
@@ -550,6 +655,43 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
+    def test_rename_utf7_mbox_name
+      @mail_store.add_mbox('foo')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      assert_nil(@mail_store.mbox_id('bar'))
+
+      res = @decoder.rename('T002', 'foo', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK RENAME completed')
+      }
+
+      assert_nil(@mail_store.mbox_id('foo'))
+      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      assert_nil(@mail_store.mbox_id('bar'))
+
+      res = @decoder.rename('T003', '~peter/mail/&ZeVnLIqe-/&U,BTFw-', 'bar').each
+      assert_imap_response(res) {|a|
+        a.equal('T003 OK RENAME completed')
+      }
+
+      assert_nil(@mail_store.mbox_id('foo'))
+      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      assert_not_nil(@mail_store.mbox_id('bar'))
+
+      res = @decoder.logout('T004').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
+      }
+    end
+
     def test_subscribe_not_implemented
       assert_equal(false, @decoder.auth?)
 
@@ -575,6 +717,26 @@ Content-Type: text/html; charset=us-ascii
       res = @decoder.subscribe('T004', 'NOBOX').each
       assert_imap_response(res) {|a|
         a.equal('T004 NO not found a mailbox')
+      }
+    end
+
+    def test_subscribe_utf7_mbox_name
+      @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      res = @decoder.subscribe('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK SUBSCRIBE completed')
+      }
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
       }
     end
 
@@ -671,6 +833,33 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
+    def test_list_utf7_mbox_name
+      @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      res = @decoder.list('T002', '~peter/', '*&ZeVnLIqe-*').each
+      assert_imap_response(res) {|a|
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
+        a.equal('T002 OK LIST completed')
+      }
+
+      res = @decoder.list('T003', '~peter/mail/&ZeVnLA-', '*&U,A-*').each
+      assert_imap_response(res) {|a|
+        a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
+        a.equal('T003 OK LIST completed')
+      }
+
+      res = @decoder.logout('T004').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
+      }
+    end
+
     def test_status
       assert_equal(false, @decoder.auth?)
 
@@ -760,6 +949,27 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
+    def test_status_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      res = @decoder.status('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-', [ :group, 'UIDVALIDITY', 'MESSAGES', 'RECENT', 'UNSEEN' ]).each
+      assert_imap_response(res) {|a|
+        a.equal("* STATUS \"~peter/mail/&ZeVnLIqe-/&U,BTFw-\" (UIDVALIDITY #{mbox_id} MESSAGES 0 RECENT 0 UNSEEN 0)")
+        a.equal('T002 OK STATUS completed')
+      }
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
+      }
+    end
+
     def test_lsub_not_implemented
       assert_equal(false, @decoder.auth?)
 
@@ -781,6 +991,27 @@ Content-Type: text/html; charset=us-ascii
       assert_imap_response(res) {|a|
         a.equal('* LSUB (\Noinferiors \Unmarked) NIL "INBOX"')
         a.equal('T003 OK LSUB completed')
+      }
+    end
+
+    def test_lsub_utf7_mbox_name
+      @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      res = @decoder.lsub('T002', '~peter/', '*&ZeVnLIqe-*').each
+      assert_imap_response(res) {|a|
+        a.equal('* LSUB (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
+        a.equal('T002 OK LSUB completed')
+      }
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
       }
     end
 
@@ -890,6 +1121,32 @@ Content-Type: text/html; charset=us-ascii
       assert_imap_response(res) {|a|
         a.match(/^\* BYE /)
         a.equal('T012 OK LOGOUT completed')
+      }
+    end
+
+    def test_append_utf7_mbox_name
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+
+      res = @decoder.append('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-', 'Hello world.').each
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK APPEND completed')
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(mbox_id).to_a)
+      assert_equal('Hello world.', @mail_store.msg_text(mbox_id, 1))
+
+      res = @decoder.logout('T003').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T003 OK LOGOUT completed')
       }
     end
 
@@ -3271,6 +3528,43 @@ Content-Type: text/html; charset=us-ascii
       assert_imap_response(res) {|a|
         a.match(/^\* BYE /)
         a.equal('T009 OK LOGOUT completed')
+      }
+    end
+
+    def test_copy_utf7_mbox_name
+      @mail_store.add_msg(@inbox_id, 'Hello world.')
+      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+
+      res = @decoder.login('T001', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK LOGIN completed')
+      }
+
+      res = @decoder.select('T002', 'INBOX').each
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* / }
+        a.equal('T002 OK [READ-WRITE] SELECT completed')
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([], @mail_store.each_msg_id(mbox_id).to_a)
+
+      res = @decoder.copy('T003', '1', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
+      assert_imap_response(res) {|a|
+        a.equal('T003 OK COPY completed')
+      }
+
+      assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+      assert_equal([ 1 ], @mail_store.each_msg_id(mbox_id).to_a)
+      assert_equal('Hello world.', @mail_store.msg_text(mbox_id, 1))
+
+      res = @decoder.logout('T004').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T004 OK LOGOUT completed')
       }
     end
 

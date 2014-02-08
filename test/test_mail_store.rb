@@ -10,6 +10,9 @@ module RIMS::Test
       @kv_store = {}
       @kvs_open = proc{|path|
         kvs = {}
+        def kvs.[](*args)
+          s = super and s.b
+        end
         def kvs.close
           self
         end
@@ -23,6 +26,12 @@ module RIMS::Test
       @mail_store.close if @mail_store
     end
 
+    def assert_strenc_equal(expected_enc, expected_str, expr_str)
+      assert_equal(Encoding.find(expected_enc), expr_str.encoding)
+      assert_equal(expected_str.dup.force_encoding(expected_enc), expr_str)
+    end
+    private :assert_strenc_equal
+
     def test_mbox
       assert_equal(0, @mail_store.cnum)
       assert_equal(1, @mail_store.uidvalidity)
@@ -31,14 +40,14 @@ module RIMS::Test
       assert_equal(1, @mail_store.add_mbox('INBOX'))
       assert_equal(1, @mail_store.cnum)
       assert_equal(2, @mail_store.uidvalidity)
-      assert_equal('INBOX', @mail_store.mbox_name(1))
+      assert_strenc_equal('utf-8', 'INBOX', @mail_store.mbox_name(1))
       assert_equal(1, @mail_store.mbox_id('INBOX'))
       assert_equal([ 1 ], @mail_store.each_mbox_id.to_a)
 
       assert_equal('INBOX', @mail_store.rename_mbox(1, 'foo'))
       assert_equal(2, @mail_store.cnum)
       assert_equal(2, @mail_store.uidvalidity)
-      assert_equal('foo', @mail_store.mbox_name(1))
+      assert_strenc_equal('utf-8', 'foo', @mail_store.mbox_name(1))
       assert_equal(1, @mail_store.mbox_id('foo'))
       assert_nil(@mail_store.mbox_id('INBOX'))
       assert_equal([ 1 ], @mail_store.each_mbox_id.to_a)
@@ -53,7 +62,7 @@ module RIMS::Test
       assert_equal(2, @mail_store.add_mbox('INBOX'))
       assert_equal(4, @mail_store.cnum)
       assert_equal(3, @mail_store.uidvalidity)
-      assert_equal('INBOX', @mail_store.mbox_name(2))
+      assert_strenc_equal('utf-8', 'INBOX', @mail_store.mbox_name(2))
       assert_equal(2, @mail_store.mbox_id('INBOX'))
       assert_equal([ 2 ], @mail_store.each_mbox_id.to_a)
     end

@@ -78,7 +78,7 @@ module RIMS
       end
       @db["mbox_id-#{id}"] = new_name
       @db["mbox_name-#{new_name}"] = id.to_s
-      @db.delete("mbox_name-#{old_name}")
+      @db.delete("mbox_name-#{old_name}") or raise 'internal error.'
       old_name
     end
 

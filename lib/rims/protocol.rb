@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'mail'
+require 'net/imap'
 require 'set'
 require 'time'
 
@@ -1115,7 +1116,8 @@ module RIMS
         protect_auth(tag) {
           res = []
           @folder = nil
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             @folder = @mail_store_holder.to_mst.select_mbox(id)
             folder_open_msgs do |msg|
               res << msg
@@ -1131,7 +1133,8 @@ module RIMS
         protect_auth(tag) {
           res = []
           @folder = nil
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             @folder = @mail_store_holder.to_mst.examine_mbox(id)
             folder_open_msgs do |msg|
               res << msg
@@ -1146,10 +1149,11 @@ module RIMS
       def create(tag, mbox_name)
         protect_auth(tag) {
           res = []
-          if (@mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (@mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             res << "#{tag} NO duplicated mailbox"
           else
-            @mail_store_holder.to_mst.add_mbox(mbox_name)
+            @mail_store_holder.to_mst.add_mbox(mbox_name_utf8)
             res << "#{tag} OK CREATE completed"
           end
         }
@@ -1158,7 +1162,8 @@ module RIMS
       def delete(tag, mbox_name)
         protect_auth(tag) {
           res = []
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             if (id != @mail_store_holder.to_mst.mbox_id('INBOX')) then
               @mail_store_holder.to_mst.del_mbox(id)
               res << "#{tag} OK DELETE completed"
@@ -1173,23 +1178,26 @@ module RIMS
 
       def rename(tag, src_name, dst_name)
         protect_auth(tag) {
-          unless (id = @mail_store_holder.to_mst.mbox_id(src_name)) then
+          src_name_utf8 = Net::IMAP.decode_utf7(src_name)
+          dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
+          unless (id = @mail_store_holder.to_mst.mbox_id(src_name_utf8)) then
             return [ "#{tag} NO not found a mailbox" ]
           end
           if (id == @mail_store_holder.to_mst.mbox_id('INBOX')) then
             return [ "#{tag} NO not rename inbox"]
           end
-          if (@mail_store_holder.to_mst.mbox_id(dst_name)) then
+          if (@mail_store_holder.to_mst.mbox_id(dst_name_utf8)) then
             return [ "#{tag} NO duplicated mailbox" ]
           end
-          @mail_store_holder.to_mst.rename_mbox(id, dst_name)
+          @mail_store_holder.to_mst.rename_mbox(id, dst_name_utf8)
           [ "#{tag} OK RENAME completed" ]
         }
       end
 
       def subscribe(tag, mbox_name)
         protect_auth(tag) {
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             [ "#{tag} OK SUBSCRIBE completed" ]
           else
             [ "#{tag} NO not found a mailbox" ]
@@ -1208,11 +1216,16 @@ module RIMS
       end
 
       def list_mbox(ref_name, mbox_name)
-        mbox_filter = Protocol.compile_wildcard(mbox_name)
+        ref_name_utf8 = Net::IMAP.decode_utf7(ref_name)
+        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+
+        mbox_filter = Protocol.compile_wildcard(mbox_name_utf8)
         mbox_list = @mail_store_holder.to_mst.each_mbox_id.map{|id| [ id, @mail_store_holder.to_mst.mbox_name(id) ] }
-        mbox_list.keep_if{|id, name| name.start_with? ref_name }
-        mbox_list.keep_if{|id, name| name[(ref_name.length)..-1] =~ mbox_filter }
-        for id, name in mbox_list
+        mbox_list.keep_if{|id, name| name.start_with? ref_name_utf8 }
+        mbox_list.keep_if{|id, name| name[(ref_name_utf8.length)..-1] =~ mbox_filter }
+
+        for id, name_utf8 in mbox_list
+          name = Net::IMAP.encode_utf7(name_utf8)
           attrs = '\Noinferiors'
           if (@mail_store_holder.to_mst.mbox_flags(id, 'recent') > 0) then
             attrs << ' \Marked'
@@ -1221,6 +1234,7 @@ module RIMS
           end
           yield("(#{attrs}) NIL #{Protocol.quote(name)}")
         end
+
         nil
       end
       private :list_mbox
@@ -1256,7 +1270,8 @@ module RIMS
       def status(tag, mbox_name, data_item_group)
         protect_auth(tag) {
           res = []
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
               raise SyntaxError, 'second arugment is not a group list.'
             end
@@ -1291,7 +1306,8 @@ module RIMS
       def append(tag, mbox_name, *opt_args, msg_text)
         protect_auth(tag) {
           res = []
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             msg_flags = []
             msg_date = Time.now
 
@@ -1539,9 +1555,10 @@ module RIMS
       def copy(tag, msg_set, mbox_name, uid: false)
         protect_select(tag) {
           res = []
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           msg_set = @folder.parse_msg_set(msg_set, uid: uid)
 
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             msg_list = @folder.msg_list.find_all{|msg|
               if (uid) then
                 msg_set.include? msg.id
