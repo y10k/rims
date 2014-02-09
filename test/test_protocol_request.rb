@@ -163,6 +163,18 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    @reader.parse([ '*', 'OK', '['.intern, 'PERMANENTFLAGS', '('.intern, '\Deleted', '\Seen', '\*', ')'.intern, ']'.intern, 'Limited' ]))
       assert_equal([ '*', 'LIST', [ :group, '\Noselect' ], :NIL, '' ],
                    @reader.parse([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ]))
+      assert_equal([ 'A654', 'FETCH', '2:4',
+                     [ :group,
+                       [ :body,
+                         RIMS::Protocol.body(symbol: 'BODY',
+                                             section: '',
+                                             section_list: [])
+                       ]
+                     ]
+                   ],
+                   @reader.parse([ 'A654', 'FETCH', '2:4', '('.intern, 'BODY[]', ')'.intern ]))
+      assert_equal([ 'A003', 'APPEND', 'saved-messages', "foo\nbody[]\nbar\n" ],
+                   @reader.parse([ 'A003', 'APPEND', 'saved-messages', "foo\nbody[]\nbar\n" ]))
 
       assert_equal('', @output.string)
     end
@@ -257,10 +269,20 @@ Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
 Hello Joe, do you think we can meet at 3:30 tomorrow?
       EOF
 
-      @input.string = "A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n"
+      literal2 = <<-'EOF'
+Subject: parse test
+
+body[]
+      EOF
+
+      @input.string =
+          "A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n" +
+          "A004 APPEND saved-messages {#{literal2.bytesize}}\n" + literal2 + "\n"
       assert_equal([ 'A003', 'APPEND', 'saved-messages', [ :group, '\Seen' ], literal ], @reader.read_command)
+      assert_equal([ 'A004', 'APPEND', 'saved-messages', literal2 ], @reader.read_command)
 
       cmd_cont_req = @output.string.each_line
+      assert_match(/^\+ /, cmd_cont_req.next)
       assert_match(/^\+ /, cmd_cont_req.next)
       assert_raise(StopIteration) { cmd_cont_req.next }
     end
