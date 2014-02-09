@@ -1414,7 +1414,18 @@ module RIMS
             parser.charset = charset_string
           end
           cond = parser.parse(cond_args)
-          msg_list = @folder.msg_list.find_all{|msg| cond.call(msg) }
+
+          msg_list = []
+          for msg in @folder.msg_list
+            begin
+              if (cond.call(msg)) then
+                msg_list << msg
+              end
+            rescue
+              @logger.warn("failed to search message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
+              @logger.warn($!)
+            end
+          end
 
           search_resp = '* SEARCH'
           for msg in msg_list
@@ -1458,7 +1469,12 @@ module RIMS
 
           res = []
           for msg in msg_list
-            res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg))
+            begin
+              res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg))
+            rescue
+              @logger.warn("failed to fetch message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
+              @logger.warn($!)
+            end
           end
           res << "#{tag} OK FETCH completed"
         }
