@@ -542,10 +542,16 @@ module RIMS
         unless (search_key.empty?) then
           search_key = search_key.dup
           factory = fetch_next_node(search_key)
-          factory.call(parse(search_key))
+          cond = factory.call(parse(search_key))
         else
-          return end_of_cond
+          cond = end_of_cond
         end
+
+        proc{|msg|
+          found = cond.call(msg)
+          @mail_cache.clear
+          found
+        }
       end
     end
 
@@ -978,7 +984,11 @@ module RIMS
           raise SyntaxError, "unknown fetch attribute: #{fetch_att}"
         end
 
-        fetch
+        proc{|msg|
+          res = fetch.call(msg)
+          @mail_cache.clear
+          res
+        }
       end
     end
 
