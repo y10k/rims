@@ -181,16 +181,30 @@ module RIMS
 
         res = imap.login(conf[:username], conf[:password])
         puts "login: #{imap_res2str(res)}" if conf[:verbose]
-
         if (args.empty?) then
           msg = STDIN.read
           t = look_for_date(conf[:look_for_date], msg)
           imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
         else
+          error_count = 0
           for filename in args
-            msg = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
-            t = look_for_date(conf[:look_for_date], msg, filename)
-            imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
+            begin
+              msg = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
+              t = look_for_date(conf[:look_for_date], msg, filename)
+              imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
+            rescue
+              error_count += 1
+              puts "failed to append message: #{filename}"
+              puts "error: #{$!}"
+              if ($DEBUG) then
+                for frame in $!.backtrace
+                  puts frame
+                end
+              end
+            end
+          end
+          if (error_count > 0) then
+            return 1
           end
         end
       ensure
