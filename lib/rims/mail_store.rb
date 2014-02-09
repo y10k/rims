@@ -55,7 +55,7 @@ module RIMS
     end
 
     def add_mbox(name)
-      name = 'INBOX' if (name =~ /^INBOX$/i)
+      name = 'INBOX' if (name =~ /\AINBOX\z/i)
       name = name.b
 
       if (@global_db.mbox_id(name)) then
@@ -87,7 +87,7 @@ module RIMS
 
     def rename_mbox(id, new_name)
       mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
-      new_name = 'INBOX' if (new_name =~ /^INBOX$/i)
+      new_name = 'INBOX' if (new_name =~ /\AINBOX\z/i)
       old_name = @global_db.rename_mbox(id, new_name.b)
       old_name = old_name.dup.force_encoding('utf-8')
 
@@ -103,7 +103,7 @@ module RIMS
     end
 
     def mbox_id(name)
-      name = 'INBOX' if (name =~ /^INBOX$/i)
+      name = 'INBOX' if (name =~ /\AINBOX\z/i)
       @global_db.mbox_id(name.b)
     end
 
@@ -323,9 +323,9 @@ module RIMS
 
     def self.parse_msg_seq(msg_seq_desc, last_number)
       case (msg_seq_desc)
-      when /^(\d+|\*)$/
+      when /\A(\d+|\*)\z/
         msg_seq_pair = [ $&, $& ]
-      when /^(\d+|\*):(\d+|\*)$/
+      when /\A(\d+|\*):(\d+|\*)\z/
         msg_seq_pair = [ $1, $2 ]
       else
         raise MessageSetSyntaxError, "invalid message sequence format: #{msg_seq_desc}"

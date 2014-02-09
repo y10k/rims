@@ -19,10 +19,10 @@ module RIMS
     module_function :quote
 
     def compile_wildcard(pattern)
-      src = '^'
+      src = '\A'
       src << pattern.gsub(/.*?[*%]/) {|s| Regexp.quote(s[0..-2]) + '.*' }
       src << Regexp.quote($') if $'
-      src << '$'
+      src << '\z'
       Regexp.compile(src)
     end
     module_function :compile_wildcard
@@ -77,15 +77,15 @@ module RIMS
       def scan_line(line)
         atom_list = line.scan(/BODY(?:\.\S+)?\[.*?\](?:<\d+\.\d+>)?|[\[\]()]|".*?"|[^\[\]()\s]+/i).map{|s|
           case (s)
-          when '(', ')', '[', ']', /^NIL$/
+          when '(', ')', '[', ']', /\ANIL\z/i
             s.upcase.intern
-          when /^"/
-            s.sub(/^"/, '').sub(/"$/, '')
+          when /\A"/
+            s.sub(/\A"/, '').sub(/"\z/, '')
           else
             s
           end
         }
-        if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /^{\d+}$/)) then
+        if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /\A{\d+}\z/)) then
           next_size = $&[1..-2].to_i
           @logger.debug("found literal: #{next_size} octets.")
           @output.write("+ continue\r\n")
@@ -144,7 +144,7 @@ module RIMS
           if (atom_list.length < 2) then
             raise 'need for tag and command.'
           end
-          if (atom_list[0] =~ /^[*+]/) then
+          if (atom_list[0] =~ /\A[*+]/) then
             raise "invalid command tag: #{atom_list[0]}"
           end
           return parse(atom_list)
@@ -193,7 +193,7 @@ module RIMS
 
       def mail_body_text(mail)
         case (mail.content_type)
-        when /^text/i, /^message/i
+        when /\Atext/i, /\Amessage/i
           text = mail.body.to_s
           if (charset = mail['content-type'].parameters['charset']) then
             if (text.encoding != Encoding.find(charset)) then
@@ -442,7 +442,7 @@ module RIMS
           factory = parse_keyword(search_string)
         when 'LARGER'
           octet_size = search_key.shift or raise SyntaxError, 'need for a octet size of LARGER.'
-          (octet_size.is_a? String) && (octet_size =~ /^\d+$/) or
+          (octet_size.is_a? String) && (octet_size =~ /\A\d+\z/) or
             raise SyntaxError, "LARGER octet size is expected as numeric string but was <#{octet_size}>."
           factory = parse_mail_bytesize(octet_size.to_i) {|size, boundary| size > boundary }
         when 'NEW'
@@ -482,7 +482,7 @@ module RIMS
           factory = parse_internal_date(t) {|d, boundary| d > boundary }
         when 'SMALLER'
           octet_size = search_key.shift or raise SyntaxError, 'need for a octet size of SMALLER.'
-          (octet_size.is_a? String) && (octet_size =~ /^\d+$/) or
+          (octet_size.is_a? String) && (octet_size =~ /\A\d+\z/) or
             raise SyntaxError, "SMALLER octet size is expected as numeric string but was <#{octet_size}>."
           factory = parse_mail_bytesize(octet_size.to_i) {|size, boundary| size < boundary }
         when 'SUBJECT'
@@ -669,7 +669,7 @@ module RIMS
           mpart_data << mail['Content-Type'].sub_type
         else
           case (mail.content_type)
-          when /^text/i         # body_type_text
+          when /\Atext/i        # body_type_text
             text_data = []
 
             # media_text
@@ -685,7 +685,7 @@ module RIMS
 
             # body_fld_lines
             text_data << mail.raw_source.each_line.count
-          when /^message/i      # body_type_msg
+          when /\Amessage/i     # body_type_msg
             msg_data = []
 
             # message_media
@@ -776,7 +776,7 @@ module RIMS
           section_text = nil
           section_index_list = []
         else
-          if (body.section_list[0] =~ /^(?<index>\d+(?:\.\d+)*)(?:\.(?<text>.+))?$/) then
+          if (body.section_list[0] =~ /\A(?<index>\d+(?:\.\d+)*)(?:\.(?<text>.+))?\z/) then
             section_text = $~[:text]
             section_index_list = $~[:index].split(/\./).map{|i| i.to_i }
           else

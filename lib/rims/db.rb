@@ -93,7 +93,7 @@ module RIMS
     def each_mbox_id
       return enum_for(:each_mbox_id) unless block_given?
       @db.each_key do |key|
-        if (key =~ /^mbox_id-\d+$/) then
+        if (key =~ /\Ambox_id-\d+\z/) then
           yield($&[8..-1].to_i)
         end
       end
@@ -436,7 +436,7 @@ module RIMS
     def each_msg_id
       return enum_for(:each_msg_id) unless block_given?
       @db.each_key do |key|
-        if (key =~ /^msg-\d+$/) then
+        if (key =~ /\Amsg-\d+\z/) then
           yield($&[4..-1].to_i)
         end
       end
