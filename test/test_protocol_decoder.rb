@@ -1612,9 +1612,9 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(true, @decoder.selected?)
 
       res = @decoder.search('T005', 'ALL').each
-      assert_imap_response(res) {|a|
-        a.equal('* SEARCH')
-        a.equal('T005 OK SEARCH completed')
+      assert_imap_response(res, crlf_at_eol: false) {|a|
+        a.equal('* SEARCH').equal("\r\n")
+        a.equal("T005 OK SEARCH completed\r\n")
       }
 
       @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\napple")
@@ -1628,27 +1628,27 @@ Content-Type: text/html; charset=us-ascii
       assert_equal([ 1, 3, 5 ], @mail_store.each_msg_id(@inbox_id).to_a)
 
       res = @decoder.search('T006', 'ALL').each
-      assert_imap_response(res) {|a|
-        a.equal('* SEARCH 1 2 3')
-        a.equal('T006 OK SEARCH completed')
+      assert_imap_response(res, crlf_at_eol: false) {|a|
+        a.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
+        a.equal("T006 OK SEARCH completed\r\n")
       }
 
       res = @decoder.search('T007', 'ALL', uid: true).each
-      assert_imap_response(res) {|a|
-        a.equal('* SEARCH 1 3 5')
-        a.equal('T007 OK SEARCH completed')
+      assert_imap_response(res, crlf_at_eol: false) {|a|
+        a.equal('* SEARCH').equal(' 1').equal(' 3').equal(' 5').equal("\r\n")
+        a.equal("T007 OK SEARCH completed\r\n")
       }
 
       res = @decoder.search('T008', 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple').each
-      assert_imap_response(res) {|a|
-        a.equal('* SEARCH 1 3')
-        a.equal('T008 OK SEARCH completed')
+      assert_imap_response(res, crlf_at_eol: false) {|a|
+        a.equal('* SEARCH').equal(' 1').equal(' 3').equal("\r\n")
+        a.equal("T008 OK SEARCH completed\r\n")
       }
 
       res = @decoder.search('T009', 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', uid: true).each
-      assert_imap_response(res) {|a|
-        a.equal('* SEARCH 1 5')
-        a.equal('T009 OK SEARCH completed')
+      assert_imap_response(res, crlf_at_eol: false) {|a|
+        a.equal('* SEARCH').equal(' 1').equal(' 5').equal("\r\n")
+        a.equal("T009 OK SEARCH completed\r\n")
       }
 
       res = @decoder.logout('T010').each

@@ -1416,31 +1416,25 @@ module RIMS
           end
           cond = parser.parse(cond_args)
 
-          msg_list = []
-          for msg in @folder.msg_list
-            begin
-              if (cond.call(msg)) then
-                msg_list << msg
+          Enumerator.new{|res|
+            res << '* SEARCH'
+            for msg in @folder.msg_list
+              begin
+                if (cond.call(msg)) then
+                  if (uid) then
+                    res << " #{msg.id}"
+                  else
+                    res << " #{msg.num}"
+                  end
+                end
+              rescue
+                @logger.warn("failed to search message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
+                @logger.warn($!)
               end
-            rescue
-              @logger.warn("failed to search message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
-              @logger.warn($!)
             end
-          end
-
-          search_resp = '* SEARCH'
-          for msg in msg_list
-            if (uid) then
-              search_resp << " #{msg.id}"
-            else
-              search_resp << " #{msg.num}"
-            end
-          end
-          search_resp << "\r\n"
-
-          [ search_resp,
-            "#{tag} OK SEARCH completed\r\n"
-          ]
+            res << "\r\n"
+            res << "#{tag} OK SEARCH completed\r\n"
+          }
         }
       end
 
