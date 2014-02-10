@@ -68,9 +68,9 @@ module RIMS
 
       def read_line
         line = @input.gets or return
+        @logger.debug("read line: <#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line.inspect}") if @logger.debug?
         line.chomp!("\n")
         line.chomp!("\r")
-        @logger.debug("read line: <#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line}") if @logger.debug?
         scan_line(line)
       end
 
@@ -91,7 +91,7 @@ module RIMS
           @output.write("+ continue\r\n")
           @logger.debug('continue literal.') if @logger.debug?
           literal_string = @input.read(next_size) or raise 'unexpected client close.'
-          @logger.debug("read literal: <#{literal_string.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{literal_string}") if @logger.debug?
+          @logger.debug("read literal: <#{literal_string.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{literal_string.inspect}") if @logger.debug?
           atom_list[-1] = literal_string
           next_atom_list = read_line or raise 'unexpected client close.'
           atom_list += next_atom_list
@@ -1025,11 +1025,11 @@ module RIMS
         rescue SyntaxError
           @logger.error('client command syntax error.')
           @logger.error($!)
-          [ "#{tag} BAD client command syntax error." ]
+          [ "#{tag} BAD client command syntax error.\r\n" ]
         rescue
           @logger.error('internal server error.')
           @logger.error($!)
-          [ "#{tag} BAD internal server error" ]
+          [ "#{tag} BAD internal server error\r\n" ]
         end
       end
       private :protect_error
@@ -1041,7 +1041,7 @@ module RIMS
               yield
             }
           else
-            [ "#{tag} NO no authentication" ]
+            [ "#{tag} NO no authentication\r\n" ]
           end
         }
       end
@@ -1052,19 +1052,19 @@ module RIMS
           if (selected?) then
             yield
           else
-            [ "#{tag} NO no selected" ]
+            [ "#{tag} NO no selected\r\n" ]
           end
         }
       end
       private :protect_select
 
       def ok_greeting
-        [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready." ]
+        [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ]
       end
 
       def capability(tag)
-        [ '* CAPABILITY IMAP4rev1',
-          "#{tag} OK CAPABILITY completed"
+        [ "* CAPABILITY IMAP4rev1\r\n",
+          "#{tag} OK CAPABILITY completed\r\n"
         ]
       end
 
@@ -1090,8 +1090,8 @@ module RIMS
         end
         cleanup
         res = []
-        res << '* BYE server logout'
-        res << "#{tag} OK LOGOUT completed"
+        res << "* BYE server logout\r\n"
+        res << "#{tag} OK LOGOUT completed\r\n"
       end
 
       def authenticate(tag, auth_name)
@@ -1103,9 +1103,9 @@ module RIMS
         if (@passwd.call(username, password)) then
           cleanup
           @mail_store_holder = @mail_store_pool.get(username)
-          res << "#{tag} OK LOGIN completed"
+          res << "#{tag} OK LOGIN completed\r\n"
         else
-          res << "#{tag} NO failed to login"
+          res << "#{tag} NO failed to login\r\n"
         end
       end
 
@@ -1113,11 +1113,11 @@ module RIMS
         all_msgs = @mail_store_holder.to_mst.mbox_msgs(@folder.id)
         recent_msgs = @mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')
         unseen_msgs = all_msgs - @mail_store_holder.to_mst.mbox_flags(@folder.id, 'seen')
-        yield("* #{all_msgs} EXISTS")
-        yield("* #{recent_msgs} RECENT")
-        yield("* OK [UNSEEN #{unseen_msgs}]")
-        yield("* OK [UIDVALIDITY #{@folder.id}]")
-        yield("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)")
+        yield("* #{all_msgs} EXISTS\r\n")
+        yield("* #{recent_msgs} RECENT\r\n")
+        yield("* OK [UNSEEN #{unseen_msgs}]\r\n")
+        yield("* OK [UIDVALIDITY #{@folder.id}]\r\n")
+        yield("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n")
         nil
       end
       private :folder_open_msgs
@@ -1132,9 +1132,9 @@ module RIMS
             folder_open_msgs do |msg|
               res << msg
             end
-            res << "#{tag} OK [READ-WRITE] SELECT completed"
+            res << "#{tag} OK [READ-WRITE] SELECT completed\r\n"
           else
-            res << "#{tag} NO not found a mailbox"
+            res << "#{tag} NO not found a mailbox\r\n"
           end
         }
       end
@@ -1149,9 +1149,9 @@ module RIMS
             folder_open_msgs do |msg|
               res << msg
             end
-            res << "#{tag} OK [READ-ONLY] EXAMINE completed"
+            res << "#{tag} OK [READ-ONLY] EXAMINE completed\r\n"
           else
-            res << "#{tag} NO not found a mailbox"
+            res << "#{tag} NO not found a mailbox\r\n"
           end
         }
       end
@@ -1161,10 +1161,10 @@ module RIMS
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (@mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
-            res << "#{tag} NO duplicated mailbox"
+            res << "#{tag} NO duplicated mailbox\r\n"
           else
             @mail_store_holder.to_mst.add_mbox(mbox_name_utf8)
-            res << "#{tag} OK CREATE completed"
+            res << "#{tag} OK CREATE completed\r\n"
           end
         }
       end
@@ -1176,12 +1176,12 @@ module RIMS
           if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
             if (id != @mail_store_holder.to_mst.mbox_id('INBOX')) then
               @mail_store_holder.to_mst.del_mbox(id)
-              res << "#{tag} OK DELETE completed"
+              res << "#{tag} OK DELETE completed\r\n"
             else
-              res << "#{tag} NO not delete inbox"
+              res << "#{tag} NO not delete inbox\r\n"
             end
           else
-            res << "#{tag} NO not found a mailbox"
+            res << "#{tag} NO not found a mailbox\r\n"
           end
         }
       end
@@ -1191,16 +1191,16 @@ module RIMS
           src_name_utf8 = Net::IMAP.decode_utf7(src_name)
           dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
           unless (id = @mail_store_holder.to_mst.mbox_id(src_name_utf8)) then
-            return [ "#{tag} NO not found a mailbox" ]
+            return [ "#{tag} NO not found a mailbox\r\n" ]
           end
           if (id == @mail_store_holder.to_mst.mbox_id('INBOX')) then
-            return [ "#{tag} NO not rename inbox"]
+            return [ "#{tag} NO not rename inbox\r\n"]
           end
           if (@mail_store_holder.to_mst.mbox_id(dst_name_utf8)) then
-            return [ "#{tag} NO duplicated mailbox" ]
+            return [ "#{tag} NO duplicated mailbox\r\n" ]
           end
           @mail_store_holder.to_mst.rename_mbox(id, dst_name_utf8)
-          [ "#{tag} OK RENAME completed" ]
+          [ "#{tag} OK RENAME completed\r\n" ]
         }
       end
 
@@ -1208,9 +1208,9 @@ module RIMS
         protect_auth(tag) {
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
-            [ "#{tag} OK SUBSCRIBE completed" ]
+            [ "#{tag} OK SUBSCRIBE completed\r\n" ]
           else
-            [ "#{tag} NO not found a mailbox" ]
+            [ "#{tag} NO not found a mailbox\r\n" ]
           end
         }
       end
@@ -1218,9 +1218,9 @@ module RIMS
       def unsubscribe(tag, mbox_name)
         protect_auth(tag) {
           if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
-            [ "#{tag} NO not implemented subscribe/unsbscribe command" ]
+            [ "#{tag} NO not implemented subscribe/unsbscribe command\r\n" ]
           else
-            [ "#{tag} NO not found a mailbox" ]
+            [ "#{tag} NO not found a mailbox\r\n" ]
           end
         }
       end
@@ -1253,13 +1253,13 @@ module RIMS
         protect_auth(tag) {
           res = []
           if (mbox_name.empty?) then
-            res << '* LIST (\Noselect) NIL ""'
+            res << "* LIST (\\Noselect) NIL \"\"\r\n"
           else
             list_mbox(ref_name, mbox_name) do |mbox_entry|
-              res << "* LIST #{mbox_entry}"
+              res << "* LIST #{mbox_entry}\r\n"
             end
           end
-          res << "#{tag} OK LIST completed"
+          res << "#{tag} OK LIST completed\r\n"
         }
       end
 
@@ -1267,13 +1267,13 @@ module RIMS
         protect_auth(tag) {
           res = []
           if (mbox_name.empty?) then
-            res << '* LSUB (\Noselect) NIL ""'
+            res << "* LSUB (\\Noselect) NIL \"\"\r\n"
           else
             list_mbox(ref_name, mbox_name) do |mbox_entry|
-              res << "* LSUB #{mbox_entry}"
+              res << "* LSUB #{mbox_entry}\r\n"
             end
           end
-          res << "#{tag} OK LSUB completed"
+          res << "#{tag} OK LSUB completed\r\n"
         }
       end
 
@@ -1305,10 +1305,10 @@ module RIMS
               end
             end
 
-            res << "* STATUS #{Protocol.quote(mbox_name)} (#{values.join(' ')})"
-            res << "#{tag} OK STATUS completed"
+            res << "* STATUS #{Protocol.quote(mbox_name)} (#{values.join(' ')})\r\n"
+            res << "#{tag} OK STATUS completed\r\n"
           else
-            res << "#{tag} NO not found a mailbox"
+            res << "#{tag} NO not found a mailbox\r\n"
           end
         }
       end
@@ -1361,9 +1361,9 @@ module RIMS
               @mail_store_holder.to_mst.set_msg_flag(mbox_id, msg_id, flag_name, true)
             end
 
-            res << "#{tag} OK APPEND completed"
+            res << "#{tag} OK APPEND completed\r\n"
           else
-            res << "#{tag} NO [TRYCREATE] not found a mailbox"
+            res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end
         }
       end
@@ -1371,7 +1371,7 @@ module RIMS
       def check(tag)
         protect_select(tag) {
           @mail_store_holder.to_mst.sync
-          [ "#{tag} OK CHECK completed" ]
+          [ "#{tag} OK CHECK completed\r\n" ]
         }
       end
 
@@ -1383,7 +1383,7 @@ module RIMS
             @folder.close
             @folder = nil
           end
-          [ "#{tag} OK CLOSE completed" ]
+          [ "#{tag} OK CLOSE completed\r\n" ]
         }
       end
 
@@ -1393,12 +1393,12 @@ module RIMS
           unless (@folder.read_only?) then
             @folder.reload if @folder.updated?
             @folder.expunge_mbox do |msg_num|
-              res << "* #{msg_num} EXPUNGE"
+              res << "* #{msg_num} EXPUNGE\r\n"
             end
             @folder.reload if @folder.updated?
-            res << "#{tag} OK EXPUNGE completed"
+            res << "#{tag} OK EXPUNGE completed\r\n"
           else
-            res << "#{tag} NO cannot expunge in read-only mode"
+            res << "#{tag} NO cannot expunge in read-only mode\r\n"
           end
         }
       end
@@ -1435,9 +1435,10 @@ module RIMS
               search_resp << " #{msg.num}"
             end
           end
+          search_resp << "\r\n"
 
           [ search_resp,
-            "#{tag} OK SEARCH completed"
+            "#{tag} OK SEARCH completed\r\n"
           ]
         }
       end
@@ -1470,20 +1471,20 @@ module RIMS
           Enumerator.new{|res|
             for msg in msg_list
               begin
-                res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg))
+                res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
               rescue
                 @logger.warn("failed to fetch message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
                 @logger.warn($!)
               end
             end
-            res << "#{tag} OK FETCH completed"
+            res << "#{tag} OK FETCH completed\r\n"
           }
         }
       end
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
         protect_select(tag) {
-          return [ "#{tag} NO cannot store in read-only mode" ] if @folder.read_only?
+          return [ "#{tag} NO cannot store in read-only mode\r\n" ] if @folder.read_only?
           @folder.reload if @folder.updated?
 
           res = []
@@ -1571,11 +1572,11 @@ module RIMS
                   flag_atom_list << "\\#{name.capitalize}"
                 end
               end
-              res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})"
+              res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})\r\n"
             end
           end
 
-          res << "#{tag} OK STORE completed"
+          res << "#{tag} OK STORE completed\r\n"
         }
       end
 
@@ -1598,9 +1599,9 @@ module RIMS
               @mail_store_holder.to_mst.copy_msg(msg.id, mbox_id)
             end
 
-            res << "#{tag} OK COPY completed"
+            res << "#{tag} OK COPY completed\r\n"
           else
-            res << "#{tag} NO [TRYCREATE] not found a mailbox"
+            res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end
         }
       end
@@ -1608,13 +1609,13 @@ module RIMS
       def self.repl(decoder, input, output, logger)
         response_write = proc{|res|
           last_line = nil
-          for line in res
-            logger.debug("<#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line}") if logger.debug?
-            output << line << "\r\n"
-            last_line = line
+          for data in res
+            logger.debug("response data: <#{data.encoding}#{data.ascii_only? ? ':ascii-only' : ''}> #{data.inspect}") if logger.debug?
+            output << data
+            last_line = data
           end
           output.flush
-          logger.info("server response: #{last_line}")
+          logger.info("server response: #{last_line.strip}")
         }
 
         response_write.call(decoder.ok_greeting)
@@ -1626,7 +1627,7 @@ module RIMS
           rescue
             logger.error('invalid client command.')
             logger.error($!)
-            response_write.call([ '* BAD client command syntax error.' ])
+            response_write.call([ "* BAD client command syntax error.\r\n" ])
             next
           end
 

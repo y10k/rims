@@ -12,7 +12,7 @@ module RIMS::Test
     class IMAPResponseAssertionDSL
       include Test::Unit::Assertions
 
-      def initialize(crlf_at_eol: false)
+      def initialize(crlf_at_eol: true)
         @crlf_at_eol = crlf_at_eol
         @assertions = []
       end
@@ -73,7 +73,7 @@ module RIMS::Test
       end
     end
 
-    def assert_imap_response(response_lines, crlf_at_eol: false)
+    def assert_imap_response(response_lines, crlf_at_eol: true)
       dsl = IMAPResponseAssertionDSL.new(crlf_at_eol: crlf_at_eol)
       yield(dsl)
 
@@ -242,7 +242,7 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.login('T002', 'foo', 'open_sesame').each
       assert_imap_response(res) {|a|
-        a.match('T002 OK LOGIN completed')
+        a.equal('T002 OK LOGIN completed')
       }
 
       assert_equal(true, @decoder.auth?)
@@ -3588,7 +3588,7 @@ T002 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('* BAD client command syntax error.')
         a.match(/^\* BYE /)
@@ -3606,7 +3606,7 @@ T002 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('* CAPABILITY IMAP4rev1')
         a.equal('T001 OK CAPABILITY completed')
@@ -3626,7 +3626,7 @@ T003 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.match('T002 OK LOGIN completed')
@@ -3669,7 +3669,7 @@ T004 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -3710,7 +3710,7 @@ T003 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.equal('* 0 EXISTS')
@@ -3758,7 +3758,7 @@ T004 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -3799,7 +3799,7 @@ T003 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.equal('* 0 EXISTS')
@@ -3828,7 +3828,7 @@ T005 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -3852,7 +3852,7 @@ T003 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.equal('T002 OK CREATE completed')
@@ -3882,7 +3882,7 @@ T006 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -3912,7 +3912,7 @@ T003 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.equal('T002 OK DELETE completed')
@@ -3943,7 +3943,7 @@ T007 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -3978,7 +3978,7 @@ T004 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.equal('T002 OK RENAME completed')
@@ -4010,7 +4010,7 @@ T010 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4042,7 +4042,7 @@ T004 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
@@ -4074,7 +4074,7 @@ T013 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4101,7 +4101,7 @@ T003 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.equal("* STATUS \"~peter/mail/&ZeVnLIqe-/&U,BTFw-\" (UIDVALIDITY #{mbox_id} MESSAGES 0 RECENT 0 UNSEEN 0)")
@@ -4132,7 +4132,7 @@ T012 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         a.equal('T002 OK LOGIN completed')
@@ -4179,7 +4179,7 @@ T003 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.equal('T002 OK APPEND completed')
@@ -4205,7 +4205,7 @@ T006 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4254,7 +4254,7 @@ T006 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4320,7 +4320,7 @@ T006 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4386,7 +4386,7 @@ T009 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4437,7 +4437,7 @@ T006 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4484,7 +4484,7 @@ T010 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4535,7 +4535,7 @@ T012 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4629,7 +4629,7 @@ T012 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4746,7 +4746,7 @@ T016 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4870,7 +4870,7 @@ T016 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -4959,7 +4959,7 @@ T016 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -5083,7 +5083,7 @@ T016 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -5151,7 +5151,7 @@ T017 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /)
         a.equal('T002 OK LOGIN completed')
@@ -5238,7 +5238,7 @@ T009 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         a.equal('T002 OK LOGIN completed')
@@ -5337,7 +5337,7 @@ T009 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         a.equal('T002 OK LOGIN completed')
@@ -5397,7 +5397,7 @@ T004 LOGOUT
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
-      assert_imap_response(res, crlf_at_eol: true) {|a|
+      assert_imap_response(res) {|a|
         a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         a.equal('T001 OK LOGIN completed')
         a.skip_while{|line| line =~ /^\* / }
