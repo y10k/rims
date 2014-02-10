@@ -1389,16 +1389,17 @@ module RIMS
 
       def expunge(tag)
         protect_select(tag) {
-          res = []
           unless (@folder.read_only?) then
-            @folder.reload if @folder.updated?
-            @folder.expunge_mbox do |msg_num|
-              res << "* #{msg_num} EXPUNGE\r\n"
-            end
-            @folder.reload if @folder.updated?
-            res << "#{tag} OK EXPUNGE completed\r\n"
+            Enumerator.new{|res|
+              @folder.reload if @folder.updated?
+              @folder.expunge_mbox do |msg_num|
+                res << "* #{msg_num} EXPUNGE\r\n"
+              end
+              @folder.reload if @folder.updated?
+              res << "#{tag} OK EXPUNGE completed\r\n"
+            }
           else
-            res << "#{tag} NO cannot expunge in read-only mode\r\n"
+            [ "#{tag} NO cannot expunge in read-only mode\r\n" ]
           end
         }
       end
