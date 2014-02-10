@@ -1482,7 +1482,6 @@ module RIMS
           return [ "#{tag} NO cannot store in read-only mode\r\n" ] if @folder.read_only?
           @folder.reload if @folder.updated?
 
-          res = []
           msg_set = @folder.parse_msg_set(msg_set, uid: uid)
           name, option = data_item_name.split(/\./, 2)
 
@@ -1559,19 +1558,22 @@ module RIMS
             end
           end
 
-          unless (is_silent) then
-            for msg in msg_list
-              flag_atom_list = []
-              for name in MailStore::MSG_FLAG_NAMES
-                if (@mail_store_holder.to_mst.msg_flag(@folder.id, msg.id, name)) then
-                  flag_atom_list << "\\#{name.capitalize}"
+          if (is_silent) then
+            [ "#{tag} OK STORE completed\r\n" ]
+          else
+            Enumerator.new{|res|
+              for msg in msg_list
+                flag_atom_list = []
+                for name in MailStore::MSG_FLAG_NAMES
+                  if (@mail_store_holder.to_mst.msg_flag(@folder.id, msg.id, name)) then
+                    flag_atom_list << "\\#{name.capitalize}"
+                  end
                 end
+                res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})\r\n"
               end
-              res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})\r\n"
-            end
+              res << "#{tag} OK STORE completed\r\n"
+            }
           end
-
-          res << "#{tag} OK STORE completed\r\n"
         }
       end
 
