@@ -81,6 +81,19 @@ module RIMS
             s.upcase.intern
           when /\A"/
             s.sub(/\A"/, '').sub(/"\z/, '')
+          when /\A(?<body_symbol>BODY)(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\](?:<(?<partial_origin>\d+\.(?<partial_size>\d+)>))?\z/i
+            body_symbol = $~[:body_symbol]
+            body_option = $~[:body_option]
+            body_section = $~[:body_section]
+            partial_origin = $~[:partial_origin] && $~[:partial_origin].to_i
+            partial_size = $~[:partial_size] && $~[:partial_size].to_i
+            [ :body,
+              Protocol.body(symbol: body_symbol,
+                            option: body_option,
+                            section: body_section,
+                            partial_origin: partial_origin,
+                            partial_size: partial_size)
+            ]
           else
             s
           end
@@ -110,21 +123,11 @@ module RIMS
             syntax_list.push([ :group ] + parse(atom_list, :')'))
           when :'['
             syntax_list.push([ :block ] + parse(atom_list, :']'))
-          when /\A(?<body_symbol>BODY)(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\](?:<(?<partial_origin>\d+\.(?<partial_size>\d+)>))?\z/i
-            body_symbol = $~[:body_symbol]
-            body_option = $~[:body_option]
-            body_section = $~[:body_section]
-            partial_origin = $~[:partial_origin] && $~[:partial_origin].to_i
-            partial_size = $~[:partial_size] && $~[:partial_size].to_i
-            syntax_list.push([ :body,
-                               Protocol.body(symbol: body_symbol,
-                                             option: body_option,
-                                             section: body_section,
-                                             section_list: parse(scan_line(body_section)),
-                                             partial_origin: partial_origin,
-                                             partial_size: partial_size)
-                             ])
           else
+            if ((atom.is_a? Array) && (atom[0] == :body)) then
+              body = atom[1]
+              body.section_list = parse(scan_line(body.section))
+            end
             syntax_list.push(atom)
           end
         end

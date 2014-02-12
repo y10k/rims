@@ -31,6 +31,12 @@ module RIMS::Test
       assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo [bar] (baz)' ],
                    @reader.scan_line('* LIST (\Noselect) "/" "foo [bar] (baz)"'))
       assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ], @reader.scan_line('* LIST (\Noselect) NIL ""'))
+      assert_equal([ 'A654', 'FETCH', '2:4',
+                     '('.intern,
+                     [ :body, RIMS::Protocol.body(symbol: 'BODY', section: '') ],
+                     ')'.intern
+                   ],
+                   @reader.scan_line('A654 FETCH 2:4 (BODY[])'))
 
       assert_equal('', @output.string)
     end
@@ -100,6 +106,14 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
 
       @input.string = '* LIST (\Noselect) NIL ""'
       assert_equal([ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ], @reader.read_line)
+
+      @input.string = "A654 FETCH 2:4 (BODY[])\n"
+      assert_equal([ 'A654', 'FETCH', '2:4',
+                     '('.intern,
+                     [ :body, RIMS::Protocol.body(symbol: 'BODY', section: '') ],
+                     ')'.intern
+                   ],
+                   @reader.read_line)
 
       assert_equal('', @output.string)
     end
@@ -172,7 +186,11 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                        ]
                      ]
                    ],
-                   @reader.parse([ 'A654', 'FETCH', '2:4', '('.intern, 'BODY[]', ')'.intern ]))
+                   @reader.parse([ 'A654', 'FETCH', '2:4',
+                                   '('.intern,
+                                   [ :body, RIMS::Protocol.body(symbol: 'BODY', section: '') ],
+                                   ')'.intern
+                                 ]))
       assert_equal([ 'A003', 'APPEND', 'saved-messages', "foo\nbody[]\nbar\n" ],
                    @reader.parse([ 'A003', 'APPEND', 'saved-messages', "foo\nbody[]\nbar\n" ]))
 

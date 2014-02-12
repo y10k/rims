@@ -161,7 +161,7 @@ Hello world.
 
     def make_body(description)
       reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
-      reader.parse([ description ])[0]
+      reader.parse(reader.scan_line(description))[0]
     end
     private :make_body
 
