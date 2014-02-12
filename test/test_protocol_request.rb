@@ -273,6 +273,9 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
                    ],
                    @reader.read_command)
 
+      @input.string = "A654 APPEND saved-messages \"body[]\"\n"
+      assert_equal([ 'A654', 'APPEND', 'saved-messages', 'body[]' ], @reader.read_command)
+
       assert_equal('', @output.string)
 
       literal = <<-'EOF'
