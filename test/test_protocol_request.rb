@@ -269,20 +269,36 @@ Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
 Hello Joe, do you think we can meet at 3:30 tomorrow?
       EOF
 
+      @input.string = "A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n"
+      @output.string = ''
+      assert_equal([ 'A003', 'APPEND', 'saved-messages', [ :group, '\Seen' ], literal ], @reader.read_command)
+
+      cmd_cont_req = @output.string.each_line
+      assert_match(/^\+ /, cmd_cont_req.next)
+      assert_raise(StopIteration) { cmd_cont_req.next }
+
+
       literal2 = <<-'EOF'
 Subject: parse test
 
 body[]
       EOF
 
-      @input.string =
-          "A003 APPEND saved-messages (\\Seen) {#{literal.bytesize}}\n" + literal + "\n" +
-          "A004 APPEND saved-messages {#{literal2.bytesize}}\n" + literal2 + "\n"
-      assert_equal([ 'A003', 'APPEND', 'saved-messages', [ :group, '\Seen' ], literal ], @reader.read_command)
+      @input.string = "A004 APPEND saved-messages {#{literal2.bytesize}}\n" + literal2 + "\n"
+      @output.string = ''
       assert_equal([ 'A004', 'APPEND', 'saved-messages', literal2 ], @reader.read_command)
 
       cmd_cont_req = @output.string.each_line
       assert_match(/^\+ /, cmd_cont_req.next)
+      assert_raise(StopIteration) { cmd_cont_req.next }
+
+      literal3 = 'body[]'
+
+      @input.string = "A005 APPEND saved-messages {#{literal3.bytesize}}\n" + literal3 + "\n"
+      @output.string = ''
+      assert_equal([ 'A005', 'APPEND', 'saved-messages', literal3 ], @reader.read_command)
+
+      cmd_cont_req = @output.string.each_line
       assert_match(/^\+ /, cmd_cont_req.next)
       assert_raise(StopIteration) { cmd_cont_req.next }
     end
