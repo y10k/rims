@@ -1467,16 +1467,17 @@ module RIMS
           parser = Protocol::FetchParser.new(@mail_store_holder.to_mst, @folder)
           fetch = parser.parse(data_item_group)
 
-          res = []
-          for msg in msg_list
-            begin
-              res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg))
-            rescue
-              @logger.warn("failed to fetch message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
-              @logger.warn($!)
+          Enumerator.new{|res|
+            for msg in msg_list
+              begin
+                res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg))
+              rescue
+                @logger.warn("failed to fetch message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
+                @logger.warn($!)
+              end
             end
-          end
-          res << "#{tag} OK FETCH completed"
+            res << "#{tag} OK FETCH completed"
+          }
         }
       end
 
@@ -1606,12 +1607,14 @@ module RIMS
 
       def self.repl(decoder, input, output, logger)
         response_write = proc{|res|
-          logger.info("server response: #{res[-1]}")
+          last_line = nil
           for line in res
             logger.debug("<#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line}") if logger.debug?
             output << line << "\r\n"
+            last_line = line
           end
           output.flush
+          logger.info("server response: #{last_line}")
         }
 
         response_write.call(decoder.ok_greeting)
