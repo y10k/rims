@@ -3570,6 +3570,85 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
+    def test_noop
+      @mail_store.add_msg(@inbox_id, '')
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.noop('T001').each
+      assert_imap_response(res) {|a|
+        a.equal('T001 OK NOOP completed')
+      }
+
+      res = @decoder.login('T002', 'foo', 'open_sesame').each
+      assert_imap_response(res) {|a|
+        a.equal('T002 OK LOGIN completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.noop('T003').each
+      assert_imap_response(res) {|a|
+        a.equal('T003 OK NOOP completed')
+      }
+
+      res = @decoder.select('T004', 'INBOX').each
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* /}
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.noop('T005').each
+      assert_imap_response(res) {|a|
+        a.equal('* 1 EXISTS')
+        a.equal('* 1 RECENTS')
+        a.equal('T005 OK NOOP completed')
+      }
+
+      res = @decoder.close('T006').each
+      assert_imap_response(res) {|a|
+        a.equal('T006 OK CLOSE completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      res = @decoder.noop('T007').each
+      assert_imap_response(res) {|a|
+        a.equal('T007 OK NOOP completed')
+      }
+
+      res = @decoder.examine('T008', 'INBOX').each
+      assert_imap_response(res) {|a|
+        a.skip_while{|line| line =~ /^\* /}
+        a.equal('T008 OK [READ-ONLY] EXAMINE completed')
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      res = @decoder.noop('T009').each
+      assert_imap_response(res) {|a|
+        a.equal('* 1 EXISTS')
+        a.equal('* 0 RECENTS')
+        a.equal('T009 OK NOOP completed')
+      }
+
+      res = @decoder.logout('T010').each
+      assert_imap_response(res) {|a|
+        a.match(/^\* BYE /)
+        a.equal('T010 OK LOGOUT completed')
+      }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+    end
+
     def test_command_loop_empty
       output = StringIO.new('', 'w')
       RIMS::Protocol::Decoder.repl(@decoder, StringIO.new(''.b, 'r'), output, @logger)
@@ -5411,6 +5490,48 @@ T004 LOGOUT
 
       assert_equal([ 1 ], @mail_store.each_msg_id(mbox_id).to_a)
       assert_equal('Hello world.', @mail_store.msg_text(mbox_id, 1))
+    end
+
+    def test_command_loop_noop
+      @mail_store.add_msg(@inbox_id, '')
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF'.b, 'r')
+T001 NOOP
+T002 LOGIN foo open_sesame
+T003 NOOP
+T004 SELECT INBOX
+T005 NOOP
+T006 CLOSE
+T007 NOOP
+T008 EXAMINE INBOX
+T009 NOOP
+T010 LOGOUT
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('T001 OK NOOP completed')
+        a.equal('T002 OK LOGIN completed')
+        a.equal('T003 OK NOOP completed')
+        a.skip_while{|line| line =~ /^\* /}
+        a.equal('T004 OK [READ-WRITE] SELECT completed')
+        a.equal('* 1 EXISTS')
+        a.equal('* 1 RECENTS')
+        a.equal('T005 OK NOOP completed')
+        a.equal('T006 OK CLOSE completed')
+        a.equal('T007 OK NOOP completed')
+        a.skip_while{|line| line =~ /^\* /}
+        a.equal('T008 OK [READ-ONLY] EXAMINE completed')
+        a.equal('* 1 EXISTS')
+        a.equal('* 0 RECENTS')
+        a.equal('T009 OK NOOP completed')
+        a.match(/^\* BYE /)
+        a.equal('T010 OK LOGOUT completed')
+      }
     end
   end
 end

@@ -1073,11 +1073,11 @@ module RIMS
         if (auth? && selected?) then
           @mail_store_holder.user_lock.synchronize{
             @folder.reload if @folder.updated?
-            res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS"
-            res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')} RECENTS"
+            res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS\r\n"
+            res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')} RECENTS\r\n"
           }
         end
-        res << "#{tag} OK NOOP completed"
+        res << "#{tag} OK NOOP completed\r\n"
       end
 
       def logout(tag)
