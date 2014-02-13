@@ -872,7 +872,11 @@ module RIMS
           if (content) then
             if (body.partial_origin) then
               if (content.bytesize > body.partial_origin) then
-                res << Protocol.quote(content.byteslice(body.partial_origin, body.partial_size))
+                partial_content = content.byteslice((body.partial_origin)..-1)
+                if (partial_content.bytesize > body.partial_size) then # because bignum byteslice is failed.
+                  partial_content = partial_content.byteslice(0, body.partial_size)
+                end
+                res << Protocol.quote(partial_content)
               else
                 res << 'NIL'.b
               end
