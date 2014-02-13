@@ -3659,24 +3659,6 @@ Content-Type: text/html; charset=us-ascii
       assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", output.string)
     end
 
-    def test_command_loop_client_syntax_error
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 FETCH 1 (BODY
-T002 LOGOUT
-      EOF
-
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('* BAD client command syntax error.')
-        a.match(/^\* BYE /)
-        a.equal('T002 OK LOGOUT completed')
-      }
-    end
-
     def test_command_loop_capability
       output = StringIO.new('', 'w')
       input = StringIO.new(<<-'EOF'.b, 'r')
@@ -5531,6 +5513,31 @@ T010 LOGOUT
         a.equal('T009 OK NOOP completed')
         a.match(/^\* BYE /)
         a.equal('T010 OK LOGOUT completed')
+      }
+    end
+
+    def test_command_loop_error_handling
+      @mail_store.add_msg(@inbox_id, '')
+
+      output = StringIO.new('', 'w')
+      input = StringIO.new(<<-'EOF'.b, 'r')
+SYNTAX_ERROR
+T001 NO_COMMAND
+T002 UID NO_COMMAND
+T003 UID
+T004 NOOP DETARAME
+      EOF
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      res = output.string.each_line
+
+      assert_imap_response(res) {|a|
+        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        a.equal('* BAD client command syntax error')
+        a.equal('T001 BAD unknown command')
+        a.equal('T002 BAD unknown uid command')
+        a.equal('T003 BAD empty uid parameter')
+        a.equal('T004 BAD invalid command parameter')
       }
     end
   end
