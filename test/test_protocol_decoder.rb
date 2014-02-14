@@ -60,6 +60,7 @@ module RIMS::Test
         @assertions << proc{|lines|
           line = fetch_line(lines, peek_next_line: peek_next_line)
           assert_match(expected_regexp, line)
+          assert_match(/\r\n\z/, line) if @crlf_at_eol
         }
         self
       end
@@ -68,6 +69,7 @@ module RIMS::Test
         @assertions << proc{|lines|
           line = fetch_line(lines, peek_next_line: peek_next_line)
           assert_not_nil(expected_regexp, line)
+          assert_match(/\r\n\z/, line) if @crlf_at_eol
         }
         self
       end
