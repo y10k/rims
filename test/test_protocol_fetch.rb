@@ -450,6 +450,12 @@ Hello world.
       fetch = @parser.parse(make_body('BODY[]<0.1000>'))
       assert_strenc_equal('ascii-8bit', "BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
 
+      fetch = @parser.parse(make_body('BODY[]<0.4294967295>'))
+      assert_strenc_equal('ascii-8bit', "BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+
+      fetch = @parser.parse(make_body('BODY[]<0.18446744073709551615>'))
+      assert_strenc_equal('ascii-8bit', "BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+
       fetch = @parser.parse(make_body('BODY[]<100.100>'))
       assert_strenc_equal('ascii-8bit', "BODY[]<100> {100}\r\n#{s.byteslice(100, 100)}", fetch.call(@folder.msg_list[0]))
 
