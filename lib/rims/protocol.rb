@@ -1028,7 +1028,7 @@ module RIMS
         rescue SyntaxError
           @logger.error('client command syntax error.')
           @logger.error($!)
-          [ "#{tag} BAD client command syntax error.\r\n" ]
+          [ "#{tag} BAD client command syntax error\r\n" ]
         rescue
           @logger.error('internal server error.')
           @logger.error($!)
@@ -1076,11 +1076,11 @@ module RIMS
         if (auth? && selected?) then
           @mail_store_holder.user_lock.synchronize{
             @folder.reload if @folder.updated?
-            res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS"
-            res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')} RECENTS"
+            res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS\r\n"
+            res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')} RECENTS\r\n"
           }
         end
-        res << "#{tag} OK NOOP completed"
+        res << "#{tag} OK NOOP completed\r\n"
       end
 
       def logout(tag)
@@ -1627,7 +1627,7 @@ module RIMS
           rescue
             logger.error('invalid client command.')
             logger.error($!)
-            response_write.call([ "* BAD client command syntax error.\r\n" ])
+            response_write.call([ "* BAD client command syntax error\r\n" ])
             next
           end
 
@@ -1701,24 +1701,24 @@ module RIMS
                   res = decoder.copy(tag, *uid_args, uid: true)
                 else
                   logger.error("unknown uid command: #{uid_command}")
-                  res = [ "#{tag} BAD unknown uid command" ]
+                  res = [ "#{tag} BAD unknown uid command\r\n" ]
                 end
               else
                 logger.error('empty uid parameter.')
-                res = [ "#{tag} BAD empty uid parameter" ]
+                res = [ "#{tag} BAD empty uid parameter\r\n" ]
               end
             else
               logger.error("unknown command: #{command}")
-              res = [ "#{tag} BAD unknown command" ]
+              res = [ "#{tag} BAD unknown command\r\n" ]
             end
           rescue ArgumentError
             logger.error('invalid command parameter.')
             logger.error($!)
-            res = [ "#{tag} BAD invalid command parameter" ]
+            res = [ "#{tag} BAD invalid command parameter\r\n" ]
           rescue
             logger.error('internal server error.')
             logger.error($!)
-            res = [ "#{tag} BAD internal server error" ]
+            res = [ "#{tag} BAD internal server error\r\n" ]
           end
 
           response_write.call(res)
