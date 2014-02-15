@@ -1701,15 +1701,15 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.fetch('T005', '1:*', 'FAST').each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
         a.equal('T005 OK FETCH completed')
       }
 
       res = @decoder.fetch('T006', '1:*', [ :group, 'FAST' ]).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
         a.equal('T006 OK FETCH completed')
       }
 
@@ -1817,15 +1817,15 @@ Content-Type: text/html; charset=us-ascii
 
       res = @decoder.fetch('T005', '1:*', 'FAST').each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
         a.equal('T005 OK FETCH completed')
       }
 
       res = @decoder.fetch('T006', '1:*', [ :group, 'FAST' ]).each
       assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-11-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
+        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
         a.equal('T006 OK FETCH completed')
       }
 
@@ -4605,11 +4605,11 @@ T012 LOGOUT
         a.match(/^T003 NO /)
         a.skip_while{|line| line =~ /^\* / }
         a.equal('T004 OK [READ-WRITE] SELECT completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 212)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1616)')
         a.equal('T005 OK FETCH completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 212)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1616)')
         a.equal('T006 OK FETCH completed')
 
         s = @simple_mail.header.raw_source
@@ -4699,11 +4699,11 @@ T012 LOGOUT
         a.match(/^T003 NO /)
         a.skip_while{|line| line =~ /^\* / }
         a.equal('T004 OK [READ-ONLY] EXAMINE completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 212)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1616)')
         a.equal('T005 OK FETCH completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 06:47:50 +0900" RFC822.SIZE 212)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-11-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 212)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1616)')
         a.equal('T006 OK FETCH completed')
 
         s = @simple_mail.header.raw_source

@@ -920,7 +920,7 @@ module RIMS
 
       def parse_internaldate(name)
         proc{|msg|
-          ''.b << name << @mail_store.msg_date(@folder.id, msg.id).strftime(' "%d-%m-%Y %H:%M:%S %z"'.b)
+          ''.b << name << @mail_store.msg_date(@folder.id, msg.id).strftime(' "%d-%b-%Y %H:%M:%S %z"'.b)
         }
       end
       private :parse_internaldate

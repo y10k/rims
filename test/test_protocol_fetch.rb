@@ -179,7 +179,7 @@ Hello world.
       fetch = @parser.parse('ALL')
       assert_strenc_equal('ascii-8bit',
                           'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                          'INTERNALDATE "08-Nov-2013 06:47:50 +0900" ' +
                           'RFC822.SIZE 212 ' +
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
@@ -196,7 +196,7 @@ Hello world.
                           fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit',
                           'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                          'INTERNALDATE "08-Nov-2013 19:31:03 +0900" ' +
                           'RFC822.SIZE 1616 ' +
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
@@ -706,12 +706,12 @@ Hello world.
       fetch = @parser.parse('FAST')
       assert_strenc_equal('ascii-8bit',
                           'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                          'INTERNALDATE "08-Nov-2013 06:47:50 +0900" ' +
                           'RFC822.SIZE 212',
                           fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit',
                           'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                          'INTERNALDATE "08-Nov-2013 19:31:03 +0900" ' +
                           'RFC822.SIZE 1616',
                           fetch.call(@folder.msg_list[1]))
     end
@@ -773,7 +773,7 @@ Hello world.
       fetch = @parser.parse('FULL')
       assert_strenc_equal('ascii-8bit',
                           'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-11-2013 06:47:50 +0900" ' +
+                          'INTERNALDATE "08-Nov-2013 06:47:50 +0900" ' +
                           'RFC822.SIZE 212 ' +
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
@@ -800,7 +800,7 @@ Hello world.
                           fetch.call(@folder.msg_list[0]))
       assert_strenc_equal('ascii-8bit',
                           'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-11-2013 19:31:03 +0900" ' +
+                          'INTERNALDATE "08-Nov-2013 19:31:03 +0900" ' +
                           'RFC822.SIZE 1616 ' +
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
@@ -862,8 +862,8 @@ Hello world.
         add_mail_multipart
       }
       fetch = @parser.parse('INTERNALDATE')
-      assert_strenc_equal('ascii-8bit', 'INTERNALDATE "08-11-2013 06:47:50 +0900"', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'INTERNALDATE "08-11-2013 19:31:03 +0900"', fetch.call(@folder.msg_list[1]))
+      assert_strenc_equal('ascii-8bit', 'INTERNALDATE "08-Nov-2013 06:47:50 +0900"', fetch.call(@folder.msg_list[0]))
+      assert_strenc_equal('ascii-8bit', 'INTERNALDATE "08-Nov-2013 19:31:03 +0900"', fetch.call(@folder.msg_list[1]))
     end
 
     def test_parse_rfc822
