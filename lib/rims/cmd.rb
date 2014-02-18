@@ -204,6 +204,7 @@ module RIMS
             end
           end
           if (error_count > 0) then
+            puts "#{error_count} errors!"
             return 1
           end
         end
