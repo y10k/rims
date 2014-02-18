@@ -187,7 +187,8 @@ module RIMS
           imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
         else
           error_count = 0
-          for filename in args
+          args.each_with_index do |filename, i|
+            puts "progress: #{i + 1}/#{args.length}" if conf[:verbose]
             begin
               msg = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
               t = look_for_date(conf[:look_for_date], msg, filename)
