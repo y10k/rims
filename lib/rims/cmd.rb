@@ -213,7 +213,7 @@ module RIMS
 
       0
     end
-    command_function :cmd_imap_append, "Append message to imap mailbox."
+    command_function :cmd_imap_append, "Append message to IMAP mailbox."
 
     def imap_res2str(imap_response)
       "#{imap_response.name} #{imap_response.data.text}"
