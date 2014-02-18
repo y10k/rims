@@ -640,14 +640,26 @@ module RIMS
 
       def make_array(value)
         if (value) then
-          unless (value.is_a? Array) then
-            [ value ]
+          if (value.is_a? Array) then
+            list = value
           else
-            value
+            list = [ value ]
+          end
+
+          if (block_given?) then
+            yield(list)
+          else
+            list
           end
         end
       end
       private :make_array
+
+      def make_address_list(email_address)
+        mailbox, host = email_address.split(/@/, 2)
+        [ nil, nil, mailbox, host ]
+      end
+      private :make_address_list
 
       def expand_macro(cmd_list)
         func_list = cmd_list.map{|name| parse(name) }
@@ -740,12 +752,12 @@ module RIMS
         env_data = []
         env_data << (mail['Date'] && mail['Date'].value)
         env_data << (mail['Subject'] && mail['Subject'].value)
-        env_data << make_array(mail.from)
-        env_data << make_array(mail.sender)
-        env_data << make_array(mail.reply_to)
-        env_data << make_array(mail.to)
-        env_data << make_array(mail.cc)
-        env_data << make_array(mail.bcc)
+        env_data << make_array(mail.from) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
+        env_data << make_array(mail.sender) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
+        env_data << make_array(mail.reply_to) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
+        env_data << make_array(mail.to) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
+        env_data << make_array(mail.cc) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
+        env_data << make_array(mail.bcc) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
         env_data << mail.in_reply_to
         env_data << mail.message_id
       end

@@ -184,10 +184,10 @@ Hello world.
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
                             '"test"',                                  # Subject
-                            '("bar@nonet.org")',                       # From
+                            '((NIL NIL "bar" "nonet.org"))',           # From
                             'NIL',                                     # Sender
                             'NIL',                                     # Reply-To
-                            '("foo@nonet.org")',                       # To
+                            '((NIL NIL "foo" "nonet.org"))',           # To
                             'NIL',                                     # Cc
                             'NIL',                                     # Bcc
                             'NIL',                                     # In-Reply-To
@@ -201,10 +201,10 @@ Hello world.
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
                             '"multipart test"',                        # Subject
-                            '("foo@nonet.com")',                       # From
+                            '((NIL NIL "foo" "nonet.com"))',           # From
                             'NIL',                                     # Sender
                             'NIL',                                     # Reply-To
-                            '("bar@nonet.com")',                       # To
+                            '((NIL NIL "bar" "nonet.com"))',           # To
                             'NIL',                                     # Cc
                             'NIL',                                     # Bcc
                             'NIL',                                     # In-Reply-To
@@ -519,7 +519,7 @@ Hello world.
                                           'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
                                           [
                                             'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                            %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                            [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
                                           ],
                                           [
                                             [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
@@ -534,7 +534,7 @@ Hello world.
                                             'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
                                             [
                                               'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                              %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                              [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
                                             ],
                                             [
                                               [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
@@ -560,7 +560,7 @@ Hello world.
                                           'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
                                           [
                                             'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                            %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                           [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
                                           ],
                                           [
                                             [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
@@ -575,7 +575,7 @@ Hello world.
                                             'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
                                             [
                                               'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                              %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                              [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
                                             ],
                                             [
                                               [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
@@ -652,10 +652,10 @@ Hello world.
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
                             '"test"',                                  # Subject
-                            '("bar@nonet.org")',                       # From
+                            '((NIL NIL "bar" "nonet.org"))',           # From
                             'NIL',                                     # Sender
                             'NIL',                                     # Reply-To
-                            '("foo@nonet.org")',                       # To
+                            '((NIL NIL "foo" "nonet.org"))',           # To
                             'NIL',                                     # Cc
                             'NIL',                                     # Bcc
                             'NIL',                                     # In-Reply-To
@@ -666,10 +666,10 @@ Hello world.
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
                             '"multipart test"',                        # Subject
-                            '("foo@nonet.com")',                       # From
+                            '((NIL NIL "foo" "nonet.com"))',           # From
                             'NIL',                                     # Sender
                             'NIL',                                     # Reply-To
-                            '("bar@nonet.com")',                       # To
+                            '((NIL NIL "bar" "nonet.com"))',           # To
                             'NIL',                                     # Cc
                             'NIL',                                     # Bcc
                             'NIL',                                     # In-Reply-To
@@ -680,12 +680,12 @@ Hello world.
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
                             '"=?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?="',    # Subject
-                            '("foo@nonet.com" "bar@nonet.com")',       # From
-                            '("foo@nonet.com")',                       # Sender
-                            '("foo@nonet.com")',                       # Reply-To
-                            '("alice@test.com" "bob@test.com")',       # To
-                            '("kate@test.com")',                       # Cc
-                            '("foo@nonet.com")',                       # Bcc
+                            '((NIL NIL "foo" "nonet.com") (NIL NIL "bar" "nonet.com"))', # From
+                            '((NIL NIL "foo" "nonet.com"))',           # Sender
+                            '((NIL NIL "foo" "nonet.com"))',           # Reply-To
+                            '((NIL NIL "alice" "test.com") (NIL NIL "bob" "test.com"))', # To
+                            '((NIL NIL "kate" "test.com"))',           # Cc
+                            '((NIL NIL "foo" "nonet.com"))',           # Bcc
                             '"20131106081723.5KJU1774292@smtp.testt.com"',# In-Reply-To
                             '"20131107214750.445A1255B9F@smtp.nonet.com"' # Message-Id
                           ].join(' ') +')',
@@ -778,10 +778,10 @@ Hello world.
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 06:47:50 +0900"',       # Date
                             '"test"',                                  # Subject
-                            '("bar@nonet.org")',                       # From
+                            '((NIL NIL "bar" "nonet.org"))',           # From
                             'NIL',                                     # Sender
                             'NIL',                                     # Reply-To
-                            '("foo@nonet.org")',                       # To
+                            '((NIL NIL "foo" "nonet.org"))',           # To
                             'NIL',                                     # Cc
                             'NIL',                                     # Bcc
                             'NIL',                                     # In-Reply-To
@@ -805,10 +805,10 @@ Hello world.
                           'ENVELOPE (' + [
                             '"Fri, 08 Nov 2013 19:31:03 +0900"',       # Date
                             '"multipart test"',                        # Subject
-                            '("foo@nonet.com")',                       # From
+                            '((NIL NIL "foo" "nonet.com"))',           # From
                             'NIL',                                     # Sender
                             'NIL',                                     # Reply-To
-                            '("bar@nonet.com")',                       # To
+                            '((NIL NIL "bar" "nonet.com"))',           # To
                             'NIL',                                     # Cc
                             'NIL',                                     # Bcc
                             'NIL',                                     # In-Reply-To
@@ -821,7 +821,7 @@ Hello world.
                                           'MESSAGE', 'RFC822', [], nil, nil, nil, 401,
                                           [
                                             'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                            %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                            [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
                                           ],
                                           [
                                             [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 60, 4 ],
@@ -836,7 +836,7 @@ Hello world.
                                             'MESSAGE', 'RFC822', [], nil, nil, nil, 641,
                                             [
                                               'Fri, 08 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                              %w[ foo@nonet.com ], nil, nil, %w[ bar@nonet.com ], nil, nil, nil, nil
+                                              [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
                                             ],
                                             [
                                               [ 'TEXT', 'plain', %w[ charset us-ascii ], nil, nil, nil, 52, 4 ],
