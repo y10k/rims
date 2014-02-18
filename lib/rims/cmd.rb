@@ -113,7 +113,7 @@ module RIMS
       option_list = [
         [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ],
         [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `localhost'." ],
-        [ :imap_port, 1430, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is 1430." ],
+        [ :imap_port, 143, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is 143." ],
         [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
         [ :username, nil, '-u', '--username=NAME', "Username to login IMAP server. required parameter to connect server." ],
         [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
