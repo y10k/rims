@@ -2,8 +2,6 @@
 
 source 'https://rubygems.org'
 
-gem 'mail'
-
 # Specify your gem's dependencies in rims.gemspec
 gemspec
 
