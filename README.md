@@ -1,6 +1,6 @@
-# Rims
+# RIMS
 
-TODO: Write a gem description
+RIMS is Ruby IMap Server.
 
 ## Installation
 
@@ -18,7 +18,17 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Type following to show usage.
+
+    $ rims
+
+To start IMAP server, type following and read usage.
+
+    $ rims server --help
+
+To append messages to IMAP mailbox, type following and read usage.
+
+    $ rims imap-append --help
 
 ## Contributing
 
