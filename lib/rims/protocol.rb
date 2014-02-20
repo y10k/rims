@@ -385,7 +385,7 @@ module RIMS
       private :parse_msg_set
 
       def parse_group(search_key)
-        group_cond = parse(search_key)
+        group_cond = parse_cached(search_key)
         proc{|next_cond|
           proc{|msg|
             group_cond.call(msg) && next_cond.call(msg)
@@ -541,15 +541,19 @@ module RIMS
       end
       private :fetch_next_node
 
-      def parse(search_key)
+      def parse_cached(search_key)
         unless (search_key.empty?) then
           search_key = search_key.dup
           factory = fetch_next_node(search_key)
-          cond = factory.call(parse(search_key))
+          cond = factory.call(parse_cached(search_key))
         else
           cond = end_of_cond
         end
+      end
+      private :parse_cached
 
+      def parse(search_key)
+        cond = parse_cached(search_key)
         proc{|msg|
           found = cond.call(msg)
           @mail_cache.clear
@@ -662,7 +666,7 @@ module RIMS
       private :make_address_list
 
       def expand_macro(cmd_list)
-        func_list = cmd_list.map{|name| parse(name) }
+        func_list = cmd_list.map{|name| parse_cached(name) }
         proc{|msg|
           func_list.map{|f| f.call(msg) }.join(' '.b)
         }
@@ -953,14 +957,14 @@ module RIMS
       private :parse_uid
 
       def parse_group(fetch_attrs)
-        group_fetch_list = fetch_attrs.map{|fetch_att| parse(fetch_att) }
+        group_fetch_list = fetch_attrs.map{|fetch_att| parse_cached(fetch_att) }
         proc{|msg|
           '('.b << group_fetch_list.map{|fetch| fetch.call(msg) }.join(' '.b) << ')'.b
         }
       end
       private :parse_group
 
-      def parse(fetch_att)
+      def parse_cached(fetch_att)
         fetch_att = fetch_att.upcase if (fetch_att.is_a? String)
         case (fetch_att)
         when 'ALL'
@@ -1003,6 +1007,12 @@ module RIMS
           raise SyntaxError, "unknown fetch attribute: #{fetch_att}"
         end
 
+        fetch
+      end
+      private :parse_cached
+
+      def parse(fetch_att)
+        fetch = parse_cached(fetch_att)
         proc{|msg|
           res = fetch.call(msg)
           @mail_cache.clear
