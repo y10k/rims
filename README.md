@@ -6,7 +6,8 @@ RIMS is Ruby IMap Server.
 
 Add this line to your application's Gemfile:
 
-    gem 'rims'
+    source 'https://rubygems.org' # for dependency of RIMS
+    gem 'rims', git: 'git://github.com/y10k/rims.git', branch: 'master'
 
 And then execute:
 
