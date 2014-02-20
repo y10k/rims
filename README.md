@@ -31,6 +31,24 @@ To append messages to IMAP mailbox, type following and read usage.
 
     $ rims imap-append --help
 
+## Roadmap of development
+
+* v0.0.1
+    - Now version.
+* v0.0.2
+    - Fast error recovery on connection fatal error (ex. Errno::EPIPE).
+    - Fine grain lock for one user multiple connection.
+* v0.0.3
+    - DB structure is changed and IMAP UID behavior will follow rules
+      that is described at RFC. Incompatible mailbox data!
+    - DB data checksum is added.
+* v0.0.4
+    - Optimization to fast search and fast fetch.
+    - Charset search.
+    - Strict e-mail address data at fetch envelope response.
+* v0.0.5
+    - Corresponding to multi-user mailbox. Incompatible mailbox data!
+
 ## Contributing
 
 1. Fork it
