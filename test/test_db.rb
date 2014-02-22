@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'digest'
 require 'pp' if $DEBUG
 require 'rims'
 require 'set'
@@ -81,7 +80,6 @@ module RIMS::Test
       assert_kind_of(Integer, id)
       assert_equal('foo', @msg_db.msg_text(id))
       assert(@msg_db.msg_date(id) >= t0)
-      assert_equal('sha256:' + Digest::SHA256.hexdigest('foo'), @msg_db.msg_cksum(id))
       assert_equal([ id ], @msg_db.each_msg_id.to_a)
 
       pp @text_st, @attr_st if $DEBUG

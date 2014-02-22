@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'digest'
 require 'set'
 
 module RIMS
@@ -149,7 +148,6 @@ module RIMS
 
       @text_st[id] = text
       @attr_st["date-#{id}"] = Marshal.dump(date)
-      @attr_st["cksum-#{id}"] = 'sha256:' + Digest::SHA256.hexdigest(text)
 
       id = id.to_i
       save_flags(id, [].to_set)
@@ -192,10 +190,6 @@ module RIMS
       if (date_bin = @attr_st["date-#{id}"]) then
         Marshal.load(date_bin)
       end
-    end
-
-    def msg_cksum(id)
-      @attr_st["cksum-#{id}"]
     end
 
     def each_msg_id
