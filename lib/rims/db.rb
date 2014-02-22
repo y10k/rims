@@ -261,8 +261,10 @@ module RIMS
           end
         end
       end
-      save_flags(id, flag_set)
-      self if is_modified
+      if (is_modified) then
+        save_flags(id, flag_set)
+        self
+      end
     end
 
     def msg_mboxes(id)
@@ -276,9 +278,9 @@ module RIMS
         for name in load_flags(id)
           mbox_flags_increment(mbox_id, name)
         end
+        save_mboxes(id, mbox_set)
+        self
       end
-      save_mboxes(id, mbox_set)
-      self if is_modified
     end
 
     def del_msg_mbox(id, mbox_id)
@@ -288,9 +290,9 @@ module RIMS
         for name in load_flags(id)
           mbox_flags_decrement(mbox_id, name)
         end
+        save_mboxes(id, mbox_set)
+        self
       end
-      save_mboxes(id, mbox_set)
-      self if is_modified
     end
   end
 
