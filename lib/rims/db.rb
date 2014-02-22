@@ -156,6 +156,16 @@ module RIMS
       id
     end
 
+    def clean_msg(id)
+      if (@text_st.delete(id.to_s)) then
+        @attr_st.delete("date-#{id}") or raise "internal error: #{id}"
+        self
+      else
+        raise "not found a message at #{id}"
+      end
+    end
+    private :clean_msg
+
     def load_flags(id)
       if (flag_list_bin = @attr_st["flags-#{id}"]) then
         flag_list_bin.split(/,/).to_set
@@ -169,6 +179,15 @@ module RIMS
     end
     private :save_flags
 
+    def clean_flags(id)
+      if (@attr_st.delete("flags-#{id}")) then
+        self
+      else
+        raise "not found a message flags at #{id}"
+      end
+    end
+    private :clean_flags
+
     def load_mboxes(id)
       if (mbox_list_bin = @attr_st["mbox-#{id}"]) then
         mbox_list_bin.split(/,/).map{|id_bin| id_bin.to_i }.to_set
@@ -181,6 +200,15 @@ module RIMS
       nil
     end
     private :save_mboxes
+
+    def clean_mboxes(id)
+      if (@attr_st.delete("mbox-#{id}")) then
+        self
+      else
+        raise "not found a message mboxes at #{id}"
+      end
+    end
+    private :clean_mboxes
 
     def msg_text(id)
       @text_st[id.to_s]
@@ -284,7 +312,13 @@ module RIMS
         for name in load_flags(id)
           mbox_flags_decrement(mbox_id, name)
         end
-        save_mboxes(id, mbox_set)
+        if (mbox_set.empty?) then
+          clean_msg(id)
+          clean_flags(id)
+          clean_mboxes(id)
+        else
+          save_mboxes(id, mbox_set)
+        end
         self
       end
     end

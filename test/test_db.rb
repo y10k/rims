@@ -123,6 +123,11 @@ module RIMS::Test
       assert_equal('bar', @msg_db.msg_text(id2))
       assert_equal(Time.parse('1975-11-19 12:34:56'), @msg_db.msg_date(id2))
       assert_equal([ id, id2 ], @msg_db.each_msg_id.to_a)
+
+      pp @text_st, @attr_st if $DEBUG
+
+      assert(@msg_db.del_msg_mbox(id, 1)) # changed.
+      assert_equal([ id2 ], @msg_db.each_msg_id.to_a)
     end
   end
 
