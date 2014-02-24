@@ -38,10 +38,12 @@ To append messages to IMAP mailbox, type following and read usage.
     - DB structure is changed and IMAP UID behavior will follow rules
       that is described at RFC. Incompatible mailbox data!
     - DB data checksum is added.
+    - Recovery from broken DB.
 * v0.0.4
     - Optimization to fast search and fast fetch.
     - Charset search.
     - Strict e-mail address data at fetch envelope response.
+    - Login authentication mechanisms.
 * v0.0.5
     - Corresponding to multi-user mailbox. Incompatible mailbox data!
 
