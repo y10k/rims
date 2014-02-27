@@ -1456,6 +1456,8 @@ module RIMS
                     res << " #{msg.num}"
                   end
                 end
+              rescue SystemCallError
+                raise
               rescue
                 @logger.warn("failed to search message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
                 @logger.warn($!)
@@ -1496,6 +1498,8 @@ module RIMS
             for msg in msg_list
               begin
                 res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
+              rescue SystemCallError
+                raise
               rescue
                 @logger.warn("failed to fetch message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
                 @logger.warn($!)
@@ -1634,14 +1638,20 @@ module RIMS
 
       def self.repl(decoder, input, output, logger)
         response_write = proc{|res|
-          last_line = nil
-          for data in res
-            logger.debug("response data: <#{data.encoding}#{data.ascii_only? ? ':ascii-only' : ''}> #{data.inspect}") if logger.debug?
-            output << data
-            last_line = data
+          begin
+            last_line = nil
+            for data in res
+              logger.debug("response data: <#{data.encoding}#{data.ascii_only? ? ':ascii-only' : ''}> #{data.inspect}") if logger.debug?
+              output << data
+              last_line = data
+            end
+            output.flush
+            logger.info("server response: #{last_line.strip}")
+          rescue
+            logger.error('response write error.')
+            logger.error($!)
+            raise
           end
-          output.flush
-          logger.info("server response: #{last_line.strip}")
         }
 
         response_write.call(decoder.ok_greeting)
