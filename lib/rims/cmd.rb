@@ -75,6 +75,21 @@ module RIMS
                  "Logging level (#{level_list.join(' ')}). default is `info'.") do |level|
         conf.load(log_level: level)
       end
+      options.on('--log-shift-age=NUMBER', Integer, 'Number of old log files to keep.') do |num|
+        conf.load(log_shift_age: num)
+      end
+      options.on('--log-shift-age-daily', 'Frequency of daily log rotation.') do
+        conf.load(log_shift_age: 'daily')
+      end
+      options.on('--log-shift-age-weekly', 'Frequency of weekly log rotation.') do
+        conf.load(log_shift_age: 'weekly')
+      end
+      options.on('--log-shift-age-monthly', 'Frequency of monthly log rotation.') do
+        conf.load(log_shift_age: 'monthly')
+      end
+      options.on('--log-shift-size=SIZE', Integer, 'Maximum logfile size.') do |size|
+        conf.load(log_shift_size: size)
+      end
       options.on('--kvs-type=TYPE', %w[ gdbm ],
                  "Choose the key-value store type of mailbox database. only GDBM can be chosen now.") do |type|
         conf.load(key_value_store_type: type)
