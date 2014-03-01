@@ -42,7 +42,14 @@ module RIMS
       log_level = log_level.upcase
       %w[ DEBUG INFO WARN ERROR FATAL ].include? log_level or raise "unknown log level: #{log_level}"
       log_level = Logger.const_get(log_level)
-      @config[:logger] = Logger.new(File.join(base_dir, log_file))
+      log_opt_args = []
+      if (@config.key? :log_shift_age) then
+        log_opt_args << @config.delete(:log_shift_age)
+        log_opt_args << @config.delete(:log_shift_size) if (@config.key? :log_shift_size)
+      else
+        log_opt_args << 1 <<  @config.delete(:log_shift_size) if (@config.key? :log_shift_size)
+      end
+      @config[:logger] = Logger.new(File.join(base_dir, log_file), *log_opt_args)
       @config[:logger].level = log_level
 
       kvs_type = @config.delete(:key_value_store_type) || 'GDBM'
