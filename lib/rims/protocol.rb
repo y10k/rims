@@ -1075,7 +1075,7 @@ module RIMS
               yield
             }
           else
-            [ "#{tag} NO no authentication\r\n" ]
+            [ "#{tag} NO not authenticated\r\n" ]
           end
         }
       end
@@ -1086,7 +1086,7 @@ module RIMS
           if (selected?) then
             yield
           else
-            [ "#{tag} NO no selected\r\n" ]
+            [ "#{tag} NO not selected\r\n" ]
           end
         }
       end
