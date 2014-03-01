@@ -1094,6 +1094,23 @@ module RIMS
       end
       private :protect_select
 
+      def response_stream(tag)
+        Enumerator.new{|res|
+          begin
+            yield(res)
+          rescue SyntaxError
+            @logger.error('client command syntax error.')
+            @logger.error($!)
+            res << "#{tag} BAD client command syntax error\r\n"
+          rescue
+            @logger.error('internal server error.')
+            @logger.error($!)
+            res << "#{tag} BAD internal server error\r\n"
+          end
+        }
+      end
+      private :response_stream
+
       def lock_folder
         @mail_store_holder.user_lock.synchronize{
           unless (@folder) then
@@ -1454,7 +1471,7 @@ module RIMS
               msg_num_list << msg_num
             end
 
-            Enumerator.new{|res|
+            response_stream(tag) {|res|
               for msg_num in msg_num_list
                 res << "* #{msg_num} EXPUNGE\r\n"
               end
@@ -1482,7 +1499,7 @@ module RIMS
             cond = parser.parse(cond_args)
           }
 
-          Enumerator.new{|res|
+          response_stream(tag) {|res|
             res << '* SEARCH'
             for msg in @folder.msg_list
               begin
@@ -1536,7 +1553,7 @@ module RIMS
             fetch = parser.parse(data_item_group)
           }
 
-          Enumerator.new{|res|
+          response_stream(tag) {|res|
             for msg in msg_list
               begin
                 res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << lock_folder{ fetch.call(msg) } << "\r\n".b)
@@ -1641,7 +1658,7 @@ module RIMS
           if (is_silent) then
             [ "#{tag} OK STORE completed\r\n" ]
           else
-            Enumerator.new{|res|
+            response_stream(tag) {|res|
               for msg in msg_list
                 flag_atom_list = nil
 
