@@ -1068,12 +1068,14 @@ module RIMS
       end
       private :protect_error
 
-      def protect_auth(tag)
+      def protect_auth(tag, lock: true)
         protect_error(tag) {
           if (auth?) then
-            @mail_store_holder.user_lock.synchronize{
+            if (lock) then
+              @mail_store_holder.user_lock.synchronize{ yield }
+            else
               yield
-            }
+            end
           else
             [ "#{tag} NO not authenticated\r\n" ]
           end
@@ -1081,8 +1083,8 @@ module RIMS
       end
       private :protect_auth
 
-      def protect_select(tag)
-        protect_auth(tag) {
+      def protect_select(tag, lock: true)
+        protect_auth(tag, lock: lock) {
           if (selected?) then
             yield
           else
@@ -1091,6 +1093,21 @@ module RIMS
         }
       end
       private :protect_select
+
+      def lock_folder
+        @mail_store_holder.user_lock.synchronize{
+          unless (@folder) then
+            raise 'no open folder.'
+          end
+
+          unless (get_mail_store.mbox_name(@folder.id)) then
+            raise "deleted folder: #{id}"
+          end
+
+          yield
+        }
+      end
+      private :lock_folder
 
       def ok_greeting
         [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ]
@@ -1103,29 +1120,33 @@ module RIMS
       end
 
       def noop(tag)
-        res = []
-        if (auth? && selected?) then
-          @mail_store_holder.user_lock.synchronize{
-            @folder.reload if @folder.updated?
-            res << "* #{get_mail_store.mbox_msgs(@folder.id)} EXISTS\r\n"
-            res << "* #{get_mail_store.mbox_flags(@folder.id, 'recent')} RECENTS\r\n"
-          }
-        end
-        res << "#{tag} OK NOOP completed\r\n"
+        protect_error(tag) {
+          res = []
+          if (auth? && selected?) then
+            lock_folder{
+              @folder.reload if @folder.updated?
+              res << "* #{get_mail_store.mbox_msgs(@folder.id)} EXISTS\r\n"
+              res << "* #{get_mail_store.mbox_flags(@folder.id, 'recent')} RECENTS\r\n"
+            }
+          end
+          res << "#{tag} OK NOOP completed\r\n"
+        }
       end
 
       def logout(tag)
-        if (auth? && selected?) then
-          @mail_store_holder.user_lock.synchronize{
-            @folder.reload if @folder.updated?
-            @folder.close
-            @folder = nil
-          }
-        end
-        cleanup
-        res = []
-        res << "* BYE server logout\r\n"
-        res << "#{tag} OK LOGOUT completed\r\n"
+        protect_error(tag) {
+          if (auth? && selected?) then
+            lock_folder{
+              @folder.reload if @folder.updated?
+              @folder.close
+              @folder = nil
+            }
+          end
+          cleanup
+          res = []
+          res << "* BYE server logout\r\n"
+          res << "#{tag} OK LOGOUT completed\r\n"
+        }
       end
 
       def authenticate(tag, auth_name)
@@ -1133,14 +1154,16 @@ module RIMS
       end
 
       def login(tag, username, password)
-        res = []
-        if (@passwd.call(username, password)) then
-          cleanup
-          @mail_store_holder = @mail_store_pool.get(username)
-          res << "#{tag} OK LOGIN completed\r\n"
-        else
-          res << "#{tag} NO failed to login\r\n"
-        end
+        protect_error(tag) {
+          res = []
+          if (@passwd.call(username, password)) then
+            cleanup
+            @mail_store_holder = @mail_store_pool.get(username)
+            res << "#{tag} OK LOGIN completed\r\n"
+          else
+            res << "#{tag} NO failed to login\r\n"
+          end
+        }
       end
 
       def folder_open_msgs
@@ -1424,12 +1447,17 @@ module RIMS
       def expunge(tag)
         protect_select(tag) {
           unless (@folder.read_only?) then
+            @folder.reload if @folder.updated?
+
+            msg_num_list = []
+            @folder.expunge_mbox do |msg_num|
+              msg_num_list << msg_num
+            end
+
             Enumerator.new{|res|
-              @folder.reload if @folder.updated?
-              @folder.expunge_mbox do |msg_num|
+              for msg_num in msg_num_list
                 res << "* #{msg_num} EXPUNGE\r\n"
               end
-              @folder.reload if @folder.updated?
               res << "#{tag} OK EXPUNGE completed\r\n"
             }
           else
@@ -1439,22 +1467,26 @@ module RIMS
       end
 
       def search(tag, *cond_args, uid: false)
-        protect_select(tag) {
-          @folder.reload if @folder.updated?
-          parser = Protocol::SearchParser.new(get_mail_store, @folder)
-          if (cond_args[0].upcase == 'CHARSET') then
-            cond_args.shift
-            charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
-            charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
-            parser.charset = charset_string
-          end
-          cond = parser.parse(cond_args)
+        protect_select(tag, lock: false) {
+          cond = nil
+
+          lock_folder{
+            @folder.reload if @folder.updated?
+            parser = Protocol::SearchParser.new(get_mail_store, @folder)
+            if (cond_args[0].upcase == 'CHARSET') then
+              cond_args.shift
+              charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
+              charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
+              parser.charset = charset_string
+            end
+            cond = parser.parse(cond_args)
+          }
 
           Enumerator.new{|res|
             res << '* SEARCH'
             for msg in @folder.msg_list
               begin
-                if (cond.call(msg)) then
+                if (lock_folder{ cond.call(msg) }) then
                   if (uid) then
                     res << " #{msg.id}"
                   else
@@ -1475,34 +1507,39 @@ module RIMS
       end
 
       def fetch(tag, msg_set, data_item_group, uid: false)
-        protect_select(tag) {
-          @folder.reload if @folder.updated?
+        protect_select(tag, lock: false) {
+          fetch = nil
+          msg_list = nil
 
-          msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-          msg_list = @folder.msg_list.find_all{|msg|
+          lock_folder{
+            @folder.reload if @folder.updated?
+
+            msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+            msg_list = @folder.msg_list.find_all{|msg|
+              if (uid) then
+                msg_set.include? msg.id
+              else
+                msg_set.include? msg.num
+              end
+            }
+
+            unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
+              data_item_group = [ :group, data_item_group ]
+            end
             if (uid) then
-              msg_set.include? msg.id
-            else
-              msg_set.include? msg.num
+              unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
+                data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
+              end
             end
+
+            parser = Protocol::FetchParser.new(get_mail_store, @folder)
+            fetch = parser.parse(data_item_group)
           }
-
-          unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
-            data_item_group = [ :group, data_item_group ]
-          end
-          if (uid) then
-            unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
-              data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
-            end
-          end
-
-          parser = Protocol::FetchParser.new(get_mail_store, @folder)
-          fetch = parser.parse(data_item_group)
 
           Enumerator.new{|res|
             for msg in msg_list
               begin
-                res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
+                res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << lock_folder{ fetch.call(msg) } << "\r\n".b)
               rescue SystemCallError
                 raise
               rescue
@@ -1516,98 +1553,114 @@ module RIMS
       end
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        protect_select(tag) {
-          return [ "#{tag} NO cannot store in read-only mode\r\n" ] if @folder.read_only?
-          @folder.reload if @folder.updated?
+        protect_select(tag, lock: false) {
+          is_silent = nil
+          msg_list = nil
 
-          msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-          name, option = data_item_name.split(/\./, 2)
+          lock_folder{
+            return [ "#{tag} NO cannot store in read-only mode\r\n" ] if @folder.read_only?
+            @folder.reload if @folder.updated?
 
-          case (name.upcase)
-          when 'FLAGS'
-            action = :flags_replace
-          when '+FLAGS'
-            action = :flags_add
-          when '-FLAGS'
-            action = :flags_del
-          else
-            raise "unknown store action: #{name}"
-          end
+            msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+            name, option = data_item_name.split(/\./, 2)
 
-          case (option && option.upcase)
-          when 'SILENT'
-            is_silent = true
-          when nil
-            is_silent = false
-          else
-            raise "unknown store option: #{option.inspect}"
-          end
-
-          if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
-            flag_list = []
-            for flag_atom in data_item_value[1..-1]
-              case (flag_atom.upcase)
-              when '\ANSWERED'
-                flag_list << 'answered'
-              when '\FLAGGED'
-                flag_list << 'flagged'
-              when '\DELETED'
-                flag_list << 'deleted'
-              when '\SEEN'
-                flag_list << 'seen'
-              when '\DRAFT'
-                flag_list << 'draft'
-              else
-                raise SyntaxError, "invalid flag: #{flag_atom}"
-              end
-            end
-            rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
-          else
-            raise SyntaxError, 'third arugment is not a group list.'
-          end
-
-          msg_list = @folder.msg_list.find_all{|msg|
-            if (uid) then
-              msg_set.include? msg.id
+            case (name.upcase)
+            when 'FLAGS'
+              action = :flags_replace
+            when '+FLAGS'
+              action = :flags_add
+            when '-FLAGS'
+              action = :flags_del
             else
-              msg_set.include? msg.num
+              raise "unknown store action: #{name}"
+            end
+
+            case (option && option.upcase)
+            when 'SILENT'
+              is_silent = true
+            when nil
+              is_silent = false
+            else
+              raise "unknown store option: #{option.inspect}"
+            end
+
+            if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
+              flag_list = []
+              for flag_atom in data_item_value[1..-1]
+                case (flag_atom.upcase)
+                when '\ANSWERED'
+                  flag_list << 'answered'
+                when '\FLAGGED'
+                  flag_list << 'flagged'
+                when '\DELETED'
+                  flag_list << 'deleted'
+                when '\SEEN'
+                  flag_list << 'seen'
+                when '\DRAFT'
+                  flag_list << 'draft'
+                else
+                  raise SyntaxError, "invalid flag: #{flag_atom}"
+                end
+              end
+              rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
+            else
+              raise SyntaxError, 'third arugment is not a group list.'
+            end
+
+            msg_list = @folder.msg_list.find_all{|msg|
+              if (uid) then
+                msg_set.include? msg.id
+              else
+                msg_set.include? msg.num
+              end
+            }
+
+            for msg in msg_list
+              case (action)
+              when :flags_replace
+                for name in flag_list
+                  get_mail_store.set_msg_flag(@folder.id, msg.id, name, true)
+                end
+                for name in rest_flag_list
+                  get_mail_store.set_msg_flag(@folder.id, msg.id, name, false)
+                end
+              when :flags_add
+                for name in flag_list
+                  get_mail_store.set_msg_flag(@folder.id, msg.id, name, true)
+                end
+              when :flags_del
+                for name in flag_list
+                  get_mail_store.set_msg_flag(@folder.id, msg.id, name, false)
+                end
+              else
+                raise "internal error: unknown action: #{action}"
+              end
             end
           }
-
-          for msg in msg_list
-            case (action)
-            when :flags_replace
-              for name in flag_list
-                get_mail_store.set_msg_flag(@folder.id, msg.id, name, true)
-              end
-              for name in rest_flag_list
-                get_mail_store.set_msg_flag(@folder.id, msg.id, name, false)
-              end
-            when :flags_add
-              for name in flag_list
-                get_mail_store.set_msg_flag(@folder.id, msg.id, name, true)
-              end
-            when :flags_del
-              for name in flag_list
-                get_mail_store.set_msg_flag(@folder.id, msg.id, name, false)
-              end
-            else
-              raise "internal error: unknown action: #{action}"
-            end
-          end
 
           if (is_silent) then
             [ "#{tag} OK STORE completed\r\n" ]
           else
             Enumerator.new{|res|
               for msg in msg_list
-                flag_atom_list = []
-                for name in MailStore::MSG_FLAG_NAMES
-                  if (get_mail_store.msg_flag(@folder.id, msg.id, name)) then
-                    flag_atom_list << "\\#{name.capitalize}"
+                flag_atom_list = nil
+
+                lock_folder{
+                  if (get_mail_store.msg_exist? @folder.id, msg.id) then
+                    flag_atom_list = []
+                    for name in MailStore::MSG_FLAG_NAMES
+                      if (get_mail_store.msg_flag(@folder.id, msg.id, name)) then
+                        flag_atom_list << "\\#{name.capitalize}"
+                      end
+                    end
                   end
+                }
+
+                if (flag_atom_list) then
+                  res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})\r\n"
+                else
+                  @logger.warn("not found a message and skipped: uidvalidity(#{@folder.id}) uid(#{msg.id})")
                 end
-                res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})\r\n"
               end
               res << "#{tag} OK STORE completed\r\n"
             }
