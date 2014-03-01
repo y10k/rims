@@ -360,8 +360,6 @@ module RIMS
     end
   end
 
-  # factory for single mailbox user.
-  # multi-user mailbox will be future challenge.
   class MailStorePool
     Holder = Struct.new(:mail_store, :user_name, :user_lock)
     RefCountEntry = Struct.new(:count, :mail_store_holder)
@@ -392,7 +390,7 @@ module RIMS
     private :new_mail_store
 
     def get(user_name)
-      user_lock = @pool_lock.synchronize{ user_lock = @user_lock_map[user_name] }
+      user_lock = @pool_lock.synchronize{ @user_lock_map[user_name] }
       user_lock.synchronize{
         if (@pool_map.key? user_name) then
           ref_count_entry = @pool_map[user_name]
@@ -411,8 +409,9 @@ module RIMS
     end
 
     def put(mail_store_holder)
-      ref_count_entry = @pool_map[mail_store_holder.user_name] or raise 'internal error.'
-      ref_count_entry.mail_store_holder.user_lock.synchronize{
+      user_lock = @pool_lock.synchronize{ @user_lock_map[mail_store_holder.user_name] }
+      user_lock.synchronize{
+        ref_count_entry = @pool_map[mail_store_holder.user_name] or raise 'internal error.'
         if (ref_count_entry.count < 1) then
           raise 'internal error.'
         end
