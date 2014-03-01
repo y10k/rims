@@ -363,21 +363,8 @@ module RIMS
   # factory for single mailbox user.
   # multi-user mailbox will be future challenge.
   class MailStorePool
+    Holder = Struct.new(:mail_store, :user_name, :user_lock)
     RefCountEntry = Struct.new(:count, :mail_store_holder)
-
-    class Holder
-      def initialize(mail_store, user_name, user_lock)
-        @mail_store = mail_store
-        @user_name = user_name
-        @user_lock = user_lock
-      end
-
-      attr_reader :mail_store
-      attr_reader :user_name
-      attr_reader :user_lock
-
-      alias to_mst mail_store
-    end
 
     def initialize(kvs_open_attr, kvs_open_text, make_user_prefix)
       @kvs_open_attr = kvs_open_attr
@@ -432,7 +419,7 @@ module RIMS
         ref_count_entry.count -= 1
         if (ref_count_entry.count == 0) then
           @pool_map.delete(mail_store_holder.user_name)
-          ref_count_entry.mail_store_holder.to_mst.close
+          ref_count_entry.mail_store_holder.mail_store.close
         end
       }
       nil
