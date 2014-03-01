@@ -1048,6 +1048,11 @@ module RIMS
         nil
       end
 
+      def get_mail_store
+        @mail_store_holder.mail_store
+      end
+      private :get_mail_store
+
       def protect_error(tag)
         begin
           yield
@@ -1102,8 +1107,8 @@ module RIMS
         if (auth? && selected?) then
           @mail_store_holder.user_lock.synchronize{
             @folder.reload if @folder.updated?
-            res << "* #{@mail_store_holder.to_mst.mbox_msgs(@folder.id)} EXISTS\r\n"
-            res << "* #{@mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')} RECENTS\r\n"
+            res << "* #{get_mail_store.mbox_msgs(@folder.id)} EXISTS\r\n"
+            res << "* #{get_mail_store.mbox_flags(@folder.id, 'recent')} RECENTS\r\n"
           }
         end
         res << "#{tag} OK NOOP completed\r\n"
@@ -1139,9 +1144,9 @@ module RIMS
       end
 
       def folder_open_msgs
-        all_msgs = @mail_store_holder.to_mst.mbox_msgs(@folder.id)
-        recent_msgs = @mail_store_holder.to_mst.mbox_flags(@folder.id, 'recent')
-        unseen_msgs = all_msgs - @mail_store_holder.to_mst.mbox_flags(@folder.id, 'seen')
+        all_msgs = get_mail_store.mbox_msgs(@folder.id)
+        recent_msgs = get_mail_store.mbox_flags(@folder.id, 'recent')
+        unseen_msgs = all_msgs - get_mail_store.mbox_flags(@folder.id, 'seen')
         yield("* #{all_msgs} EXISTS\r\n")
         yield("* #{recent_msgs} RECENT\r\n")
         yield("* OK [UNSEEN #{unseen_msgs}]\r\n")
@@ -1156,8 +1161,8 @@ module RIMS
           res = []
           @folder = nil
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
-            @folder = @mail_store_holder.to_mst.select_mbox(id)
+          if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
+            @folder = get_mail_store.select_mbox(id)
             folder_open_msgs do |msg|
               res << msg
             end
@@ -1173,8 +1178,8 @@ module RIMS
           res = []
           @folder = nil
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
-            @folder = @mail_store_holder.to_mst.examine_mbox(id)
+          if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
+            @folder = get_mail_store.examine_mbox(id)
             folder_open_msgs do |msg|
               res << msg
             end
@@ -1189,10 +1194,10 @@ module RIMS
         protect_auth(tag) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-          if (@mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
+          if (get_mail_store.mbox_id(mbox_name_utf8)) then
             res << "#{tag} NO duplicated mailbox\r\n"
           else
-            @mail_store_holder.to_mst.add_mbox(mbox_name_utf8)
+            get_mail_store.add_mbox(mbox_name_utf8)
             res << "#{tag} OK CREATE completed\r\n"
           end
         }
@@ -1202,9 +1207,9 @@ module RIMS
         protect_auth(tag) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
-            if (id != @mail_store_holder.to_mst.mbox_id('INBOX')) then
-              @mail_store_holder.to_mst.del_mbox(id)
+          if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
+            if (id != get_mail_store.mbox_id('INBOX')) then
+              get_mail_store.del_mbox(id)
               res << "#{tag} OK DELETE completed\r\n"
             else
               res << "#{tag} NO not delete inbox\r\n"
@@ -1219,16 +1224,16 @@ module RIMS
         protect_auth(tag) {
           src_name_utf8 = Net::IMAP.decode_utf7(src_name)
           dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
-          unless (id = @mail_store_holder.to_mst.mbox_id(src_name_utf8)) then
+          unless (id = get_mail_store.mbox_id(src_name_utf8)) then
             return [ "#{tag} NO not found a mailbox\r\n" ]
           end
-          if (id == @mail_store_holder.to_mst.mbox_id('INBOX')) then
+          if (id == get_mail_store.mbox_id('INBOX')) then
             return [ "#{tag} NO not rename inbox\r\n"]
           end
-          if (@mail_store_holder.to_mst.mbox_id(dst_name_utf8)) then
+          if (get_mail_store.mbox_id(dst_name_utf8)) then
             return [ "#{tag} NO duplicated mailbox\r\n" ]
           end
-          @mail_store_holder.to_mst.rename_mbox(id, dst_name_utf8)
+          get_mail_store.rename_mbox(id, dst_name_utf8)
           [ "#{tag} OK RENAME completed\r\n" ]
         }
       end
@@ -1236,7 +1241,7 @@ module RIMS
       def subscribe(tag, mbox_name)
         protect_auth(tag) {
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
+          if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
             [ "#{tag} OK SUBSCRIBE completed\r\n" ]
           else
             [ "#{tag} NO not found a mailbox\r\n" ]
@@ -1246,7 +1251,7 @@ module RIMS
 
       def unsubscribe(tag, mbox_name)
         protect_auth(tag) {
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name)) then
+          if (mbox_id = get_mail_store.mbox_id(mbox_name)) then
             [ "#{tag} NO not implemented subscribe/unsbscribe command\r\n" ]
           else
             [ "#{tag} NO not found a mailbox\r\n" ]
@@ -1259,14 +1264,14 @@ module RIMS
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
 
         mbox_filter = Protocol.compile_wildcard(mbox_name_utf8)
-        mbox_list = @mail_store_holder.to_mst.each_mbox_id.map{|id| [ id, @mail_store_holder.to_mst.mbox_name(id) ] }
+        mbox_list = get_mail_store.each_mbox_id.map{|id| [ id, get_mail_store.mbox_name(id) ] }
         mbox_list.keep_if{|id, name| name.start_with? ref_name_utf8 }
         mbox_list.keep_if{|id, name| name[(ref_name_utf8.length)..-1] =~ mbox_filter }
 
         for id, name_utf8 in mbox_list
           name = Net::IMAP.encode_utf7(name_utf8)
           attrs = '\Noinferiors'
-          if (@mail_store_holder.to_mst.mbox_flags(id, 'recent') > 0) then
+          if (get_mail_store.mbox_flags(id, 'recent') > 0) then
             attrs << ' \Marked'
           else
             attrs << ' \Unmarked'
@@ -1310,7 +1315,7 @@ module RIMS
         protect_auth(tag) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-          if (id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
+          if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
             unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
               raise SyntaxError, 'second arugment is not a group list.'
             end
@@ -1319,15 +1324,15 @@ module RIMS
             for item in data_item_group[1..-1]
               case (item.upcase)
               when 'MESSAGES'
-                values << 'MESSAGES' << @mail_store_holder.to_mst.mbox_msgs(id)
+                values << 'MESSAGES' << get_mail_store.mbox_msgs(id)
               when 'RECENT'
-                values << 'RECENT' << @mail_store_holder.to_mst.mbox_flags(id, 'recent')
+                values << 'RECENT' << get_mail_store.mbox_flags(id, 'recent')
               when 'UIDNEXT'
-                values << 'UIDNEXT' << @mail_store_holder.to_mst.uid
+                values << 'UIDNEXT' << get_mail_store.uid
               when 'UIDVALIDITY'
                 values << 'UIDVALIDITY' << id
               when 'UNSEEN'
-                unseen_flags = @mail_store_holder.to_mst.mbox_msgs(id) - @mail_store_holder.to_mst.mbox_flags(id, 'seen')
+                unseen_flags = get_mail_store.mbox_msgs(id) - get_mail_store.mbox_flags(id, 'seen')
                 values << 'UNSEEN' << unseen_flags
               else
                 raise SyntaxError, "unknown status data: #{item}"
@@ -1346,7 +1351,7 @@ module RIMS
         protect_auth(tag) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
+          if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
             msg_flags = []
             msg_date = Time.now
 
@@ -1385,9 +1390,9 @@ module RIMS
               raise SyntaxError, 'unknown option.'
             end
 
-            msg_id = @mail_store_holder.to_mst.add_msg(mbox_id, msg_text, msg_date)
+            msg_id = get_mail_store.add_msg(mbox_id, msg_text, msg_date)
             for flag_name in msg_flags
-              @mail_store_holder.to_mst.set_msg_flag(mbox_id, msg_id, flag_name, true)
+              get_mail_store.set_msg_flag(mbox_id, msg_id, flag_name, true)
             end
 
             res << "#{tag} OK APPEND completed\r\n"
@@ -1399,14 +1404,14 @@ module RIMS
 
       def check(tag)
         protect_select(tag) {
-          @mail_store_holder.to_mst.sync
+          get_mail_store.sync
           [ "#{tag} OK CHECK completed\r\n" ]
         }
       end
 
       def close(tag)
         protect_select(tag) {
-          @mail_store_holder.to_mst.sync
+          get_mail_store.sync
           if (@folder) then
             @folder.reload if @folder.updated?
             @folder.close
@@ -1436,7 +1441,7 @@ module RIMS
       def search(tag, *cond_args, uid: false)
         protect_select(tag) {
           @folder.reload if @folder.updated?
-          parser = Protocol::SearchParser.new(@mail_store_holder.to_mst, @folder)
+          parser = Protocol::SearchParser.new(get_mail_store, @folder)
           if (cond_args[0].upcase == 'CHARSET') then
             cond_args.shift
             charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
@@ -1491,7 +1496,7 @@ module RIMS
             end
           end
 
-          parser = Protocol::FetchParser.new(@mail_store_holder.to_mst, @folder)
+          parser = Protocol::FetchParser.new(get_mail_store, @folder)
           fetch = parser.parse(data_item_group)
 
           Enumerator.new{|res|
@@ -1573,18 +1578,18 @@ module RIMS
             case (action)
             when :flags_replace
               for name in flag_list
-                @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, true)
+                get_mail_store.set_msg_flag(@folder.id, msg.id, name, true)
               end
               for name in rest_flag_list
-                @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, false)
+                get_mail_store.set_msg_flag(@folder.id, msg.id, name, false)
               end
             when :flags_add
               for name in flag_list
-                @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, true)
+                get_mail_store.set_msg_flag(@folder.id, msg.id, name, true)
               end
             when :flags_del
               for name in flag_list
-                @mail_store_holder.to_mst.set_msg_flag(@folder.id, msg.id, name, false)
+                get_mail_store.set_msg_flag(@folder.id, msg.id, name, false)
               end
             else
               raise "internal error: unknown action: #{action}"
@@ -1598,7 +1603,7 @@ module RIMS
               for msg in msg_list
                 flag_atom_list = []
                 for name in MailStore::MSG_FLAG_NAMES
-                  if (@mail_store_holder.to_mst.msg_flag(@folder.id, msg.id, name)) then
+                  if (get_mail_store.msg_flag(@folder.id, msg.id, name)) then
                     flag_atom_list << "\\#{name.capitalize}"
                   end
                 end
@@ -1616,7 +1621,7 @@ module RIMS
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           msg_set = @folder.parse_msg_set(msg_set, uid: uid)
 
-          if (mbox_id = @mail_store_holder.to_mst.mbox_id(mbox_name_utf8)) then
+          if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
             msg_list = @folder.msg_list.find_all{|msg|
               if (uid) then
                 msg_set.include? msg.id
@@ -1626,7 +1631,7 @@ module RIMS
             }
 
             for msg in msg_list
-              @mail_store_holder.to_mst.copy_msg(msg.id, mbox_id)
+              get_mail_store.copy_msg(msg.id, mbox_id)
             end
 
             res << "#{tag} OK COPY completed\r\n"
