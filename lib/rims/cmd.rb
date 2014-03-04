@@ -274,6 +274,68 @@ module RIMS
       nil
     end
     module_function :imap_append
+
+    def debug_dump_kvs(options, args)
+      conf = {
+        match_key: nil,
+        dump_value: true,
+        marshal_restore: true,
+      }
+
+      options.banner += ' gdbm [name]'
+      options.on('-h', '--help', 'Show this message.')do
+        puts options
+        exit
+      end
+      options.on('--match-key=REGEXP', Regexp, 'Show keys matching regular expression.') do |regexp|
+        conf[:match_key] = regexp
+      end
+      options.on('--[no-]dump-value', 'Dump value with key.') do |v|
+        conf[:dump_value] = v
+      end
+      options.on('--[no-]marshal-restore', 'Restore serialized object.') do |v|
+        conf[:marshal_restore] = v
+      end
+      options.parse!(args)
+      pp conf if $DEBUG
+
+      kvs_type = args.shift or raise 'need for key-value store type parameter.'
+      case (kvs_type.downcase)
+      when 'gdbm'
+        name = args.shift or raise 'need for GDBM DB name.'
+        db = GDBM_KeyValueStore.open(name)
+      else
+        raise "unknown key-value store type: #{kvs_type}"
+      end
+
+      begin
+        db.each_key do |key|
+          if (conf[:match_key] && (key !~ conf[:match_key])) then
+            next
+          end
+
+          entry = key.inspect
+          if (conf[:dump_value]) then
+            v = db[key]
+            if (conf[:marshal_restore]) then
+              begin
+                v = Marshal.restore(v)
+              rescue
+                # not marshal object!
+              end
+            end
+            entry += ": #{v.inspect}"
+          end
+
+          puts entry
+        end
+      ensure
+        db.close
+      end
+
+      0
+    end
+    command_function :debug_dump_kvs, "Dump key-value store contents."
   end
 end
 
