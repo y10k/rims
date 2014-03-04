@@ -169,6 +169,11 @@ module RIMS
         }
       end
 
+      def get_mail(msg)
+        @mail_cache[msg.id] or raise "not found a mail: #{msg.id}"
+      end
+      private :get_mail
+
       attr_accessor :charset
 
       def str2time(time_string)
@@ -245,7 +250,7 @@ module RIMS
       def parse_search_header(name, search_string)
         proc{|next_cond|
           proc{|msg|
-            mail = @mail_cache[msg.id]
+            mail = get_mail(msg)
             field_string = (mail[name]) ? mail[name].to_s : ''
             string_include?(search_string, field_string) && next_cond.call(msg)
           }
@@ -267,7 +272,7 @@ module RIMS
         d = search_time.to_date
         proc{|next_cond|
           proc{|msg|
-            if (mail_datetime = @mail_cache[msg.id].date) then
+            if (mail_datetime = get_mail(msg).date) then
               yield(mail_datetime.to_date, d) && next_cond.call(msg)
             else
               false
@@ -289,7 +294,7 @@ module RIMS
       def parse_body(search_string)
         proc{|next_cond|
           proc{|msg|
-            if (text = mail_body_text(@mail_cache[msg.id])) then
+            if (text = mail_body_text(get_mail(msg))) then
               string_include?(search_string, text) && next_cond.call(msg)
             else
               false
@@ -352,7 +357,7 @@ module RIMS
         search = proc{|text| string_include?(search_string, text) }
         proc{|next_cond|
           proc{|msg|
-            mail = @mail_cache[msg.id]
+            mail = get_mail(msg)
             names = mail.header.map{|field| field.name.to_s }
             text = mail_body_text(mail)
             (names.any?{|n| search.call(n) || search.call(mail[n].to_s) } || (! text.nil? && search.call(text))) && next_cond.call(msg)
@@ -642,6 +647,11 @@ module RIMS
         }
       end
 
+      def get_mail(msg)
+        @mail_cache[msg.id] or raise "not found a mail: #{msg.id}"
+      end
+      private :get_mail
+
       def make_array(value)
         if (value) then
           if (value.is_a? Array) then
@@ -883,7 +893,7 @@ module RIMS
           res << msg_att_name
           res << ' '.b
 
-          mail = get_body_section(@mail_cache[msg.id], section_index_list)
+          mail = get_body_section(get_mail(msg), section_index_list)
           content = fetch_body_content.call(mail) if mail
           if (content) then
             if (body.partial_origin) then
@@ -908,16 +918,14 @@ module RIMS
 
       def parse_bodystructure(name)
         proc{|msg|
-          mail = @mail_cache[msg.id] or raise 'internal error.'
-          ''.b << name << ' '.b << encode_list(get_bodystructure_data(mail))
+          ''.b << name << ' '.b << encode_list(get_bodystructure_data(get_mail(msg)))
         }
       end
       private :parse_bodystructure
 
       def parse_envelope(name)
         proc{|msg|
-          mail = @mail_cache[msg.id] or raise 'internal error.'
-          ''.b << name << ' '.b << encode_list(get_envelope_data(mail))
+          ''.b << name << ' '.b << encode_list(get_envelope_data(get_mail(msg)))
         }
       end
       private :parse_envelope
@@ -943,8 +951,7 @@ module RIMS
 
       def parse_rfc822_size(name)
         proc{|msg|
-          mail = @mail_cache[msg.id] or raise 'internal error.'
-          ''.b << name << ' '.b << mail.raw_source.bytesize.to_s
+          ''.b << name << ' '.b << get_mail(msg).raw_source.bytesize.to_s
         }
       end
       private :parse_rfc822_size
