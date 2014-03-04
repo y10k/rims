@@ -35,12 +35,21 @@ module RIMS
     module_function :run_cmd
 
     def cmd_help(options, args)
+      show_debug_command = false
+      options.on('--show-debug-command', 'Show command for debug in help message. At default, debug command is hidden.') do
+        show_debug_command = true
+      end
+      options.parse!(args)
+
       STDERR.puts "usage: #{File.basename($0)} command options"
       STDERR.puts ""
       STDERR.puts "commands:"
       w = CMDs.keys.map{|k| k.length }.max + 4
       fmt = "    %- #{w}s%s"
       CMDs.each do |cmd_name, cmd_entry|
+        if ((! show_debug_command) && (cmd_name =~ /^debug/)) then
+          next
+        end
         STDERR.puts format(fmt, cmd_name, cmd_entry[:description])
       end
       STDERR.puts ""
