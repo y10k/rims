@@ -1,3 +1,8 @@
+2014-02-27  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb: fast error recovery on connection fatal
+	error (ex. Errno::EPIPE).
+
 2014-02-24  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.0.1 is released.
