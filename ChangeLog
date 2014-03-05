@@ -1,3 +1,7 @@
+2014-03-04  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb: add debug-dump-kvs command.
+
 2014-03-01  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/server.rb, lib/rims/cmd.rb: add server log rotation.
