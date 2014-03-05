@@ -106,7 +106,7 @@ module RIMS::Test
       }
       @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open, proc{|name| 'test' })
       @mail_store_holder = @mail_store_pool.get('foo')
-      @mail_store = @mail_store_holder.to_mst
+      @mail_store = @mail_store_holder.mail_store
       @inbox_id = @mail_store.mbox_id('INBOX')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
