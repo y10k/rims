@@ -1,3 +1,8 @@
+2014-03-05  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb, lib/rims/mail_store.rb: add fine grain
+	lock for one user multiple connection.
+
 2014-03-04  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb: add debug-dump-kvs command.
