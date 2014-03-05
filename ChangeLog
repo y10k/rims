@@ -1,5 +1,7 @@
 2014-03-05  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* RIMS version 0.0.2 is released.
+
 	* lib/rims/protocol.rb, lib/rims/mail_store.rb: add fine grain
 	lock for one user multiple connection.
 
