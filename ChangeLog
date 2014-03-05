@@ -1,3 +1,7 @@
+2014-03-01  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/server.rb, lib/rims/cmd.rb: add server log rotation.
+
 2014-02-27  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol.rb: fast error recovery on connection fatal
