@@ -275,7 +275,7 @@ module RIMS
     end
     module_function :imap_append
 
-    def debug_dump_kvs(options, args)
+    def cmd_debug_dump_kvs(options, args)
       conf = {
         match_key: nil,
         dump_value: true,
@@ -335,7 +335,7 @@ module RIMS
 
       0
     end
-    command_function :debug_dump_kvs, "Dump key-value store contents."
+    command_function :cmd_debug_dump_kvs, "Dump key-value store contents."
   end
 end
 
