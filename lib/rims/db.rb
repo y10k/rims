@@ -488,6 +488,28 @@ module RIMS
         @kvs.close
         self
       end
+
+      def get_num(key, default_value: 0)
+        if (s = @kvs[key]) then
+          s.to_i
+        else
+          default_value
+        end
+      end
+      private :get_num
+
+      def put_num(key, num)
+        @kvs[key] = num.to_s
+        self
+      end
+      private :put_num
+
+      def num_succ!(key, default_value: 0)
+        n = get_num(key, default_value: default_value)
+        put_num(key, n + 1)
+        n
+      end
+      private :num_succ!
     end
 
     class Meta < Core
