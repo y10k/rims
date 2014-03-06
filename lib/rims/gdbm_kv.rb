@@ -9,8 +9,8 @@ module RIMS
       @db = gdbm
     end
 
-    def self.open(path)
-      new(GDBM.new(path + '.gdbm'))
+    def self.open(path, *optional)
+      new(GDBM.new(path + '.gdbm', *optional))
     end
 
     def [](key)

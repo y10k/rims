@@ -306,7 +306,7 @@ module RIMS
       case (kvs_type.downcase)
       when 'gdbm'
         name = args.shift or raise 'need for GDBM DB name.'
-        db = GDBM_KeyValueStore.open(name)
+        db = GDBM_KeyValueStore.open(name, 0666, GDBM::READER)
       else
         raise "unknown key-value store type: #{kvs_type}"
       end
