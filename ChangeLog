@@ -1,5 +1,8 @@
 2014-03-06  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/gdbm_kv.rb, lib/rims/cmd.rb: read-only GDBM DB open at
+	debug-dump-kvs command.
+
 	* lib/rims/cmd.rb: add assertion check of command name following
 	contract naming rule.
 
