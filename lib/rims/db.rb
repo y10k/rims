@@ -521,6 +521,21 @@ module RIMS
         n
       end
       private :num_succ!
+
+      def get_num_set(key)
+        if (s = @kvs[key]) then
+          s.split(',', -1).map{|n| n.to_i }.to_set
+        else
+          [].to_set
+        end
+      end
+      private :get_num_set
+
+      def put_num_set(key, num_set)
+        @kvs[key] = num_set.to_a.join(',')
+        self
+      end
+      private :put_num_set
     end
 
     class Meta < Core
