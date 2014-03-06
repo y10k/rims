@@ -253,6 +253,13 @@ module RIMS::Test
       assert_nil(@db.mbox_id('foo'))
       assert_nil(@db.mbox_id('bar'))
     end
+
+    def test_mbox_uid
+      id = @db.add_mbox('foo')
+      assert_equal(1, @db.mbox_uid(id))
+      assert_equal(1, @db.mbox_uid_succ!(id))
+      assert_equal(2, @db.mbox_uid(id))
+    end
   end
 end
 
