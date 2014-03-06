@@ -195,6 +195,12 @@ module RIMS::Test
       assert_equal(0, @db.cnum_succ!)
       assert_equal(1, @db.cnum)
     end
+
+    def test_uidvalidity
+      assert_equal(1, @db.uidvalidity)
+      assert_equal(1, @db.uidvalidity_succ!)
+      assert_equal(2, @db.uidvalidity)
+    end
   end
 end
 

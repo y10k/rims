@@ -590,6 +590,14 @@ module RIMS
       def cnum_succ!
         num_succ!('cnum')
       end
+
+      def uidvalidity
+        get_num('uidvalidity', default_value: 1)
+      end
+
+      def uidvalidity_succ!
+        num_succ!('uidvalidity', default_value: 1)
+      end
     end
 
     class Message < Core
