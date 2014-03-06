@@ -697,6 +697,30 @@ module RIMS
         num_decrement("mbox_id2msgnum-#{mbox_id}")
         self
       end
+
+      def mbox_flag_num(mbox_id, name)
+        mbox_name(mbox_id) or raise "not found a mailbox for id: #{mbox_id}"
+        get_num("mbox_id2flagnum-#{mbox_id}-#{name}")
+      end
+
+      def mbox_flag_num_increment(mbox_id, name)
+        mbox_name(mbox_id) or raise "not found a mailbox for id: #{mbox_id}"
+        num_increment("mbox_id2flagnum-#{mbox_id}-#{name}")
+        self
+      end
+
+      def mbox_flag_num_decrement(mbox_id, name)
+        mbox_name(mbox_id) or raise "not found a mailbox for id: #{mbox_id}"
+        num_decrement("mbox_id2flagnum-#{mbox_id}-#{name}")
+        self
+      end
+
+      def clear_mbox_flag_num(mbox_id, name)
+        mbox_name(mbox_id) or raise "not found a mailbox for id: #{mbox_id}"
+        if (@kvs.delete("mbox_id2flagnum-#{mbox_id}-#{name}")) then
+          self
+        end
+      end
     end
 
     class Message < Core

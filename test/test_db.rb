@@ -269,6 +269,22 @@ module RIMS::Test
       @db.mbox_msg_num_decrement(id)
       assert_equal(0, @db.mbox_msg_num(id))
     end
+
+    def test_mbox_flags
+      id = @db.add_mbox('foo')
+      assert_equal(0, @db.mbox_flag_num(id, 'flagged'))
+      @db.mbox_flag_num_increment(id, 'flagged')
+      assert_equal(1, @db.mbox_flag_num(id, 'flagged'))
+      @db.mbox_flag_num_decrement(id, 'flagged')
+      assert_equal(0, @db.mbox_flag_num(id, 'flagged'))
+      @db.mbox_flag_num_increment(id, 'flagged')
+      @db.mbox_flag_num_increment(id, 'flagged')
+      assert_equal(2, @db.mbox_flag_num(id, 'flagged'))
+      assert_not_nil(@db.clear_mbox_flag_num(id, 'flagged'))
+      assert_equal(0, @db.mbox_flag_num(id, 'flagged'))
+      assert_nil(@db.clear_mbox_flag_num(id, 'flagged'))
+      assert_equal(0, @db.mbox_flag_num(id, 'flagged'))
+    end
   end
 end
 
