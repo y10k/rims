@@ -13,7 +13,10 @@ module RIMS
     def self.command_function(method_name, description)
       module_function(method_name)
       method_name = method_name.to_s
-      cmd_name = method_name.sub(/^cmd_/, '').gsub(/_/, '-')
+      unless (method_name =~ /^cmd_/) then
+        raise "invalid command function name: #{method_name}"
+      end
+      cmd_name = $'.gsub(/_/, '-')
       CMDs[cmd_name] = { function: method_name.to_sym, description: description }
     end
 
