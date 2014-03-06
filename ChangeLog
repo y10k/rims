@@ -1,5 +1,8 @@
 2014-03-06  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* rename key-value store filename (kv.rb -> kvs.rb, gdbm_kv.rb ->
+	gdbm_kvs.rb).
+
 	* lib/rims/gdbm_kv.rb, lib/rims/cmd.rb: read-only GDBM DB open at
 	debug-dump-kvs command.
 
