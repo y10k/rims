@@ -285,6 +285,31 @@ module RIMS::Test
       assert_nil(@db.clear_mbox_flag_num(id, 'flagged'))
       assert_equal(0, @db.mbox_flag_num(id, 'flagged'))
     end
+
+    def test_msg_flag
+      assert_equal(false, @db.msg_flag(0, 'recent'))
+      assert_equal(false, @db.msg_flag(0, 'seen'))
+
+      @db.set_msg_flag(0, 'recent', true)
+      assert_equal(true, @db.msg_flag(0, 'recent'))
+      assert_equal(false, @db.msg_flag(0, 'seen'))
+
+      @db.set_msg_flag(0, 'seen', true)
+      assert_equal(true, @db.msg_flag(0, 'recent'))
+      assert_equal(true, @db.msg_flag(0, 'seen'))
+
+      @db.set_msg_flag(0, 'recent', false)
+      assert_equal(false, @db.msg_flag(0, 'recent'))
+      assert_equal(true, @db.msg_flag(0, 'seen'))
+
+      assert_not_nil(@db.clear_msg_flag(0))
+      assert_equal(false, @db.msg_flag(0, 'recent'))
+      assert_equal(false, @db.msg_flag(0, 'seen'))
+
+      assert_nil(@db.clear_msg_flag(0))
+      assert_equal(false, @db.msg_flag(0, 'recent'))
+      assert_equal(false, @db.msg_flag(0, 'seen'))
+    end
   end
 end
 

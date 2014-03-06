@@ -721,6 +721,28 @@ module RIMS
           self
         end
       end
+
+      def msg_flag(mid, name)
+        flag_set = get_str_set("msg_id2flag-#{mid}")
+        flag_set.include? name
+      end
+
+      def set_msg_flag(mid, name, value)
+        flag_set = get_str_set("msg_id2flag-#{mid}")
+        if (value) then
+          flag_set.add(name)
+        else
+          flag_set.delete(name)
+        end
+        put_str_set("msg_id2flag-#{mid}", flag_set)
+        self
+      end
+
+      def clear_msg_flag(mid)
+        if (@kvs.delete("msg_id2flag-#{mid}")) then
+          self
+        end
+      end
     end
 
     class Message < Core
