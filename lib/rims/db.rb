@@ -606,6 +606,68 @@ module RIMS
       def uidvalidity_succ!
         num_succ!('uidvalidity', default_value: 1)
       end
+
+      def add_mbox(name)
+        if (@kvs.key? "mbox_name2id-#{name}") then
+          raise raise "duplicated mailbox name: #{name}."
+        end
+
+        mbox_id = uidvalidity_succ!
+        mbox_set = get_num_set('mbox_set')
+        if (mbox_set.include? mbox_id) then
+          raise "internal error: duplicated mailbox id: #{mbox_id}"
+        end
+        mbox_set << mbox_id
+        put_num_set('mbox_set', mbox_set)
+
+        put_str("mbox_id2name-#{mbox_id}", name)
+        put_num("mbox_name2id-#{name}", mbox_id)
+
+        mbox_id
+      end
+
+      def del_mbox(mbox_id)
+        mbox_set = get_num_set('mbox_set')
+        if (mbox_set.include? mbox_id) then
+          mbox_set.delete(mbox_id)
+          put_num_set('mbox_set', mbox_set)
+          name = mbox_name(mbox_id)
+          @kvs.delete("mbox_id2name-#{mbox_id}") or raise "not found a mailbox name for id: #{mbox_id}"
+          @kvs.delete("mbox_name2id-#{name}") or raise "not found a mailbox id for name: #{name}"
+          self
+        end
+      end
+
+      def rename_mbox(mbox_id, new_name)
+        old_name = get_str("mbox_id2name-#{mbox_id}") or raise "not found a mailbox name for id: #{mbox_id}"
+        if (new_name == old_name) then
+          return
+        end
+        if (@kvs.key? "mbox_name2id-#{new_name}") then
+          raise "duplicated mailbox name: #{new_name}"
+        end
+        @kvs.delete("mbox_name2id-#{old_name}") or raise "not found a mailbox old name for id: #{mbox_id}"
+        put_str("mbox_id2name-#{mbox_id}", new_name)
+        put_num("mbox_name2id-#{new_name}", mbox_id)
+        self
+      end
+
+      def each_mbox_id
+        return enum_for(:each_mbox_id) unless block_given?
+        mbox_set = get_num_set('mbox_set')
+        for mbox_id in mbox_set
+          yield(mbox_id)
+        end
+        self
+      end
+
+      def mbox_name(mbox_id)
+        get_str("mbox_id2name-#{mbox_id}", default_value: nil)
+      end
+
+      def mbox_id(name)
+        get_num("mbox_name2id-#{name}", default_value: nil)
+      end
     end
 
     class Message < Core

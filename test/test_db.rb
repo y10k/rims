@@ -207,6 +207,52 @@ module RIMS::Test
       assert_equal(1, @db.uidvalidity_succ!)
       assert_equal(2, @db.uidvalidity)
     end
+
+    def test_mbox
+      assert_equal(1, @db.uidvalidity)
+      assert_equal([], @db.each_mbox_id.to_a)
+      assert_nil(@db.mbox_name(1))
+      assert_nil(@db.mbox_id('foo'))
+
+      id = @db.add_mbox('foo')
+      assert_equal(1, id)
+
+      assert_equal(2, @db.uidvalidity)
+      assert_equal([ 1 ], @db.each_mbox_id.to_a)
+      assert_equal('foo', @db.mbox_name(1))
+      assert_equal(1, @db.mbox_id('foo'))
+
+      assert_nil(@db.rename_mbox(1, 'foo'))
+
+      assert_equal(2, @db.uidvalidity)
+      assert_equal([ 1 ], @db.each_mbox_id.to_a)
+      assert_equal('foo', @db.mbox_name(1))
+      assert_equal(1, @db.mbox_id('foo'))
+
+      assert_not_nil(@db.rename_mbox(1, 'bar'))
+
+      assert_equal(2, @db.uidvalidity)
+      assert_equal([ 1 ], @db.each_mbox_id.to_a)
+      assert_equal('bar', @db.mbox_name(1))
+      assert_nil(@db.mbox_id('foo'))
+      assert_equal(1, @db.mbox_id('bar'))
+
+      assert_nil(@db.del_mbox(2))
+
+      assert_equal(2, @db.uidvalidity)
+      assert_equal([ 1 ], @db.each_mbox_id.to_a)
+      assert_equal('bar', @db.mbox_name(1))
+      assert_nil(@db.mbox_id('foo'))
+      assert_equal(1, @db.mbox_id('bar'))
+
+      assert_not_nil(@db.del_mbox(1))
+
+      assert_equal(2, @db.uidvalidity)
+      assert_equal([], @db.each_mbox_id.to_a)
+      assert_nil(@db.mbox_name(1))
+      assert_nil(@db.mbox_id('foo'))
+      assert_nil(@db.mbox_id('bar'))
+    end
   end
 end
 
