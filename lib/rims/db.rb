@@ -583,6 +583,13 @@ module RIMS
     end
 
     class Meta < Core
+      def cnum
+        get_num('cnum')
+      end
+
+      def cnum_succ!
+        num_succ!('cnum')
+      end
     end
 
     class Message < Core

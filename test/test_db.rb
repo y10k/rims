@@ -189,6 +189,12 @@ module RIMS::Test
     def teardown
       pp @kvs if $DEBUG
     end
+
+    def test_cnum
+      assert_equal(0, @db.cnum)
+      assert_equal(0, @db.cnum_succ!)
+      assert_equal(1, @db.cnum)
+    end
   end
 end
 
