@@ -591,6 +591,14 @@ module RIMS
         num_succ!('cnum')
       end
 
+      def msg_id
+        get_num('msg_id')
+      end
+
+      def msg_id_succ!
+        num_succ!('msg_id')
+      end
+
       def uidvalidity
         get_num('uidvalidity', default_value: 1)
       end
