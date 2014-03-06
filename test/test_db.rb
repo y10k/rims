@@ -170,6 +170,26 @@ module RIMS::Test
       assert_equal([], @mbox_db.each_msg_id.to_a)
     end
   end
+
+  class DBMetaTest < Test::Unit::TestCase
+    def setup
+      @kvs = {}
+      def @kvs.[]=(key, value)
+        (key.is_a? String) or raies "not a string key: #{key}"
+        (value.is_a? String) or raise "not a string value: #{value}"
+        super(key.b, value.b)
+      end
+      def @kvs.[](key)
+        (key.is_a? String) or raise "not a string key: #{key}"
+        super(key)
+      end
+      @db = RIMS::DB::Meta.new(RIMS::GDBM_KeyValueStore.new(@kvs))
+    end
+
+    def teardown
+      pp @kvs if $DEBUG
+    end
+  end
 end
 
 # Local Variables:
