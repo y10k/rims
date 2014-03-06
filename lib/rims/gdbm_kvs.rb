@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 require 'gdbm'
-require 'rims/kv'
 
 module RIMS
   class GDBM_KeyValueStore < KeyValueStore
