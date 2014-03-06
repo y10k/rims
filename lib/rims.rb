@@ -5,6 +5,7 @@ require "rims/version"
 module RIMS
   autoload :Cmd, 'rims/cmd'
   autoload :Config, 'rims/server'
+  autoload :DB, 'rims/db'
   autoload :Error, 'rims/error'
   autoload :GDBM_KeyValueStore, 'rims/gdbm_kvs'
   autoload :GlobalDB, 'rims/db'

@@ -3,7 +3,7 @@
 require 'set'
 
 module RIMS
-  class DB
+  class CoreDB
     def initialize(kv_store)
       @db = kv_store
     end
@@ -19,7 +19,7 @@ module RIMS
     end
   end
 
-  class GlobalDB < DB
+  class GlobalDB < CoreDB
     def setup
       [ %w[ cnum 0 ],
         %w[ uidvalidity 1 ]
@@ -323,7 +323,7 @@ module RIMS
     end
   end
 
-  class MailboxDB < DB
+  class MailboxDB < CoreDB
     def mbox_id
       if (id = @db['mbox_id']) then
         id.to_i
@@ -470,6 +470,20 @@ module RIMS
         end
       end
       self
+    end
+  end
+
+  module DB
+    class Core
+    end
+
+    class Meta < Core
+    end
+
+    class Message < Core
+    end
+
+    class Mailbox < Core
     end
   end
 end
