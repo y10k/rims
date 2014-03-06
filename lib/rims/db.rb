@@ -17,7 +17,6 @@ module RIMS
       @db.close
       self
     end
-
   end
 
   class GlobalDB < DB
