@@ -475,6 +475,19 @@ module RIMS
 
   module DB
     class Core
+      def initialize(kvs)
+        @kvs = kvs
+      end
+
+      def sync
+        @kvs.sync
+        self
+      end
+
+      def close
+        @kvs.close
+        self
+      end
     end
 
     class Meta < Core
