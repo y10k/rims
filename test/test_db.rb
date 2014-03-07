@@ -318,6 +318,54 @@ module RIMS::Test
       assert_equal(false, @db.msg_flag(0, 'recent'))
       assert_equal(false, @db.msg_flag(0, 'seen'))
     end
+
+    def test_msg_mbox_uid_mapping
+      assert_equal(1, @db.add_mbox('INBOX'))
+      assert_equal(2, @db.add_mbox('foo'))
+
+      assert_equal({}, @db.msg_mbox_uid_mapping(0))
+
+      assert_equal(1, @db.add_msg_mbox_uid(0, 1))
+      assert_equal({ 1 => [ 1 ].to_set
+                   }, @db.msg_mbox_uid_mapping(0))
+
+      assert_equal(2, @db.add_msg_mbox_uid(0, 1))
+      assert_equal({ 1 => [ 1, 2 ].to_set
+                   }, @db.msg_mbox_uid_mapping(0))
+
+      assert_equal(1, @db.add_msg_mbox_uid(0, 2))
+      assert_equal({ 1 => [ 1, 2 ].to_set,
+                     2 => [ 1 ].to_set
+                   }, @db.msg_mbox_uid_mapping(0))
+
+      assert_nil(@db.del_msg_mbox_uid(0, 2, 2))
+      assert_equal({ 1 => [ 1, 2 ].to_set,
+                     2 => [ 1 ].to_set
+                   }, @db.msg_mbox_uid_mapping(0))
+
+      assert_equal({ 1 => [ 1, 2 ].to_set
+                   }, @db.del_msg_mbox_uid(0, 2, 1))
+      assert_equal({ 1 => [ 1, 2 ].to_set
+                   }, @db.msg_mbox_uid_mapping(0))
+
+      assert_nil(@db.del_msg_mbox_uid(0, 2, 1))
+      assert_equal({ 1 => [ 1, 2 ].to_set
+                   }, @db.msg_mbox_uid_mapping(0))
+
+      assert_equal({ 1 => [ 2 ].to_set
+                   }, @db.del_msg_mbox_uid(0, 1, 1))
+      assert_equal({ 1 => [ 2 ].to_set
+                   }, @db.msg_mbox_uid_mapping(0))
+
+      assert_equal({}, @db.del_msg_mbox_uid(0, 1, 2))
+      assert_equal({}, @db.msg_mbox_uid_mapping(0))
+
+      assert_not_nil(@db.clear_msg_mbox_uid_mapping(0))
+      assert_equal({}, @db.msg_mbox_uid_mapping(0))
+
+      assert_nil(@db.clear_msg_mbox_uid_mapping(0))
+      assert_equal({}, @db.msg_mbox_uid_mapping(0))
+    end
   end
 end
 

@@ -757,6 +757,40 @@ module RIMS
           self
         end
       end
+
+      def msg_mbox_uid_mapping(msg_id)
+        get_obj("msg_id2mbox-#{msg_id}", default_value: {})
+      end
+
+      def add_msg_mbox_uid(msg_id, mbox_id)
+        uid = mbox_uid_succ!(mbox_id)
+        mbox_uid_map = msg_mbox_uid_mapping(msg_id)
+        mbox_uid_map[mbox_id] = [].to_set unless (mbox_uid_map.key? mbox_id)
+        mbox_uid_map[mbox_id] << uid
+        put_obj("msg_id2mbox-#{msg_id}", mbox_uid_map)
+
+        uid
+      end
+
+      def del_msg_mbox_uid(msg_id, mbox_id, uid)
+        mbox_uid_map = msg_mbox_uid_mapping(msg_id)
+        if (uid_set = mbox_uid_map[mbox_id]) then
+          if (uid_set.include? uid) then
+            uid_set.delete(uid)
+            if (uid_set.empty?) then
+              mbox_uid_map.delete(mbox_id)
+            end
+            put_obj("msg_id2mbox-#{msg_id}", mbox_uid_map)
+            mbox_uid_map
+          end
+        end
+      end
+
+      def clear_msg_mbox_uid_mapping(msg_id)
+        if (@kvs.delete("msg_id2mbox-#{msg_id}")) then
+          self
+        end
+      end
     end
 
     class Message < Core
