@@ -565,6 +565,21 @@ module RIMS
         self
       end
       private :put_num_set
+
+      def get_obj(key, default_value: nil)
+        if (s = @kvs[key]) then
+          Marshal.load(s)
+        else
+          default_value
+        end
+      end
+      private :get_obj
+
+      def put_obj(key, value)
+        @kvs[key] = Marshal.dump(value)
+        self
+      end
+      private :put_obj
     end
 
     class Meta < Core
