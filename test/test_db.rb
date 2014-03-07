@@ -286,6 +286,14 @@ module RIMS::Test
       assert_equal(0, @db.mbox_flag_num(id, 'flagged'))
     end
 
+    def test_msg_date
+      t = Time.mktime(2014, 3, 7, 18, 15, 56)
+      @db.set_msg_date(0, t)
+      assert_equal(t, @db.msg_date(0))
+      @db.clear_msg_date(0)
+      assert_raise(RuntimeError) { @db.clear_msg_date(0) }
+    end
+
     def test_msg_flag
       assert_equal(false, @db.msg_flag(0, 'recent'))
       assert_equal(false, @db.msg_flag(0, 'seen'))

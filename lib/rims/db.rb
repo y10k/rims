@@ -722,24 +722,38 @@ module RIMS
         end
       end
 
-      def msg_flag(mid, name)
-        flag_set = get_str_set("msg_id2flag-#{mid}")
+      def msg_date(msg_id)
+        get_obj("msg_id2date-#{msg_id}") or raise "not found a message date for internal id: #{msg_id}"
+      end
+
+      def set_msg_date(msg_id, date)
+        put_obj("msg_id2date-#{msg_id}", date)
+        self
+      end
+
+      def clear_msg_date(msg_id)
+        @kvs.delete("msg_id2date-#{msg_id}") or raise "not found a message date for internal id: #{msg_id}"
+        self
+      end
+
+      def msg_flag(msg_id, name)
+        flag_set = get_str_set("msg_id2flag-#{msg_id}")
         flag_set.include? name
       end
 
-      def set_msg_flag(mid, name, value)
-        flag_set = get_str_set("msg_id2flag-#{mid}")
+      def set_msg_flag(msg_id, name, value)
+        flag_set = get_str_set("msg_id2flag-#{msg_id}")
         if (value) then
           flag_set.add(name)
         else
           flag_set.delete(name)
         end
-        put_str_set("msg_id2flag-#{mid}", flag_set)
+        put_str_set("msg_id2flag-#{msg_id}", flag_set)
         self
       end
 
-      def clear_msg_flag(mid)
-        if (@kvs.delete("msg_id2flag-#{mid}")) then
+      def clear_msg_flag(msg_id)
+        if (@kvs.delete("msg_id2flag-#{msg_id}")) then
           self
         end
       end
