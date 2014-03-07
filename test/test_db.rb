@@ -541,6 +541,39 @@ module RIMS::Test
     def teardown
       pp @kvs if $DEBUG
     end
+
+    def test_msg
+      assert_equal([], @db.each_msg_id.to_a)
+      assert_nil(@db.msg_text(0))
+      assert_nil(@db.msg_text(1))
+      assert_nil(@db.msg_text(2))
+
+      @db.add_msg(0, 'foo')
+      assert_equal([ 0 ], @db.each_msg_id.to_a)
+      assert_equal('foo', @db.msg_text(0))
+      assert_nil(@db.msg_text(1))
+      assert_nil(@db.msg_text(2))
+
+      @db.add_msg(1, 'bar')
+      assert_equal([ 0, 1 ], @db.each_msg_id.to_a)
+      assert_equal('foo', @db.msg_text(0))
+      assert_equal('bar', @db.msg_text(1))
+      assert_nil(@db.msg_text(2))
+
+      @db.add_msg(2, 'baz')
+      assert_equal([ 0, 1, 2 ], @db.each_msg_id.to_a)
+      assert_equal('foo', @db.msg_text(0))
+      assert_equal('bar', @db.msg_text(1))
+      assert_equal('baz', @db.msg_text(2))
+
+      @db.del_msg(1)
+      assert_equal([ 0, 2 ], @db.each_msg_id.to_a)
+      assert_equal('foo', @db.msg_text(0))
+      assert_nil(@db.msg_text(1))
+      assert_equal('baz', @db.msg_text(2))
+
+      assert_raise(RuntimeError) { @db.del_msg(1) }
+    end
   end
 end
 

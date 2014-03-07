@@ -830,6 +830,27 @@ module RIMS
     end
 
     class Message < Core
+      def add_msg(msg_id, text)
+        put_str(msg_id.to_s, text)
+        self
+      end
+
+      def del_msg(msg_id)
+        @kvs.delete(msg_id.to_s) or raise "not found a message text for id: #{msg_id}"
+        self
+      end
+
+      def each_msg_id
+        return enum_for(:each_msg_id) unless block_given?
+        @kvs.each_key do |msg_id|
+          yield(msg_id.to_i)
+        end
+        self
+      end
+
+      def msg_text(msg_id)
+        get_str(msg_id.to_s)
+      end
     end
 
     class Mailbox < Core
