@@ -500,6 +500,21 @@ module RIMS
       end
       private :put_str
 
+      def get_str_set(key)
+        if (s = @kvs[key]) then
+          s.split(',', -1).to_set
+        else
+          [].to_set
+        end
+      end
+      private :get_str_set
+
+      def put_str_set(key, str_set)
+        @kvs[key] = str_set.to_a.join(',')
+        self
+      end
+      private :put_str_set
+
       def get_num(key, default_value: 0)
         if (s = @kvs[key]) then
           s.to_i
