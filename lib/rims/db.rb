@@ -489,6 +489,17 @@ module RIMS
         self
       end
 
+      def get_str(key, default_value: nil)
+        @kvs[key] || default_value
+      end
+      private :get_str
+
+      def put_str(key, str)
+        @kvs[key] = str
+        self
+      end
+      private :put_str
+
       def get_num(key, default_value: 0)
         if (s = @kvs[key]) then
           s.to_i
