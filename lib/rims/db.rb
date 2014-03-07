@@ -854,6 +854,63 @@ module RIMS
     end
 
     class Mailbox < Core
+      def put_msg_id(uid, msg_id, deleted: false)
+        s = msg_id.to_s
+        s << ',deleted' if deleted
+        @kvs[uid.to_s] = s
+        self
+      end
+      private :put_msg_id
+
+      def add_msg(uid, msg_id)
+        put_msg_id(uid, msg_id)
+        self
+      end
+
+      def each_msg_uid
+        return enum_for(:each_msg_uid) unless block_given?
+        @kvs.each_key do |uid|
+          yield(uid.to_i)
+        end
+        self
+      end
+
+      def msg_exist?(uid)
+        @kvs.key? uid.to_s
+      end
+
+      def msg_id(uid)
+        if (s = @kvs[uid.to_s]) then
+          s.split(',', 2)[0].to_i
+        end
+      end
+
+      def msg_flag_deleted(uid)
+        if (s = @kvs[uid.to_s]) then
+          s.split(',', 2)[1] == 'deleted'
+        end
+      end
+
+      def set_msg_flag_deleted(uid, value)
+        msg_id = msg_id(uid) or raise "not found a message uid: #{uid}"
+        put_msg_id(uid, msg_id, deleted: value)
+        self
+      end
+
+      def expunge_msg(uid)
+        case (msg_flag_deleted(uid))
+        when true
+          # OK
+        when false
+          raise "not deleted flag at message uid: #{uid}"
+        when nil
+          raise "not found a message uid: #{uid}"
+        else
+          raise 'internal error.'
+        end
+        @kvs.delete(uid.to_s) or raise 'internal error.'
+        self
+      end
     end
   end
 end

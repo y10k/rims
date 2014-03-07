@@ -594,6 +594,79 @@ module RIMS::Test
     def teardown
       pp @kvs if $DEBUG
     end
+
+    def test_msg
+      assert_equal([], @db.each_msg_uid.to_a)
+      [ [ 1, false, nil, nil ],
+        [ 2, false, nil, nil ],
+        [ 3, false, nil, nil ]
+      ].each do |uid, exist, msg_id, deleted|
+        assert_equal(exist, (@db.msg_exist? uid))
+        assert_equal(msg_id, @db.msg_id(uid))
+        assert_equal(deleted, @db.msg_flag_deleted(uid))
+      end
+
+      @db.add_msg(1, 0)
+
+      assert_equal([ 1 ], @db.each_msg_uid.to_a)
+      [ [ 1, true, 0, false ],
+        [ 2, false, nil, nil ],
+        [ 3, false, nil, nil ]
+      ].each do |uid, exist, msg_id, deleted|
+        assert_equal(exist, (@db.msg_exist? uid))
+        assert_equal(msg_id, @db.msg_id(uid))
+        assert_equal(deleted, @db.msg_flag_deleted(uid))
+      end
+
+      @db.add_msg(2, 1)
+
+      assert_equal([ 1, 2 ], @db.each_msg_uid.to_a)
+      [ [ 1, true, 0, false ],
+        [ 2, true, 1, false ],
+        [ 3, false, nil, nil ]
+      ].each do |uid, exist, msg_id, deleted|
+        assert_equal(exist, (@db.msg_exist? uid))
+        assert_equal(msg_id, @db.msg_id(uid))
+        assert_equal(deleted, @db.msg_flag_deleted(uid))
+      end
+
+      @db.add_msg(3, 0)
+
+      assert_equal([ 1, 2, 3 ], @db.each_msg_uid.to_a)
+      [ [ 1, true, 0, false ],
+        [ 2, true, 1, false ],
+        [ 3, true, 0, false ]
+      ].each do |uid, exist, msg_id, deleted|
+        assert_equal(exist, (@db.msg_exist? uid))
+        assert_equal(msg_id, @db.msg_id(uid))
+        assert_equal(deleted, @db.msg_flag_deleted(uid))
+      end
+
+      @db.set_msg_flag_deleted(1, true)
+
+      [ [ 1, true, 0, true ],
+        [ 2, true, 1, false ],
+        [ 3, true, 0, false ]
+      ].each do |uid, exist, msg_id, deleted|
+        assert_equal(exist, (@db.msg_exist? uid))
+        assert_equal(msg_id, @db.msg_id(uid))
+        assert_equal(deleted, @db.msg_flag_deleted(uid))
+      end
+
+      @db.expunge_msg(1)
+
+      [ [ 1, false, nil, nil ],
+        [ 2, true, 1, false ],
+        [ 3, true, 0, false ]
+      ].each do |uid, exist, msg_id, deleted|
+        assert_equal(exist, (@db.msg_exist? uid))
+        assert_equal(msg_id, @db.msg_id(uid))
+        assert_equal(deleted, @db.msg_flag_deleted(uid))
+      end
+
+      assert_raise(RuntimeError) { @db.expunge_msg(1) }
+      assert_raise(RuntimeError) { @db.expunge_msg(2) }
+    end
   end
 end
 
