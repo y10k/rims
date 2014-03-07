@@ -522,6 +522,26 @@ module RIMS::Test
       assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
     end
   end
+
+  class DBMessageTest < Test::Unit::TestCase
+    def setup
+      @kvs = {}
+      def @kvs.[]=(key, value)
+        (key.is_a? String) or raies "not a string key: #{key}"
+        (value.is_a? String) or raise "not a string value: #{value}"
+        super(key.b, value.b)
+      end
+      def @kvs.[](key)
+        (key.is_a? String) or raise "not a string key: #{key}"
+        super(key)
+      end
+      @db = RIMS::DB::Message.new(RIMS::GDBM_KeyValueStore.new(@kvs))
+    end
+
+    def teardown
+      pp @kvs if $DEBUG
+    end
+  end
 end
 
 # Local Variables:
