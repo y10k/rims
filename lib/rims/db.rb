@@ -522,6 +522,20 @@ module RIMS
       end
       private :num_succ!
 
+      def num_increment(key)
+        n = get_num(key)
+        put_num(key, n + 1)
+        self
+      end
+      private :num_increment
+
+      def num_decrement(key)
+        n = get_num(key)
+        put_num(key, n - 1)
+        self
+      end
+      private :num_decrement
+
       def get_num_set(key)
         if (s = @kvs[key]) then
           s.split(',', -1).map{|n| n.to_i }.to_set
