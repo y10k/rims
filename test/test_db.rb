@@ -575,6 +575,26 @@ module RIMS::Test
       assert_raise(RuntimeError) { @db.del_msg(1) }
     end
   end
+
+  class DBMailboxTest < Test::Unit::TestCase
+    def setup
+      @kvs = {}
+      def @kvs.[]=(key, value)
+        (key.is_a? String) or raies "not a string key: #{key}"
+        (value.is_a? String) or raise "not a string value: #{value}"
+        super(key.b, value.b)
+      end
+      def @kvs.[](key)
+        (key.is_a? String) or raise "not a string key: #{key}"
+        super(key)
+      end
+      @db = RIMS::DB::Mailbox.new(RIMS::GDBM_KeyValueStore.new(@kvs))
+    end
+
+    def teardown
+      pp @kvs if $DEBUG
+    end
+  end
 end
 
 # Local Variables:
