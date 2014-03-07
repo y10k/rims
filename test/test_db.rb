@@ -260,6 +260,15 @@ module RIMS::Test
       assert_equal(1, @db.mbox_uid_succ!(id))
       assert_equal(2, @db.mbox_uid(id))
     end
+
+    def test_mbox_msg_num
+      id = @db.add_mbox('foo')
+      assert_equal(0, @db.mbox_msg_num(id))
+      @db.mbox_msg_num_increment(id)
+      assert_equal(1, @db.mbox_msg_num(id))
+      @db.mbox_msg_num_decrement(id)
+      assert_equal(0, @db.mbox_msg_num(id))
+    end
   end
 end
 

@@ -635,6 +635,7 @@ module RIMS
           @kvs.delete("mbox_id2name-#{mbox_id}") or raise "not found a mailbox name for id: #{mbox_id}"
           @kvs.delete("mbox_name2id-#{name}") or raise "not found a mailbox id for name: #{name}"
           @kvs.delete("mbox_id2uid-#{mbox_id}")
+          @kvs.delete("mbox_id2msgnum-#{mbox_id}")
           self
         end
       end
@@ -678,6 +679,23 @@ module RIMS
       def mbox_uid_succ!(mbox_id)
         mbox_name(mbox_id) or raise "not found a mailbox for id: #{mbox_id}"
         num_succ!("mbox_id2uid-#{mbox_id}", default_value: 1)
+      end
+
+      def mbox_msg_num(mbox_id)
+        mbox_name(mbox_id) or raise "not found a mailbox for id: #{mbox_id}"
+        get_num("mbox_id2msgnum-#{mbox_id}")
+      end
+
+      def mbox_msg_num_increment(mbox_id)
+        mbox_name(mbox_id) or raise "not found a mailbox for id: #{mbox_id}"
+        num_increment("mbox_id2msgnum-#{mbox_id}")
+        self
+      end
+
+      def mbox_msg_num_decrement(mbox_id)
+        mbox_name(mbox_id) or raise "not found a mailbox for id: #{mbox_id}"
+        num_decrement("mbox_id2msgnum-#{mbox_id}")
+        self
       end
     end
 
