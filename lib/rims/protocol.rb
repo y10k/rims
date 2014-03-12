@@ -1375,7 +1375,7 @@ module RIMS
               when 'RECENT'
                 values << 'RECENT' << get_mail_store.mbox_flags(id, 'recent')
               when 'UIDNEXT'
-                values << 'UIDNEXT' << get_mail_store.uid
+                values << 'UIDNEXT' << get_mail_store.uid(id)
               when 'UIDVALIDITY'
                 values << 'UIDVALIDITY' << id
               when 'UNSEEN'
@@ -1708,7 +1708,7 @@ module RIMS
             }
 
             for msg in msg_list
-              get_mail_store.copy_msg(msg.id, mbox_id)
+              get_mail_store.copy_msg(msg.id, @folder.id, mbox_id)
             end
 
             res << "#{tag} OK COPY completed\r\n"

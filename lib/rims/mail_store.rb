@@ -46,7 +46,7 @@ module RIMS
       @global_db.cnum
     end
 
-    def uid
+    def uid(mbox_id)
       @msg_db.uid
     end
 
@@ -149,12 +149,12 @@ module RIMS
       msg_id
     end
 
-    def copy_msg(msg_id, dest_mbox_id)
+    def copy_msg(src_uid, src_mbox_id, dest_mbox_id)
       mbox_db = @mbox_db[dest_mbox_id] or raise "not found a mailbox: #{dest_mbox_id}."
 
-      unless (mbox_db.exist_msg? msg_id) then
-        @msg_db.add_msg_mbox(msg_id, dest_mbox_id)
-        mbox_db.add_msg(msg_id)
+      unless (mbox_db.exist_msg? src_uid) then
+        @msg_db.add_msg_mbox(src_uid, dest_mbox_id)
+        mbox_db.add_msg(src_uid)
       end
 
       @global_db.cnum_succ!
