@@ -221,16 +221,16 @@ Hello world.
         add_mail_no_body
       }
 
-      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[2].id, 'seen', true)
-      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[3].id, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[2].uid, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[3].uid, 'seen', true)
 
       fetch = @parser.parse(make_body('BODY[]'))
       s = @simple_mail.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', 'BODY[] ""', fetch.call(@folder.msg_list[2]))
       assert_strenc_equal('ascii-8bit', 'BODY[] "foo"', fetch.call(@folder.msg_list[3]))
 
@@ -248,11 +248,11 @@ Hello world.
       s = @mpart_mail.header.raw_source
       s += "\r\n" unless (s =~ /\r\n$/)
       s += "\r\n" unless (s =~ /\r\n\r\n$/)
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].id, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[HEADER] {4}\r\n\r\n\r\n", fetch.call(@folder.msg_list[2]))
       assert_strenc_equal('ascii-8bit', "BODY[HEADER] {7}\r\nfoo\r\n\r\n", fetch.call(@folder.msg_list[3]))
 
@@ -419,9 +419,9 @@ Hello world.
 
       fetch = @parser.parse(make_body('BODY.PEEK[]'))
       s = @simple_mail.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
     end
 
     def test_parse_body_read_only
@@ -431,15 +431,15 @@ Hello world.
 
       fetch = @parser.parse(make_body('BODY[]'))
       s = @simple_mail.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
     end
 
     def test_parse_body_partial
       make_fetch_parser{
-        msg_id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, msg_id, 'seen', true)
+        uid = add_mail_simple
+        @mail_store.set_msg_flag(@inbox_id, uid, 'seen', true)
       }
 
       s = @simple_mail.raw_source
@@ -873,11 +873,11 @@ Hello world.
 
       fetch = @parser.parse('RFC822')
       s = @simple_mail.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
     end
 
     def test_parse_rfc822_read_only
@@ -887,9 +887,9 @@ Hello world.
 
       fetch = @parser.parse('RFC822')
       s = @simple_mail.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
     end
 
     def test_parse_rfc822_header
@@ -901,9 +901,9 @@ Hello world.
       s = @simple_mail.header.raw_source
       s += "\r\n" unless (s =~ /\r\n$/)
       s += "\r\n" unless (s =~ /\r\n\r\n$/)
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "RFC822.HEADER {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
     end
 
     def test_parse_rfc822_size
@@ -922,11 +922,11 @@ Hello world.
 
       fetch = @parser.parse('RFC822.TEXT')
       s = @simple_mail.body.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
     end
 
     def test_parse_rfc822_text_read_only
@@ -936,9 +936,9 @@ Hello world.
 
       fetch = @parser.parse('RFC822.TEXT')
       s = @simple_mail.body.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
       assert_strenc_equal('ascii-8bit', "RFC822.TEXT {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].id, 'seen'))
+      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
     end
 
     def test_parse_uid
@@ -949,7 +949,7 @@ Hello world.
 
         @mail_store.set_msg_flag(@inbox_id, id, 'deleted', true)
         @mail_store.expunge_mbox(@inbox_id)
-        assert_equal([ 1, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
 
       fetch = @parser.parse('UID')

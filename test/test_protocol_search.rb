@@ -30,7 +30,7 @@ module RIMS::Test
     def test_parse_all
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'ALL' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -40,7 +40,7 @@ module RIMS::Test
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
@@ -55,7 +55,7 @@ module RIMS::Test
         @mail_store.add_msg(@inbox_id, "Bcc: foo\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "Bcc: bar\r\n\r\foo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'BCC', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -74,7 +74,7 @@ module RIMS::Test
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
         assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
         assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
@@ -112,7 +112,7 @@ Content-Type: text/html
 <html><body><p>foo</p></body></html>
 --1383.905529.351297--
         EOF
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'BODY', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -132,7 +132,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, "Cc: foo\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "Cc: bar\r\n\r\foo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'CC', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -150,7 +150,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
@@ -164,7 +164,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'draft', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
@@ -178,7 +178,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'flagged', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
@@ -193,7 +193,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, "From: foo\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "From: bar\r\n\r\foo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'FROM', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -212,7 +212,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, "X-Foo: alice\r\nX-Bar: bob\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "X-Foo: bob\r\nX-Bar: alice\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'HEADER', 'x-foo', 'alice' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -248,7 +248,7 @@ Content-Type: text/html
     def test_parse_keyword
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'KEYWORD', 'foo' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
@@ -265,7 +265,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, '1234')
         @mail_store.add_msg(@inbox_id, 'bar')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'LARGER', '3' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
@@ -287,7 +287,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'bar')
         @mail_store.add_msg(@inbox_id, 'baz')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 3, 'recent', false)
         @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
@@ -308,7 +308,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, '1234')
         @mail_store.add_msg(@inbox_id, 'bar')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
@@ -331,7 +331,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'bar')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
@@ -346,7 +346,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
         assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
         assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
@@ -372,7 +372,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
         @mail_store.set_msg_flag(@inbox_id, 2, 'answered', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
@@ -403,7 +403,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 1, 'recent'))
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'recent'))
@@ -417,7 +417,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
@@ -433,7 +433,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, "Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'SENTBEFORE', '08-Nov-2013' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -457,7 +457,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, "Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'SENTON', '08-Nov-2013' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
@@ -481,7 +481,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, "Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'SENTSINCE', '08-Nov-2013' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
@@ -504,7 +504,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
         @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
         assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
         assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
@@ -529,7 +529,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, '12')
         @mail_store.add_msg(@inbox_id, 'bar')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'SMALLER', '3' ])
       assert_equal(false, cond.call(@folder.msg_list[0]))
@@ -551,7 +551,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, "Subject: foo\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "Subject: bar\r\n\r\foo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'SUBJECT', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -568,7 +568,7 @@ Content-Type: text/html
     def test_parse_text
       make_search_parser{
         @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nSubject: foo\r\n\r\nbar")
-        assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'TEXT', 'jec' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -591,7 +591,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, "To: foo\r\n\r\nfoo")
         @mail_store.add_msg(@inbox_id, "To: bar\r\n\r\foo")
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'TO', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -617,7 +617,7 @@ Content-Type: text/html
         @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
         @mail_store.set_msg_flag(@inbox_id, 5, 'deleted', true)
         @mail_store.expunge_mbox(@inbox_id)
-        assert_equal([ 2, 4, 6 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 2, 4, 6 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'UID', '2,*' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -636,7 +636,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
@@ -650,7 +650,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
@@ -664,7 +664,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'draft', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'draft'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'draft'))
@@ -678,7 +678,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'flagged', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
@@ -691,7 +691,7 @@ Content-Type: text/html
     def test_parse_unkeyword
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ 'UNKEYWORD', 'foo' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -707,7 +707,7 @@ Content-Type: text/html
       make_search_parser{
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
         assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
@@ -729,7 +729,7 @@ Content-Type: text/html
         @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
         @mail_store.set_msg_flag(@inbox_id, 5, 'deleted', true)
         @mail_store.expunge_mbox(@inbox_id)
-        assert_equal([ 2, 4, 6 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 2, 4, 6 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       cond = @parser.parse([ '1,*' ])
       assert_equal(true, cond.call(@folder.msg_list[0]))
@@ -746,7 +746,7 @@ Content-Type: text/html
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
         @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_id(@inbox_id).to_a)
+        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
         @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
         @mail_store.set_msg_flag(@inbox_id, 2, 'answered', true)
         assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))

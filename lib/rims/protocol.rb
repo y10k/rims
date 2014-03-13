@@ -162,15 +162,15 @@ module RIMS
         @mail_store = mail_store
         @folder = folder
         @charset = nil
-        @mail_cache = Hash.new{|hash, msg_id|
-          if (text = @mail_store.msg_text(@folder.id, msg_id)) then
-            hash[msg_id] = Mail.new(text)
+        @mail_cache = Hash.new{|hash, uid|
+          if (text = @mail_store.msg_text(@folder.mbox_id, uid)) then
+            hash[uid] = Mail.new(text)
           end
         }
       end
 
       def get_mail(msg)
-        @mail_cache[msg.id] or raise "not found a mail: #{msg.id}"
+        @mail_cache[msg.uid] or raise "not found a mail: #{msg.uid}"
       end
       private :get_mail
 
@@ -232,7 +232,7 @@ module RIMS
       def parse_msg_flag_enabled(name)
         proc{|next_cond|
           proc{|msg|
-            @mail_store.msg_flag(@folder.id, msg.id, name) && next_cond.call(msg)
+            @mail_store.msg_flag(@folder.mbox_id, msg.uid, name) && next_cond.call(msg)
           }
         }
       end
@@ -241,7 +241,7 @@ module RIMS
       def parse_msg_flag_disabled(name)
         proc{|next_cond|
           proc{|msg|
-            (! @mail_store.msg_flag(@folder.id, msg.id, name)) && next_cond.call(msg)
+            (! @mail_store.msg_flag(@folder.mbox_id, msg.uid, name)) && next_cond.call(msg)
           }
         }
       end
@@ -262,7 +262,7 @@ module RIMS
         d = search_time.to_date
         proc{|next_cond|
           proc{|msg|
-            yield(@mail_store.msg_date(@folder.id, msg.id).to_date, d) && next_cond.call(msg)
+            yield(@mail_store.msg_date(@folder.mbox_id, msg.uid).to_date, d) && next_cond.call(msg)
           }
         }
       end
@@ -285,7 +285,7 @@ module RIMS
       def parse_mail_bytesize(octet_size) # :yields: mail_bytesize, boundary
         proc{|next_cond|
           proc{|msg|
-            yield(@mail_store.msg_text(@folder.id, msg.id).bytesize, octet_size) && next_cond.call(msg)
+            yield(@mail_store.msg_text(@folder.mbox_id, msg.uid).bytesize, octet_size) && next_cond.call(msg)
           }
         }
       end
@@ -316,8 +316,8 @@ module RIMS
       def parse_new
         proc{|next_cond|
           proc{|msg|
-            @mail_store.msg_flag(@folder.id, msg.id, 'recent') && \
-            (! @mail_store.msg_flag(@folder.id, msg.id, 'seen')) && next_cond.call(msg)
+            @mail_store.msg_flag(@folder.mbox_id, msg.uid, 'recent') && \
+            (! @mail_store.msg_flag(@folder.mbox_id, msg.uid, 'seen')) && next_cond.call(msg)
           }
         }
       end
@@ -336,7 +336,7 @@ module RIMS
       def parse_old
         proc{|next_cond|
           proc{|msg|
-            (! @mail_store.msg_flag(@folder.id, msg.id, 'recent')) && next_cond.call(msg)
+            (! @mail_store.msg_flag(@folder.mbox_id, msg.uid, 'recent')) && next_cond.call(msg)
           }
         }
       end
@@ -369,7 +369,7 @@ module RIMS
       def parse_uid(msg_set)
         proc{|next_cond|
           proc{|msg|
-            (msg_set.include? msg.id) && next_cond.call(msg)
+            (msg_set.include? msg.uid) && next_cond.call(msg)
           }
         }
       end
@@ -640,15 +640,15 @@ module RIMS
         @mail_store = mail_store
         @folder = folder
         @charset = nil
-        @mail_cache = Hash.new{|hash, msg_id|
-          if (text = @mail_store.msg_text(@folder.id, msg_id)) then
-            hash[msg_id] = Mail.new(text)
+        @mail_cache = Hash.new{|hash, uid|
+          if (text = @mail_store.msg_text(@folder.mbox_id, uid)) then
+            hash[uid] = Mail.new(text)
           end
         }
       end
 
       def get_mail(msg)
-        @mail_cache[msg.id] or raise "not found a mail: #{msg.id}"
+        @mail_cache[msg.uid] or raise "not found a mail: #{msg.uid}"
       end
       private :get_mail
 
@@ -794,8 +794,8 @@ module RIMS
         if (enable_seen) then
           fetch_flags = parse_flags('FLAGS')
           fetch_flags_changed = proc{|msg|
-            unless (@mail_store.msg_flag(@folder.id, msg.id, 'seen')) then
-              @mail_store.set_msg_flag(@folder.id, msg.id, 'seen', true)
+            unless (@mail_store.msg_flag(@folder.mbox_id, msg.uid, 'seen')) then
+              @mail_store.set_msg_flag(@folder.mbox_id, msg.uid, 'seen', true)
               fetch_flags.call(msg) + ' '.b
             else
               ''.b
@@ -933,7 +933,7 @@ module RIMS
       def parse_flags(name)
         proc{|msg|
           flag_list = MailStore::MSG_FLAG_NAMES.find_all{|name|
-            @mail_store.msg_flag(@folder.id, msg.id, name)
+            @mail_store.msg_flag(@folder.mbox_id, msg.uid, name)
           }.map{|name|
             "\\".b << name.capitalize
           }.join(' ')
@@ -944,7 +944,7 @@ module RIMS
 
       def parse_internaldate(name)
         proc{|msg|
-          ''.b << name << @mail_store.msg_date(@folder.id, msg.id).strftime(' "%d-%b-%Y %H:%M:%S %z"'.b)
+          ''.b << name << @mail_store.msg_date(@folder.mbox_id, msg.uid).strftime(' "%d-%b-%Y %H:%M:%S %z"'.b)
         }
       end
       private :parse_internaldate
@@ -958,7 +958,7 @@ module RIMS
 
       def parse_uid(name)
         proc{|msg|
-          ''.b << name << ' '.b << msg.id.to_s
+          ''.b << name << ' '.b << msg.uid.to_s
         }
       end
       private :parse_uid
@@ -1124,7 +1124,7 @@ module RIMS
             raise 'no open folder.'
           end
 
-          unless (get_mail_store.mbox_name(@folder.id)) then
+          unless (get_mail_store.mbox_name(@folder.mbox_id)) then
             raise "deleted folder: #{id}"
           end
 
@@ -1149,8 +1149,8 @@ module RIMS
           if (auth? && selected?) then
             lock_folder{
               @folder.reload if @folder.updated?
-              res << "* #{get_mail_store.mbox_msgs(@folder.id)} EXISTS\r\n"
-              res << "* #{get_mail_store.mbox_flags(@folder.id, 'recent')} RECENTS\r\n"
+              res << "* #{get_mail_store.mbox_msg_num(@folder.mbox_id)} EXISTS\r\n"
+              res << "* #{get_mail_store.mbox_flag_num(@folder.mbox_id, 'recent')} RECENTS\r\n"
             }
           end
           res << "#{tag} OK NOOP completed\r\n"
@@ -1191,13 +1191,13 @@ module RIMS
       end
 
       def folder_open_msgs
-        all_msgs = get_mail_store.mbox_msgs(@folder.id)
-        recent_msgs = get_mail_store.mbox_flags(@folder.id, 'recent')
-        unseen_msgs = all_msgs - get_mail_store.mbox_flags(@folder.id, 'seen')
+        all_msgs = get_mail_store.mbox_msg_num(@folder.mbox_id)
+        recent_msgs = get_mail_store.mbox_flag_num(@folder.mbox_id, 'recent')
+        unseen_msgs = all_msgs - get_mail_store.mbox_flag_num(@folder.mbox_id, 'seen')
         yield("* #{all_msgs} EXISTS\r\n")
         yield("* #{recent_msgs} RECENT\r\n")
         yield("* OK [UNSEEN #{unseen_msgs}]\r\n")
-        yield("* OK [UIDVALIDITY #{@folder.id}]\r\n")
+        yield("* OK [UIDVALIDITY #{@folder.mbox_id}]\r\n")
         yield("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n")
         nil
       end
@@ -1318,7 +1318,7 @@ module RIMS
         for id, name_utf8 in mbox_list
           name = Net::IMAP.encode_utf7(name_utf8)
           attrs = '\Noinferiors'
-          if (get_mail_store.mbox_flags(id, 'recent') > 0) then
+          if (get_mail_store.mbox_flag_num(id, 'recent') > 0) then
             attrs << ' \Marked'
           else
             attrs << ' \Unmarked'
@@ -1371,15 +1371,15 @@ module RIMS
             for item in data_item_group[1..-1]
               case (item.upcase)
               when 'MESSAGES'
-                values << 'MESSAGES' << get_mail_store.mbox_msgs(id)
+                values << 'MESSAGES' << get_mail_store.mbox_msg_num(id)
               when 'RECENT'
-                values << 'RECENT' << get_mail_store.mbox_flags(id, 'recent')
+                values << 'RECENT' << get_mail_store.mbox_flag_num(id, 'recent')
               when 'UIDNEXT'
                 values << 'UIDNEXT' << get_mail_store.uid(id)
               when 'UIDVALIDITY'
                 values << 'UIDVALIDITY' << id
               when 'UNSEEN'
-                unseen_flags = get_mail_store.mbox_msgs(id) - get_mail_store.mbox_flags(id, 'seen')
+                unseen_flags = get_mail_store.mbox_msg_num(id) - get_mail_store.mbox_flag_num(id, 'seen')
                 values << 'UNSEEN' << unseen_flags
               else
                 raise SyntaxError, "unknown status data: #{item}"
@@ -1437,9 +1437,9 @@ module RIMS
               raise SyntaxError, 'unknown option.'
             end
 
-            msg_id = get_mail_store.add_msg(mbox_id, msg_text, msg_date)
+            uid = get_mail_store.add_msg(mbox_id, msg_text, msg_date)
             for flag_name in msg_flags
-              get_mail_store.set_msg_flag(mbox_id, msg_id, flag_name, true)
+              get_mail_store.set_msg_flag(mbox_id, uid, flag_name, true)
             end
 
             res << "#{tag} OK APPEND completed\r\n"
@@ -1512,7 +1512,7 @@ module RIMS
               begin
                 if (lock_folder{ cond.call(msg) }) then
                   if (uid) then
-                    res << " #{msg.id}"
+                    res << " #{msg.uid}"
                   else
                     res << " #{msg.num}"
                   end
@@ -1520,7 +1520,7 @@ module RIMS
               rescue SystemCallError
                 raise
               rescue
-                @logger.warn("failed to search message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
+                @logger.warn("failed to search message: uidvalidity(#{@folder.mbox_id}) uid(#{msg.uid})")
                 @logger.warn($!)
               end
             end
@@ -1541,7 +1541,7 @@ module RIMS
             msg_set = @folder.parse_msg_set(msg_set, uid: uid)
             msg_list = @folder.msg_list.find_all{|msg|
               if (uid) then
-                msg_set.include? msg.id
+                msg_set.include? msg.uid
               else
                 msg_set.include? msg.num
               end
@@ -1567,7 +1567,7 @@ module RIMS
               rescue SystemCallError
                 raise
               rescue
-                @logger.warn("failed to fetch message: uidvalidity(#{@folder.id}) uid(#{msg.id})")
+                @logger.warn("failed to fetch message: uidvalidity(#{@folder.mbox_id}) uid(#{msg.uid})")
                 @logger.warn($!)
               end
             end
@@ -1633,7 +1633,7 @@ module RIMS
 
             msg_list = @folder.msg_list.find_all{|msg|
               if (uid) then
-                msg_set.include? msg.id
+                msg_set.include? msg.uid
               else
                 msg_set.include? msg.num
               end
@@ -1643,18 +1643,18 @@ module RIMS
               case (action)
               when :flags_replace
                 for name in flag_list
-                  get_mail_store.set_msg_flag(@folder.id, msg.id, name, true)
+                  get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, true)
                 end
                 for name in rest_flag_list
-                  get_mail_store.set_msg_flag(@folder.id, msg.id, name, false)
+                  get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, false)
                 end
               when :flags_add
                 for name in flag_list
-                  get_mail_store.set_msg_flag(@folder.id, msg.id, name, true)
+                  get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, true)
                 end
               when :flags_del
                 for name in flag_list
-                  get_mail_store.set_msg_flag(@folder.id, msg.id, name, false)
+                  get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, false)
                 end
               else
                 raise "internal error: unknown action: #{action}"
@@ -1670,10 +1670,10 @@ module RIMS
                 flag_atom_list = nil
 
                 lock_folder{
-                  if (get_mail_store.msg_exist? @folder.id, msg.id) then
+                  if (get_mail_store.msg_exist? @folder.mbox_id, msg.uid) then
                     flag_atom_list = []
                     for name in MailStore::MSG_FLAG_NAMES
-                      if (get_mail_store.msg_flag(@folder.id, msg.id, name)) then
+                      if (get_mail_store.msg_flag(@folder.mbox_id, msg.uid, name)) then
                         flag_atom_list << "\\#{name.capitalize}"
                       end
                     end
@@ -1683,7 +1683,7 @@ module RIMS
                 if (flag_atom_list) then
                   res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})\r\n"
                 else
-                  @logger.warn("not found a message and skipped: uidvalidity(#{@folder.id}) uid(#{msg.id})")
+                  @logger.warn("not found a message and skipped: uidvalidity(#{@folder.mbox_id}) uid(#{msg.uid})")
                 end
               end
               res << "#{tag} OK STORE completed\r\n"
@@ -1701,14 +1701,14 @@ module RIMS
           if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
             msg_list = @folder.msg_list.find_all{|msg|
               if (uid) then
-                msg_set.include? msg.id
+                msg_set.include? msg.uid
               else
                 msg_set.include? msg.num
               end
             }
 
             for msg in msg_list
-              get_mail_store.copy_msg(msg.id, @folder.id, mbox_id)
+              get_mail_store.copy_msg(msg.uid, @folder.mbox_id, mbox_id)
             end
 
             res << "#{tag} OK COPY completed\r\n"

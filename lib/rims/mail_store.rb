@@ -115,12 +115,12 @@ module RIMS
       self
     end
 
-    def mbox_msgs(id)
+    def mbox_msg_num(id)
       mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
       mbox_db.msgs
     end
 
-    def mbox_flags(id, name)
+    def mbox_flag_num(id, name)
       mbox_db = @mbox_db[id] or raise "not found a mailbox: #{id}."
       case (name)
       when 'recent', 'seen', 'answered', 'flagged', 'draft'
@@ -213,9 +213,9 @@ module RIMS
       self
     end
 
-    def each_msg_id(mbox_id)
+    def each_msg_uid(mbox_id)
       mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
-      return enum_for(:each_msg_id, mbox_id) unless block_given?
+      return enum_for(:each_msg_uid, mbox_id) unless block_given?
       mbox_db.each_msg_id do |id|
         yield(id)
       end
@@ -249,10 +249,10 @@ module RIMS
   end
 
   class MailFolder
-    MessageStruct = Struct.new(:id, :num)
+    MessageStruct = Struct.new(:uid, :num)
 
     def initialize(mbox_id, mail_store, read_only: false)
-      @id = mbox_id
+      @mbox_id = mbox_id
       @mail_store = mail_store
       @read_only = read_only
       reload
@@ -260,7 +260,7 @@ module RIMS
 
     def reload
       @cnum = @mail_store.cnum
-      msg_id_list = @mail_store.each_msg_id(@id).to_a
+      msg_id_list = @mail_store.each_msg_uid(@mbox_id).to_a
       msg_id_list.sort!
       @msg_list = msg_id_list.zip(1..(msg_id_list.length)).map{|id, num| MessageStruct.new(id, num) }
       self
@@ -270,25 +270,25 @@ module RIMS
       @mail_store.cnum > @cnum
     end
 
-    attr_reader :id
+    attr_reader :mbox_id
     attr_reader :msg_list
     attr_reader :read_only
     alias read_only? read_only
 
     def expunge_mbox
-      if (@mail_store.mbox_flags(@id, 'deleted') > 0) then
+      if (@mail_store.mbox_flag_num(@mbox_id, 'deleted') > 0) then
         if (block_given?) then
-          id2num = {}
+          uid2num = {}
           for msg in @msg_list
-            id2num[msg.id] = msg.num
+            uid2num[msg.uid] = msg.num
           end
 
-          @mail_store.expunge_mbox(@id) do |id|
-            num = id2num[id] or raise "internal error: not found a message id <#{id}> at mailbox <#{@id}>"
+          @mail_store.expunge_mbox(@mbox_id) do |id|
+            num = uid2num[id] or raise "internal error: not found a message id <#{id}> at mailbox <#{@mbox_id}>"
             yield(num)
           end
         else
-          @mail_store.expunge_mbox(@id)
+          @mail_store.expunge_mbox(@mbox_id)
         end
       end
 
@@ -298,9 +298,9 @@ module RIMS
     def close
       unless (@read_only) then
         expunge_mbox
-        @mail_store.each_msg_id(@id) do |msg_id|
-          if (@mail_store.msg_flag(@id, msg_id, 'recent')) then
-            @mail_store.set_msg_flag(@id, msg_id, 'recent', false)
+        @mail_store.each_msg_uid(@mbox_id) do |msg_id|
+          if (@mail_store.msg_flag(@mbox_id, msg_id, 'recent')) then
+            @mail_store.set_msg_flag(@mbox_id, msg_id, 'recent', false)
           end
         end
       end
@@ -313,7 +313,7 @@ module RIMS
         [].to_set
       else
         if (uid) then
-          last_number = @msg_list[-1].id
+          last_number = @msg_list[-1].uid
         else
           last_number = @msg_list[-1].num
         end
