@@ -366,6 +366,161 @@ module RIMS::Test
       assert_nil(@db.clear_msg_mbox_uid_mapping(0))
       assert_equal({}, @db.msg_mbox_uid_mapping(0))
     end
+
+    def test_mbox_msg_num_auto_increment_decrement
+      inbox_id = @db.add_mbox('INBOX')
+      foo_id = @db.add_mbox('foo')
+
+      msg_a = 0
+      msg_b = 1
+
+      assert_equal(0, @db.mbox_msg_num(inbox_id))
+      assert_equal(0, @db.mbox_msg_num(foo_id))
+
+      assert_equal(1, @db.add_msg_mbox_uid(msg_a, inbox_id))
+
+      assert_equal(1, @db.mbox_msg_num(inbox_id))
+      assert_equal(0, @db.mbox_msg_num(foo_id))
+
+      assert_equal(2, @db.add_msg_mbox_uid(msg_b, inbox_id))
+
+      assert_equal(2, @db.mbox_msg_num(inbox_id))
+      assert_equal(0, @db.mbox_msg_num(foo_id))
+
+      assert_equal(3, @db.add_msg_mbox_uid(msg_a, inbox_id))
+
+      assert_equal(3, @db.mbox_msg_num(inbox_id))
+      assert_equal(0, @db.mbox_msg_num(foo_id))
+
+      assert_equal(1, @db.add_msg_mbox_uid(msg_a, foo_id))
+
+      assert_equal(3, @db.mbox_msg_num(inbox_id))
+      assert_equal(1, @db.mbox_msg_num(foo_id))
+
+      assert_equal({ inbox_id => [ 1, 3 ].to_set,
+                     foo_id => [ 1 ].to_set
+                   }, @db.msg_mbox_uid_mapping(msg_a))
+      assert_equal({ inbox_id => [ 2 ].to_set,
+                   }, @db.msg_mbox_uid_mapping(msg_b))
+
+      @db.del_msg_mbox_uid(msg_a, inbox_id, 1)
+
+      assert_equal(2, @db.mbox_msg_num(inbox_id))
+      assert_equal(1, @db.mbox_msg_num(foo_id))
+
+      @db.del_msg_mbox_uid(msg_a, foo_id, 1)
+
+      assert_equal(2, @db.mbox_msg_num(inbox_id))
+      assert_equal(0, @db.mbox_msg_num(foo_id))
+
+      @db.del_msg_mbox_uid(msg_b, inbox_id, 2)
+
+      assert_equal(1, @db.mbox_msg_num(inbox_id))
+      assert_equal(0, @db.mbox_msg_num(foo_id))
+
+      assert_equal({ inbox_id => [ 3 ].to_set,
+                   }, @db.msg_mbox_uid_mapping(msg_a))
+      assert_equal({}, @db.msg_mbox_uid_mapping(msg_b))
+    end
+
+    def test_mbox_flag_num_auto_increment_decrement
+      inbox_id = @db.add_mbox('INBOX')
+      foo_id = @db.add_mbox('foo')
+
+      msg_a = 0
+      msg_b = 1
+
+      assert_equal({}, @db.msg_mbox_uid_mapping(msg_a))
+      assert_equal({}, @db.msg_mbox_uid_mapping(msg_b))
+
+      assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      assert_equal(1, @db.add_msg_mbox_uid(msg_a, inbox_id))
+      assert_equal({ inbox_id => [ 1 ].to_set
+                   }, @db.msg_mbox_uid_mapping(msg_a))
+
+      assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.set_msg_flag(msg_a, 'recent', true)
+
+      assert_equal([ 1, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      assert_equal(1, @db.add_msg_mbox_uid(msg_a, foo_id))
+      assert_equal({ inbox_id => [ 1 ].to_set,
+                     foo_id => [ 1 ].to_set
+                   }, @db.msg_mbox_uid_mapping(msg_a))
+
+      assert_equal([ 1, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 1, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.set_msg_flag(msg_a, 'seen', true)
+
+      assert_equal([ 1, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 1, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.set_msg_flag(msg_b, 'recent', true)
+
+      assert_equal([ 1, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 1, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      assert_equal(2, @db.add_msg_mbox_uid(msg_b, inbox_id))
+      assert_equal({ inbox_id => [ 2 ].to_set
+                   }, @db.msg_mbox_uid_mapping(msg_b))
+
+      assert_equal([ 2, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 1, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      assert_equal(3, @db.add_msg_mbox_uid(msg_b, inbox_id))
+      assert_equal({ inbox_id => [ 2, 3 ].to_set
+                   }, @db.msg_mbox_uid_mapping(msg_b))
+
+      assert_equal([ 3, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 1, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.set_msg_flag(msg_b, 'seen', true)
+
+      assert_equal([ 3, 3 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 1, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.set_msg_flag(msg_a, 'recent', false)
+
+      assert_equal([ 2, 3 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.set_msg_flag(msg_b, 'recent', false)
+
+      assert_equal([ 0, 3 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.del_msg_mbox_uid(msg_a, inbox_id, 1)
+      assert_equal({ foo_id => [ 1 ].to_set
+                   }, @db.msg_mbox_uid_mapping(msg_a))
+
+      assert_equal([ 0, 2 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.del_msg_mbox_uid(msg_b, inbox_id, 2)
+      assert_equal({ inbox_id => [ 3 ].to_set
+                   }, @db.msg_mbox_uid_mapping(msg_b))
+
+      assert_equal([ 0, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.del_msg_mbox_uid(msg_a, foo_id, 1)
+      assert_equal({}, @db.msg_mbox_uid_mapping(msg_a))
+
+      assert_equal([ 0, 1 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+
+      @db.del_msg_mbox_uid(msg_b, inbox_id, 3)
+      assert_equal({}, @db.msg_mbox_uid_mapping(msg_b))
+
+      assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(inbox_id, name) })
+      assert_equal([ 0, 0 ], %w[ recent seen ].map{|name| @db.mbox_flag_num(foo_id, name) })
+    end
   end
 end
 

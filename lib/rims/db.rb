@@ -744,8 +744,24 @@ module RIMS
       def set_msg_flag(msg_id, name, value)
         flag_set = get_str_set("msg_id2flag-#{msg_id}")
         if (value) then
+          unless (flag_set.include? name) then
+            mbox_uid_map = msg_mbox_uid_mapping(msg_id)
+            for mbox_id, uid_set in mbox_uid_map
+              uid_set.length.times do
+                mbox_flag_num_increment(mbox_id, name)
+              end
+            end
+          end
           flag_set.add(name)
         else
+          if (flag_set.include? name) then
+            mbox_uid_map = msg_mbox_uid_mapping(msg_id)
+            for mbox_id, uid_set in mbox_uid_map
+              uid_set.length.times do
+                mbox_flag_num_decrement(mbox_id, name)
+              end
+            end
+          end
           flag_set.delete(name)
         end
         put_str_set("msg_id2flag-#{msg_id}", flag_set)
@@ -765,9 +781,22 @@ module RIMS
       def add_msg_mbox_uid(msg_id, mbox_id)
         uid = mbox_uid_succ!(mbox_id)
         mbox_uid_map = msg_mbox_uid_mapping(msg_id)
-        mbox_uid_map[mbox_id] = [].to_set unless (mbox_uid_map.key? mbox_id)
+        if (mbox_uid_map.key? mbox_id) then
+          msg_uid_set = mbox_uid_map[mbox_id]
+        else
+          msg_uid_set = mbox_uid_map[mbox_id] = [].to_set
+        end
+        if (msg_uid_set.include? uid) then
+          raise "duplicated uid(#{uid}) in mailbox id(#{mbox_id} on message id(#{msg_id}))"
+        end
         mbox_uid_map[mbox_id] << uid
         put_obj("msg_id2mbox-#{msg_id}", mbox_uid_map)
+
+        mbox_msg_num_increment(mbox_id)
+        flag_set = get_str_set("msg_id2flag-#{msg_id}")
+        for name in flag_set
+          mbox_flag_num_increment(mbox_id, name)
+        end
 
         uid
       end
@@ -781,6 +810,13 @@ module RIMS
               mbox_uid_map.delete(mbox_id)
             end
             put_obj("msg_id2mbox-#{msg_id}", mbox_uid_map)
+
+            mbox_msg_num_decrement(mbox_id)
+            flag_set = get_str_set("msg_id2flag-#{msg_id}")
+            for name in flag_set
+              mbox_flag_num_decrement(mbox_id, name)
+            end
+
             mbox_uid_map
           end
         end
