@@ -1,3 +1,8 @@
+2014-03-14  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/db.rb, lib/rims/mail_store.rb, lib/rims/protocol.rb:
+	backend storage of mail store is replaced to new DB.
+
 2014-03-06  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* rename key-value store filename (kv.rb -> kvs.rb, gdbm_kv.rb ->
