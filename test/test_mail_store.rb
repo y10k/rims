@@ -126,8 +126,8 @@ module RIMS::Test
       # duplicated message copy
       @mail_store.copy_msg(uid, mbox_id, copy_mbox_id)
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
-      assert_equal(1, @mail_store.mbox_msg_num(copy_mbox_id))
-      assert_equal([ uid ], @mail_store.each_msg_uid(copy_mbox_id).to_a)
+      assert_equal(2, @mail_store.mbox_msg_num(copy_mbox_id))
+      assert_equal([ uid, uid + 1 ], @mail_store.each_msg_uid(copy_mbox_id).to_a)
 
       assert_equal('foo', @mail_store.msg_text(copy_mbox_id, uid))
       assert_equal(Time.parse('1975-11-19 12:34:56'), @mail_store.msg_date(copy_mbox_id, uid))
@@ -137,7 +137,7 @@ module RIMS::Test
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'flagged'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'deleted'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'draft'))
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'recent'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'recent'))
 
       assert_equal(false, @mail_store.msg_flag(copy_mbox_id, uid, 'seen'))
       assert_equal(false, @mail_store.msg_flag(copy_mbox_id, uid, 'answered'))
@@ -163,12 +163,12 @@ module RIMS::Test
       assert_equal(false, @mail_store.msg_flag(mbox_id, uid, 'draft'))
       assert_equal(true, @mail_store.msg_flag(mbox_id, uid, 'recent'))
 
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'answered'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'flagged'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'deleted'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'draft'))
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'recent'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'recent'))
 
       assert_equal(true, @mail_store.msg_flag(copy_mbox_id, uid, 'seen'))
       assert_equal(false, @mail_store.msg_flag(copy_mbox_id, uid, 'answered'))
@@ -195,12 +195,12 @@ module RIMS::Test
       assert_equal(false, @mail_store.msg_flag(mbox_id, uid, 'draft'))
       assert_equal(true, @mail_store.msg_flag(mbox_id, uid, 'recent'))
 
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'answered'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'flagged'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'deleted'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'draft'))
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'recent'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'recent'))
 
       assert_equal(true, @mail_store.msg_flag(copy_mbox_id, uid, 'seen'))
       assert_equal(false, @mail_store.msg_flag(copy_mbox_id, uid, 'answered'))
@@ -226,7 +226,7 @@ module RIMS::Test
       assert_equal(false, @mail_store.msg_flag(mbox_id, uid, 'draft'))
       assert_equal(false, @mail_store.msg_flag(mbox_id, uid, 'recent'))
 
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'answered'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'flagged'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'deleted'))
@@ -258,7 +258,7 @@ module RIMS::Test
       assert_equal(false, @mail_store.msg_flag(mbox_id, uid, 'draft'))
       assert_equal(false, @mail_store.msg_flag(mbox_id, uid, 'recent'))
 
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'answered'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'flagged'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'deleted'))
@@ -289,7 +289,7 @@ module RIMS::Test
       assert_equal(false, @mail_store.msg_flag(mbox_id, uid, 'draft'))
       assert_equal(false, @mail_store.msg_flag(mbox_id, uid, 'recent'))
 
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'answered'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'flagged'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'deleted'))
@@ -315,10 +315,10 @@ module RIMS::Test
       assert_equal(0, @mail_store.mbox_flag_num(mbox_id, 'draft'))
       assert_equal(0, @mail_store.mbox_flag_num(mbox_id, 'recent'))
 
-      assert_equal(1, @mail_store.mbox_msg_num(copy_mbox_id))
-      assert_equal([ uid ], @mail_store.each_msg_uid(copy_mbox_id).to_a)
+      assert_equal(2, @mail_store.mbox_msg_num(copy_mbox_id))
+      assert_equal([ uid, uid + 1 ], @mail_store.each_msg_uid(copy_mbox_id).to_a)
 
-      assert_equal(1, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
+      assert_equal(2, @mail_store.mbox_flag_num(copy_mbox_id, 'seen'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'answered'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'flagged'))
       assert_equal(0, @mail_store.mbox_flag_num(copy_mbox_id, 'deleted'))
