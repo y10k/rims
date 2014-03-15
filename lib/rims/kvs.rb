@@ -25,14 +25,14 @@ module RIMS
     def each_value
       return enum_for(:each_value) unless block_given?
       each_key do |key|
-        yield(fetch(key))
+        yield(self[key])
       end
     end
 
     def each_pair
       return enum_for(:each_pair) unless block_given?
       each_key do |key|
-        yield(key, fetch(key))
+        yield(key, self[key])
       end
     end
 
