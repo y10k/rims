@@ -105,7 +105,7 @@ module RIMS
         @ip_port = ip_port
         @logger = logger
 
-        @mail_store_pool = MailStorePool.new(@kvs_meta_open, @kvs_text_open, proc{|name| 'mailbox.0' })
+        @mail_store_pool = MailStorePool.new(@kvs_meta_open, @kvs_text_open, proc{|name| 'mailbox.1' })
       rescue
         logger.fatal($!) rescue StandardError
         raise
