@@ -1,5 +1,9 @@
 2014-03-15  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/kvs.rb, lib/rims/gdbm_kvs.rb, lib/rims/db.rb, lib/rims/mail_store.rb:
+	destroy API is defined at key-value store and mailbox DB file is
+	removed on mailbox deletion.
+
 	* lib/rims/server.rb: mail store path of server is changed because
 	of incompatibility between new DB and old DB.
 
