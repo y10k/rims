@@ -75,6 +75,7 @@ module RIMS
         del_msg(msg_id, mbox_id, uid)
       end
       mbox_db.close
+      mbox_db.destroy
 
       for name in MSG_FLAG_NAMES
         @meta_db.clear_mbox_flag_num(mbox_id, name)

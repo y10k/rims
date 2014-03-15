@@ -1,5 +1,9 @@
 2014-03-15  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/kvs.rb, lib/rims/gdbm_kvs.rb, lib/rims/db.rb, lib/rims/mail_store.rb:
+	destroy API is defined at key-value store and mailbox DB file is
+	removed on mailbox deletion.
+
 	* lib/rims/kvs.rb: key-value store. fixed a bug of abstract method.
 	origin of bug is commit of 4f4ce383b8df541a60ba7d62e7626d3e34b29888.
 	bug file was `kv.rb'. the file was renamed to `kvs.rb'. basic

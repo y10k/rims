@@ -10,13 +10,7 @@ module RIMS::Test
       @kv_store = {}
       @kvs_open = proc{|path|
         kvs = {}
-        def kvs.[](*args)
-          s = super and s.b
-        end
-        def kvs.close
-          self
-        end
-        RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
+        RIMS::Hash_KeyValueStore.new(@kv_store[path] = kvs)
       }
       @mail_store = RIMS::MailStore.new(@kvs_open, @kvs_open)
       @mail_store.open
