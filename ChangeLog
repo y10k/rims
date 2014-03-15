@@ -1,5 +1,11 @@
 2014-03-15  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/kvs.rb: key-value store. fixed a bug of abstract method.
+	origin of bug is commit of 4f4ce383b8df541a60ba7d62e7626d3e34b29888.
+	bug file was `kv.rb'. the file was renamed to `kvs.rb'. basic
+	method name was changed. but its call name in abstract method was
+	not changed.
+
 	* lib/rims/server.rb: mail store path of server is changed because
 	of incompatibility between new DB and old DB.
 
