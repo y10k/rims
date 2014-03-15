@@ -19,6 +19,11 @@ module RIMS
         self
       end
 
+      def destroy
+        @kvs.destroy
+        nil
+      end
+
       def get_str(key, default_value: nil)
         @kvs[key] || default_value
       end
