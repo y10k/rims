@@ -92,17 +92,8 @@ module RIMS::Test
       @kv_store = {}
       @kvs_open = proc{|user_name, db_name|
         kvs = {}
-        def kvs.[](*args)
-          s = super and s.b
-        end
-        def kvs.sync
-          self
-        end
-        def kvs.close
-          self
-        end
         path = "#{user_name}/#{db_name}"
-        RIMS::GDBM_KeyValueStore.new(@kv_store[path] = kvs)
+        RIMS::Hash_KeyValueStore.new(@kv_store[path] = kvs)
       }
       @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open, proc{|name| 'test' })
       @mail_store_holder = @mail_store_pool.get('foo')

@@ -9,6 +9,7 @@ module RIMS
   autoload :Error, 'rims/error'
   autoload :GDBM_KeyValueStore, 'rims/gdbm_kvs'
   autoload :GlobalDB, 'rims/db'
+  autoload :Hash_KeyValueStore, 'rims/hash_kvs'
   autoload :KeyValueStore, 'rims/kvs'
   autoload :MailFolder, 'rims/mail_store'
   autoload :MailStore, 'rims/mail_store'

@@ -10,16 +10,7 @@ module RIMS::Test
   class DBMetaTest < Test::Unit::TestCase
     def setup
       @kvs = {}
-      def @kvs.[]=(key, value)
-        (key.is_a? String) or raies "not a string key: #{key}"
-        (value.is_a? String) or raise "not a string value: #{value}"
-        super(key.b, value.b)
-      end
-      def @kvs.[](key)
-        (key.is_a? String) or raise "not a string key: #{key}"
-        super(key)
-      end
-      @db = RIMS::DB::Meta.new(RIMS::GDBM_KeyValueStore.new(@kvs))
+      @db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs))
     end
 
     def teardown
@@ -362,16 +353,7 @@ module RIMS::Test
   class DBMessageTest < Test::Unit::TestCase
     def setup
       @kvs = {}
-      def @kvs.[]=(key, value)
-        (key.is_a? String) or raies "not a string key: #{key}"
-        (value.is_a? String) or raise "not a string value: #{value}"
-        super(key.b, value.b)
-      end
-      def @kvs.[](key)
-        (key.is_a? String) or raise "not a string key: #{key}"
-        super(key)
-      end
-      @db = RIMS::DB::Message.new(RIMS::GDBM_KeyValueStore.new(@kvs))
+      @db = RIMS::DB::Message.new(RIMS::Hash_KeyValueStore.new(@kvs))
     end
 
     def teardown
@@ -415,16 +397,7 @@ module RIMS::Test
   class DBMailboxTest < Test::Unit::TestCase
     def setup
       @kvs = {}
-      def @kvs.[]=(key, value)
-        (key.is_a? String) or raies "not a string key: #{key}"
-        (value.is_a? String) or raise "not a string value: #{value}"
-        super(key.b, value.b)
-      end
-      def @kvs.[](key)
-        (key.is_a? String) or raise "not a string key: #{key}"
-        super(key)
-      end
-      @db = RIMS::DB::Mailbox.new(RIMS::GDBM_KeyValueStore.new(@kvs))
+      @db = RIMS::DB::Mailbox.new(RIMS::Hash_KeyValueStore.new(@kvs))
     end
 
     def teardown
