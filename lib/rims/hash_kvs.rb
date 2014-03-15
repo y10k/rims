@@ -53,6 +53,10 @@ module RIMS
       @db = nil
       self
     end
+
+    def destroy
+      self
+    end
   end
 end
 

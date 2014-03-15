@@ -43,6 +43,10 @@ module RIMS
     def close
       raise NotImplementedError, 'abstract'
     end
+
+    def destroy
+      raise NotImplementedError, 'abstract'
+    end
   end
 end
 

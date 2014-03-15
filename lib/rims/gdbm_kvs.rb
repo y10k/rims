@@ -4,12 +4,14 @@ require 'gdbm'
 
 module RIMS
   class GDBM_KeyValueStore < KeyValueStore
-    def initialize(gdbm)
+    def initialize(gdbm, path)
       @db = gdbm
+      @path = path
     end
 
     def self.open(path, *optional)
-      new(GDBM.new(path + '.gdbm', *optional))
+      gdbm_path = path + '.gdbm'
+      new(GDBM.new(gdbm_path, *optional), gdbm_path)
     end
 
     def [](key)
@@ -44,6 +46,14 @@ module RIMS
     def close
       @db.close
       self
+    end
+
+    def destroy
+      unless (@db.closed?) then
+        raise "failed to destroy gdbm that isn't closed: #{@path}"
+      end
+      File.delete(@path)
+      nil
     end
   end
 end

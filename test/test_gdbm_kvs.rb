@@ -10,7 +10,7 @@ module RIMS::Test
     def setup
       @name = "kvs_test.gdbm.#{$$}"
       @db = GDBM.new(@name)
-      @kvs = RIMS::GDBM_KeyValueStore.new(@db)
+      @kvs = RIMS::GDBM_KeyValueStore.new(@db, @name)
     end
 
     def teardown
@@ -96,6 +96,15 @@ module RIMS::Test
       assert_raise(RuntimeError) { @kvs.each_key.to_a }
       assert_raise(RuntimeError) { @kvs.each_value.to_a }
       assert_raise(RuntimeError) { @kvs.each_pair.to_a }
+    end
+
+    def test_destroy
+      assert_raise(RuntimeError) { @kvs.destroy }
+      assert_equal(true, (File.exist? @name))
+
+      @kvs.close
+      @kvs.destroy
+      assert_equal(false, (File.exist? @name))
     end
   end
 end

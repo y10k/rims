@@ -103,6 +103,10 @@ module RIMS::Test
       assert_raise(NoMethodError) { @kvs.each_pair.to_a }
       assert_equal({}, @db)
     end
+
+    def test_destroy
+      @kvs.destroy
+    end
   end
 end
 
