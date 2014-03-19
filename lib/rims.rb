@@ -3,6 +3,7 @@
 require "rims/version"
 
 module RIMS
+  autoload :Checksum_KeyValueStore, 'rims/cksum_kvs'
   autoload :Cmd, 'rims/cmd'
   autoload :Config, 'rims/server'
   autoload :DB, 'rims/db'
