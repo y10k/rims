@@ -1,3 +1,8 @@
+2014-03-20  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb: added entry size dump option to debug-dump-kvs
+	command.
+
 2014-03-15  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/kvs.rb, lib/rims/gdbm_kvs.rb, lib/rims/db.rb, lib/rims/mail_store.rb:
