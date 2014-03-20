@@ -281,6 +281,7 @@ module RIMS
     def cmd_debug_dump_kvs(options, args)
       conf = {
         match_key: nil,
+        dump_size: true,
         dump_value: true,
         marshal_restore: true,
       }
@@ -292,6 +293,9 @@ module RIMS
       end
       options.on('--match-key=REGEXP', Regexp, 'Show keys matching regular expression.') do |regexp|
         conf[:match_key] = regexp
+      end
+      options.on('--[no-]dump-size', 'Dump size of value with key.') do |v|
+        conf[:dump_size] = v
       end
       options.on('--[no-]dump-value', 'Dump value with key.') do |v|
         conf[:dump_value] = v
@@ -318,6 +322,10 @@ module RIMS
           end
 
           entry = key.inspect
+          if (conf[:dump_size]) then
+            size = db[key].bytesize
+            entry += ": #{size} bytes"
+          end
           if (conf[:dump_value]) then
             v = db[key]
             if (conf[:marshal_restore]) then
