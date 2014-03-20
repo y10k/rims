@@ -106,6 +106,10 @@ module RIMS
                  "Choose the key-value store type of mailbox database. only GDBM can be chosen now.") do |type|
         conf.load(key_value_store_type: type)
       end
+      options.on('--[no-]use-kvs-cksum',
+                 "Enable/disable data checksum at key-value store. default is enabled.") do |use|
+        conf.load(use_key_value_store_checksum: use)
+      end
       options.on('-u', '--username=NAME',
                  "Username to login IMAP server. required parameter to start server.") do |name|
         conf.load(username: name)
@@ -280,16 +284,26 @@ module RIMS
 
     def cmd_debug_dump_kvs(options, args)
       conf = {
+        key_value_store_type: 'GDBM',
+        use_key_value_store_checksum: true,
         match_key: nil,
         dump_size: true,
         dump_value: true,
         marshal_restore: true,
       }
 
-      options.banner += ' gdbm [name]'
+      options.banner += ' [DB_NAME]'
       options.on('-h', '--help', 'Show this message.')do
         puts options
         exit
+      end
+      options.on('--kvs-type=TYPE', %w[ gdbm ],
+                 "Choose the key-value store type. only GDBM can be chosen now.") do |type|
+        conf[:key_value_store_type] = type
+      end
+      options.on('--[no-]use-kvs-cksum',
+                 "Enable/disable data checksum at key-value store. default is enabled.") do |use|
+        conf[:use_key_value_store_checksum] = use
       end
       options.on('--match-key=REGEXP', Regexp, 'Show keys matching regular expression.') do |regexp|
         conf[:match_key] = regexp
@@ -306,15 +320,19 @@ module RIMS
       options.parse!(args)
       pp conf if $DEBUG
 
-      kvs_type = args.shift or raise 'need for key-value store type parameter.'
-      case (kvs_type.downcase)
-      when 'gdbm'
-        name = args.shift or raise 'need for GDBM DB name.'
-        db = GDBM_KeyValueStore.open(name, 0666, GDBM::READER)
+      builder = KeyValueStore::FactoryBuilder.new
+      case (conf[:key_value_store_type].upcase)
+      when 'GDBM'
+        builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
       else
-        raise "unknown key-value store type: #{kvs_type}"
+        raise "unknown key-value store type: #{conf[:key_value_store_type]}"
+      end
+      if (conf[:use_key_value_store_checksum]) then
+        builder.use(Checksum_KeyValueStore)
       end
 
+      name = args.shift or raise 'need for GDBM DB name.'
+      db = builder.factory.call(name)
       begin
         db.each_key do |key|
           if (conf[:match_key] && (key !~ conf[:match_key])) then

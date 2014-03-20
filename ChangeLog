@@ -1,5 +1,9 @@
 2014-03-20  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/cksum_kvs.rb, lib/rims/kvs.rb, lib/rims/server.rb, lib/rims/cmd.rb:
+	checksum key-value store is defined. server mailbox data is
+	verified with checksum at default.
+
 	* lib/rims/cmd.rb: added entry size dump option to debug-dump-kvs
 	command.
 
