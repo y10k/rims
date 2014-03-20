@@ -52,23 +52,28 @@ module RIMS
       @config[:logger] = Logger.new(File.join(base_dir, log_file), *log_opt_args)
       @config[:logger].level = log_level
 
-      kvs_type = @config.delete(:key_value_store_type) || 'GDBM'
-      kvs_type = kvs_type.upcase
+      builder = KeyValueStore::FactoryBuilder.new
+      kvs_type = (@config.delete(:key_value_store_type) || 'GDBM').upcase
       case (kvs_type)
       when 'GDBM'
-        kvs_class = GDBM_KeyValueStore
+        builder.open{|name| GDBM_KeyValueStore.open(name) }
       else
         raise "unknown key-value store type: #{kvs_type}"
       end
+      if ((@config.key? :use_key_value_store_checksum) ? @config.delete(:use_key_value_store_checksum) : true) then
+        builder.use(Checksum_KeyValueStore)
+      end
+      kvs_factory = builder.factory
+
       @config[:kvs_meta_open] = proc{|user_prefix, name|
         kvs_path = make_kvs_path(base_dir, user_prefix, name)
         @config[:logger].debug("meta key-value store path: #{kvs_path}") if @config[:logger].debug?
-        kvs_class.open(kvs_path)
+        kvs_factory.call(kvs_path)
       }
       @config[:kvs_text_open] = proc{|user_prefix, name|
         kvs_path = make_kvs_path(base_dir, user_prefix, name)
         @config[:logger].debug("text key-value store path: #{kvs_path}") if @config[:logger].debug?
-        kvs_class.open(kvs_path)
+        kvs_factory.call(kvs_path)
       }
 
       username = @config.delete(:username) or raise 'not defined configuration entry: username'

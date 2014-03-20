@@ -106,6 +106,10 @@ module RIMS
                  "Choose the key-value store type of mailbox database. only GDBM can be chosen now.") do |type|
         conf.load(key_value_store_type: type)
       end
+      options.on('--[no-]use-kvs-cksum',
+                 "Enable/disable data checksum at key-value store. default is enabled.") do |use|
+        conf.load(use_key_value_store_checksum: use)
+      end
       options.on('-u', '--username=NAME',
                  "Username to login IMAP server. required parameter to start server.") do |name|
         conf.load(username: name)
