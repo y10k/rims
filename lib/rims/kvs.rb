@@ -47,6 +47,30 @@ module RIMS
     def destroy
       raise NotImplementedError, 'abstract'
     end
+
+    class FactoryBuilder
+      def initialize(&block)
+        @open = nil
+        @factory = proc{|name|
+          @open.call(name)
+        }
+      end
+
+      attr_reader :factory
+
+      def open(&block)      # :yields: name
+        @open = block
+        self
+      end
+
+      def use(middleware, *args, &block)
+        prev_factory = @factory
+        @factory = proc{|name|
+          middleware.new(prev_factory.call(name), *args, &block)
+        }
+        self
+      end
+    end
   end
 end
 

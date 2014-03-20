@@ -8,7 +8,10 @@ module RIMS::Test
   class Checksum_KeyValueStoreTest < Test::Unit::TestCase
     def setup
       @db = {}
-      @kvs = RIMS::Checksum_KeyValueStore.new(RIMS::Hash_KeyValueStore.new(@db))
+      @builder = RIMS::KeyValueStore::FactoryBuilder.new
+      @builder.open{|name| RIMS::Hash_KeyValueStore.new(@db) }
+      @builder.use(RIMS::Checksum_KeyValueStore)
+      @kvs = @builder.factory.call('test')
     end
 
     def teardown
