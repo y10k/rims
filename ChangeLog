@@ -1,3 +1,9 @@
+2014-03-20  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cksum_kvs.rb, lib/rims/kvs.rb, lib/rims/server.rb, lib/rims/cmd.rb:
+	checksum key-value store is defined. server mailbox data is
+	verified with checksum at default.
+
 2014-03-15  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/kvs.rb, lib/rims/gdbm_kvs.rb, lib/rims/db.rb, lib/rims/mail_store.rb:
