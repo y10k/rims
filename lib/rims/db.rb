@@ -118,6 +118,21 @@ module RIMS
     end
 
     class Meta < Core
+      def dirty?
+        @kvs.key? 'dirty'
+      end
+
+      def dirty=(dirty_flag)
+        if (dirty_flag) then
+          put_str('dirty', '')
+        else
+          @kvs.delete('dirty')
+        end
+        @kvs.sync
+
+        dirty_flag
+      end
+
       def cnum
         get_num('cnum')
       end

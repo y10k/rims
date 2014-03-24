@@ -16,6 +16,16 @@ module RIMS::Test
       pp @kvs if $DEBUG
     end
 
+    def test_dirty
+      assert_equal(false, @db.dirty?)
+
+      @db.dirty = true
+      assert_equal(true, @db.dirty?)
+
+      @db.dirty = false
+      assert_equal(false, @db.dirty?)
+    end
+
     def test_cnum
       assert_equal(0, @db.cnum)
       assert_equal(0, @db.cnum_succ!)
