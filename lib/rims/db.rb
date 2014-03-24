@@ -24,6 +24,24 @@ module RIMS
         nil
       end
 
+      def test_read_all         # :yields: read_error
+        last_error = nil
+        @kvs.each_key do |key|
+          begin
+            @kvs[key]
+          rescue
+            last_error = $!
+            yield($!)
+          end
+        end
+
+        if (last_error) then
+          raise last_error
+        end
+
+        self
+      end
+
       def get_str(key, default_value: nil)
         @kvs[key] || default_value
       end

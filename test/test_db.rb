@@ -535,6 +535,65 @@ module RIMS::Test
       assert_raise(RuntimeError) { @db.expunge_msg(2) }
     end
   end
+
+  class DBCoreTestReadAllTest < Test::Unit::TestCase
+    def setup
+      @kvs = {}
+      @builder = RIMS::KeyValueStore::FactoryBuilder.new
+      @builder.open{|name| RIMS::Hash_KeyValueStore.new(@kvs) }
+      @builder.use(RIMS::Checksum_KeyValueStore)
+      @cksum_kvs = @builder.factory.call('test')
+      @db = RIMS::DB::Core.new(@cksum_kvs)
+    end
+
+    def teardown
+      pp @kvs if $DEBUG
+    end
+
+    def test_test_read_all_empty
+      @db.test_read_all{|read_error|
+        flunk('no error.')
+      }
+    end
+
+    def test_test_read_all_good
+      @cksum_kvs['foo'] = 'apple'
+      @cksum_kvs['bar'] = 'banana'
+      @cksum_kvs['baz'] = 'orange'
+
+      @db.test_read_all{|read_error|
+        flunk('no error.')
+      }
+    end
+
+    def test_test_read_all_bad
+      @cksum_kvs['foo'] = 'apple'
+      @cksum_kvs['bar'] = 'banana'; @kvs['bar'] = 'banana'
+      @cksum_kvs['baz'] = 'orange'
+
+      count = 0
+      assert_raise(RuntimeError) {
+        @db.test_read_all{|read_error|
+          assert_kind_of(RuntimeError, read_error)
+          count += 1
+        }
+      }
+      assert_equal(1, count)
+
+      @cksum_kvs['foo'] = 'apple'; @kvs['foo'] = 'apple'
+      @cksum_kvs['bar'] = 'banana'
+      @cksum_kvs['baz'] = 'orange'; @kvs['baz'] = 'orange'
+
+      count = 0
+      assert_raise(RuntimeError) {
+        @db.test_read_all{|read_error|
+          assert_kind_of(RuntimeError, read_error)
+          count += 1
+        }
+      }
+      assert_equal(2, count)
+    end
+  end
 end
 
 # Local Variables:
