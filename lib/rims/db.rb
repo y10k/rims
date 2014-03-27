@@ -386,6 +386,10 @@ module RIMS
       def msg_text(msg_id)
         get_str(msg_id.to_s)
       end
+
+      def msg_exist?(msg_id)
+	@kvs.key? msg_id.to_s
+      end
     end
 
     class Mailbox < Core
