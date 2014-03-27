@@ -404,6 +404,45 @@ module RIMS
           self
         end
       end
+
+      def recovery_start
+      end
+
+      def recovery_end
+      end
+
+      def get_recover_entry(key, prefix)
+        if (key.start_with? prefix) then
+          entry_key = key[(prefix.length)..-1]
+          entry_key = yield(entry_key) if block_given?
+          entry_key
+        end
+      end
+      private :get_recover_entry
+
+      def recovery_phase1_msg_scan
+      end
+
+      def recovery_phase2_msg_scan
+      end
+
+      def recovery_phase3_mbox_scan
+      end
+
+      def recovery_phase4_mbox_scan
+      end
+
+      def recovery_phase5_mbox_repair
+      end
+
+      def recovery_phase6_msg_scan
+      end
+
+      def recovery_phase7_mbox_msg_scan
+      end
+
+      def recovery_phase8_lost_found
+      end
     end
 
     class Message < Core
