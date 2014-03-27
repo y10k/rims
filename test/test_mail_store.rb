@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'pp' if $DEBUG
 require 'rims'
 require 'test/unit'
 require 'time'
@@ -7,17 +8,17 @@ require 'time'
 module RIMS::Test
   class MailStoreTest < Test::Unit::TestCase
     def setup
-      @kv_store = {}
-      @kvs_open = proc{|path|
-        kvs = {}
-        RIMS::Hash_KeyValueStore.new(@kv_store[path] = kvs)
+      @kvs = Hash.new{|h, k| h[k] = Hash.new }
+      @kvs_open = proc{|name| RIMS::Hash_KeyValueStore.new(@kvs[name]) }
+      @mail_store = RIMS::MailStore.new(RIMS::DB::Meta.new(@kvs_open.call('meta')),
+                                        RIMS::DB::Message.new(@kvs_open.call('msg'))) {|mbox_id|
+        RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
       }
-      @mail_store = RIMS::MailStore.new(@kvs_open, @kvs_open)
-      @mail_store.open
     end
 
     def teardown
       @mail_store.close if @mail_store
+      pp @kvs if $DEBUG
     end
 
     def assert_strenc_equal(expected_enc, expected_str, expr_str)
@@ -404,6 +405,67 @@ module RIMS::Test
       assert_equal([].to_set, folder.parse_msg_set('1:*'))
       assert_equal([].to_set, folder.parse_msg_set('1:*', uid: false))
       assert_equal([].to_set, folder.parse_msg_set('1:*', uid: true))
+    end
+
+    def test_close_open
+      mbox_id1 = @mail_store.add_mbox('INBOX')
+      msg_uid1 = @mail_store.add_msg(mbox_id1, 'foo', Time.local(2014, 5, 6, 12, 34, 56))
+      msg_uid2 = @mail_store.add_msg(mbox_id1, 'bar', Time.local(2014, 5, 6, 12, 34, 57))
+      msg_uid3 = @mail_store.add_msg(mbox_id1, 'baz', Time.local(2014, 5, 6, 12, 34, 58))
+      mbox_id2 = @mail_store.add_mbox('foo')
+      mbox_id3 = @mail_store.add_mbox('bar')
+
+      assert_equal(mbox_id3 +1, @mail_store.uidvalidity)
+      assert_equal([ mbox_id1, mbox_id2, mbox_id3 ], @mail_store.each_mbox_id.to_a)
+      assert_equal('INBOX', @mail_store.mbox_name(mbox_id1))
+      assert_equal('foo', @mail_store.mbox_name(mbox_id2))
+      assert_equal('bar', @mail_store.mbox_name(mbox_id3))
+      assert_equal(mbox_id1, @mail_store.mbox_id('INBOX'))
+      assert_equal(mbox_id2, @mail_store.mbox_id('foo'))
+      assert_equal(mbox_id3, @mail_store.mbox_id('bar'))
+      assert_equal(mbox_id3 + 1, @mail_store.uid(mbox_id1))
+      assert_equal(1, @mail_store.uid(mbox_id2))
+      assert_equal(1, @mail_store.uid(mbox_id3))
+      assert_equal(3, @mail_store.mbox_msg_num(mbox_id1))
+      assert_equal(0, @mail_store.mbox_msg_num(mbox_id2))
+      assert_equal(0, @mail_store.mbox_msg_num(mbox_id2))
+
+      assert_equal([ msg_uid1, msg_uid2, msg_uid3 ], @mail_store.each_msg_uid(mbox_id1).to_a)
+      assert_equal('foo', @mail_store.msg_text(mbox_id1, msg_uid1))
+      assert_equal('bar', @mail_store.msg_text(mbox_id1, msg_uid2))
+      assert_equal('baz', @mail_store.msg_text(mbox_id1, msg_uid3))
+      assert_equal(Time.local(2014, 5, 6, 12, 34, 56), @mail_store.msg_date(mbox_id1, msg_uid1))
+      assert_equal(Time.local(2014, 5, 6, 12, 34, 57), @mail_store.msg_date(mbox_id1, msg_uid2))
+      assert_equal(Time.local(2014, 5, 6, 12, 34, 58), @mail_store.msg_date(mbox_id1, msg_uid3))
+
+      @mail_store.close
+      @mail_store = RIMS::MailStore.new(RIMS::DB::Meta.new(@kvs_open.call('meta')),
+                                        RIMS::DB::Message.new(@kvs_open.call('msg'))) {|mbox_id|
+        RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+
+      assert_equal(mbox_id3 +1, @mail_store.uidvalidity)
+      assert_equal([ mbox_id1, mbox_id2, mbox_id3 ], @mail_store.each_mbox_id.to_a)
+      assert_equal('INBOX', @mail_store.mbox_name(mbox_id1))
+      assert_equal('foo', @mail_store.mbox_name(mbox_id2))
+      assert_equal('bar', @mail_store.mbox_name(mbox_id3))
+      assert_equal(mbox_id1, @mail_store.mbox_id('INBOX'))
+      assert_equal(mbox_id2, @mail_store.mbox_id('foo'))
+      assert_equal(mbox_id3, @mail_store.mbox_id('bar'))
+      assert_equal(mbox_id3 + 1, @mail_store.uid(mbox_id1))
+      assert_equal(1, @mail_store.uid(mbox_id2))
+      assert_equal(1, @mail_store.uid(mbox_id3))
+      assert_equal(3, @mail_store.mbox_msg_num(mbox_id1))
+      assert_equal(0, @mail_store.mbox_msg_num(mbox_id2))
+      assert_equal(0, @mail_store.mbox_msg_num(mbox_id2))
+
+      assert_equal([ msg_uid1, msg_uid2, msg_uid3 ], @mail_store.each_msg_uid(mbox_id1).to_a)
+      assert_equal('foo', @mail_store.msg_text(mbox_id1, msg_uid1))
+      assert_equal('bar', @mail_store.msg_text(mbox_id1, msg_uid2))
+      assert_equal('baz', @mail_store.msg_text(mbox_id1, msg_uid3))
+      assert_equal(Time.local(2014, 5, 6, 12, 34, 56), @mail_store.msg_date(mbox_id1, msg_uid1))
+      assert_equal(Time.local(2014, 5, 6, 12, 34, 57), @mail_store.msg_date(mbox_id1, msg_uid2))
+      assert_equal(Time.local(2014, 5, 6, 12, 34, 58), @mail_store.msg_date(mbox_id1, msg_uid3))
     end
   end
 

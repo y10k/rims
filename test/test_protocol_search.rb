@@ -8,12 +8,11 @@ module RIMS::Test
   class ProtocolSearchParserTest < Test::Unit::TestCase
     def setup
       @kv_store = {}
-      @kvs_open = proc{|path|
-        kvs = {}
-        RIMS::Hash_KeyValueStore.new(@kv_store[path] = kvs)
+      @kvs_open = proc{|path| RIMS::Hash_KeyValueStore.new(@kv_store[path] = {}) }
+      @mail_store = RIMS::MailStore.new(RIMS::DB::Meta.new(@kvs_open.call('meta')),
+                                        RIMS::DB::Message.new(@kvs_open.call('msg'))) {|mbox_id|
+        RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
       }
-      @mail_store = RIMS::MailStore.new(@kvs_open, @kvs_open)
-      @mail_store.open
       @inbox_id = @mail_store.add_mbox('INBOX')
     end
 

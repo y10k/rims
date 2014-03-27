@@ -7,21 +7,15 @@ module RIMS
   class MailStore
     MSG_FLAG_NAMES = %w[ answered flagged deleted seen draft recent ].each{|n| n.freeze }.freeze
 
-    def initialize(kvs_open_attr, kvs_open_text)
-      @kvs_open_attr = kvs_open_attr
-      @kvs_open_text = kvs_open_text
-    end
-
-    def open
-      @meta_db = DB::Meta.new(@kvs_open_attr.call('meta'))
-      @msg_db = DB::Message.new(@kvs_open_text.call('msg'))
+    def initialize(meta_db, msg_db, &mbox_db_factory) # :yields: mbox_id
+      @meta_db = meta_db
+      @msg_db = msg_db
+      @mbox_db_factory = mbox_db_factory
 
       @mbox_db = {}
-      @meta_db.each_mbox_id do |id|
-        @mbox_db[id] = DB::Mailbox.new(@kvs_open_attr.call("mbox_#{id}"))
+      @meta_db.each_mbox_id do |mbox_id|
+        @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
       end
-
-      self
     end
 
     def close
@@ -59,7 +53,7 @@ module RIMS
       name = name.b
 
       mbox_id = @meta_db.add_mbox(name)
-      @mbox_db[mbox_id] = DB::Mailbox.new(@kvs_open_attr.call("mbox_#{mbox_id}"))
+      @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
 
       @meta_db.cnum_succ!
 
@@ -392,9 +386,10 @@ module RIMS
 
     def new_mail_store(user_name)
       user_prefix = @make_user_prefix.call(user_name)
-      mail_store = MailStore.new(proc{|db_name| @kvs_open_attr.call(user_prefix, db_name) },
-                                 proc{|db_name| @kvs_open_text.call(user_prefix, db_name) })
-      mail_store.open
+      mail_store = MailStore.new(DB::Meta.new(@kvs_open_attr.call(user_prefix, 'meta')),
+                                 DB::Message.new(@kvs_open_text.call(user_prefix, 'msg'))) {|mbox_id|
+        DB::Mailbox.new(@kvs_open_attr.call(user_prefix, "mbox_#{mbox_id}"))
+      }
       unless (mail_store.mbox_id('INBOX')) then
         mail_store.add_mbox('INBOX')
       end
