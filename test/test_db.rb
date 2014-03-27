@@ -4,7 +4,6 @@ require 'pp' if $DEBUG
 require 'rims'
 require 'set'
 require 'test/unit'
-require 'time'
 
 module RIMS::Test
   class DBMetaTest < Test::Unit::TestCase
