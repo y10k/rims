@@ -139,6 +139,98 @@ module RIMS::Test
       @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
       assert_equal([ @inbox_id + 1 ].to_set, @meta_db.lost_found_mbox_set)
     end
+
+    def test_recovery_phase3_msg_scan_empty
+      prev_kvs = deep_copy(@kvs)
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase3_msg_scan_some_mboxes
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase3_msg_scan_repair_uidvalidity
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta']['uidvalidity'] = '3'
+      assert_equal(3, @meta_db.uidvalidity)
+
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      assert_equal(4, @meta_db.uidvalidity)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase3_msg_scan_repair_lost_mbox_name2id
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta'].delete('mbox_name2id-foo')
+      assert_equal(1, @meta_db.mbox_id('INBOX'))
+      assert_nil(@meta_db.mbox_id('foo'))
+      assert_equal(3, @meta_db.mbox_id('bar'))
+
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      assert_equal(1, @meta_db.mbox_id('INBOX'))
+      assert_equal(2, @meta_db.mbox_id('foo'))
+      assert_equal(3, @meta_db.mbox_id('bar'))
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase3_msg_scan_reapir_dup_mbox_name2id
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta']['mbox_name2id-foo'] = '1'
+      assert_equal(1, @meta_db.mbox_id('INBOX'))
+      assert_equal(1, @meta_db.mbox_id('foo'))
+      assert_equal(3, @meta_db.mbox_id('bar'))
+
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      assert_equal(1, @meta_db.mbox_id('INBOX'))
+      assert_equal(2, @meta_db.mbox_id('foo'))
+      assert_equal(3, @meta_db.mbox_id('bar'))
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase3_msg_scan_repair_lost_mbox_id_name_pair
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+
+      @kvs['meta'].delete('mbox_id2name-2')
+      assert_nil(@meta_db.mbox_name(2))
+      assert_equal(2, @meta_db.mbox_id('foo'))
+
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      assert_equal('MAILBOX#2', @meta_db.mbox_name(2))
+      assert_equal(2, @meta_db.mbox_id('MAILBOX#2'))
+      assert_equal(2, @meta_db.mbox_id('foo')) # recovered at phase 4.
+    end
+
+    def test_recovery_phase3_msg_scan_repair_lost_mbox_id_name_pair2
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('MAILBOX#2')
+      @mail_store.add_mbox('MAILBOX#2 (1)')
+      @mail_store.add_mbox('MAILBOX#2 (2)')
+
+      @kvs['meta'].delete('mbox_id2name-2')
+      assert_nil(@meta_db.mbox_name(2))
+      assert_equal(2, @meta_db.mbox_id('foo'))
+
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      assert_equal('MAILBOX#2 (3)', @meta_db.mbox_name(2))
+      assert_equal(2, @meta_db.mbox_id('MAILBOX#2 (3)'))
+      assert_equal(2, @meta_db.mbox_id('foo')) # recovered at phase 4.
+    end
   end
 end
 

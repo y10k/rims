@@ -488,7 +488,50 @@ module RIMS
         self
       end
 
-      def recovery_phase3_mbox_scan
+      def make_mbox_repair_name(mbox_id)
+        new_name = "MAILBOX##{mbox_id}"
+        if (mbox_id(new_name)) then
+          new_name << ' (1)'
+          while (mbox_id(new_name))
+            new_name.succ!
+          end
+        end
+
+        new_name
+      end
+      private :make_mbox_repair_name
+
+      def recovery_phase3_mbox_scan(logger: Logger.new(STDOUT))
+        logger.info('recovery phase 3: start.')
+
+        mbox_set = get_num_set('mbox_set')
+
+        max_mbox_id = 0
+        for mbox_id in mbox_set
+          max_mbox_id = mbox_id if (mbox_id > max_mbox_id)
+          if (name = mbox_name(mbox_id)) then
+            mbox_id2 = mbox_id(name)
+            unless (mbox_id2 && (mbox_id2 == mbox_id)) then
+              logger.warn("repair mailbox name -> id: #{name.inspect} -> #{mbox_id}")
+              put_num("mbox_name2id-#{name}", mbox_id)
+            end
+          else
+            new_name = make_mbox_repair_name(mbox_id)
+            logger.warn("repair mailbox id name pair: #{mbox_id}, #{new_name.inspect}")
+            put_str("mbox_id2name-#{mbox_id}", new_name)
+            put_num("mbox_name2id-#{new_name}", mbox_id)
+          end
+        end
+
+        if (uidvalidity <= max_mbox_id) then
+          next_uidvalidity = max_mbox_id + 1
+          logger.warn("repair uidvalidity: #{next_uidvalidity}")
+          put_num('uidvalidity', next_uidvalidity)
+        end
+
+        logger.info('recovery phase 3: end.')
+
+        self
       end
 
       def recovery_phase4_mbox_scan
