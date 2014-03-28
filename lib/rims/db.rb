@@ -534,7 +534,32 @@ module RIMS
         self
       end
 
-      def recovery_phase4_mbox_scan
+      def recovery_phase4_mbox_scan(logger: Logger.new(STDOUT))
+        logger.info('recovery phase 4: start.')
+
+        mbox_set = get_num_set('mbox_set')
+
+        del_key_list = []
+        @kvs.each_key do |key|
+          if (mbox_id = get_recover_entry(key, 'mbox_id2name-') {|s| s.to_i }) then
+            unless (mbox_set.include? mbox_id) then
+              del_key_list << key
+            end
+          elsif (name = get_recover_entry(key, 'mbox_name2id-')) then
+            unless ((mbox_id = mbox_id(name)) && (mbox_set.include? mbox_id) && (mbox_name(mbox_id) == name)) then
+              del_key_list << key
+            end
+          end
+        end
+
+        for key in del_key_list
+          logger.warn("unlinked mailbox entry: #{key}")
+          @kvs.delete(key)
+        end
+
+        logger.info('recovery phase 4: end.')
+
+        self
       end
 
       def recovery_phase5_mbox_repair

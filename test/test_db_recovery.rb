@@ -231,6 +231,75 @@ module RIMS::Test
       assert_equal(2, @meta_db.mbox_id('MAILBOX#2 (3)'))
       assert_equal(2, @meta_db.mbox_id('foo')) # recovered at phase 4.
     end
+
+    def test_recovery_phase4_mbox_scan_empty
+      prev_kvs = deep_copy(@kvs)
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase4_mbox_scan_some_mboxes
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase4_mbox_scan_excess_key_mbox_id
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta']['mbox_id2name-4'] = 'foo'
+      assert_equal('INBOX', @meta_db.mbox_name(1))
+      assert_equal('foo', @meta_db.mbox_name(2))
+      assert_equal('bar', @meta_db.mbox_name(3))
+      assert_equal('foo', @meta_db.mbox_name(4))
+
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      assert_equal('INBOX', @meta_db.mbox_name(1))
+      assert_equal('foo', @meta_db.mbox_name(2))
+      assert_equal('bar', @meta_db.mbox_name(3))
+      assert_nil(@meta_db.mbox_name(4))
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase4_mbox_scan_reapir_dup_mbox_name
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta']['mbox_name2id-x'] = '2'
+      assert_equal(1, @meta_db.mbox_id('INBOX'))
+      assert_equal(2, @meta_db.mbox_id('foo'))
+      assert_equal(3, @meta_db.mbox_id('bar'))
+      assert_equal(2, @meta_db.mbox_id('x'))
+
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      assert_equal(1, @meta_db.mbox_id('INBOX'))
+      assert_equal(2, @meta_db.mbox_id('foo'))
+      assert_equal(3, @meta_db.mbox_id('bar'))
+      assert_nil(@meta_db.mbox_id('x'))
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase4_mbox_scan_repair_orphaned_mbox_id_mbox_name
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta']['mbox_name2id-x'] = '4'
+      @kvs['meta']['mbox_id2name-4'] = 'x'
+      assert_equal(4, @meta_db.mbox_id('x'))
+      assert_equal('x', @meta_db.mbox_name(4))
+
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      assert_nil(@meta_db.mbox_id('x'))
+      assert_nil(@meta_db.mbox_name(4))
+      assert_equal(prev_kvs, @kvs)
+    end
   end
 end
 
