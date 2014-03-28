@@ -144,7 +144,7 @@ module RIMS
 
       def add_mbox(name)
         if (@kvs.key? "mbox_name2id-#{name}") then
-          raise raise "duplicated mailbox name: #{name}."
+          raise "duplicated mailbox name: #{name}."
         end
 
         mbox_id = uidvalidity_succ!
