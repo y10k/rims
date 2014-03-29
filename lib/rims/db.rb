@@ -142,12 +142,22 @@ module RIMS
         num_succ!('uidvalidity', default_value: 1)
       end
 
-      def add_mbox(name)
+      def add_mbox(name, mbox_id: nil)
         if (@kvs.key? "mbox_name2id-#{name}") then
           raise "duplicated mailbox name: #{name}."
         end
 
-        mbox_id = uidvalidity_succ!
+        if (mbox_id) then
+          if (@kvs.key? "mbox_id2name-#{mbox_id}") then
+            raise "duplicated mailbox id: #{mbox_id}"
+          end
+          if (uidvalidity <= mbox_id) then
+            put_num('uidvalidity', mbox_id + 1)
+          end
+        else
+          mbox_id = uidvalidity_succ!
+        end
+
         mbox_set = get_num_set('mbox_set')
         if (mbox_set.include? mbox_id) then
           raise "internal error: duplicated mailbox id: #{mbox_id}"
