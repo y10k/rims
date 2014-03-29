@@ -93,6 +93,52 @@ module RIMS::Test
       @meta_db.recovery_phase1_msg_scan(@msg_db, logger: @logger)
       assert_equal([ 1 ].to_set, @meta_db.lost_found_msg_set)
     end
+
+    def test_recovery_phase2_msg_scan_empty
+      prev_kvs = deep_copy(@kvs)
+      @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase2_msg_scan_some_msgs
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase2_msg_scan_clear_lost_msg
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+
+      @msg_db.del_msg(1)
+      assert_equal(false, (@msg_db.msg_exist? 1))
+      assert_equal(true, @meta_db.msg_flag(1, 'recent'))
+      assert_equal(false, @meta_db.msg_mbox_uid_mapping(1).empty?)
+
+      @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
+      assert_equal(false, (@msg_db.msg_exist? 1))
+      assert_equal(false, @meta_db.msg_flag(1, 'recent'))
+      assert_equal(true, @meta_db.msg_mbox_uid_mapping(1).empty?)
+    end
+
+    def test_recovery_phase2_msg_scan_collect_lost_found_mbox
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+
+      mbox_uid_map = Marshal.load(@kvs['meta']['msg_id2mbox-1'])
+      uid_set = mbox_uid_map.delete(@inbox_id)
+      mbox_uid_map[@inbox_id + 1] = uid_set
+      @kvs['meta']['msg_id2mbox-1'] = Marshal.dump(mbox_uid_map)
+
+      @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
+      assert_equal([ @inbox_id + 1 ].to_set, @meta_db.lost_found_mbox_set)
+    end
   end
 end
 

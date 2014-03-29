@@ -408,13 +408,16 @@ module RIMS
 
       def recovery_start
         @lost_found_msg_set = [].to_set
+        @lost_found_mbox_set = [].to_set
       end
 
       def recovery_end
         @lost_found_msg_set = nil
+        @lost_found_mbox_set = nil
       end
 
       attr_reader :lost_found_msg_set
+      attr_reader :lost_found_mbox_set
 
       def get_recover_entry(key, prefix)
         if (key.start_with? prefix) then
@@ -452,7 +455,37 @@ module RIMS
         self
       end
 
-      def recovery_phase2_msg_scan
+      def recovery_phase2_msg_scan(msg_db, logger: Logger.new(STDOUT))
+        logger.info('recovery phase 2: start.')
+
+        lost_msg_set = [].to_set
+        mbox_set = get_num_set('mbox_set')
+
+        @kvs.each_key do |key|
+          if (msg_id = get_recover_entry(key, 'msg_id2mbox-') {|s| s.to_i }) then
+            if (msg_db.msg_exist? msg_id) then
+              msg_mbox_uid_mapping(msg_id).each_key do |mbox_id|
+                unless (mbox_set.include? mbox_id) then
+                  logger.warn("lost+found mailbox: #{mbox_id}")
+                  @lost_found_mbox_set << mbox_id
+                end
+              end
+            else
+              lost_msg_set << msg_id
+            end
+          end
+        end
+
+        for msg_id in lost_msg_set
+          logger.warn("clear lost message: #{msg_id}")
+          clear_msg_date(msg_id)
+          clear_msg_flag(msg_id)
+          clear_msg_mbox_uid_mapping(msg_id)
+        end
+
+        logger.info('recovery phase 2: end.')
+
+        self
       end
 
       def recovery_phase3_mbox_scan
