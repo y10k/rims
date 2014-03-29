@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'set'
 
 module RIMS
@@ -406,10 +407,14 @@ module RIMS
       end
 
       def recovery_start
+        @lost_found_msg_set = [].to_set
       end
 
       def recovery_end
+        @lost_found_msg_set = nil
       end
+
+      attr_reader :lost_found_msg_set
 
       def get_recover_entry(key, prefix)
         if (key.start_with? prefix) then
@@ -420,7 +425,31 @@ module RIMS
       end
       private :get_recover_entry
 
-      def recovery_phase1_msg_scan
+      def recovery_phase1_msg_scan(msg_db, logger: Logger.new(STDOUT))
+        logger.info('recovery phase 1: start.')
+
+        max_msg_id = -1
+        msg_db.each_msg_id do |msg_id|
+          max_msg_id = msg_id if (max_msg_id < msg_id)
+          unless (@kvs.key? "msg_id2mbox-#{msg_id}") then
+            logger.warn("lost+found message: #{msg_id}")
+            @lost_found_msg_set << msg_id
+          end
+          unless (@kvs.key? "msg_id2date-#{msg_id}") then
+            logger.warn("repair internal date: #{msg_id}")
+            set_msg_date(msg_id, Time.now)
+          end
+        end
+
+        if (msg_id <= max_msg_id) then
+          next_msg_id = max_msg_id + 1
+          logger.warn("repair msg_id: #{next_msg_id}")
+          put_num('msg_id', next_msg_id)
+        end
+
+        logger.info('recovery phase 1: end.')
+
+        self
       end
 
       def recovery_phase2_msg_scan
