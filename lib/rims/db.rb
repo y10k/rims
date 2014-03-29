@@ -341,9 +341,7 @@ module RIMS
         if (uid_set = mbox_uid_map[mbox_id]) then
           if (uid_set.include? uid) then
             uid_set.delete(uid)
-            if (uid_set.empty?) then
-              mbox_uid_map.delete(mbox_id)
-            end
+            mbox_uid_map.delete(mbox_id) if uid_set.empty?
             put_obj("msg_id2mbox-#{msg_id}", mbox_uid_map)
 
             mbox_msg_num_decrement(mbox_id)
