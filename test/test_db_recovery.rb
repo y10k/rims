@@ -300,6 +300,45 @@ module RIMS::Test
       assert_nil(@meta_db.mbox_name(4))
       assert_equal(prev_kvs, @kvs)
     end
+
+    def test_recovery_phase5_mbox_repair_make_lost_found_mbox
+      @meta_db.recovery_phase5_mbox_repair(logger: @logger) {|mbox_id|
+        @mbox_db[mbox_id] = RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+      assert_equal(3, @meta_db.uidvalidity)
+      assert_equal([ 1, 2 ], @meta_db.each_mbox_id.to_a)
+      assert_equal('INBOX', @meta_db.mbox_name(1))
+      assert_equal(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME, @meta_db.mbox_name(2))
+      assert_instance_of(RIMS::DB::Mailbox, @mbox_db[2])
+    end
+
+    def test_recovery_phase5_mbox_repair_lost_found_mbox_exists
+      @meta_db.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase5_mbox_repair(logger: @logger) {|mbox_id|
+        @mbox_db[mbox_id] = RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase5_mbox_repair_make_losted_mbox
+      @meta_db.lost_found_mbox_set << 2
+      @meta_db.lost_found_mbox_set << 5
+
+      @meta_db.recovery_phase5_mbox_repair(logger: @logger) {|mbox_id|
+        @mbox_db[mbox_id] = RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+      assert_equal(7, @meta_db.uidvalidity)
+      assert_equal([ 1, 2, 5, 6 ], @meta_db.each_mbox_id.to_a)
+      assert_equal('INBOX', @meta_db.mbox_name(1))
+      assert_equal('MAILBOX#2', @meta_db.mbox_name(2))
+      assert_equal('MAILBOX#5', @meta_db.mbox_name(5))
+      assert_equal(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME, @meta_db.mbox_name(6))
+      assert_instance_of(RIMS::DB::Mailbox, @mbox_db[2])
+      assert_instance_of(RIMS::DB::Mailbox, @mbox_db[5])
+      assert_instance_of(RIMS::DB::Mailbox, @mbox_db[6])
+    end
   end
 end
 

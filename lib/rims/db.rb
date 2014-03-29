@@ -562,7 +562,25 @@ module RIMS
         self
       end
 
-      def recovery_phase5_mbox_repair
+      LOST_FOUND_MBOX_NAME = 'lost+found'.freeze
+
+      def recovery_phase5_mbox_repair(logger: Logger.new(STDOUT))
+        logger.info('recovery phase 5: start.')
+
+        for mbox_id in @lost_found_mbox_set
+          logger.warn("repair lost mailbox: #{mbox_id}")
+          add_mbox(make_mbox_repair_name(mbox_id), mbox_id: mbox_id)
+          yield(mbox_id)
+        end
+        unless (mbox_id(LOST_FOUND_MBOX_NAME)) then
+          logger.warn('create lost+found mailbox.')
+          mbox_id = add_mbox(LOST_FOUND_MBOX_NAME)
+          yield(mbox_id)
+        end
+
+        logger.info('recovery phase 5: end.')
+
+        self
       end
 
       def recovery_phase6_msg_scan
