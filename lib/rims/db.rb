@@ -583,7 +583,40 @@ module RIMS
         self
       end
 
-      def recovery_phase6_msg_scan
+      def recovery_phase6_msg_scan(mbox_db, logger: Logger.new(STDOUT))
+        logger.info('recovery phase 6: start.')
+
+        @kvs.each_key do |key|
+          if (msg_id = get_recover_entry(key, 'msg_id2mbox-') {|s| s.to_i }) then
+            is_modified = false
+            mbox_uid_map = msg_mbox_uid_mapping(msg_id)
+            mbox_uid_map.each_pair.to_a.each do |mbox_id, uid_set|
+              uid_set.to_a.each do |uid|
+                if (msg_id2 = mbox_db[mbox_id].msg_id(uid)) then
+                  if (msg_id != msg_id2) then
+                    logger.warn("lost+found message -> mailbox: #{msg_id} -> #{mbox_id},#{uid}")
+                    is_modified = true
+                    uid_set.delete(uid)
+                    mbox_uid_map.delete(mbox_id) if uid_set.empty?
+                    @lost_found_msg_set << msg_id
+                  end
+                else
+                  logger.warn("repair mailbox -> message: #{mbox_id},#{uid} -> #{msg_id}")
+                  mbox_db[mbox_id].add_msg(uid, msg_id)
+                end
+              end
+            end
+
+            if (is_modified) then
+              logger.warn("save repaired message: #{msg_id}")
+              put_obj("msg_id2mbox-#{msg_id}", mbox_uid_map)
+            end
+          end
+        end
+
+        logger.info('recovery phase 6: end.')
+
+        self
       end
 
       def recovery_phase7_mbox_msg_scan

@@ -339,6 +339,70 @@ module RIMS::Test
       assert_instance_of(RIMS::DB::Mailbox, @mbox_db[5])
       assert_instance_of(RIMS::DB::Mailbox, @mbox_db[6])
     end
+
+    def test_recovery_phase6_msg_scan_empty
+      prev_kvs = deep_copy(@kvs)
+      @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase6_msg_scan_some_msgs
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase6_msg_scan_repair_lost_found_msg
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['mbox_1'].delete('2')
+      assert_equal({ @inbox_id => [ 1 ].to_set }, @meta_db.msg_mbox_uid_mapping(0))
+      assert_equal({ @inbox_id => [ 2 ].to_set }, @meta_db.msg_mbox_uid_mapping(1))
+      assert_equal({ @inbox_id => [ 3 ].to_set }, @meta_db.msg_mbox_uid_mapping(2))
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(1))
+      assert_nil(@mbox_db[@inbox_id].msg_id(2))
+      assert_equal(2, @mbox_db[@inbox_id].msg_id(3))
+
+      @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: @logger)
+      assert_equal({ @inbox_id => [ 1 ].to_set }, @meta_db.msg_mbox_uid_mapping(0))
+      assert_equal({ @inbox_id => [ 2 ].to_set }, @meta_db.msg_mbox_uid_mapping(1))
+      assert_equal({ @inbox_id => [ 3 ].to_set }, @meta_db.msg_mbox_uid_mapping(2))
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(1))
+      assert_equal(1, @mbox_db[@inbox_id].msg_id(2))
+      assert_equal(2, @mbox_db[@inbox_id].msg_id(3))
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase6_msg_scan_collect_lost_found_msg
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+
+      @kvs['meta']['msg_id2mbox-2'] = Marshal.dump({ @inbox_id => [ 1 ].to_set })
+      @kvs['mbox_1'].delete('3')
+      assert_equal({ @inbox_id => [ 1 ].to_set }, @meta_db.msg_mbox_uid_mapping(0))
+      assert_equal({ @inbox_id => [ 2 ].to_set }, @meta_db.msg_mbox_uid_mapping(1))
+      assert_equal({ @inbox_id => [ 1 ].to_set }, @meta_db.msg_mbox_uid_mapping(2))
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(1))
+      assert_equal(1, @mbox_db[@inbox_id].msg_id(2))
+      assert_nil(@mbox_db[@inbox_id].msg_id(3))
+
+      @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: @logger)
+      assert_equal({ @inbox_id => [ 1 ].to_set }, @meta_db.msg_mbox_uid_mapping(0))
+      assert_equal({ @inbox_id => [ 2 ].to_set }, @meta_db.msg_mbox_uid_mapping(1))
+      assert_equal({}, @meta_db.msg_mbox_uid_mapping(2))
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(1))
+      assert_equal(1, @mbox_db[@inbox_id].msg_id(2))
+      assert_nil(@mbox_db[@inbox_id].msg_id(3))
+      assert_equal([ 2 ].to_set, @meta_db.lost_found_msg_set)
+    end
   end
 end
 
