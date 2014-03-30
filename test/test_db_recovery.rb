@@ -403,6 +403,93 @@ module RIMS::Test
       assert_nil(@mbox_db[@inbox_id].msg_id(3))
       assert_equal([ 2 ].to_set, @meta_db.lost_found_msg_set)
     end
+
+    def test_recovery_phase7_mbox_msg_scan_empty
+      prev_kvs = deep_copy(@kvs)
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase7_mbox_msg_scan_some_msgs
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase7_mbox_msg_scan_repiar_mbox_uid
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta']["mbox_id2uid-#{@inbox_id}"] = '3'
+      assert_equal(3, @meta_db.mbox_uid(@inbox_id))
+
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      assert_equal(4, @meta_db.mbox_uid(@inbox_id))
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase7_mbox_msg_scan_repair_mbox_msg
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      prev_kvs = deep_copy(@kvs)
+
+      @mbox_db[@inbox_id].add_msg(4, 0)
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(1))
+      assert_equal(1, @mbox_db[@inbox_id].msg_id(2))
+      assert_equal(2, @mbox_db[@inbox_id].msg_id(3))
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(4))
+
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(1))
+      assert_equal(1, @mbox_db[@inbox_id].msg_id(2))
+      assert_equal(2, @mbox_db[@inbox_id].msg_id(3))
+      assert_nil(@mbox_db[@inbox_id].msg_id(4))
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase7_mbox_msg_scan_repair_msg_num
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta']["mbox_id2msgnum-#{@inbox_id}"] = '0'
+      assert_equal(0, @meta_db.mbox_msg_num(@inbox_id))
+
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      assert_equal(3, @meta_db.mbox_msg_num(@inbox_id))
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase7_mbox_msg_scan_repair_flag_num
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 2, 'seen', true)
+      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      prev_kvs = deep_copy(@kvs)
+
+      @kvs['meta']["mbox_id2flagnum-#{@inbox_id}-recent"] = '0'
+      @kvs['meta']["mbox_id2flagnum-#{@inbox_id}-seen"] = '0'
+      @kvs['meta']["mbox_id2flagnum-#{@inbox_id}-deleted"] = '0'
+      assert_equal(0, @meta_db.mbox_flag_num(@inbox_id, 'recent'))
+      assert_equal(0, @meta_db.mbox_flag_num(@inbox_id, 'seen'))
+      assert_equal(0, @meta_db.mbox_flag_num(@inbox_id, 'deleted'))
+
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      assert_equal(3, @meta_db.mbox_flag_num(@inbox_id, 'recent'))
+      assert_equal(2, @meta_db.mbox_flag_num(@inbox_id, 'seen'))
+      assert_equal(1, @meta_db.mbox_flag_num(@inbox_id, 'deleted'))
+      assert_equal(prev_kvs, @kvs)
+    end
   end
 end
 

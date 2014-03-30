@@ -619,7 +619,66 @@ module RIMS
         self
       end
 
-      def recovery_phase7_mbox_msg_scan
+      def recovery_phase7_mbox_msg_scan(mbox_db, flag_name_list, logger: Logger.new(STDOUT))
+        logger.info('recovery phase 7: start.')
+
+        mbox_db.each_key do |mbox_id|
+          logger.info("scan mailbox: #{mbox_id}")
+
+          max_uid = 0
+          msg_num = 0
+          flag_num = Hash.new(0)
+          del_uid_list = []
+
+          mbox_db[mbox_id].each_msg_uid do |uid|
+            msg_id = mbox_db[mbox_id].msg_id(uid)
+            if ((mbox_uid_map = msg_mbox_uid_mapping(msg_id)) && (uid_set = mbox_uid_map[mbox_id]) && (uid_set.include? uid)) then
+              max_uid = uid if (max_uid < uid)
+              msg_num += 1
+              for name in flag_name_list
+                if (name == 'deleted') then
+                  if (mbox_db[mbox_id].msg_flag_deleted(uid)) then
+                    flag_num['deleted'] += 1
+                  end
+                else
+                  if (msg_flag(msg_id, name)) then
+                    flag_num[name] += 1
+                  end
+                end
+              end
+            else
+              del_uid_list << uid
+            end
+          end
+
+          for uid in del_uid_list
+            logger.warn("unlinked message uid: #{mbox_id},#{uid}")
+            mbox_db[mbox_id].set_msg_flag_deleted(uid, true)
+            mbox_db[mbox_id].expunge_msg(uid)
+          end
+
+          if (mbox_uid(mbox_id) <= max_uid) then
+            next_uid = max_uid + 1
+            logger.warn("repair mailbox uid: #{next_uid}")
+            put_num("mbox_id2uid-#{mbox_id}", next_uid)
+          end
+
+          if (mbox_msg_num(mbox_id) != msg_num) then
+            logger.warn("repair mailbox message number: #{msg_num}")
+            put_num("mbox_id2msgnum-#{mbox_id}", msg_num)
+          end
+
+          for name in flag_name_list
+            if (mbox_flag_num(mbox_id, name) != flag_num[name]) then
+              logger.warn("repair mailbox #{name} flag number: #{flag_num[name]}")
+              put_num("mbox_id2flagnum-#{mbox_id}-#{name}", flag_num[name])
+            end
+          end
+        end
+
+        logger.info('recovery phase 7: end.')
+
+        self
       end
 
       def recovery_phase8_lost_found
