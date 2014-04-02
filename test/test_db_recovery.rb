@@ -490,6 +490,46 @@ module RIMS::Test
       assert_equal(1, @meta_db.mbox_flag_num(@inbox_id, 'deleted'))
       assert_equal(prev_kvs, @kvs)
     end
+
+    def test_recovery_phase8_lost_found_empty
+      lost_found_id = @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      prev_kvs = deep_copy(@kvs)
+      @meta_db.recovery_phase8_lost_found(@mbox_db, logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_phase8_lost_found_some_msgs
+      lost_found_id = @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase8_lost_found(@mbox_db, logger: @logger)
+      assert_equal(prev_kvs, @kvs)
+    end
+
+
+    def test_recovery_phase8_lost_found_repair_msgs
+      lost_found_id = @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+
+      @meta_db.lost_found_msg_set << 0 << 1
+      assert_nil(@meta_db.msg_mbox_uid_mapping(0)[lost_found_id])
+      assert_nil(@meta_db.msg_mbox_uid_mapping(1)[lost_found_id])
+      assert_nil(@meta_db.msg_mbox_uid_mapping(2)[lost_found_id])
+      assert_equal([], @mbox_db[lost_found_id].each_msg_uid.to_a)
+
+      @meta_db.recovery_phase8_lost_found(@mbox_db, logger: @logger)
+      assert_equal([ 1 ].to_set, @meta_db.msg_mbox_uid_mapping(0)[lost_found_id])
+      assert_equal([ 2 ].to_set, @meta_db.msg_mbox_uid_mapping(1)[lost_found_id])
+      assert_nil(@meta_db.msg_mbox_uid_mapping(2)[lost_found_id])
+      assert_equal([ 1, 2 ], @mbox_db[lost_found_id].each_msg_uid.to_a)
+      assert_equal(0, @mbox_db[lost_found_id].msg_id(1))
+      assert_equal(1, @mbox_db[lost_found_id].msg_id(2))
+    end
   end
 end
 

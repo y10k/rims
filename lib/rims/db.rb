@@ -681,7 +681,19 @@ module RIMS
         self
       end
 
-      def recovery_phase8_lost_found
+      def recovery_phase8_lost_found(mbox_db, logger: Logger.new(STDOUT))
+        logger.info('recovery phase 8: start.')
+
+        mbox_id = mbox_id(LOST_FOUND_MBOX_NAME) or raise "not found a #{LOST_FOUND_MBOX_NAME} mailbox."
+        for msg_id in @lost_found_msg_set
+          logger.warn("repair lost+found message: #{msg_id}")
+          uid = add_msg_mbox_uid(msg_id, mbox_id)
+          mbox_db[mbox_id].add_msg(uid, msg_id)
+        end
+
+        logger.info('recovery phase 8: end.')
+
+        self
       end
     end
 
