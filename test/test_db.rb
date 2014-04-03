@@ -150,8 +150,8 @@ module RIMS::Test
       t = Time.mktime(2014, 3, 7, 18, 15, 56)
       @db.set_msg_date(0, t)
       assert_equal(t, @db.msg_date(0))
-      @db.clear_msg_date(0)
-      assert_raise(RuntimeError) { @db.clear_msg_date(0) }
+      assert_not_nil(@db.clear_msg_date(0))
+      assert_nil(@db.clear_msg_date(0))
     end
 
     def test_msg_flag

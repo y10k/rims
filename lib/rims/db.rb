@@ -277,8 +277,9 @@ module RIMS
       end
 
       def clear_msg_date(msg_id)
-        @kvs.delete("msg_id2date-#{msg_id}") or raise "not found a message date for internal id: #{msg_id}"
-        self
+        if (@kvs.delete("msg_id2date-#{msg_id}")) then
+          self
+        end
       end
 
       def msg_flag(msg_id, name)
