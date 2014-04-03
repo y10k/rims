@@ -530,6 +530,196 @@ module RIMS::Test
       assert_equal(0, @mbox_db[lost_found_id].msg_id(1))
       assert_equal(1, @mbox_db[lost_found_id].msg_id(2))
     end
+
+    def test_recovery_scenario_empty
+      @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase1_msg_scan(@msg_db, logger: @logger)
+      @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      @meta_db.recovery_phase5_mbox_repair(logger: @logger) {|mbox_id|
+        @mbox_db[mbox_id] = RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+      @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: @logger)
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      @meta_db.recovery_phase8_lost_found(@mbox_db, logger: @logger)
+
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_scenario_some_msgs_mboxes
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      prev_kvs = deep_copy(@kvs)
+
+      @meta_db.recovery_phase1_msg_scan(@msg_db, logger: @logger)
+      @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      @meta_db.recovery_phase5_mbox_repair(logger: @logger) {|mbox_id|
+        @mbox_db[mbox_id] = RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+      @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: @logger)
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      @meta_db.recovery_phase8_lost_found(@mbox_db, logger: @logger)
+
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_scenario_repair_data
+      @mail_store.add_msg(@inbox_id, 'foo'); @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+      @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      prev_kvs = deep_copy(@kvs)
+
+      # recovery phase 1
+      @kvs['meta']['msg_id'] = '0'
+      assert_equal(0, @meta_db.msg_id)
+
+      # recovery phase 2
+      @kvs['meta']['msg_id2mbox-3'] = Marshal.dump({ 10 => [ 100 ].to_set })
+      @kvs['meta']['msg_id2date-3'] = Marshal.dump(Time.now)
+      assert_equal({ 10 => [ 100 ].to_set }, @meta_db.msg_mbox_uid_mapping(3))
+      assert_instance_of(Time, @meta_db.msg_date(3))
+
+      # recovery phase 3
+      @kvs['meta']['uidvalidity'] = '1'
+      @kvs['meta']['mbox_name2id-foo'] = @inbox_id.to_s
+      assert_equal(1, @meta_db.uidvalidity)
+      assert_equal(@inbox_id, @meta_db.mbox_id('foo'))
+
+      # recovery phase 4
+      @kvs['meta']['mbox_name2id-NoBox'] = '1'
+      assert_equal(1, @meta_db.mbox_id('INBOX'))
+      assert_equal(1, @meta_db.mbox_id('NoBox'))
+
+      # recovery phase 6
+      @kvs['mbox_1'].delete('2')
+      @kvs['mbox_1'].delete('3')
+      assert_equal([ 1 ], @mbox_db[@inbox_id].each_msg_uid.to_a)
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(1))
+
+      # recovery phase 7
+      @kvs['meta']['mbox_id2msgnum-1'] = '0'
+      @kvs['meta']['mbox_id2flagnum-1-recent'] = '0'
+      @kvs['meta']['mbox_id2flagnum-1-deleted'] = '0'
+      assert_equal(0, @meta_db.mbox_msg_num(@inbox_id))
+      assert_equal(0, @meta_db.mbox_flag_num(@inbox_id, 'recent'))
+      assert_equal(0, @meta_db.mbox_flag_num(@inbox_id, 'deleted'))
+
+      @meta_db.recovery_phase1_msg_scan(@msg_db, logger: @logger)
+      @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      @meta_db.recovery_phase5_mbox_repair(logger: @logger) {|mbox_id|
+        @mbox_db[mbox_id] = RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+      @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: @logger)
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      @meta_db.recovery_phase8_lost_found(@mbox_db, logger: @logger)
+
+      # recovery phase 1
+      assert_equal(3, @meta_db.msg_id)
+
+      # recovery phase 2
+      assert_equal({}, @meta_db.msg_mbox_uid_mapping(3))
+      assert_raise(RuntimeError) { @meta_db.msg_date(3) }
+
+      # recovery phase 3
+      assert_equal(5, @meta_db.uidvalidity)
+      assert_equal(2, @meta_db.mbox_id('foo'))
+
+      # recovery phase 4
+      assert_equal(1, @meta_db.mbox_id('INBOX'))
+      assert_nil(@meta_db.mbox_id('NoBox'))
+
+      # recovery phase 6
+      assert_equal([ 1, 2, 3 ], @mbox_db[@inbox_id].each_msg_uid.to_a)
+      assert_equal(0, @mbox_db[@inbox_id].msg_id(1))
+      assert_equal(1, @mbox_db[@inbox_id].msg_id(2))
+      assert_equal(2, @mbox_db[@inbox_id].msg_id(3))
+
+      # recovery phase 7
+      assert_equal(3, @meta_db.mbox_msg_num(@inbox_id))
+      assert_equal(3, @meta_db.mbox_flag_num(@inbox_id, 'recent'))
+      assert_equal(1, @meta_db.mbox_flag_num(@inbox_id, 'deleted'))
+
+      assert_equal(prev_kvs, @kvs)
+    end
+
+    def test_recovery_scenario_lost_found
+      @mail_store.add_msg(@inbox_id, 'foo')
+      @mail_store.add_msg(@inbox_id, 'bar')
+      @mail_store.add_msg(@inbox_id, 'baz')
+      @mail_store.add_mbox('foo')
+      @mail_store.add_mbox('bar')
+
+      # recovery phase 5
+      assert_nil(@mail_store.mbox_id(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME))
+
+      # recovery phase 1,8
+      @msg_db.add_msg(3, 'apple')
+      assert_equal({}, @meta_db.msg_mbox_uid_mapping(3))
+      assert_raise(RuntimeError) { @meta_db.msg_date(3) }
+
+      # recovery phase 2,5,8
+      mbox_uid_map = Marshal.load(@kvs['meta']['msg_id2mbox-0'])
+      mbox_uid_map[10] = [ 1 ].to_set
+      @kvs['meta']['msg_id2mbox-0'] = Marshal.dump(mbox_uid_map)
+      assert_equal({ @inbox_id => [ 1 ].to_set, 10 => [ 1 ].to_set }, @meta_db.msg_mbox_uid_mapping(0))
+      assert_nil(@meta_db.mbox_name(10))
+      assert_nil(@mbox_db[10])
+
+      # recovery phase 6,8
+      mbox_uid_map = Marshal.load(@kvs['meta']['msg_id2mbox-1'])
+      mbox_uid_map[@inbox_id] << 1
+      @kvs['meta']['msg_id2mbox-1'] = Marshal.dump(mbox_uid_map)
+      assert_equal({ @inbox_id => [ 1, 2 ].to_set }, @meta_db.msg_mbox_uid_mapping(1))
+
+      @meta_db.recovery_phase1_msg_scan(@msg_db, logger: @logger)
+      @meta_db.recovery_phase2_msg_scan(@msg_db, logger: @logger)
+      @meta_db.recovery_phase3_mbox_scan(logger: @logger)
+      @meta_db.recovery_phase4_mbox_scan(logger: @logger)
+      @meta_db.recovery_phase5_mbox_repair(logger: @logger) {|mbox_id|
+        @mbox_db[mbox_id] = RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+      @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: @logger)
+      @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, RIMS::MailStore::MSG_FLAG_NAMES, logger: @logger)
+      @meta_db.recovery_phase8_lost_found(@mbox_db, logger: @logger)
+
+      # recovery phase 5
+      assert_not_nil(lost_found_id = @mail_store.mbox_id(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME))
+      assert_instance_of(RIMS::DB::Mailbox, @mbox_db[lost_found_id])
+
+      # recovery phase 1,8
+      assert_equal({ lost_found_id => [ 1 ].to_set }, @meta_db.msg_mbox_uid_mapping(3))
+      assert_instance_of(Time, @meta_db.msg_date(3))
+      assert_equal(3, @mbox_db[lost_found_id].msg_id(1))
+
+      # recovery phase 2,5,8
+      assert_equal({ @inbox_id => [ 1 ].to_set, 10 => [ 1 ].to_set }, @meta_db.msg_mbox_uid_mapping(0))
+      assert_equal('MAILBOX#10', @meta_db.mbox_name(10))
+      assert_equal(10, @meta_db.mbox_id('MAILBOX#10'))
+      assert_instance_of(RIMS::DB::Mailbox, @mbox_db[10])
+      assert_equal([ 1 ], @mbox_db[10].each_msg_uid.to_a)
+      assert_equal(0, @mbox_db[10].msg_id(1))
+
+      # recovery phase 6,8
+      assert_equal({ @inbox_id => [ 2 ].to_set, lost_found_id => [ 2 ].to_set }, @meta_db.msg_mbox_uid_mapping(1))
+      assert_equal(1, @mbox_db[lost_found_id].msg_id(2))
+
+      # recovery phase 8
+      assert_equal([ 1, 2 ], @mbox_db[lost_found_id].each_msg_uid.to_a)
+    end
   end
 end
 
