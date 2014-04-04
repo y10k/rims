@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'set'
 require 'thread'
 
@@ -16,6 +17,65 @@ module RIMS
       @meta_db.each_mbox_id do |mbox_id|
         @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
       end
+
+      if (@meta_db.dirty?) then
+        @abort_transaction = true
+      else
+        @abort_transaction = false
+        @meta_db.dirty = true
+      end
+    end
+
+    def abort_transaction?
+      @abort_transaction
+    end
+
+    def transaction
+      if (@abort_transaction) then
+        raise 'abort transaction.'
+      end
+
+      begin
+        yield
+      ensure
+        @abort_transaction = true if $!
+      end
+    end
+
+    def recovery_data(logger: Logger.new(STDOUT))
+      begin
+        logger.info('test read all: meta DB')
+        @meta_db.test_read_all do |error|
+          logger.error("read fail: #{error}")
+        end
+        logger.info('test read all: msg DB')
+        @msg_db.test_read_all do |error|
+          logger.error("read fail: #{error}")
+        end
+        @mbox_db.each_key do |mbox_id|
+          logger.info("test_read_all: mailbox DB #{mbox_id}")
+          @mbox_db[mbox_id].test_read_all do |error|
+            logger.error("read fail: #{error}")
+          end
+        end
+
+        @meta_db.recovery_start
+        @meta_db.recovery_phase1_msg_scan(@msg_db, logger: logger)
+        @meta_db.recovery_phase2_msg_scan(@msg_db, logger: logger)
+        @meta_db.recovery_phase3_mbox_scan(logger: logger)
+        @meta_db.recovery_phase4_mbox_scan(logger: logger)
+        @meta_db.recovery_phase5_mbox_repair(logger: logger) {|mbox_id|
+          @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
+        }
+        @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: logger)
+        @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, MSG_FLAG_NAMES, logger: logger)
+        @meta_db.recovery_phase8_lost_found(@mbox_db, logger: logger)
+        @meta_db.recovery_end
+      ensure
+        @abort_transaction = ! $!.nil?
+      end
+
+      self
     end
 
     def close
@@ -23,6 +83,7 @@ module RIMS
         db.close
       end
       @msg_db.close
+      @meta_db.dirty = false unless @abort_transaction
       @meta_db.close
       self
     end

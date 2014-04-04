@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'pp' if $DEBUG
 require 'rims'
 require 'test/unit'
@@ -498,6 +499,82 @@ module RIMS::Test
       assert_raise(RIMS::MessageSetSyntaxError) {
         RIMS::MailFolder.parse_msg_set('1,2,X', 99)
       }
+    end
+  end
+
+  class MailStoreRecoveryTest < Test::Unit::TestCase
+    def setup
+      @logger = Logger.new(STDOUT)
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
+
+      @kvs = Hash.new{|h, k| h[k] = Hash.new }
+      @kvs_open = proc{|name| RIMS::Hash_KeyValueStore.new(@kvs[name]) }
+      @mbox_db_factory = proc{|mbox_id| RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}")) }
+    end
+
+    def teardown
+      pp @kvs if $DEBUG
+    end
+
+    def make_mail_store
+      RIMS::MailStore.new(RIMS::DB::Meta.new(@kvs_open.call('meta')),
+                          RIMS::DB::Message.new(@kvs_open.call('msg'))) {|mbox_id|
+        RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+    end
+    private :make_mail_store
+
+    def test_no_recovery
+      mail_store = make_mail_store
+      assert_equal(false, mail_store.abort_transaction?)
+      mail_store.close
+
+      mail_store = make_mail_store
+      assert_equal(false, mail_store.abort_transaction?)
+      mail_store.close
+    end
+
+    def test_recovery_empty
+      mail_store = make_mail_store
+      assert_equal(false, mail_store.abort_transaction?)
+      assert_raise(RuntimeError) {
+        mail_store.transaction do
+          raise 'abort'
+        end
+      }
+      assert_equal(true, mail_store.abort_transaction?)
+      mail_store.close
+
+      mail_store = make_mail_store
+      assert_equal(true, mail_store.abort_transaction?)
+      mail_store.recovery_data(logger: @logger)
+      assert_equal(false, mail_store.abort_transaction?)
+      mail_store.close
+    end
+
+    def test_recovery_some_msgs_mboxes
+      mail_store = make_mail_store
+      inbox_id = mail_store.add_mbox('INBOX')
+      mail_store.add_msg(inbox_id, 'foo')
+      mail_store.add_msg(inbox_id, 'bar')
+      mail_store.add_msg(inbox_id, 'baz')
+      mail_store.add_mbox('foo')
+      mail_store.add_mbox('bar')
+
+      assert_equal(false, mail_store.abort_transaction?)
+      assert_raise(RuntimeError) {
+        mail_store.transaction do
+          raise 'abort'
+        end
+      }
+      assert_equal(true, mail_store.abort_transaction?)
+      mail_store.close
+
+      mail_store = make_mail_store
+      assert_equal(true, mail_store.abort_transaction?)
+      mail_store.recovery_data(logger: @logger)
+      assert_equal(false, mail_store.abort_transaction?)
+      mail_store.close
     end
   end
 end
