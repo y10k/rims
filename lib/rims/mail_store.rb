@@ -89,12 +89,14 @@ module RIMS
     end
 
     def sync
-      @msg_db.sync
-      @mbox_db.each_value do |db|
-        db.sync
-      end
-      @meta_db.sync
-      self
+      transaction{
+        @msg_db.sync
+        @mbox_db.each_value do |db|
+          db.sync
+        end
+        @meta_db.sync
+        self
+      }
     end
 
     def cnum
@@ -110,48 +112,54 @@ module RIMS
     end
 
     def add_mbox(name)
-      name = 'INBOX' if (name =~ /\AINBOX\z/i)
-      name = name.b
+      transaction{
+        name = 'INBOX' if (name =~ /\AINBOX\z/i)
+        name = name.b
 
-      mbox_id = @meta_db.add_mbox(name)
-      @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
+        mbox_id = @meta_db.add_mbox(name)
+        @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
 
-      @meta_db.cnum_succ!
+        @meta_db.cnum_succ!
 
-      mbox_id
+        mbox_id
+      }
     end
 
     def del_mbox(mbox_id)
-      mbox_name = @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
+      transaction{
+        mbox_name = @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
 
-      mbox_db = @mbox_db.delete(mbox_id)
-      mbox_db.each_msg_uid do |uid|
-        msg_id = mbox_db.msg_id(uid)
-        del_msg(msg_id, mbox_id, uid)
-      end
-      mbox_db.close
-      mbox_db.destroy
+        mbox_db = @mbox_db.delete(mbox_id)
+        mbox_db.each_msg_uid do |uid|
+          msg_id = mbox_db.msg_id(uid)
+          del_msg(msg_id, mbox_id, uid)
+        end
+        mbox_db.close
+        mbox_db.destroy
 
-      for name in MSG_FLAG_NAMES
-        @meta_db.clear_mbox_flag_num(mbox_id, name)
-      end
-      @meta_db.del_mbox(mbox_id) or raise 'internal error.'
+        for name in MSG_FLAG_NAMES
+          @meta_db.clear_mbox_flag_num(mbox_id, name)
+        end
+        @meta_db.del_mbox(mbox_id) or raise 'internal error.'
 
-      @meta_db.cnum_succ!
+        @meta_db.cnum_succ!
 
-      mbox_name
+        mbox_name
+      }
     end
 
     def rename_mbox(mbox_id, new_name)
-      old_name = @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
-      old_name = old_name.dup.force_encoding('utf-8')
+      transaction{
+        old_name = @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
+        old_name = old_name.dup.force_encoding('utf-8')
 
-      new_name = 'INBOX' if (new_name =~ /\AINBOX\z/i)
-      @meta_db.rename_mbox(mbox_id, new_name.b)
+        new_name = 'INBOX' if (new_name =~ /\AINBOX\z/i)
+        @meta_db.rename_mbox(mbox_id, new_name.b)
 
-      @meta_db.cnum_succ!
+        @meta_db.cnum_succ!
 
-      old_name
+        old_name
+      }
     end
 
     def mbox_name(mbox_id)
@@ -186,19 +194,21 @@ module RIMS
     end
 
     def add_msg(mbox_id, msg_text, msg_date=Time.now)
-      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      transaction{
+        mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
 
-      msg_id = @meta_db.msg_id_succ!
-      @msg_db.add_msg(msg_id, msg_text)
-      @meta_db.set_msg_date(msg_id, msg_date)
-      @meta_db.set_msg_flag(msg_id, 'recent', true)
+        msg_id = @meta_db.msg_id_succ!
+        @msg_db.add_msg(msg_id, msg_text)
+        @meta_db.set_msg_date(msg_id, msg_date)
+        @meta_db.set_msg_flag(msg_id, 'recent', true)
 
-      uid = @meta_db.add_msg_mbox_uid(msg_id, mbox_id)
-      mbox_db.add_msg(uid, msg_id)
+        uid = @meta_db.add_msg_mbox_uid(msg_id, mbox_id)
+        mbox_db.add_msg(uid, msg_id)
 
-      @meta_db.cnum_succ!
+        @meta_db.cnum_succ!
 
-      uid
+        uid
+      }
     end
 
     def del_msg(msg_id, mbox_id, uid)
@@ -215,16 +225,18 @@ module RIMS
     private :del_msg
 
     def copy_msg(src_uid, src_mbox_id, dst_mbox_id)
-      src_mbox_db = @mbox_db[src_mbox_id] or raise "not found a source mailbox: #{src_mbox_id}"
-      dst_mbox_db = @mbox_db[dst_mbox_id] or raise "not found a destination mailbox: #{dst_mbox_id}"
+      transaction{
+        src_mbox_db = @mbox_db[src_mbox_id] or raise "not found a source mailbox: #{src_mbox_id}"
+        dst_mbox_db = @mbox_db[dst_mbox_id] or raise "not found a destination mailbox: #{dst_mbox_id}"
 
-      msg_id = src_mbox_db.msg_id(src_uid) or raise "not found a message: #{src_mbox_id},#{src_uid}"
-      dst_uid = @meta_db.add_msg_mbox_uid(msg_id, dst_mbox_id)
-      dst_mbox_db.add_msg(dst_uid, msg_id)
+        msg_id = src_mbox_db.msg_id(src_uid) or raise "not found a message: #{src_mbox_id},#{src_uid}"
+        dst_uid = @meta_db.add_msg_mbox_uid(msg_id, dst_mbox_id)
+        dst_mbox_db.add_msg(dst_uid, msg_id)
 
-      @meta_db.cnum_succ!
+        @meta_db.cnum_succ!
 
-      self
+        self
+      }
     end
 
     def msg_exist?(mbox_id, uid)
@@ -258,26 +270,28 @@ module RIMS
     end
 
     def set_msg_flag(mbox_id, uid, flag_name, flag_value)
-      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      transaction{
+        mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
 
-      if ((MSG_FLAG_NAMES - %w[ deleted ]).include? flag_name) then
-        msg_id = mbox_db.msg_id(uid) or raise "not found a message: #{mbox_id},#{uid}"
-        @meta_db.set_msg_flag(msg_id, flag_name, flag_value)
-      elsif (flag_name == 'deleted') then
-        prev_deleted = mbox_db.msg_flag_deleted(uid)
-        mbox_db.set_msg_flag_deleted(uid, flag_value)
-        if (! prev_deleted && flag_value) then
-          @meta_db.mbox_flag_num_increment(mbox_id, 'deleted')
-        elsif (prev_deleted && ! flag_value) then
-          @meta_db.mbox_flag_num_decrement(mbox_id, 'deleted')
+        if ((MSG_FLAG_NAMES - %w[ deleted ]).include? flag_name) then
+          msg_id = mbox_db.msg_id(uid) or raise "not found a message: #{mbox_id},#{uid}"
+          @meta_db.set_msg_flag(msg_id, flag_name, flag_value)
+        elsif (flag_name == 'deleted') then
+          prev_deleted = mbox_db.msg_flag_deleted(uid)
+          mbox_db.set_msg_flag_deleted(uid, flag_value)
+          if (! prev_deleted && flag_value) then
+            @meta_db.mbox_flag_num_increment(mbox_id, 'deleted')
+          elsif (prev_deleted && ! flag_value) then
+            @meta_db.mbox_flag_num_decrement(mbox_id, 'deleted')
+          end
+        else
+          raise "unnown flag name: #{flag_name}"
         end
-      else
-        raise "unnown flag name: #{flag_name}"
-      end
 
-      @meta_db.cnum_succ!
+        @meta_db.cnum_succ!
 
-      self
+        self
+      }
     end
 
     def each_msg_uid(mbox_id)
@@ -290,20 +304,22 @@ module RIMS
     end
 
     def expunge_mbox(mbox_id)
-      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      transaction{
+        mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
 
-      uid_list = mbox_db.each_msg_uid.find_all{|uid| mbox_db.msg_flag_deleted(uid) }
-      msg_id_list = uid_list.map{|uid| mbox_db.msg_id(uid) }
+        uid_list = mbox_db.each_msg_uid.find_all{|uid| mbox_db.msg_flag_deleted(uid) }
+        msg_id_list = uid_list.map{|uid| mbox_db.msg_id(uid) }
 
-      uid_list.zip(msg_id_list) do |uid, msg_id|
-        mbox_db.expunge_msg(uid)
-        del_msg(msg_id, mbox_id, uid)
-        yield(uid) if block_given?
-      end
+        uid_list.zip(msg_id_list) do |uid, msg_id|
+          mbox_db.expunge_msg(uid)
+          del_msg(msg_id, mbox_id, uid)
+          yield(uid) if block_given?
+        end
 
-      @meta_db.cnum_succ!
+        @meta_db.cnum_succ!
 
-      self
+        self
+      }
     end
 
     def select_mbox(mbox_id)
