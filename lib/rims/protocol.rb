@@ -1183,6 +1183,10 @@ module RIMS
           if (@passwd.call(username, password)) then
             cleanup
             @mail_store_holder = @mail_store_pool.get(username)
+            if (get_mail_store.abort_transaction?) then
+              get_mail_store.recovery_data(logger: @logger).sync
+              res << "* OK [ALERT] recovery user data.\r\n"
+            end
             res << "#{tag} OK LOGIN completed\r\n"
           else
             res << "#{tag} NO failed to login\r\n"
