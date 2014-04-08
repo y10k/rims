@@ -89,12 +89,8 @@ module RIMS::Test
     private :assert_imap_response
 
     def setup
-      @kv_store = {}
-      @kvs_open = proc{|user_name, db_name|
-        kvs = {}
-        path = "#{user_name}/#{db_name}"
-        RIMS::Hash_KeyValueStore.new(@kv_store[path] = kvs)
-      }
+      @kvs = Hash.new{|h, k| h[k] = {} }
+      @kvs_open = proc{|prefix, name| RIMS::Hash_KeyValueStore.new(@kvs["#{prefix}/#{name}"]) }
       @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open, proc{|name| 'test' })
       @mail_store_holder = @mail_store_pool.get('foo')
       @mail_store = @mail_store_holder.mail_store
@@ -109,6 +105,7 @@ module RIMS::Test
       @decoder.cleanup
       @mail_store_pool.put(@mail_store_holder)
       assert(@mail_store_pool.empty?)
+      pp @kvs if $DEBUG
     end
 
     def mail_store_add_mail_simple
