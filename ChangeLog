@@ -1,3 +1,12 @@
+2014-04-09  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb: added mbox-dirty-flag command. this command
+	show/enable/disable dirty flag of mailbox to force recovery.
+
+	* lib/rims/db.rb, lib/rims/mail_store.rb, lib/rims/protocol.rb:
+	dirty flag check and data recovery process are added to storage
+	backend of mail store.
+
 2014-03-20  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cksum_kvs.rb, lib/rims/kvs.rb, lib/rims/server.rb, lib/rims/cmd.rb:
