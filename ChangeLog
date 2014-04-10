@@ -1,3 +1,7 @@
+2014-04-10  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb: version command is defined.
+
 2014-04-09  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb: added mbox-dirty-flag command. this command
