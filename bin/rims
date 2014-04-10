@@ -4,3 +4,8 @@ require 'rims'
 
 status = RIMS::Cmd.run_cmd(ARGV)
 exit(status)
+
+# Local Variables:
+# mode: Ruby
+# indent-tabs-mode: nil
+# End:
