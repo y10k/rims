@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 module RIMS
-  VERSION = "0.0.2"
+  VERSION = '0.0.3'
 end
 
 # Local Variables:
