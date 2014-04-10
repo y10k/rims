@@ -7,7 +7,7 @@ RIMS is Ruby IMap Server.
 Add this line to your application's Gemfile:
 
     source 'https://rubygems.org' # for dependency of RIMS
-    gem 'rims', git: 'git://github.com/y10k/rims.git', tag: 'v0.0.2'
+    gem 'rims', git: 'git://github.com/y10k/rims.git', tag: 'v0.0.3'
 
 And then execute:
 
@@ -36,16 +36,16 @@ To append messages to IMAP mailbox, type following and read usage.
     - Server log rotation.
     - debug-dump-kvs command.
     - Fine grain lock for one user multiple connection.
-
-## Roadmap of development
-
-* v0.0.2
-    - Now version.
 * v0.0.3
     - DB structure is changed and IMAP UID behavior will follow rules
       that is described at RFC. Incompatible mailbox data!
-    - DB data checksum is added.
-    - Recovery from broken DB.
+    - DB data checksum is added. mail data is verified with checksum
+      at default.
+    - data recovery process is added to mail data DB.
+    - mbox-dirty-flag command is added to force recovery.
+
+## Roadmap of development
+
 * v0.0.4
     - Optimization to fast search and fast fetch.
     - Charset search.
