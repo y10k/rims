@@ -62,6 +62,13 @@ module RIMS
     end
     command_function :cmd_help, "Show this message."
 
+    def cmd_version(options, args)
+      options.parse!(args)
+      puts RIMS::VERSION
+      0
+    end
+    command_function :cmd_version, 'Show software version.'
+
     def cmd_server(options, args)
       conf = Config.new
       conf.load(base_dir: Dir.getwd)
