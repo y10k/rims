@@ -1600,7 +1600,7 @@ module RIMS
             when '-FLAGS'
               action = :flags_del
             else
-              raise "unknown store action: #{name}"
+              raise SyntaxError, "unknown store action: #{name}"
             end
 
             case (option && option.upcase)
@@ -1609,7 +1609,7 @@ module RIMS
             when nil
               is_silent = false
             else
-              raise "unknown store option: #{option.inspect}"
+              raise SyntaxError, "unknown store option: #{option.inspect}"
             end
 
             if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
