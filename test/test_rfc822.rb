@@ -82,6 +82,50 @@ module RIMS::Test
                           header_body_pair[0])
       assert_nil(header_body_pair[1])
     end
+
+    def test_parse_header
+      assert_equal([], RIMS::RFC822.parse_header(''.b))
+
+      field_pair_list = RIMS::RFC822.parse_header("Content-Type: text/plain; charset=utf-8\r\n".b +
+                                                   "Subject: This is a test\r\n".b +
+                                                   "\r\n".b)
+      assert_equal(2, field_pair_list.length)
+      assert_strenc_equal('ascii-8bit', 'Content-Type', field_pair_list[0][0])
+      assert_strenc_equal('ascii-8bit', 'text/plain; charset=utf-8', field_pair_list[0][1])
+      assert_strenc_equal('ascii-8bit', 'Subject', field_pair_list[1][0])
+      assert_strenc_equal('ascii-8bit', 'This is a test', field_pair_list[1][1])
+
+      field_pair_list = RIMS::RFC822.parse_header("Content-Type: text/plain; charset=utf-8\r\n".b +
+                                                   "Subject: This is a test\r\n".b)
+      assert_equal(2, field_pair_list.length)
+      assert_strenc_equal('ascii-8bit', 'Content-Type', field_pair_list[0][0])
+      assert_strenc_equal('ascii-8bit', 'text/plain; charset=utf-8', field_pair_list[0][1])
+      assert_strenc_equal('ascii-8bit', 'Subject', field_pair_list[1][0])
+      assert_strenc_equal('ascii-8bit', 'This is a test', field_pair_list[1][1])
+
+      field_pair_list = RIMS::RFC822.parse_header("Content-Type: text/plain; charset=utf-8\r\n".b +
+                                                   "Subject: This is a test".b)
+      assert_equal(2, field_pair_list.length)
+      assert_strenc_equal('ascii-8bit', 'Content-Type', field_pair_list[0][0])
+      assert_strenc_equal('ascii-8bit', 'text/plain; charset=utf-8', field_pair_list[0][1])
+      assert_strenc_equal('ascii-8bit', 'Subject', field_pair_list[1][0])
+      assert_strenc_equal('ascii-8bit', 'This is a test', field_pair_list[1][1])
+
+      field_pair_list = RIMS::RFC822.parse_header("Content-Type:\r\n".b +
+                                                   " text/plain;\r\n".b +
+                                                   " charset=utf-8\r\n".b +
+                                                   "Subject: This\n".b +
+                                                   " is a test\r\n".b +
+                                                   "\r\n".b)
+      assert_equal(2, field_pair_list.length)
+      assert_strenc_equal('ascii-8bit', 'Content-Type', field_pair_list[0][0])
+      assert_strenc_equal('ascii-8bit', "text/plain;\r\n charset=utf-8", field_pair_list[0][1])
+      assert_strenc_equal('ascii-8bit', 'Subject', field_pair_list[1][0])
+      assert_strenc_equal('ascii-8bit', "This\n is a test", field_pair_list[1][1])
+
+      field_pair_list = RIMS::RFC822.parse_header('foo'.b)
+      assert_equal(0, field_pair_list.length)
+    end
   end
 end
 
