@@ -20,6 +20,7 @@ module RIMS
   autoload :MessageSetSyntaxError, 'rims/error'
   autoload :Protocol, 'rims/protocol'
   autoload :ProtocolError, 'rims/error'
+  autoload :RFC822, 'rims/rfc822'
   autoload :Server, 'rims/server'
   autoload :SyntaxError, 'rims/error'
 end
