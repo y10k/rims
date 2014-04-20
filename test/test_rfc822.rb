@@ -127,6 +127,53 @@ module RIMS::Test
       assert_equal(0, field_pair_list.length)
     end
 
+    def test_parse_content_type
+      content_type = RIMS::RFC822.parse_content_type('text/plain'.b)
+      assert_equal([ 'text', 'plain', {} ], content_type)
+      assert(content_type[0..1].all?{|s| s.encoding == Encoding::ASCII_8BIT })
+
+      content_type = RIMS::RFC822.parse_content_type('text/plain; charset=utf-8'.b)
+      assert_equal([ 'text', 'plain', { 'charset' => %w[ charset utf-8 ] } ], content_type)
+      assert(content_type[0..1].all?{|s| s.encoding == Encoding::ASCII_8BIT })
+      assert(content_type[2].each_pair.to_a.flatten.all?{|s| s.encoding == Encoding::ASCII_8BIT })
+
+      content_type = RIMS::RFC822.parse_content_type('text/plain; CHARSET=UTF-8; Foo=apple; Bar="banana"'.b)
+      assert_equal([ 'text', 'plain',
+                     { 'charset' => %w[ CHARSET UTF-8 ],
+                       'foo' => %w[ Foo apple ],
+                       'bar' => %w[ Bar banana ]
+                     }
+                   ], content_type)
+      assert(content_type[0..1].all?{|s| s.encoding == Encoding::ASCII_8BIT })
+      assert(content_type[2].each_pair.to_a.flatten.all?{|s| s.encoding == Encoding::ASCII_8BIT })
+
+      content_type = RIMS::RFC822.parse_content_type('text/plain;CHARSET=UTF-8;Foo=apple;Bar="banana"'.b)
+      assert_equal([ 'text', 'plain',
+                     { 'charset' => %w[ CHARSET UTF-8 ],
+                       'foo' => %w[ Foo apple ],
+                       'bar' => %w[ Bar banana ]
+                     }
+                   ], content_type)
+      assert(content_type[0..1].all?{|s| s.encoding == Encoding::ASCII_8BIT })
+      assert(content_type[2].each_pair.to_a.flatten.all?{|s| s.encoding == Encoding::ASCII_8BIT })
+
+      content_type = RIMS::RFC822.parse_content_type('multipart/mixed; boundary=----=_Part_1459890_1462677911.1383882437398'.b)
+      assert_equal([ 'multipart', 'mixed',
+                     { 'boundary' => %w[ boundary ----=_Part_1459890_1462677911.1383882437398 ] }
+                   ], content_type)
+      assert(content_type[0..1].all?{|s| s.encoding == Encoding::ASCII_8BIT })
+      assert(content_type[2].each_pair.to_a.flatten.all?{|s| s.encoding == Encoding::ASCII_8BIT })
+
+      content_type = RIMS::RFC822.parse_content_type("multipart/alternative; \r\n	boundary=\"----=_Part_1459891_982342968.1383882437398\"".b)
+      assert_equal([ 'multipart', 'alternative',
+                     { 'boundary' => %w[ boundary ----=_Part_1459891_982342968.1383882437398 ] }
+                   ], content_type)
+      assert(content_type[0..1].all?{|s| s.encoding == Encoding::ASCII_8BIT })
+      assert(content_type[2].each_pair.to_a.flatten.all?{|s| s.encoding == Encoding::ASCII_8BIT })
+
+      assert_equal([ 'application', 'octet-stream', {} ], RIMS::RFC822.parse_content_type(''))
+    end
+
     def test_unquote_phrase_raw
       assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase(''.b))
       assert_strenc_equal('ascii-8bit', 'Hello world.', RIMS::RFC822.unquote_phrase('Hello world.'.b))

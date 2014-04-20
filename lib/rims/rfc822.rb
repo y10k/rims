@@ -25,6 +25,31 @@ module RIMS
     end
     module_function :parse_header
 
+    def parse_content_type(content_type_txt)
+      src_txt = content_type_txt.dup
+      if (src_txt.sub!(%r"\A \s* (?<main_type>\S+?) \s* / \s* (?<sub_type>\S+?) \s* (?:;|\Z)"x, '')) then
+        main_type = $~[:main_type]
+        sub_type = $~[:sub_type]
+
+        params = {}
+        src_txt.scan(%r'(?<name>\S+?) \s* = \s* (?: (?<quoted_string>".*?") | (?<token>\S+?) ) \s* (?:;|\Z)'x) do
+          name = $~[:name]
+          if ($~[:quoted_string]) then
+            quoted_value = $~[:quoted_string]
+            value = unquote_phrase(quoted_value)
+          else
+            value = $~[:token]
+          end
+          params[name.downcase] = [ name, value ]
+        end
+
+        [ main_type, sub_type, params ]
+      else
+        [ 'application', 'octet-stream', {} ]
+      end
+    end
+    module_function :parse_content_type
+
     def unquote_phrase(phrase_txt)
       state = :raw
       src_txt = phrase_txt.dup
