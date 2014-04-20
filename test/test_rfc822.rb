@@ -174,6 +174,89 @@ module RIMS::Test
       assert_equal([ 'application', 'octet-stream', {} ], RIMS::RFC822.parse_content_type(''))
     end
 
+    def test_parse_multipart_body
+      body_txt = <<-'MULTIPART'.b
+------=_Part_1459890_1462677911.1383882437398
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_1459891_982342968.1383882437398"
+
+------=_Part_1459891_982342968.1383882437398
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+Cgo9PT09PT09PT09CkFNQVpPTi5DTy5KUAo9PT09PT09PT09CkFtYXpvbi5jby5qcOOBp+WVhuWT
+rpvjgavpgIHkv6HjgZXjgozjgb7jgZfjgZ86IHRva2lAZnJlZWRvbS5uZS5qcAoKCg==
+------=_Part_1459891_982342968.1383882437398
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+
+------=_Part_1459891_982342968.1383882437398--
+
+------=_Part_1459890_1462677911.1383882437398--
+      MULTIPART
+
+      part_list = RIMS::RFC822.parse_multipart_body('----=_Part_1459890_1462677911.1383882437398'.b, body_txt)
+      assert_equal(1, part_list.length)
+      assert_strenc_equal('ascii-8bit', <<-'PART', part_list[0])
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_1459891_982342968.1383882437398"
+
+------=_Part_1459891_982342968.1383882437398
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+Cgo9PT09PT09PT09CkFNQVpPTi5DTy5KUAo9PT09PT09PT09CkFtYXpvbi5jby5qcOOBp+WVhuWT
+rpvjgavpgIHkv6HjgZXjgozjgb7jgZfjgZ86IHRva2lAZnJlZWRvbS5uZS5qcAoKCg==
+------=_Part_1459891_982342968.1383882437398
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+
+------=_Part_1459891_982342968.1383882437398--
+      PART
+
+      header_txt, body_txt = RIMS::RFC822.split_message(part_list[0])
+      content_type_txt = RIMS::RFC822.parse_header(header_txt).find{|n, v| n == 'Content-Type' }[1]
+      boundary = RIMS::RFC822.parse_content_type(content_type_txt)[2]['boundary'][1]
+
+      part_list = RIMS::RFC822.parse_multipart_body(boundary, body_txt)
+      assert_equal(2, part_list.length)
+      assert_strenc_equal('ascii-8bit', <<-'PART1'.chomp, part_list[0])
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+Cgo9PT09PT09PT09CkFNQVpPTi5DTy5KUAo9PT09PT09PT09CkFtYXpvbi5jby5qcOOBp+WVhuWT
+rpvjgavpgIHkv6HjgZXjgozjgb7jgZfjgZ86IHRva2lAZnJlZWRvbS5uZS5qcAoKCg==
+      PART1
+      assert_strenc_equal('ascii-8bit', <<-'PART2', part_list[1])
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+      PART2
+    end
+
+    def test_parse_multipart_body_bad_format
+      assert_equal(%w[ foo bar baz ], RIMS::RFC822.parse_multipart_body('sep', <<-EOF))
+--sep
+foo
+--sep
+bar
+--sep
+baz
+      EOF
+
+      assert_equal([], RIMS::RFC822.parse_multipart_body('sep', <<-EOF))
+--sep--
+      EOF
+
+      assert_equal([], RIMS::RFC822.parse_multipart_body('sep', 'detarame'))
+      assert_equal([], RIMS::RFC822.parse_multipart_body('sep', ''))
+    end
+
     def test_unquote_phrase_raw
       assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase(''.b))
       assert_strenc_equal('ascii-8bit', 'Hello world.', RIMS::RFC822.unquote_phrase('Hello world.'.b))

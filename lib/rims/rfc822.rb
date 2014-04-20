@@ -50,6 +50,27 @@ module RIMS
     end
     module_function :parse_content_type
 
+    def parse_multipart_body(boundary, body_txt)
+      delim = '--' + boundary
+      term = delim + '--'
+      body_txt2, body_epilogue_txt = body_txt.split(term, 2)
+      if (body_txt2) then
+        body_preamble_txt, body_parts_txt = body_txt2.split(delim, 2)
+        if (body_parts_txt) then
+          part_list = body_parts_txt.split(delim, -1)
+          for part_txt in part_list
+            part_txt.lstrip!
+            part_txt.chomp!("\n")
+            part_txt.chomp!("\r")
+          end
+          return part_list
+        end
+      end
+
+      []
+    end
+    module_function :parse_multipart_body
+
     def unquote_phrase(phrase_txt)
       state = :raw
       src_txt = phrase_txt.dup
