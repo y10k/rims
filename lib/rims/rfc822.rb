@@ -24,6 +24,52 @@ module RIMS
       field_pair_list
     end
     module_function :parse_header
+
+    def unquote_phrase(phrase_txt)
+      state = :raw
+      src_txt = phrase_txt.dup
+      dst_txt = ''.encode(phrase_txt.encoding)
+
+      while (src_txt.sub!(/\A(:? " | \( | \) | \\ | [^"\(\)\\]+ )/x, ''))
+        match_txt = $&
+        case (state)
+        when :raw
+          case (match_txt)
+          when '"'
+            state = :quote
+          when '('
+            state = :comment
+          when "\\"
+            src_txt.sub!(/\A./, '') and dst_txt << $&
+          else
+            dst_txt << match_txt
+          end
+        when :quote
+          case (match_txt)
+          when '"'
+            state = :raw
+          when "\\"
+            src_txt.sub!(/\A./, '') && dst_txt << $&
+          else
+            dst_txt << match_txt
+          end
+        when :comment
+          case (match_txt)
+          when ')'
+            state = :raw
+          when "\\"
+            src_txt.sub!(/\A./, '')
+          else
+            # ignore comment text.
+          end
+        else
+          raise "internal error: unknown state #{state}"
+        end
+      end
+
+      dst_txt
+    end
+    module_function :unquote_phrase
   end
 end
 

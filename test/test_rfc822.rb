@@ -126,6 +126,33 @@ module RIMS::Test
       field_pair_list = RIMS::RFC822.parse_header('foo'.b)
       assert_equal(0, field_pair_list.length)
     end
+
+    def test_unquote_phrase_raw
+      assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase(''.b))
+      assert_strenc_equal('ascii-8bit', 'Hello world.', RIMS::RFC822.unquote_phrase('Hello world.'.b))
+      assert_strenc_equal('ascii-8bit', "\" ( ) \\", RIMS::RFC822.unquote_phrase("\\\" \\( \\) \\\\".b))
+    end
+
+    def test_unquote_phrase_quote
+      assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase('""'.b))
+      assert_strenc_equal('ascii-8bit', 'Hello world.', RIMS::RFC822.unquote_phrase('"Hello world."'.b))
+      assert_strenc_equal('ascii-8bit', 'foo "bar" baz', RIMS::RFC822.unquote_phrase("\"foo \\\"bar\\\" baz\"".b))
+      assert_strenc_equal('ascii-8bit', 'foo (bar) baz', RIMS::RFC822.unquote_phrase('"foo (bar) baz"'.b))
+    end
+
+    def test_unquote_phrase_comment
+      assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase('()'.b))
+      assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase('(Hello world.)'.b))
+      assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase("( \" \\( \\) \\\\ )".b))
+    end
+
+    def test_unquote_phrase_abnormal_patterns
+      assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase("\\".b))
+      assert_strenc_equal('ascii-8bit', 'foo', RIMS::RFC822.unquote_phrase('"foo'.b))
+      assert_strenc_equal('ascii-8bit', 'foo', RIMS::RFC822.unquote_phrase(%Q'"foo\\'.b))
+      assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase('(foo'.b))
+      assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase("(foo\\".b))
+    end
   end
 end
 
