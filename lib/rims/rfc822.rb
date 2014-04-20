@@ -116,6 +116,67 @@ module RIMS
       dst_txt
     end
     module_function :unquote_phrase
+
+    def parse_mail_address_list(address_list_txt)
+      addr_list = []
+      src_txt = address_list_txt.dup
+
+      while (true)
+        if (src_txt.sub!(%r{
+              \A
+              \s*
+              (?<display_name>\S.*?) \s* : (?<group_list>.*?) ;
+              \s*
+              ,?
+            }x, ''))
+        then
+          display_name = $~[:display_name]
+          group_list = $~[:group_list]
+          addr_list << [ nil, nil, unquote_phrase(display_name), nil ]
+          addr_list.concat(parse_mail_address_list(group_list))
+          addr_list << [ nil, nil, nil, nil ]
+        elsif (src_txt.sub!(%r{
+                 \A
+                 \s*
+                 (?<local_part>[^<>@,\s]+) \s* @ \s* (?<domain>[^<>@,\s]+)
+                 \s*
+                 ,?
+               }x, ''))
+        then
+          addr_list << [ nil, nil, $~[:local_part], $~[:domain] ]
+        elsif (src_txt.sub!(%r{
+                 \A
+                 \s*
+                 (?<display_name>\S.*?)
+                 \s*
+                 <
+                   \s*
+                   (?:
+                     (?<route>@[^<>@,]* (?:, \s* @[^<>@,]*)*)
+                     \s*
+                     :
+                   )?
+                   \s*
+                   (?<local_part>[^<>@,\s]+) \s* @ \s* (?<domain>[^<>@,\s]+)
+                   \s*
+                 >
+                 \s*
+                 ,?
+               }x, ''))
+        then
+          display_name = $~[:display_name]
+          route = $~[:route]
+          local_part = $~[:local_part]
+          domain = $~[:domain]
+          addr_list << [ unquote_phrase(display_name), route, local_part, domain ]
+        else
+          break
+        end
+      end
+
+      addr_list
+    end
+    module_function :parse_mail_address_list
   end
 end
 

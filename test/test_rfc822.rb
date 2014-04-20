@@ -283,6 +283,54 @@ baz
       assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase('(foo'.b))
       assert_strenc_equal('ascii-8bit', '', RIMS::RFC822.unquote_phrase("(foo\\".b))
     end
+
+    def test_parse_mail_address_list_addr_spec
+      assert_equal([], RIMS::RFC822.parse_mail_address_list(''.b))
+      assert_equal([ [ nil, nil, 'toki', 'freedom.ne.jp' ] ],
+                   RIMS::RFC822.parse_mail_address_list('toki@freedom.ne.jp'.b))
+      assert_equal([ [ nil, nil, 'toki', 'freedom.ne.jp' ] ],
+                   RIMS::RFC822.parse_mail_address_list(' toki@freedom.ne.jp '.b))
+    end
+
+    def test_parse_mail_address_list_name_addr
+      assert_equal([ [ 'TOKI Yoshinori', nil, 'toki', 'freedom.ne.jp' ] ],
+                   RIMS::RFC822.parse_mail_address_list('TOKI Yoshinori <toki@freedom.ne.jp>'.b))
+      assert_equal([ [ 'TOKI Yoshinori', nil, 'toki', 'freedom.ne.jp' ] ],
+                   RIMS::RFC822.parse_mail_address_list('"TOKI Yoshinori" <toki@freedom.ne.jp>'.b))
+      assert_equal([ [ 'TOKI Yoshinori', nil, 'toki', 'freedom.ne.jp' ] ],
+                   RIMS::RFC822.parse_mail_address_list('TOKI(土岐) Yoshinori <toki@freedom.ne.jp>'.b))
+      assert_equal([ [ 'TOKI,Yoshinori', nil, 'toki', 'freedom.ne.jp' ] ],
+                   RIMS::RFC822.parse_mail_address_list('TOKI\,Yoshinori <toki@freedom.ne.jp>'.b))
+    end
+
+    def test_parse_mail_address_list_route_addr
+      assert_equal([ [ 'TOKI Yoshinori', '@mail.freedom.ne.jp,@smtp.gmail.com', 'toki', 'freedom.ne.jp' ] ],
+                   RIMS::RFC822.parse_mail_address_list('TOKI Yoshinori <@mail.freedom.ne.jp,@smtp.gmail.com:toki@freedom.ne.jp>'.b))
+    end
+
+    def test_parse_mail_address_list_group
+      assert_equal([ [ nil, nil, 'toki', nil ],
+                     [ nil, nil, 'toki', 'freedom.ne.jp' ],
+                     [ 'TOKI Yoshinori', nil, 'toki', 'freedom.ne.jp' ],
+                     [ 'TOKI Yoshinori', '@mail.freedom.ne.jp,@smtp.gmail.com', 'toki', 'freedom.ne.jp' ],
+                     [ nil, nil, nil, nil ]
+                   ],
+                   RIMS::RFC822.parse_mail_address_list('toki: ' +
+                                                        'toki@freedom.ne.jp, ' +
+                                                        'TOKI Yoshinori <toki@freedom.ne.jp>, ' +
+                                                        'TOKI Yoshinori <@mail.freedom.ne.jp,@smtp.gmail.com:toki@freedom.ne.jp>' +
+                                                        ';'.b))
+    end
+
+    def test_parse_mail_address_list_multiline
+      assert_equal([ [ nil, nil, 'toki', 'freedom.ne.jp' ],
+                     [ 'TOKI Yoshinori', nil, 'toki', 'freedom.ne.jp' ],
+                     [ 'Yoshinori Toki', nil, 'toki', 'freedom.ne.jp' ]
+                   ],
+                   RIMS::RFC822.parse_mail_address_list("toki@freedom.ne.jp,\n" +
+                                                        "  TOKI Yoshinori <toki@freedom.ne.jp>\n" +
+                                                        "  , Yoshinori Toki <toki@freedom.ne.jp>  "))
+    end
   end
 end
 
