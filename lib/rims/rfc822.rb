@@ -177,6 +177,59 @@ module RIMS
       addr_list
     end
     module_function :parse_mail_address_list
+
+    class Header
+      include Enumerable
+
+      def initialize(header_txt)
+        @raw_source = header_txt
+        @field_list = nil
+        @field_map = nil
+      end
+
+      attr_reader :raw_source
+
+      def setup_header
+        if (@field_list.nil? || @field_map.nil?) then
+          @field_list = []
+          @field_map = {}
+          for name, value in RFC822.parse_header(@raw_source)
+            @field_list << [ name, value ]
+            key = name.downcase
+            @field_map[key] = [] unless (@field_map.key? key)
+            @field_map[key] << value
+          end
+          self
+        end
+      end
+      private :setup_header
+
+      def each
+        setup_header
+        return enum_for(:each) unless block_given?
+        for name, value in @field_list
+          yield(name, value)
+        end
+        self
+      end
+
+      def key?(name)
+        setup_header
+        @field_map.key? name.downcase
+      end
+
+      def [](name)
+        setup_header
+        if (value_list = @field_map[name.downcase]) then
+          value_list[0]
+        end
+      end
+
+      def field_value_list(name)
+        setup_header
+        @field_map[name.downcase]
+      end
+    end
   end
 end
 

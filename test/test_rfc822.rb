@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'pp' if $DEBUG
 require 'rims'
 require 'test/unit'
 
@@ -330,6 +331,68 @@ baz
                    RIMS::RFC822.parse_mail_address_list("toki@freedom.ne.jp,\n" +
                                                         "  TOKI Yoshinori <toki@freedom.ne.jp>\n" +
                                                         "  , Yoshinori Toki <toki@freedom.ne.jp>  "))
+    end
+  end
+
+  class RFC822HeaderText < Test::Unit::TestCase
+    def setup
+      @header = RIMS::RFC822::Header.new("foo: apple\r\n" +
+                                         "bar: Bob\r\n" +
+                                         "Foo: banana\r\n" +
+                                         "FOO: orange\r\n" +
+                                         "\r\n")
+      pp @header if $DEBUG
+    end
+
+    def teardown
+      pp @header if $DEBUG
+    end
+
+    def test_each
+      assert_equal([ %w[ foo apple ], %w[ bar Bob ], %w[ Foo banana ], %w[ FOO orange ] ],
+                   @header.each.to_a)
+    end
+
+    def test_key?
+      assert_equal(true, (@header.key? 'foo'))
+      assert_equal(true, (@header.key? 'Foo'))
+      assert_equal(true, (@header.key? 'FOO'))
+
+      assert_equal(true, (@header.key? 'bar'))
+      assert_equal(true, (@header.key? 'Bar'))
+      assert_equal(true, (@header.key? 'BAR'))
+
+      assert_equal(false, (@header.key? 'baz'))
+      assert_equal(false, (@header.key? 'Baz'))
+      assert_equal(false, (@header.key? 'BAZ'))
+    end
+
+    def test_fetch
+      assert_equal('apple', @header['foo'])
+      assert_equal('apple', @header['Foo'])
+      assert_equal('apple', @header['FOO'])
+
+      assert_equal('Bob', @header['bar'])
+      assert_equal('Bob', @header['Bar'])
+      assert_equal('Bob', @header['BAR'])
+
+      assert_nil(@header['baz'])
+      assert_nil(@header['Baz'])
+      assert_nil(@header['BAZ'])
+    end
+
+    def test_field_value_list
+      assert_equal(%w[ apple banana orange ], @header.field_value_list('foo'))
+      assert_equal(%w[ apple banana orange ], @header.field_value_list('Foo'))
+      assert_equal(%w[ apple banana orange ], @header.field_value_list('FOO'))
+
+      assert_equal(%w[ Bob ], @header.field_value_list('bar'))
+      assert_equal(%w[ Bob ], @header.field_value_list('Bar'))
+      assert_equal(%w[ Bob ], @header.field_value_list('BAR'))
+
+      assert_nil(@header.field_value_list('baz'))
+      assert_nil(@header.field_value_list('Baz'))
+      assert_nil(@header.field_value_list('BAZ'))
     end
   end
 end
