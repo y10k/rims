@@ -395,6 +395,31 @@ baz
       assert_nil(@header.field_value_list('BAZ'))
     end
   end
+
+  class RFC822MessageTest < Test::Unit::TestCase
+    def setup
+      @msg = RIMS::RFC822::Message.new("Content-Type: text/plain; charset=utf-8\r\n" +
+                                       "Subject: test\r\n" +
+                                       "\r\n" +
+                                       "Hello world.\r\n")
+      pp @msg if $DEBUG
+    end
+
+    def teardown
+      pp @msg if $DEBUG
+    end
+
+    def test_header
+      assert_equal("Content-Type: text/plain; charset=utf-8\r\n" +
+                   "Subject: test\r\n" +
+                   "\r\n",
+                   @msg.header.raw_source)
+    end
+
+    def test_body
+      assert_equal("Hello world.\r\n", @msg.body.raw_source)
+    end
+  end
 end
 
 # Local Variables:

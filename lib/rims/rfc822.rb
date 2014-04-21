@@ -230,6 +230,44 @@ module RIMS
         @field_map[name.downcase]
       end
     end
+
+    class Body
+      def initialize(body_txt)
+        @raw_source = body_txt
+      end
+
+      attr_reader :raw_source
+    end
+
+    class Message
+      def initialize(msg_txt)
+        @raw_source = msg_txt
+        @header = nil
+        @body = nil
+      end
+
+      attr_reader :raw_source
+
+      def setup_message
+        if (@header.nil? || @body.nil?) then
+          header_txt, body_txt = RFC822.split_message(@raw_source)
+          @header = Header.new(header_txt || '')
+          @body = Body.new(body_txt || '')
+          self
+        end
+      end
+      private :setup_message
+
+      def header
+        setup_message
+        @header
+      end
+
+      def body
+        setup_message
+        @body
+      end
+    end
   end
 end
 
