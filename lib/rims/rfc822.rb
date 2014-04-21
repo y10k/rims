@@ -244,6 +244,7 @@ module RIMS
         @raw_source = msg_txt
         @header = nil
         @body = nil
+        @content_type = nil
       end
 
       attr_reader :raw_source
@@ -266,6 +267,47 @@ module RIMS
       def body
         setup_message
         @body
+      end
+
+      def setup_content_type
+        if (@content_type.nil?) then
+          @content_type = RFC822.parse_content_type(header['content-type'] || '')
+          self
+        end
+      end
+      private :setup_content_type
+
+      def media_main_type
+        setup_content_type
+        @content_type[0]
+      end
+
+      def media_sub_type
+        setup_content_type
+        @content_type[1]
+      end
+
+      def content_type
+        "#{media_main_type}/#{media_sub_type}"
+      end
+
+      def content_type_parameters
+        setup_content_type
+        @content_type[2].each_value.map{|name, value| [ name, value ] }
+      end
+
+      def charset
+        setup_content_type
+        if (name_value_pair = @content_type[2]['charset']) then
+          name_value_pair[1]
+        end
+      end
+
+      def boundary
+        setup_content_type
+        if (name_value_pair = @content_type[2]['boundary']) then
+          name_value_pair[1]
+        end
       end
     end
   end

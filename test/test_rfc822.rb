@@ -397,11 +397,12 @@ baz
   end
 
   class RFC822MessageTest < Test::Unit::TestCase
-    def setup
-      @msg = RIMS::RFC822::Message.new("Content-Type: text/plain; charset=utf-8\r\n" +
+    def setup_message(content_type: 'text/plain; charset=utf-8',
+                      body: "Hello world.\r\n")
+      @msg = RIMS::RFC822::Message.new("Content-Type: #{content_type}\r\n" +
                                        "Subject: test\r\n" +
                                        "\r\n" +
-                                       "Hello world.\r\n")
+                                       body)
       pp @msg if $DEBUG
     end
 
@@ -410,6 +411,7 @@ baz
     end
 
     def test_header
+      setup_message
       assert_equal("Content-Type: text/plain; charset=utf-8\r\n" +
                    "Subject: test\r\n" +
                    "\r\n",
@@ -417,7 +419,48 @@ baz
     end
 
     def test_body
+      setup_message
       assert_equal("Hello world.\r\n", @msg.body.raw_source)
+    end
+
+    def test_media_main_type
+      setup_message
+      assert_equal('text', @msg.media_main_type)
+    end
+
+    def test_media_sub_type
+      setup_message
+      assert_equal('plain', @msg.media_sub_type)
+    end
+
+    def test_content_type
+      setup_message
+      assert_equal('text/plain', @msg.content_type)
+    end
+
+    def test_content_type_parameters
+      setup_message(content_type: 'text/plain; charset=utf-8; foo=apple; Bar=Banana')
+      assert_equal([ %w[ charset utf-8 ], %w[ foo apple ], %w[ Bar Banana ] ], @msg.content_type_parameters)
+    end
+
+    def test_charset
+      setup_message
+      assert_equal('utf-8', @msg.charset)
+    end
+
+    def test_charset_no_value
+      setup_message(content_type: 'text/plain')
+      assert_nil(@msg.charset)
+    end
+
+    def test_boundary
+      setup_message(content_type: "multipart/alternative; \r\n	boundary=\"----=_Part_1459891_982342968.1383882437398\"")
+      assert_equal('----=_Part_1459891_982342968.1383882437398', @msg.boundary)
+    end
+
+    def test_boundary_no_value
+      setup_message
+      assert_nil(@msg.boundary)
     end
   end
 end
