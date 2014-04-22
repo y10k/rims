@@ -247,6 +247,8 @@ module RIMS
         @content_type = nil
         @is_multipart = nil
         @parts = nil
+        @is_message = nil
+        @message = nil
       end
 
       attr_reader :raw_source
@@ -334,6 +336,22 @@ module RIMS
             end
           end
           @parts
+        end
+      end
+
+      def message?
+        if (@is_message.nil?) then
+          @is_message = (media_main_type.downcase == 'message')
+        end
+        @is_message
+      end
+
+      def message
+        if (message?) then
+          if (@message.nil?) then
+            @message = Message.new(body.raw_source)
+          end
+          @message
         end
       end
     end

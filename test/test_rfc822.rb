@@ -551,6 +551,68 @@ Content-Transfer-Encoding: quoted-printable
       setup_message(content_type: 'multipart/mixed')
       assert_equal([], @msg.parts)
     end
+
+    def test_message?
+      setup_message(content_type: 'message/rfc822')
+      assert_equal(true, @msg.message?)
+    end
+
+    def test_not_message?
+      setup_message
+      assert_equal(false, @msg.message?)
+    end
+
+    def test_message
+      setup_message(content_type: 'message/rfc822', body: <<-'EOF')
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351298"
+
+--1383.905529.351298
+Content-Type: text/plain; charset=us-ascii
+
+Hello world.
+--1383.905529.351298
+Content-Type: application/octet-stream
+
+9876543210
+--1383.905529.351298--
+      EOF
+
+      assert_equal(<<-'EOF', @msg.message.raw_source)
+To: bar@nonet.com
+From: foo@nonet.com
+Subject: inner multipart
+MIME-Version: 1.0
+Date: Fri, 8 Nov 2013 19:31:03 +0900
+Content-Type: multipart/mixed; boundary="1383.905529.351298"
+
+--1383.905529.351298
+Content-Type: text/plain; charset=us-ascii
+
+Hello world.
+--1383.905529.351298
+Content-Type: application/octet-stream
+
+9876543210
+--1383.905529.351298--
+      EOF
+      assert_equal(true, @msg.message.multipart?)
+      assert_equal(2, @msg.message.parts.length)
+      assert_equal('text/plain', @msg.message.parts[0].content_type)
+      assert_equal('us-ascii', @msg.message.parts[0].charset)
+      assert_equal('Hello world.', @msg.message.parts[0].body.raw_source)
+      assert_equal('application/octet-stream', @msg.message.parts[1].content_type)
+      assert_equal('9876543210', @msg.message.parts[1].body.raw_source)
+    end
+
+    def test_message_no_msg
+      setup_message
+      assert_nil(@msg.message)
+    end
   end
 end
 
