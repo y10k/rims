@@ -252,6 +252,12 @@ module RIMS
         @is_message = nil
         @message = nil
         @date = nil
+        @from = nil
+        @sender = nil
+        @reply_to = nil
+        @to = nil
+        @cc = nil
+        @bcc = nil
       end
 
       attr_reader :raw_source
@@ -370,6 +376,43 @@ module RIMS
 
           @date
         end
+      end
+
+      def mail_address_header_field(field_name)
+        if (header.key? field_name) then
+          ivar_name = '@' + field_name.downcase.gsub('-', '_')
+          addr_list = instance_variable_get(ivar_name)
+          if (addr_list.nil?) then
+            addr_list = header.field_value_list(field_name).map{|addr_list_str| RFC822.parse_mail_address_list(addr_list_str) }.inject(:+)
+            instance_variable_set(ivar_name, addr_list)
+          end
+          addr_list
+        end
+      end
+      private :mail_address_header_field
+
+      def from
+        mail_address_header_field('from')
+      end
+
+      def sender
+        mail_address_header_field('sender')
+      end
+
+      def reply_to
+        mail_address_header_field('reply-to')
+      end
+
+      def to
+        mail_address_header_field('to')
+      end
+
+      def cc
+        mail_address_header_field('cc')
+      end
+
+      def bcc
+        mail_address_header_field('bcc')
       end
     end
   end

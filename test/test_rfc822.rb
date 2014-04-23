@@ -630,6 +630,43 @@ Content-Type: application/octet-stream
       setup_message('Date' => 'no_date')
       assert_equal(Time.at(0), @msg.date)
     end
+
+    def test_mail_address_header_field
+      setup_message('From' => 'Foo <foo@mail.example.com>',
+                    'Sender' => 'Bar <bar@mail.example.com>',
+                    'Reply-To' => 'Baz <baz@mail.example.com>',
+                    'To' => 'Alice <alice@mail.example.com>',
+                    'Cc' => 'Bob <bob@mail.example.com>',
+                    'Bcc' => 'Kate <kate@mail.example.com>')                    
+
+      assert_equal([ [ 'Foo', nil, 'foo', 'mail.example.com' ] ], @msg.from)
+      assert_equal([ [ 'Bar', nil, 'bar', 'mail.example.com' ] ], @msg.sender)
+      assert_equal([ [ 'Baz', nil, 'baz', 'mail.example.com' ] ], @msg.reply_to)
+      assert_equal([ [ 'Alice', nil, 'alice', 'mail.example.com' ] ], @msg.to)
+      assert_equal([ [ 'Bob', nil, 'bob', 'mail.example.com' ] ], @msg.cc)
+      assert_equal([ [ 'Kate', nil, 'kate', 'mail.example.com' ] ], @msg.bcc)
+    end
+
+    def test_mail_address_header_field_multi_header_field
+      setup_message([ [ 'From', 'Foo <foo@mail.example.com>, Bar <bar@mail.example.com>' ],
+                      [ 'from', 'Baz <baz@mail.example.com>' ]
+                    ])
+      assert_equal([ [ 'Foo', nil, 'foo', 'mail.example.com' ],
+                     [ 'Bar', nil, 'bar', 'mail.example.com' ],
+                     [ 'Baz', nil, 'baz', 'mail.example.com' ]
+                   ],
+                   @msg.from)
+    end
+
+    def test_mail_address_header_field_no_value
+      setup_message
+      assert_nil(@msg.from)
+    end
+
+    def test_mail_address_header_field_bad_format
+      setup_message('From' => 'no_mail_address')
+      assert_equal([], @msg.from)
+    end
   end
 end
 
