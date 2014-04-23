@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+require 'time'
+
 module RIMS
   module RFC822
     def split_message(msg_txt)
@@ -249,6 +251,7 @@ module RIMS
         @parts = nil
         @is_message = nil
         @message = nil
+        @date = nil
       end
 
       attr_reader :raw_source
@@ -352,6 +355,20 @@ module RIMS
             @message = Message.new(body.raw_source)
           end
           @message
+        end
+      end
+
+      def date
+        if (header.key? 'Date') then
+          if (@date.nil?) then
+            begin
+              @date = Time.parse(header['Date'])
+            rescue ArgumentError
+              @date = Time.at(0)
+            end
+          end
+
+          @date
         end
       end
     end

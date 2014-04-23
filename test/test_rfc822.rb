@@ -397,9 +397,11 @@ baz
   end
 
   class RFC822MessageTest < Test::Unit::TestCase
-    def setup_message(content_type: 'text/plain; charset=utf-8',
+    def setup_message(headers={},
+                      content_type: 'text/plain; charset=utf-8',
                       body: "Hello world.\r\n")
-      @msg = RIMS::RFC822::Message.new("Content-Type: #{content_type}\r\n" +
+      @msg = RIMS::RFC822::Message.new(headers.map{|n, v| "#{n}: #{v}\r\n" }.join('') +
+                                       "Content-Type: #{content_type}\r\n" +
                                        "Subject: test\r\n" +
                                        "\r\n" +
                                        body)
@@ -612,6 +614,21 @@ Content-Type: application/octet-stream
     def test_message_no_msg
       setup_message
       assert_nil(@msg.message)
+    end
+
+    def test_date
+      setup_message('Date' => 'Fri, 8 Nov 2013 03:47:17 +0000')
+      assert_equal(Time.utc(2013, 11, 8, 3, 47, 17), @msg.date)
+    end
+
+    def test_date_no_value
+      setup_message
+      assert_nil(@msg.date)
+    end
+
+    def test_date_bad_format
+      setup_message('Date' => 'no_date')
+      assert_equal(Time.at(0), @msg.date)
     end
   end
 end
