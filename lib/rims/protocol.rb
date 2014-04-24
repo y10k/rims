@@ -163,8 +163,8 @@ module RIMS
         @folder = folder
         @charset = nil
         @mail_cache = Hash.new{|hash, uid|
-          if (text = @mail_store.msg_text(@folder.mbox_id, uid)) then
-            hash[uid] = Mail.new(text)
+          if (msg_txt = @mail_store.msg_text(@folder.mbox_id, uid)) then
+            hash[uid] = RFC822::Message.new(msg_txt)
           end
         }
       end
@@ -200,15 +200,15 @@ module RIMS
       private :string_include?
 
       def mail_body_text(mail)
-        case (mail.content_type)
-        when /\Atext/i, /\Amessage/i
-          text = mail.body.to_s
-          if (charset = mail['content-type'].parameters['charset']) then
-            if (text.encoding != Encoding.find(charset)) then
-              text = text.dup.force_encoding(charset)
+        case (mail.media_main_type.downcase)
+        when 'text', 'message'
+          body_txt = mail.body.raw_source
+          if (charset = mail.charset) then
+            if (body_txt.encoding != Encoding.find(charset)) then
+              body_txt = body_txt.dup.force_encoding(charset)
             end
           end
-          text
+          body_txt
         else
           nil
         end
@@ -247,12 +247,17 @@ module RIMS
       end
       private :parse_msg_flag_enabled
 
-      def parse_search_header(name, search_string)
+      def parse_search_header(field_name, search_string)
         proc{|next_cond|
           proc{|msg|
             mail = get_mail(msg)
-            field_string = (mail[name]) ? mail[name].to_s : ''
-            string_include?(search_string, field_string) && next_cond.call(msg)
+            if (mail.header.key? field_name) then
+              mail.header.field_value_list(field_name).any?{|field_value|
+                string_include?(search_string, field_value)
+              } && next_cond.call(msg)
+            else
+              false
+            end
           }
         }
       end
@@ -358,9 +363,8 @@ module RIMS
         proc{|next_cond|
           proc{|msg|
             mail = get_mail(msg)
-            names = mail.header.map{|field| field.name.to_s }
-            text = mail_body_text(mail)
-            (names.any?{|n| search.call(n) || search.call(mail[n].to_s) } || (! text.nil? && search.call(text))) && next_cond.call(msg)
+            body_txt = mail_body_text(mail)
+            (search.call(mail.header.raw_source) || (body_txt && search.call(body_txt))) && next_cond.call(msg)
           }
         }
       end
