@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 require 'logger'
-require 'mail'
 require 'rims'
 require 'stringio'
 require 'test/unit'
@@ -38,7 +37,7 @@ module RIMS::Test
       end
 
       def equal(expected_string, peek_next_line: false)
-        expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n$/)
+        expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n\z/)
         @assertions << proc{|lines|
           line = fetch_line(lines, peek_next_line: peek_next_line)
           assert_equal(expected_string, line)
@@ -47,7 +46,7 @@ module RIMS::Test
       end
 
       def strenc_equal(expected_string, peek_next_line: false)
-        expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n$/)
+        expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n\z/)
         @assertions << proc{|lines|
           line = fetch_line(lines, peek_next_line: peek_next_line)
           assert_equal(expected_string.encoding, line.encoding)
@@ -109,7 +108,7 @@ module RIMS::Test
     end
 
     def mail_store_add_mail_simple
-      @simple_mail = Mail.new(<<-'EOF')
+      @simple_mail = RIMS::RFC822::Message.new(<<-'EOF')
 To: foo@nonet.org
 From: bar@nonet.org
 Subject: test
@@ -126,7 +125,7 @@ Hello world.
     private :mail_store_add_mail_simple
 
     def mail_store_add_mail_multipart
-      @mpart_mail = Mail.new(<<-'EOF')
+      @mpart_mail = RIMS::RFC822::Message.new(<<-'EOF')
 To: bar@nonet.com
 From: foo@nonet.com
 Subject: multipart test
@@ -1704,13 +1703,13 @@ Content-Type: text/html; charset=us-ascii
       res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]).each
       assert_imap_response(res) {|a|
         s = @simple_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r\n$/)
-        s += "\r\n" unless (s =~ /\r\n\r\n$/)
+        s += "\r\n" unless (s =~ /\r?\n\z/)
+        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
         a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)".b)
 
         s = @mpart_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r\n$/)
-        s += "\r\n" unless (s =~ /\r\n\r\n$/)
+        s += "\r\n" unless (s =~ /\r?\n\z/)
+        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
         a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)".b)
 
         a.equal('T007 OK FETCH completed')
@@ -1820,13 +1819,13 @@ Content-Type: text/html; charset=us-ascii
       res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]).each
       assert_imap_response(res) {|a|
         s = @simple_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r\n$/)
-        s += "\r\n" unless (s =~ /\r\n\r\n$/)
+        s += "\r\n" unless (s =~ /\r?\n\z/)
+        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
         a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)".b)
 
         s = @mpart_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r\n$/)
-        s += "\r\n" unless (s =~ /\r\n\r\n$/)
+        s += "\r\n" unless (s =~ /\r?\n\z/)
+        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
         a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)".b)
 
         a.equal('T007 OK FETCH completed')
@@ -4610,7 +4609,6 @@ T011 UID FETCH 3 (UID BODY.PEEK[1])
 T012 LOGOUT
       EOF
 
-
       RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
       res = output.string.each_line
 
@@ -4621,16 +4619,16 @@ T012 LOGOUT
         a.match(/^T003 NO /)
         a.skip_while{|line| line =~ /^\* / }
         a.equal('T004 OK [READ-WRITE] SELECT completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 212)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 203)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1545)')
         a.equal('T005 OK FETCH completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 212)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 203)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1545)')
         a.equal('T006 OK FETCH completed')
 
         s = @simple_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r\n$/)
-        s += "\r\n" unless (s =~ /\r\n\r\n$/)
+        s += "\r\n" unless (s =~ /\r?\n\z/)
+        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
         a.equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -4638,8 +4636,8 @@ T012 LOGOUT
         a.equal(' UID 2)')
 
         s = @mpart_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r\n$/)
-        s += "\r\n" unless (s =~ /\r\n\r\n$/)
+        s += "\r\n" unless (s =~ /\r?\n\z/)
+        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
         a.equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -4715,16 +4713,16 @@ T012 LOGOUT
         a.match(/^T003 NO /)
         a.skip_while{|line| line =~ /^\* / }
         a.equal('T004 OK [READ-ONLY] EXAMINE completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 212)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 203)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1545)')
         a.equal('T005 OK FETCH completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 212)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1616)')
+        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 203)')
+        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1545)')
         a.equal('T006 OK FETCH completed')
 
         s = @simple_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r\n$/)
-        s += "\r\n" unless (s =~ /\r\n\r\n$/)
+        s += "\r\n" unless (s =~ /\r?\n\z/)
+        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
         a.equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)
@@ -4732,8 +4730,8 @@ T012 LOGOUT
         a.equal(' UID 2)')
 
         s = @mpart_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r\n$/)
-        s += "\r\n" unless (s =~ /\r\n\r\n$/)
+        s += "\r\n" unless (s =~ /\r?\n\z/)
+        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
         a.equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
         s.each_line do |line|
           a.equal(line)

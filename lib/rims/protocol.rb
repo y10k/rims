@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'mail'
 require 'net/imap'
 require 'set'
 require 'time'
@@ -200,8 +199,7 @@ module RIMS
       private :string_include?
 
       def mail_body_text(mail)
-        case (mail.media_main_type.downcase)
-        when 'text', 'message'
+        if (mail.text? || mail.message?) then
           body_txt = mail.body.raw_source
           if (charset = mail.charset) then
             if (body_txt.encoding != Encoding.find(charset)) then
@@ -593,8 +591,8 @@ module RIMS
         end
         module_function :encode_list
 
-        def encode_header(header)
-          header.map{|field| ''.b << field.name << ': '.b << field.value }.join("\r\n".b) + ("\r\n".b * 2)
+        def encode_header(name_value_pair_list)
+          name_value_pair_list.map{|n, v| ''.b << n << ': ' << v << "\r\n" }.join('') << "\r\n"
         end
         module_function :encode_header
 
@@ -608,8 +606,8 @@ module RIMS
             end
             if (mail.multipart?) then
               get_body_section(mail.parts[i - 1], next_index_list)
-            elsif (mail.content_type == 'message/rfc822') then
-              get_body_section(Mail.new(mail.body.raw_source), index_list)
+            elsif (mail.message?) then
+              get_body_section(mail.message, index_list)
             else
               if (i == 1) then
                 if (next_index_list.empty?) then
@@ -627,13 +625,13 @@ module RIMS
 
         def get_body_content(mail, name, nest_mail: false)
           if (nest_mail) then
-            if (mail.content_type == 'message/rfc822') then
-              Mail.new(mail.body.raw_source).send(name)
+            if (mail.message?) then
+              mail.message.__send__(name)
             else
               nil
             end
           else
-            mail.send(name)
+            mail.__send__(name)
           end
         end
         module_function :get_body_content
@@ -645,8 +643,8 @@ module RIMS
         @folder = folder
         @charset = nil
         @mail_cache = Hash.new{|hash, uid|
-          if (text = @mail_store.msg_text(@folder.mbox_id, uid)) then
-            hash[uid] = Mail.new(text)
+          if (msg_txt = @mail_store.msg_text(@folder.mbox_id, uid)) then
+            hash[uid] = RFC822::Message.new(msg_txt)
           end
         }
       end
@@ -701,83 +699,77 @@ module RIMS
       private :get_header_field
 
       def get_bodystructure_data(mail)
-        if (mail.multipart?) then
-          # body_type_mpart
+        if (mail.multipart?) then       # body_type_mpart
           mpart_data = []
-          mpart_data.concat(mail.parts.map{|part| get_bodystructure_data(part) })
-          mpart_data << mail['Content-Type'].sub_type
-        else
-          case (mail.content_type)
-          when /\Atext/i        # body_type_text
-            text_data = []
+          mpart_data.concat(mail.parts.map{|part_msg| get_bodystructure_data(part_msg) })
+          mpart_data << mail.media_sub_type
+        elsif (mail.text?) then         # body_type_text
+          text_data = []
 
-            # media_text
-            text_data << 'TEXT'
-            text_data << mail['Content-Type'].sub_type
+          # media_text
+          text_data << mail.media_main_type
+          text_data << mail.media_sub_type
 
-            # body_fields
-            text_data << mail['Content-Type'].parameters.map{|n, v| [ n, v ] }.flatten
-            text_data << mail.content_id
-            text_data << mail.content_description
-            text_data << mail.content_transfer_encoding
-            text_data << mail.raw_source.bytesize
+          # body_fields
+          text_data << mail.content_type_parameters.flatten
+          text_data << mail.header['Content-Id']
+          text_data << mail.header['Content-Description']
+          text_data << mail.header['Content-Transfer-Encoding']
+          text_data << mail.raw_source.bytesize
 
-            # body_fld_lines
-            text_data << mail.raw_source.each_line.count
-          when /\Amessage/i     # body_type_msg
-            msg_data = []
+          # body_fld_lines
+          text_data << mail.raw_source.each_line.count
+        elsif (mail.message?) then      # body_type_msg
+          msg_data = []
 
-            # message_media
-            msg_data << 'MESSAGE'
-            msg_data << 'RFC822'
+          # message_media
+          msg_data << mail.media_main_type
+          msg_data << mail.media_sub_type
 
-            # body_fields
-            msg_data << mail['Content-Type'].parameters.map{|n, v| [ n, v ] }.flatten
-            msg_data << mail.content_id
-            msg_data << mail.content_description
-            msg_data << mail.content_transfer_encoding
-            msg_data << mail.raw_source.bytesize
+          # body_fields
+          msg_data << mail.content_type_parameters.flatten
+          msg_data << mail.header['Content-Id']
+          msg_data << mail.header['Content-Description']
+          msg_data << mail.header['Content-Transfer-Encoding']
+          msg_data << mail.raw_source.bytesize
 
-            body_mail = Mail.new(mail.body.raw_source)
+          # envelope
+          msg_data << get_envelope_data(mail.message)
 
-            # envelope
-            msg_data << get_envelope_data(body_mail)
+          # body
+          msg_data << get_bodystructure_data(mail.message)
 
-            # body
-            msg_data << get_bodystructure_data(body_mail)
+          # body_fld_lines
+          msg_data << mail.raw_source.each_line.count
+        else                            # body_type_basic
+          basic_data = []
 
-            # body_fld_lines
-            msg_data << mail.raw_source.each_line.count
-          else                  # body_type_basic
-            basic_data = []
+          # media_basic
+          basic_data << mail.media_main_type
+          basic_data << mail.media_sub_type
 
-            # media_basic
-            basic_data << get_header_field(mail, 'Content-Type', 'application') {|field| field.main_type }
-            basic_data << get_header_field(mail, 'Content-Type', 'octet-stream') {|field| field.sub_type }
-
-            # body_fields
-            basic_data << get_header_field(mail, 'Content-Type', []) {|field| field.parameters.map{|n, v| [ n, v ] }.flatten }
-            basic_data << mail.content_id
-            basic_data << mail.content_description
-            basic_data << mail.content_transfer_encoding
-            basic_data << mail.raw_source.bytesize
-          end
+          # body_fields
+          basic_data << mail.content_type_parameters.flatten
+          basic_data << mail.header['Content-Id']
+          basic_data << mail.header['Content-Description']
+          basic_data << mail.header['Content-Transfer-Encoding']
+          basic_data << mail.raw_source.bytesize
         end
       end
       private :get_bodystructure_data
 
       def get_envelope_data(mail)
         env_data = []
-        env_data << (mail['Date'] && mail['Date'].value)
-        env_data << (mail['Subject'] && mail['Subject'].value)
-        env_data << make_array(mail.from) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
-        env_data << make_array(mail.sender) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
-        env_data << make_array(mail.reply_to) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
-        env_data << make_array(mail.to) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
-        env_data << make_array(mail.cc) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
-        env_data << make_array(mail.bcc) {|addr_list| addr_list.map{|addr| make_address_list(addr) } }
-        env_data << mail.in_reply_to
-        env_data << mail.message_id
+        env_data << mail.header['Date']
+        env_data << mail.header['Subject']
+        env_data << mail.from
+        env_data << mail.sender
+        env_data << mail.reply_to
+        env_data << mail.to
+        env_data << mail.cc
+        env_data << mail.bcc
+        env_data << mail.header['In-Reply-To']
+        env_data << mail.header['Message-Id']
       end
       private :get_envelope_data
 
@@ -844,14 +836,14 @@ module RIMS
             else
               fetch_body_content = proc{|mail|
                 if (header = get_body_content(mail, :header)) then
-                  header.raw_source.strip + ("\r\n".b * 2)
+                  header.raw_source
                 end
               }
             end
           when 'HEADER'
             fetch_body_content = proc{|mail|
               if (header = get_body_content(mail, :header, nest_mail: ! is_root)) then
-                header.raw_source.strip + ("\r\n".b * 2)
+                header.raw_source
               end
             }
           when 'HEADER.FIELDS', 'HEADER.FIELDS.NOT'
@@ -867,14 +859,17 @@ module RIMS
             when 'HEADER.FIELDS'
               fetch_body_content = proc{|mail|
                 if (header = get_body_content(mail, :header, nest_mail: ! is_root)) then
-                  encode_header(field_name_list.map{|n| header[n] }.compact)
+                  field_name_set = field_name_list.map{|n| n.downcase }.to_set
+                  name_value_pair_list = header.select{|n, v| field_name_set.include? n.downcase }
+                  encode_header(name_value_pair_list)
                 end
               }
             when 'HEADER.FIELDS.NOT'
               fetch_body_content = proc{|mail|
                 if (header = get_body_content(mail, :header, nest_mail: ! is_root)) then
-                  field_name_set = field_name_list.map{|n| header[n] }.compact.map{|i| i.name }.to_set
-                  encode_header(header.reject{|i| (field_name_set.include? i.name) })
+                  field_name_set = field_name_list.map{|n| n.downcase }.to_set
+                  name_value_pair_list = header.reject{|n, v| field_name_set.include? n.downcase }
+                  encode_header(name_value_pair_list)
                 end
               }
             else
