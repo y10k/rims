@@ -245,6 +245,8 @@ module RIMS
         @header = nil
         @body = nil
         @content_type = nil
+        @is_multipart = nil
+        @parts = nil
       end
 
       attr_reader :raw_source
@@ -312,6 +314,27 @@ module RIMS
 
       def text?
         media_main_type.downcase == 'text'
+      end
+
+      def multipart?
+        if (@is_multipart.nil?) then
+          @is_multipart = (media_main_type.downcase == 'multipart')
+        end
+        @is_multipart
+      end
+
+      def parts
+        if (multipart?) then
+          if (@parts.nil?) then
+            if (boundary = self.boundary) then
+              part_list = RFC822.parse_multipart_body(boundary, body.raw_source)
+              @parts = part_list.map{|msg_txt| Message.new(msg_txt) }
+            else
+              @parts = []
+            end
+          end
+          @parts
+        end
       end
     end
   end

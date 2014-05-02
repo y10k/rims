@@ -472,6 +472,85 @@ baz
       setup_message(content_type: 'application/octet-stream')
       assert_equal(false, @msg.text?)
     end
+
+    def test_multipart?
+      setup_message(content_type: 'multipart/mixed')
+      assert_equal(true, @msg.multipart?)
+    end
+
+    def test_not_multipart?
+      setup_message
+      assert_equal(false, @msg.multipart?)
+    end
+
+    def test_parts
+      setup_message(content_type: 'multipart/mixed; boundary="----=_Part_1459890_1462677911.1383882437398"', body: <<-'EOF')
+------=_Part_1459890_1462677911.1383882437398
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_1459891_982342968.1383882437398"
+
+------=_Part_1459891_982342968.1383882437398
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+Cgo9PT09PT09PT09CkFNQVpPTi5DTy5KUAo9PT09PT09PT09CkFtYXpvbi5jby5qcOOBp+WVhuWT
+rpvjgavpgIHkv6HjgZXjgozjgb7jgZfjgZ86IHRva2lAZnJlZWRvbS5uZS5qcAoKCg==
+------=_Part_1459891_982342968.1383882437398
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+
+------=_Part_1459891_982342968.1383882437398--
+
+------=_Part_1459890_1462677911.1383882437398--
+      EOF
+
+      assert_equal(1, @msg.parts.length)
+      assert_equal(<<-'EOF', @msg.parts[0].raw_source)
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_1459891_982342968.1383882437398"
+
+------=_Part_1459891_982342968.1383882437398
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+Cgo9PT09PT09PT09CkFNQVpPTi5DTy5KUAo9PT09PT09PT09CkFtYXpvbi5jby5qcOOBp+WVhuWT
+rpvjgavpgIHkv6HjgZXjgozjgb7jgZfjgZ86IHRva2lAZnJlZWRvbS5uZS5qcAoKCg==
+------=_Part_1459891_982342968.1383882437398
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+
+------=_Part_1459891_982342968.1383882437398--
+      EOF
+
+      assert_equal(2, @msg.parts[0].parts.length)
+      assert_equal(<<-'EOF'.chomp, @msg.parts[0].parts[0].raw_source)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+Cgo9PT09PT09PT09CkFNQVpPTi5DTy5KUAo9PT09PT09PT09CkFtYXpvbi5jby5qcOOBp+WVhuWT
+rpvjgavpgIHkv6HjgZXjgozjgb7jgZfjgZ86IHRva2lAZnJlZWRvbS5uZS5qcAoKCg==
+      EOF
+      assert_equal(<<-'EOF', @msg.parts[0].parts[1].raw_source)
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+      EOF
+    end
+
+    def test_parts_not_multipart
+      setup_message
+      assert_nil(@msg.parts)
+    end
+
+    def test_parts_no_boundary
+      setup_message(content_type: 'multipart/mixed')
+      assert_equal([], @msg.parts)
+    end
   end
 end
 
