@@ -309,6 +309,10 @@ module RIMS
           name_value_pair[1]
         end
       end
+
+      def text?
+        media_main_type.downcase == 'text'
+      end
     end
   end
 end

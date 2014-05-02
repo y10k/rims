@@ -462,6 +462,16 @@ baz
       setup_message
       assert_nil(@msg.boundary)
     end
+
+    def test_text?
+      setup_message
+      assert_equal(true, @msg.text?)
+    end
+
+    def test_not_text?
+      setup_message(content_type: 'application/octet-stream')
+      assert_equal(false, @msg.text?)
+    end
   end
 end
 
