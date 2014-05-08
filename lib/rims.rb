@@ -23,6 +23,7 @@ module RIMS
   autoload :RFC822, 'rims/rfc822'
   autoload :Server, 'rims/server'
   autoload :SyntaxError, 'rims/error'
+  autoload :Test, 'rims/test'
 end
 
 # Local Variables:
