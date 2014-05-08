@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'mail'
 require 'net/imap'
 require 'optparse'
 require 'pp'if $DEBUG
@@ -271,9 +270,7 @@ module RIMS
           File.stat(path).mtime
         end
       when :mailheader
-        if (d = Mail.new(messg).date) then
-          d.to_time
-        end
+        RFC822::Message.new(messg).date
       else
         raise "failed to look for date: #{place}"
       end
