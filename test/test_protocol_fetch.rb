@@ -9,6 +9,7 @@ require 'time'
 
 module RIMS::Test
   class ProtocolFetchParserTest < Test::Unit::TestCase
+    include AssertUtility
     include RIMS::Protocol::FetchParser::Utils
 
     def setup
@@ -161,12 +162,6 @@ Hello world.
       reader.parse(reader.scan_line(description))[0]
     end
     private :make_body
-
-    def assert_strenc_equal(expected_enc, expected_str, expr_str)
-      assert_equal(Encoding.find(expected_enc), expr_str.encoding)
-      assert_equal(expected_str.dup.force_encoding(expected_enc), expr_str)
-    end
-    private :assert_strenc_equal
 
     def test_parse_all
       make_fetch_parser{
