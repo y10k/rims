@@ -1,3 +1,9 @@
+2014-05-08  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/rfc822.rb, lib/rims/protocol.rb, lib/rims/cmd.rb, rims.gemspec:
+	mail parser is replaced from mail gem to RIMS::RFC822 parser.
+	mail gem is not need and deleted from gemspec.
+
 2014-04-15  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.0.3 is released.
