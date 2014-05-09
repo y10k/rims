@@ -331,6 +331,10 @@ Hello world.
         assert_fetch(1, [ "BODY[4.2.2] #{literal(@mpart_mail.parts[3].parts[1].message.parts[1].body.raw_source)}" ])
       }
 
+      assert_raise(RIMS::SyntaxError) {
+        @parser.parse(make_body('BODY[MIME]'))
+      }
+
       parse_fetch_attribute(make_body('BODY[1.MIME]')) {
         assert_fetch(0, [ "BODY[1.MIME] #{literal(@simple_mail.header.raw_source)}" ])
         assert_fetch(1, [ "BODY[1.MIME] #{literal(@mpart_mail.parts[0].header.raw_source)}" ])
@@ -441,10 +445,6 @@ Hello world.
                        'BODY[4.2.HEADER.FIELDS.NOT (To From Subject)] ' +
                        literal(make_header_text(@mpart_mail.parts[3].parts[1].message.header, reject_list: %w[ To From Subject ]))
                      ])
-      }
-
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse(make_body('BODY[MIME]'))
       }
     end
 
