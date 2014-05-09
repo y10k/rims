@@ -245,188 +245,203 @@ Hello world.
       @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[2].uid, 'seen', true)
       @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[3].uid, 'seen', true)
 
-      fetch = @parser.parse(make_body('BODY[]'))
-      s = @simple_mail.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', "BODY[] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', 'BODY[] ""', fetch.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit', 'BODY[] "foo"', fetch.call(@folder.msg_list[3]))
+      parse_fetch_attribute(make_body('BODY[]')) {
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
+        assert_fetch(0, [
+                       'FLAGS (\Seen \Recent)',
+                       "BODY[] #{literal(@simple_mail.raw_source)}"
+                     ])
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
+        assert_fetch(0, [
+                       "BODY[] #{literal(@simple_mail.raw_source)}"
+                     ])
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
 
-      fetch = @parser.parse(make_body('BODY[TEXT]'))
-      s = @simple_mail.body.raw_source
-      assert_strenc_equal('ascii-8bit', "BODY[TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[TEXT] ""', fetch.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit', 'BODY[TEXT] ""', fetch.call(@folder.msg_list[3]))
+        assert_fetch(2, [ 'BODY[] ""' ])
+        assert_fetch(3, [ 'BODY[] "foo"' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[HEADER]'))
-      s = @simple_mail.header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = @mpart_mail.header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', 'BODY[HEADER] ""', fetch.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit', 'BODY[HEADER] "foo"', fetch.call(@folder.msg_list[3]))
+      parse_fetch_attribute(make_body('BODY[TEXT]')) {
+        assert_fetch(0, [ "BODY[TEXT] #{literal(@simple_mail.body.raw_source)}" ])
+        assert_fetch(2, [ 'BODY[TEXT] ""' ])
+        assert_fetch(3, [ 'BODY[TEXT] ""' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[HEADER.FIELDS (From To)]'))
-      s = %w[ To From ].map{|n| "#{n}: #{@simple_mail.header[n]}\r\n" }.join('') + "\r\n"
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = %w[ To From ].map{|n| "#{n}: #{@mpart_mail.header[n]}\r\n" }.join('') + "\r\n"
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {2}\r\n\r\n", fetch.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS (From To)] {2}\r\n\r\n", fetch.call(@folder.msg_list[3]))
+      parse_fetch_attribute(make_body('BODY[HEADER]')) {
+        assert_fetch(0, [ "BODY[HEADER] #{literal(@simple_mail.header.raw_source)}" ])
 
-      fetch = @parser.parse(make_body('BODY[HEADER.FIELDS.NOT (From To Subject)]'))
-      not_fields = %w[ from to subject ].to_set
-      s = @simple_mail.header.reject{|n, v| not_fields.include? n.downcase }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = @mpart_mail.header.reject{|n, v| not_fields.include? n.downcase }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {2}\r\n\r\n", fetch.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit', "BODY[HEADER.FIELDS.NOT (From To Subject)] {2}\r\n\r\n", fetch.call(@folder.msg_list[3]))
+        assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
+        assert_fetch(1, [
+                       'FLAGS (\Seen \Recent)',
+                       "BODY[HEADER] #{literal(@mpart_mail.header.raw_source)}"
+                     ])
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
+        assert_fetch(1, [
+                       "BODY[HEADER] #{literal(@mpart_mail.header.raw_source)}"
+                     ])
+        assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
 
-      fetch = @parser.parse(make_body('BODY[1]'))
-      s = @simple_mail.body.raw_source
-      assert_strenc_equal('ascii-8bit', "BODY[1] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = @mpart_mail.parts[0].body.raw_source
-      assert_strenc_equal('ascii-8bit', %Q'BODY[1] "#{s}"', fetch.call(@folder.msg_list[1]))
+        assert_fetch(2, [ 'BODY[HEADER] ""' ])
+        assert_fetch(3, [ 'BODY[HEADER] "foo"' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3]'))
-      assert_strenc_equal('ascii-8bit', "BODY[3] NIL", fetch.call(@folder.msg_list[0]))
-      s = @mpart_mail.parts[2].body.raw_source
-      assert_strenc_equal('ascii-8bit', "BODY[3] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[HEADER.FIELDS (From To)]')) {
+        assert_fetch(0, [
+                       'BODY[HEADER.FIELDS (From To)] ' +
+                       literal(make_header_text(@simple_mail.header, select_list: %w[ From To ]))
+                     ])
+        assert_fetch(1, [
+                       'BODY[HEADER.FIELDS (From To)] ' +
+                       literal(make_header_text(@mpart_mail.header, select_list: %w[ From To ]))
+                     ])
+        assert_fetch(2, [ 'BODY[HEADER.FIELDS (From To)] ' + literal("\r\n") ])
+        assert_fetch(3, [ 'BODY[HEADER.FIELDS (From To)] ' + literal("\r\n") ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.1]'))
-      assert_strenc_equal('ascii-8bit', "BODY[3.1] NIL", fetch.call(@folder.msg_list[0]))
-      s = RIMS::RFC822::Message.new(@mpart_mail.parts[2].body.raw_source).parts[0].body.raw_source
-      assert_strenc_equal('ascii-8bit', %Q'BODY[3.1] "#{s}"', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[HEADER.FIELDS.NOT (From To Subject)]')) {
+        assert_fetch(0, [
+                       'BODY[HEADER.FIELDS.NOT (From To Subject)] ' +
+                       literal(make_header_text(@simple_mail.header, reject_list: %w[ From To Subject]))
+                     ])
+        assert_fetch(1, [
+                       'BODY[HEADER.FIELDS.NOT (From To Subject)] ' +
+                       literal(make_header_text(@mpart_mail.header, reject_list: %w[ From To Subject]))
+                     ])
+        assert_fetch(2, [ 'BODY[HEADER.FIELDS.NOT (From To Subject)] ' + literal("\r\n") ])
+        assert_fetch(3, [ 'BODY[HEADER.FIELDS.NOT (From To Subject)] ' + literal("\r\n") ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[4.2.2]'))
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.2] NIL", fetch.call(@folder.msg_list[0]))
-      s = RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].body.raw_source
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.2] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[1]')) {
+        assert_fetch(0, [ "BODY[1] #{literal(@simple_mail.body.raw_source)}" ])
+        assert_fetch(1, [ %Q'BODY[1] "#{@mpart_mail.parts[0].body.raw_source}"' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[1.MIME]'))
-      s = @simple_mail.header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_strenc_equal('ascii-8bit', "BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      s = @mpart_mail.parts[0].header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_strenc_equal('ascii-8bit', "BODY[1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3]')) {
+        assert_fetch(0, [ 'BODY[3] NIL' ])
+        assert_fetch(1, [ "BODY[3] #{literal(@mpart_mail.parts[2].body.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.MIME]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.MIME] NIL', fetch.call(@folder.msg_list[0]))
-      s = @mpart_mail.parts[2].header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_strenc_equal('ascii-8bit', "BODY[3.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.1]')) {
+        assert_fetch(0, [ 'BODY[3.1] NIL' ])
+        assert_fetch(1, [ %Q'BODY[3.1] "#{@mpart_mail.parts[2].message.parts[0].body.raw_source}"' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.1.MIME]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1.MIME] NIL', fetch.call(@folder.msg_list[0]))
-      s = RIMS::RFC822::Message.new(@mpart_mail.parts[2].body.raw_source).parts[0].header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_strenc_equal('ascii-8bit', "BODY[3.1.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[4.2.2]')) {
+        assert_fetch(0, [ 'BODY[4.2.2] NIL' ])
+        assert_fetch(1, [ "BODY[4.2.2] #{literal(@mpart_mail.parts[3].parts[1].message.parts[1].body.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[4.2.2.MIME]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[4.2.2.MIME] NIL', fetch.call(@folder.msg_list[0]))
-      s = RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.2.MIME] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[1.MIME]')) {
+        assert_fetch(0, [ "BODY[1.MIME] #{literal(@simple_mail.header.raw_source)}" ])
+        assert_fetch(1, [ "BODY[1.MIME] #{literal(@mpart_mail.parts[0].header.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[1.TEXT]'))
-      assert_strenc_equal('ascii-8bit', "BODY[1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.MIME]')) {
+        assert_fetch(0, [ 'BODY[3.MIME] NIL' ])
+        assert_fetch(1, [ "BODY[3.MIME] #{literal(@mpart_mail.parts[2].header.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.TEXT]'))
-      assert_strenc_equal('ascii-8bit', "BODY[3.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      s = RIMS::RFC822::Message.new(@mpart_mail.parts[2].body.raw_source).body.raw_source
-      assert_strenc_equal('ascii-8bit', "BODY[3.TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.1.MIME]')) {
+        assert_fetch(0, [ 'BODY[3.1.MIME] NIL' ])
+        assert_fetch(1, [ "BODY[3.1.MIME] #{literal(@mpart_mail.parts[2].message.parts[0].header.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.1.TEXT]'))
-      assert_strenc_equal('ascii-8bit', "BODY[3.1.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1.TEXT] NIL', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[4.2.2.MIME]')) {
+        assert_fetch(0, [ 'BODY[4.2.2.MIME] NIL' ])
+        assert_fetch(1, [ "BODY[4.2.2.MIME] #{literal(@mpart_mail.parts[3].parts[1].message.parts[1].header.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[4.2.TEXT]'))
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.TEXT] NIL", fetch.call(@folder.msg_list[0]))
-      s = RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source).body.raw_source
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.TEXT] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[1.TEXT]')) {
+        assert_fetch(0, [ 'BODY[1.TEXT] NIL' ])
+        assert_fetch(1, [ 'BODY[1.TEXT] NIL' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[1.HEADER]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.TEXT]')) {
+        assert_fetch(0, [ 'BODY[3.TEXT] NIL' ])
+        assert_fetch(1, [ "BODY[3.TEXT] #{literal(@mpart_mail.parts[2].message.body.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.HEADER]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER] NIL', fetch.call(@folder.msg_list[0]))
-      s = RIMS::RFC822::Message.new(@mpart_mail.parts[2].body.raw_source).header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_strenc_equal('ascii-8bit', "BODY[3.HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.1.TEXT]')) {
+        assert_fetch(0, [ 'BODY[3.1.TEXT] NIL' ])
+        assert_fetch(1, [ 'BODY[3.1.TEXT] NIL' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.1.HEADER]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER] NIL', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[4.2.TEXT]')) {
+        assert_fetch(0, [ 'BODY[4.2.TEXT] NIL' ])
+        assert_fetch(1, [ "BODY[4.2.TEXT] #{literal(@mpart_mail.parts[3].parts[1].message.body.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[4.2.HEADER]'))
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.HEADER] NIL", fetch.call(@folder.msg_list[0]))
-      s = RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source).header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.HEADER] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[1.HEADER]')) {
+        assert_fetch(0, [ 'BODY[1.HEADER] NIL' ])
+        assert_fetch(1, [ 'BODY[1.HEADER] NIL' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[1.HEADER.FIELDS (To)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.HEADER]')) {
+        assert_fetch(0, [ 'BODY[3.HEADER] NIL' ])
+        assert_fetch(1, [ "BODY[3.HEADER] #{literal(@mpart_mail.parts[2].message.header.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.HEADER.FIELDS (To)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      m = @mpart_mail.parts[2].message
-      s = %w[ To ].map{|n| "#{n}: #{m.header[n]}\r\n" }.join('') + "\r\n"
-      assert_strenc_equal('ascii-8bit', "BODY[3.HEADER.FIELDS (To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.1.HEADER]')) {
+        assert_fetch(0, [ 'BODY[3.1.HEADER] NIL' ])
+        assert_fetch(1, [ 'BODY[3.1.HEADER] NIL' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.1.HEADER.FIELDS (To)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[4.2.HEADER]')) {
+        assert_fetch(0, [ 'BODY[4.2.HEADER] NIL' ])
+        assert_fetch(1, [ "BODY[4.2.HEADER] #{literal(@mpart_mail.parts[3].parts[1].message.header.raw_source)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[4.2.HEADER.FIELDS (To)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[4.2.HEADER.FIELDS (To)] NIL', fetch.call(@folder.msg_list[0]))
-      m = RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source)
-      s = %w[ To ].map{|n| "#{n}: #{m.header[n]}\r\n" }.join('') + "\r\n"
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.HEADER.FIELDS (To)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[1.HEADER.FIELDS (To)]')) {
+        assert_fetch(0, [ 'BODY[1.HEADER.FIELDS (To)] NIL' ])
+        assert_fetch(1, [ 'BODY[1.HEADER.FIELDS (To)] NIL' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[1.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.HEADER.FIELDS (To)]')) {
+        assert_fetch(0, [ 'BODY[3.HEADER.FIELDS (To)] NIL' ])
+        assert_fetch(1, [
+                       'BODY[3.HEADER.FIELDS (To)] ' +
+                       literal(make_header_text(@mpart_mail.parts[2].message.header, select_list: %w[ To ]))
+                     ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      not_fields = %w[ to from subject ].to_set
-      m = RIMS::RFC822::Message.new(@mpart_mail.parts[2].body.raw_source)
-      s = m.header.reject{|n, v| not_fields.include? n.downcase }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
-      assert_strenc_equal('ascii-8bit', "BODY[3.HEADER.FIELDS.NOT (To From Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[3.1.HEADER.FIELDS (To)]')) {
+        assert_fetch(0, [ 'BODY[3.1.HEADER.FIELDS (To)] NIL' ])
+        assert_fetch(1, [ 'BODY[3.1.HEADER.FIELDS (To)] NIL' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[4.2.HEADER.FIELDS (To)]')) {
+        assert_fetch(0, [ 'BODY[4.2.HEADER.FIELDS (To)] NIL' ])
+        assert_fetch(1, [
+                       'BODY[4.2.HEADER.FIELDS (To)] ' +
+                       literal(make_header_text(@mpart_mail.parts[3].parts[1].message.header, select_list: %w[ To ]))
+                     ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[4.2.HEADER.FIELDS.NOT (To From Subject)]'))
-      assert_strenc_equal('ascii-8bit', 'BODY[4.2.HEADER.FIELDS.NOT (To From Subject)] NIL', fetch.call(@folder.msg_list[0]))
-      not_fields = %w[ to from subject ].to_set
-      m = RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source)
-      s = m.header.reject{|n, v| not_fields.include? n.downcase }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
-      assert_strenc_equal('ascii-8bit', "BODY[4.2.HEADER.FIELDS.NOT (To From Subject)] {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute(make_body('BODY[1.HEADER.FIELDS.NOT (To From Subject)]')) {
+        assert_fetch(0, [ 'BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL' ])
+        assert_fetch(1, [ 'BODY[1.HEADER.FIELDS.NOT (To From Subject)] NIL' ])
+      }
+
+      parse_fetch_attribute(make_body('BODY[3.HEADER.FIELDS.NOT (To From Subject)]')) {
+        assert_fetch(0, [ 'BODY[3.HEADER.FIELDS.NOT (To From Subject)] NIL' ])
+        assert_fetch(1, [
+                       'BODY[3.HEADER.FIELDS.NOT (To From Subject)] ' +
+                       literal(make_header_text(@mpart_mail.parts[2].message.header, reject_list: %w[ To From Subject ]))
+                     ])
+      }
+
+      parse_fetch_attribute(make_body('BODY[3.1.HEADER.FIELDS.NOT (To From Subject)]')) {
+        assert_fetch(0, [ 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL' ])
+        assert_fetch(1, [ 'BODY[3.1.HEADER.FIELDS.NOT (To From Subject)] NIL' ])
+      }
+
+      parse_fetch_attribute(make_body('BODY[4.2.HEADER.FIELDS.NOT (To From Subject)]')) {
+        assert_fetch(0, [ 'BODY[4.2.HEADER.FIELDS.NOT (To From Subject)] NIL' ])
+        assert_fetch(1, [
+                       'BODY[4.2.HEADER.FIELDS.NOT (To From Subject)] ' +
+                       literal(make_header_text(@mpart_mail.parts[3].parts[1].message.header, reject_list: %w[ To From Subject ]))
+                     ])
+      }
 
       assert_raise(RIMS::SyntaxError) {
         @parser.parse(make_body('BODY[MIME]'))
