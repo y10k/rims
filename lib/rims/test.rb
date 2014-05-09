@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+require 'set'
+
 module RIMS
   module Test
     module AssertUtility
@@ -7,6 +9,17 @@ module RIMS
         "{#{text_string.bytesize}}\r\n#{text_string}"
       end
       module_function :literal
+
+      def make_header_text(name_value_pair_list, select_list: [], reject_list: [])
+        name_value_pair_list = name_value_pair_list.to_a.dup
+        select_set = select_list.map{|name| name.downcase }.to_set
+        reject_set = reject_list.map{|name| name.downcase }.to_set
+
+        name_value_pair_list.select!{|name, value| select_set.include? name.downcase } unless select_set.empty?
+        name_value_pair_list.reject!{|name, value| reject_set.include? name.downcase } unless reject_set.empty?
+        name_value_pair_list.map{|name, value| "#{name}: #{value}\r\n" }.join('') + "\r\n"
+      end
+      module_function :make_header_text
 
       def message_data_list(msg_data_array)
         msg_data_array.map{|msg_data|
