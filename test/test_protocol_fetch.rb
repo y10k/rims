@@ -196,41 +196,42 @@ Hello world.
         add_mail_simple
         add_mail_multipart
       }
-      fetch = @parser.parse('ALL')
-      assert_strenc_equal('ascii-8bit',
-                          'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-Nov-2013 06:47:50 +0900" ' +
-                          'RFC822.SIZE 203 ' +
-                          'ENVELOPE (' + [
-                            '"Fri,  8 Nov 2013 06:47:50 +0900 (JST)"', # Date
-                            '"test"',                                  # Subject
-                            '((NIL NIL "bar" "nonet.org"))',           # From
-                            'NIL',                                     # Sender
-                            'NIL',                                     # Reply-To
-                            '((NIL NIL "foo" "nonet.org"))',           # To
-                            'NIL',                                     # Cc
-                            'NIL',                                     # Bcc
-                            'NIL',                                     # In-Reply-To
-                            'NIL'                                      # Message-Id
-                          ].join(' ') +')',
-                          fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit',
-                          'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-Nov-2013 19:31:03 +0900" ' +
-                          'RFC822.SIZE 1545 ' +
-                          'ENVELOPE (' + [
-                            '"Fri, 8 Nov 2013 19:31:03 +0900"',        # Date
-                            '"multipart test"',                        # Subject
-                            '((NIL NIL "foo" "nonet.com"))',           # From
-                            'NIL',                                     # Sender
-                            'NIL',                                     # Reply-To
-                            '((NIL NIL "bar" "nonet.com"))',           # To
-                            'NIL',                                     # Cc
-                            'NIL',                                     # Bcc
-                            'NIL',                                     # In-Reply-To
-                            'NIL'                                      # Message-Id
-                          ].join(' ') +')',
-                          fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute('ALL') {
+        assert_fetch(0, [
+                       'FLAGS (\Recent)',
+                       'INTERNALDATE "08-Nov-2013 06:47:50 +0900"',
+                       "RFC822.SIZE #{@simple_mail.raw_source.bytesize}",
+                       'ENVELOPE',
+                       [ '"Fri,  8 Nov 2013 06:47:50 +0900 (JST)"', # Date
+                         '"test"',                                  # Subject
+                         '((NIL NIL "bar" "nonet.org"))',           # From
+                         'NIL',                                     # Sender
+                         'NIL',                                     # Reply-To
+                         '((NIL NIL "foo" "nonet.org"))',           # To
+                         'NIL',                                     # Cc
+                         'NIL',                                     # Bcc
+                         'NIL',                                     # In-Reply-To
+                         'NIL'                                      # Message-Id
+                       ]
+                     ])
+        assert_fetch(1, [
+                       'FLAGS (\Recent)',
+                       'INTERNALDATE "08-Nov-2013 19:31:03 +0900"',
+                       "RFC822.SIZE #{@mpart_mail.raw_source.bytesize}",
+                       'ENVELOPE',
+                       [ '"Fri, 8 Nov 2013 19:31:03 +0900"',        # Date
+                         '"multipart test"',                        # Subject
+                         '((NIL NIL "foo" "nonet.com"))',           # From
+                         'NIL',                                     # Sender
+                         'NIL',                                     # Reply-To
+                         '((NIL NIL "bar" "nonet.com"))',           # To
+                         'NIL',                                     # Cc
+                         'NIL',                                     # Bcc
+                         'NIL',                                     # In-Reply-To
+                         'NIL'                                      # Message-Id
+                       ]
+                     ])
+      }
     end
 
     def test_parse_body
