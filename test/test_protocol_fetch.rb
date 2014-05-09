@@ -33,6 +33,23 @@ module RIMS::Test
     end
     private :make_fetch_parser
 
+    def parse_fetch_attribute(fetch_att_str)
+      @fetch = @parser.parse(fetch_att_str)
+      begin
+        yield
+      ensure
+        @fetch = nil
+      end
+    end
+    private :parse_fetch_attribute
+
+    def assert_fetch(msg_idx, expected_message_data_array, encoding: 'ascii-8bit')
+      assert_strenc_equal(encoding,
+                          message_data_list(expected_message_data_array),
+                          @fetch.call(@folder.msg_list[msg_idx]))
+    end
+    private :assert_fetch
+
     def add_mail_simple
       @simple_mail = RIMS::RFC822::Message.new(<<-'EOF')
 To: foo@nonet.org
