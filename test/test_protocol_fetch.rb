@@ -528,158 +528,101 @@ Hello world.
         add_mail_empty
         add_mail_no_body
       }
-      fetch_body = @parser.parse('BODY')
-      fetch_bodystructure = @parser.parse('BODYSTRUCTURE')
-      assert_strenc_equal('ascii-8bit',
-                          'BODY ' +
-                          encode_list([ 'text',
-                                        'plain',
-                                        %w[ charset us-ascii ],
-                                        nil,
-                                        nil,
-                                        '7bit',
-                                        203,
-                                        9
-                                      ]),
-                          fetch_body.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit',
-                          'BODYSTRUCTURE ' +
-                          encode_list([ 'text',
-                                        'plain',
-                                        %w[ charset us-ascii ],
-                                        nil,
-                                        nil,
-                                        '7bit',
-                                        203,
-                                        9
-                                      ]),
-                          fetch_bodystructure.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit',
-                          'BODY ' +
-                          encode_list([ [ 'text', 'plain', %w[ charset us-ascii], nil, nil, nil, 59, 3 ],
-                                        [ 'application', 'octet-stream', [], nil, nil, nil, 50 ],
-                                        [
-                                          'message', 'rfc822', [], nil, nil, nil, 382,
-                                          [
-                                            'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                            [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
-                                          ],
-                                          [
-                                            [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 56, 3 ],
-                                            [ 'application', 'octet-stream', [], nil, nil, nil, 50 ],
-                                            'mixed'
-                                          ],
-                                          18
-                                        ],
-                                        [
-                                          [ 'image', 'gif', [], nil, nil, nil, 24 ],
-                                          [
-                                            'message', 'rfc822', [], nil, nil, nil, 612,
-                                            [
-                                              'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                              [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
-                                            ],
-                                            [
-                                              [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 48, 3 ],
-                                              [
-                                                [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 64, 3 ],
-                                                [ 'text', 'html', %w[ charset us-ascii ], nil, nil, nil, 90, 5 ],
-                                                'alternative'
-                                              ],
-                                              'mixed'
-                                            ],
-                                            28
-                                          ],
-                                          'mixed',
-                                        ],
-                                        'mixed'
-                                      ]),
-                          fetch_body.call(@folder.msg_list[1]))
-      assert_strenc_equal('ascii-8bit',
-                          'BODYSTRUCTURE ' +
-                          encode_list([ [ 'text', 'plain', %w[ charset us-ascii], nil, nil, nil, 59, 3 ],
-                                        [ 'application', 'octet-stream', [], nil, nil, nil, 50 ],
-                                        [
-                                          'message', 'rfc822', [], nil, nil, nil, 382,
-                                          [
-                                            'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
+
+      for fetch_att_bodystruct in %w[ BODY BODYSTRUCTURE ]
+        parse_fetch_attribute(fetch_att_bodystruct) {
+          assert_fetch(0, [
+                         "#{fetch_att_bodystruct} " +
+                         encode_list([ 'text',
+                                       'plain',
+                                       %w[ charset us-ascii ],
+                                       nil,
+                                       nil,
+                                       '7bit',
+                                       @simple_mail.raw_source.bytesize,
+                                       @simple_mail.raw_source.each_line.count
+                                     ])
+                       ])
+          assert_fetch(1, [
+                         "#{fetch_att_bodystruct} " +
+                         encode_list([ [ 'text', 'plain', %w[ charset us-ascii], nil, nil, nil,
+                                         @mpart_mail.parts[0].raw_source.bytesize,
+                                         @mpart_mail.parts[0].raw_source.each_line.count
+                                       ],
+                                       [ 'application', 'octet-stream', [], nil, nil, nil,
+                                         @mpart_mail.parts[1].raw_source.bytesize
+                                       ],
+                                       [ 'message', 'rfc822', [], nil, nil, nil,
+                                         @mpart_mail.parts[2].raw_source.bytesize,
+                                         [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
                                            [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
-                                          ],
-                                          [
-                                            [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 56, 3 ],
-                                            [ 'application', 'octet-stream', [], nil, nil, nil, 50 ],
-                                            'mixed'
-                                          ],
-                                          18
-                                        ],
-                                        [
-                                          [ 'image', 'gif', [], nil, nil, nil, 24 ],
-                                          [
-                                            'message', 'rfc822', [], nil, nil, nil, 612,
-                                            [
-                                              'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                              [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
-                                            ],
-                                            [
-                                              [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 48, 3 ],
-                                              [
-                                                [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 64, 3 ],
-                                                [ 'text', 'html', %w[ charset us-ascii ], nil, nil, nil, 90, 5 ],
-                                                'alternative'
-                                              ],
-                                              'mixed'
-                                            ],
-                                            28
-                                          ],
-                                          'mixed',
-                                        ],
-                                        'mixed'
-                                      ]),
-                          fetch_bodystructure.call(@folder.msg_list[1]))
-      assert_strenc_equal('ascii-8bit',
-                          'BODY ' +
-                          encode_list([ 'application',
-                                        'octet-stream',
-                                        [],
-                                        nil,
-                                        nil,
-                                        nil,
-                                        0
-                                      ]),
-                          fetch_body.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit',
-                          'BODYSTRUCTURE ' +
-                          encode_list([ 'application',
-                                        'octet-stream',
-                                        [],
-                                        nil,
-                                        nil,
-                                        nil,
-                                        0
-                                      ]),
-                          fetch_bodystructure.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit',
-                          'BODY ' +
-                          encode_list([ 'application',
-                                        'octet-stream',
-                                        [],
-                                        nil,
-                                        nil,
-                                        nil,
-                                        3
-                                      ]),
-                          fetch_body.call(@folder.msg_list[3]))
-      assert_strenc_equal('ascii-8bit',
-                          'BODYSTRUCTURE ' +
-                          encode_list([ 'application',
-                                        'octet-stream',
-                                        [],
-                                        nil,
-                                        nil,
-                                        nil,
-                                        3
-                                      ]),
-                          fetch_bodystructure.call(@folder.msg_list[3]))
+                                         ],
+                                         [ [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil,
+                                             @mpart_mail.parts[2].message.parts[0].raw_source.bytesize,
+                                             @mpart_mail.parts[2].message.parts[0].raw_source.each_line.count
+                                           ],
+                                           [ 'application', 'octet-stream', [], nil, nil, nil,
+                                             @mpart_mail.parts[2].message.parts[1].raw_source.bytesize
+                                           ],
+                                           'mixed'
+                                         ],
+                                         @mpart_mail.parts[2].raw_source.each_line.count
+                                       ],
+                                       [ [ 'image', 'gif', [], nil, nil, nil,
+                                           @mpart_mail.parts[3].parts[0].raw_source.bytesize
+                                         ],
+                                         [ 'message', 'rfc822', [], nil, nil, nil,
+                                           @mpart_mail.parts[3].parts[1].raw_source.bytesize,
+                                           [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                             [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
+                                           ],
+                                           [ [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil,
+                                               @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.bytesize,
+                                               @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.each_line.count
+                                             ],
+                                             [ [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil,
+                                                 @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.bytesize,
+                                                 @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.each_line.count
+                                               ],
+                                               [ 'text', 'html', %w[ charset us-ascii ], nil, nil, nil,
+                                                 @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.bytesize,
+                                                 @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.each_line.count
+                                               ],
+                                               'alternative'
+                                             ],
+                                             'mixed'
+                                           ],
+                                           @mpart_mail.parts[3].parts[1].raw_source.each_line.count
+                                         ],
+                                         'mixed',
+                                       ],
+                                       'mixed'
+                                     ])
+                       ])
+          assert_fetch(2, [
+                         "#{fetch_att_bodystruct} " +
+                         encode_list([ 'application',
+                                       'octet-stream',
+                                       [],
+                                       nil,
+                                       nil,
+                                       nil,
+                                       @empty_mail.raw_source.bytesize
+                                     ])
+                       ])
+          assert_fetch(3, [
+                         "#{fetch_att_bodystruct} " +
+                         encode_list([ 'application',
+                                       'octet-stream',
+                                       [],
+                                       nil,
+                                       nil,
+                                       nil,
+                                       @no_body_mail.raw_source.bytesize
+                                     ])
+                       ])
+        }
+      end
     end
 
     def test_parse_envelope
