@@ -242,8 +242,8 @@ Hello world.
         add_mail_no_body
       }
 
-      for msg in @folder.msg_list
-        @mail_store.set_msg_flag(@inbox_id, msg.uid, 'seen', true)
+      4.times do |i|
+        set_msg_flag(i, 'seen', true)
       end
 
       parse_fetch_attribute(make_body('BODY[]')) {
