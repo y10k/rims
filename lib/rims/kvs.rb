@@ -49,7 +49,7 @@ module RIMS
     end
 
     class FactoryBuilder
-      def initialize(&block)
+      def initialize
         @open = nil
         @factory = proc{|name|
           @open.call(name)
