@@ -475,41 +475,50 @@ Hello world.
         @mail_store.set_msg_flag(@inbox_id, uid, 'seen', true)
       }
 
-      s = @simple_mail.raw_source
-      assert(100 < s.bytesize && s.bytesize < 1000)
+      msg_txt = @simple_mail.raw_source
+      assert(100 < msg_txt.bytesize && msg_txt.bytesize < 1000)
+      msg_last_char_idx = msg_txt.bytesize - 1
 
-      fetch = @parser.parse(make_body('BODY[]<0.100>'))
-      assert_strenc_equal('ascii-8bit', "BODY[]<0> {100}\r\n#{s.byteslice(0, 100)}", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body('BODY[]<0.100>')) {
+        assert_fetch(0, [ "BODY[]<0> #{literal(msg_txt.byteslice(0, 100))}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[]<0.1000>'))
-      assert_strenc_equal('ascii-8bit', "BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body('BODY[]<0.1000>')) {
+        assert_fetch(0, [ "BODY[]<0> #{literal(msg_txt)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[]<0.4294967295>'))
-      assert_strenc_equal('ascii-8bit', "BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      assert_instance_of(Bignum, 2**128)
+      parse_fetch_attribute(make_body("BODY[]<0.#{2**128}>")) {
+        assert_fetch(0, [ "BODY[]<0> #{literal(msg_txt)}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[]<0.18446744073709551615>'))
-      assert_strenc_equal('ascii-8bit', "BODY[]<0> {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body('BODY[]<100.100>')) {
+        assert_fetch(0, [ "BODY[]<100> #{literal(msg_txt.byteslice(100, 100))}" ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[]<100.100>'))
-      assert_strenc_equal('ascii-8bit', "BODY[]<100> {100}\r\n#{s.byteslice(100, 100)}", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body("BODY[]<#{msg_last_char_idx}.1>")) {
+        assert_fetch(0, [ "BODY[]<#{msg_last_char_idx}> #{literal(msg_txt[msg_last_char_idx, 1])}" ])
+      }
 
-      fetch = @parser.parse(make_body("BODY[]<#{s.bytesize - 1}.1>"))
-      assert_strenc_equal('ascii-8bit', "BODY[]<#{s.bytesize - 1}> {1}\r\n\n", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body("BODY[]<#{msg_last_char_idx + 1}.1>")) {
+        assert_fetch(0, [ "BODY[]<#{msg_last_char_idx + 1}> NIL" ])
+      }
 
-      fetch = @parser.parse(make_body("BODY[]<#{s.bytesize}.1>"))
-      assert_strenc_equal('ascii-8bit', "BODY[]<#{s.bytesize}> NIL", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body('BODY[]<0.0>')) {
+        assert_fetch(0, [ 'BODY[]<0> ""' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[]<0.0>'))
-      assert_strenc_equal('ascii-8bit', "BODY[]<0> \"\"", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body('BODY[]<100.0>')) {
+        assert_fetch(0, [ 'BODY[]<100> ""' ])
+      }
 
-      fetch = @parser.parse(make_body('BODY[]<100.0>'))
-      assert_strenc_equal('ascii-8bit', "BODY[]<100> \"\"", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body("BODY[]<#{msg_last_char_idx}.0>")) {
+        assert_fetch(0, [ %Q'BODY[]<#{msg_last_char_idx}> ""' ])
+      }
 
-      fetch = @parser.parse(make_body("BODY[]<#{s.bytesize - 1}.0>"))
-      assert_strenc_equal('ascii-8bit', "BODY[]<#{s.bytesize - 1}> \"\"", fetch.call(@folder.msg_list[0]))
-
-      fetch = @parser.parse(make_body("BODY[]<#{s.bytesize}.0>"))
-      assert_strenc_equal('ascii-8bit', "BODY[]<#{s.bytesize}> NIL", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute(make_body("BODY[]<#{msg_last_char_idx + 1}.0>")) {
+        assert_fetch(0, [ "BODY[]<#{msg_last_char_idx + 1}> NIL" ])
+      }
     end
 
     def test_parse_bodystructure
