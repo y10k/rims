@@ -686,17 +686,18 @@ Hello world.
         add_mail_simple
         add_mail_multipart
       }
-      fetch = @parser.parse('FAST')
-      assert_strenc_equal('ascii-8bit',
-                          'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-Nov-2013 06:47:50 +0900" ' +
-                          'RFC822.SIZE 203',
-                          fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit',
-                          'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-Nov-2013 19:31:03 +0900" ' +
-                          'RFC822.SIZE 1545',
-                          fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute('FAST') {
+        assert_fetch(0, [
+                       'FLAGS (\Recent)',
+                       'INTERNALDATE "08-Nov-2013 06:47:50 +0900"',
+                       "RFC822.SIZE #{@simple_mail.raw_source.bytesize}"
+                     ])
+        assert_fetch(1, [
+                       'FLAGS (\Recent)',
+                       'INTERNALDATE "08-Nov-2013 19:31:03 +0900"',
+                       "RFC822.SIZE #{@mpart_mail.raw_source.bytesize}"
+                     ])
+      }
     end
 
     def test_parse_flags
