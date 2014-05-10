@@ -633,55 +633,52 @@ Hello world.
         add_mail_empty
         add_mail_no_body
       }
-      fetch = @parser.parse('ENVELOPE')
-      assert_strenc_equal('ascii-8bit',
-                          'ENVELOPE (' + [
-                            '"Fri,  8 Nov 2013 06:47:50 +0900 (JST)"', # Date
-                            '"test"',                                  # Subject
-                            '((NIL NIL "bar" "nonet.org"))',           # From
-                            'NIL',                                     # Sender
-                            'NIL',                                     # Reply-To
-                            '((NIL NIL "foo" "nonet.org"))',           # To
-                            'NIL',                                     # Cc
-                            'NIL',                                     # Bcc
-                            'NIL',                                     # In-Reply-To
-                            'NIL'                                      # Message-Id
-                          ].join(' ') +')',
-                          fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit',
-                          'ENVELOPE (' + [
-                            '"Fri, 8 Nov 2013 19:31:03 +0900"',        # Date
-                            '"multipart test"',                        # Subject
-                            '((NIL NIL "foo" "nonet.com"))',           # From
-                            'NIL',                                     # Sender
-                            'NIL',                                     # Reply-To
-                            '((NIL NIL "bar" "nonet.com"))',           # To
-                            'NIL',                                     # Cc
-                            'NIL',                                     # Bcc
-                            'NIL',                                     # In-Reply-To
-                            'NIL'                                      # Message-Id
-                          ].join(' ') +')',
-                          fetch.call(@folder.msg_list[1]))
-      assert_strenc_equal('ascii-8bit',
-                          'ENVELOPE (' + [
-                            '"Fri, 8 Nov 2013 19:31:03 +0900"',        # Date
-                            '"=?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?="',    # Subject
-                            '((NIL NIL "foo" "nonet.com") ("bar" NIL "bar" "nonet.com"))', # From
-                            '((NIL NIL "foo" "nonet.com"))',           # Sender
-                            '((NIL NIL "foo" "nonet.com"))',           # Reply-To
-                            '((NIL NIL "alice" "test.com") ("bob" NIL "bob" "test.com"))', # To
-                            '(("Kate" NIL "kate" "test.com"))',        # Cc
-                            '((NIL NIL "foo" "nonet.com"))',           # Bcc
-                            '"<20131106081723.5KJU1774292@smtp.testt.com>"',# In-Reply-To
-                            '"<20131107214750.445A1255B9F@smtp.nonet.com>"' # Message-Id
-                          ].join(' ') +')',
-                          fetch.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit',
-                          'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)',
-                          fetch.call(@folder.msg_list[3]))
-      assert_strenc_equal('ascii-8bit',
-                          'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)',
-                          fetch.call(@folder.msg_list[4]))
+      parse_fetch_attribute('ENVELOPE') {
+        assert_fetch(0, [
+                       'ENVELOPE',
+                       [ '"Fri,  8 Nov 2013 06:47:50 +0900 (JST)"', # Date
+                         '"test"',                                  # Subject
+                         '((NIL NIL "bar" "nonet.org"))',           # From
+                         'NIL',                                     # Sender
+                         'NIL',                                     # Reply-To
+                         '((NIL NIL "foo" "nonet.org"))',           # To
+                         'NIL',                                     # Cc
+                         'NIL',                                     # Bcc
+                         'NIL',                                     # In-Reply-To
+                         'NIL'                                      # Message-Id
+                       ]
+                     ])
+        assert_fetch(1, [
+                       'ENVELOPE',
+                       [ '"Fri, 8 Nov 2013 19:31:03 +0900"',        # Date
+                         '"multipart test"',                        # Subject
+                         '((NIL NIL "foo" "nonet.com"))',           # From
+                         'NIL',                                     # Sender
+                         'NIL',                                     # Reply-To
+                         '((NIL NIL "bar" "nonet.com"))',           # To
+                         'NIL',                                     # Cc
+                         'NIL',                                     # Bcc
+                         'NIL',                                     # In-Reply-To
+                         'NIL'                                      # Message-Id
+                       ]
+                     ])
+        assert_fetch(2, [
+                       'ENVELOPE',
+                       [ '"Fri, 8 Nov 2013 19:31:03 +0900"',        # Date
+                         '"=?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?="',    # Subject
+                         '((NIL NIL "foo" "nonet.com") ("bar" NIL "bar" "nonet.com"))', # From
+                         '((NIL NIL "foo" "nonet.com"))',           # Sender
+                         '((NIL NIL "foo" "nonet.com"))',           # Reply-To
+                         '((NIL NIL "alice" "test.com") ("bob" NIL "bob" "test.com"))', # To
+                         '(("Kate" NIL "kate" "test.com"))',        # Cc
+                         '((NIL NIL "foo" "nonet.com"))',           # Bcc
+                         '"<20131106081723.5KJU1774292@smtp.testt.com>"',# In-Reply-To
+                         '"<20131107214750.445A1255B9F@smtp.nonet.com>"' # Message-Id
+                       ]
+                     ])
+        assert_fetch(3, [ 'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)' ])
+        assert_fetch(4, [ 'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)' ])
+      }
     end
 
     def test_parse_fast
