@@ -702,51 +702,55 @@ Hello world.
 
     def test_parse_flags
       make_fetch_parser{
-        id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
-
-        id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, id, 'recent', true)
-
-        id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
-        @mail_store.set_msg_flag(@inbox_id, id, 'answered', true)
-
-        id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
-        @mail_store.set_msg_flag(@inbox_id, id, 'flagged', true)
-
-        id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
-        @mail_store.set_msg_flag(@inbox_id, id, 'deleted', true)
-
-        id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
-        @mail_store.set_msg_flag(@inbox_id, id, 'seen', true)
-
-        id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, id, 'recent', false)
-        @mail_store.set_msg_flag(@inbox_id, id, 'draft', true)
-
-        id = add_mail_simple
-        @mail_store.set_msg_flag(@inbox_id, id, 'recent', true)
-        @mail_store.set_msg_flag(@inbox_id, id, 'answered', true)
-        @mail_store.set_msg_flag(@inbox_id, id, 'flagged', true)
-        @mail_store.set_msg_flag(@inbox_id, id, 'deleted', true)
-        @mail_store.set_msg_flag(@inbox_id, id, 'seen', true)
-        @mail_store.set_msg_flag(@inbox_id, id, 'draft', true)
+        add_mail_simple
+        add_mail_simple
+        add_mail_simple
+        add_mail_simple
+        add_mail_simple
+        add_mail_simple
+        add_mail_simple
+        add_mail_simple
       }
-      fetch = @parser.parse('FLAGS')
-      assert_strenc_equal('ascii-8bit', 'FLAGS ()', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'FLAGS (\Recent)', fetch.call(@folder.msg_list[1]))
-      assert_strenc_equal('ascii-8bit', 'FLAGS (\Answered)', fetch.call(@folder.msg_list[2]))
-      assert_strenc_equal('ascii-8bit', 'FLAGS (\Flagged)', fetch.call(@folder.msg_list[3]))
-      assert_strenc_equal('ascii-8bit', 'FLAGS (\Deleted)', fetch.call(@folder.msg_list[4]))
-      assert_strenc_equal('ascii-8bit', 'FLAGS (\Seen)', fetch.call(@folder.msg_list[5]))
-      assert_strenc_equal('ascii-8bit', 'FLAGS (\Draft)', fetch.call(@folder.msg_list[6]))
-      assert_strenc_equal('ascii-8bit',
-                          'FLAGS (' + RIMS::MailStore::MSG_FLAG_NAMES.map{|n| "\\#{n.capitalize}" }.join(' ') + ')',
-                          fetch.call(@folder.msg_list[7]))
+
+      set_msg_flag(0, 'recent', false)
+
+      set_msg_flag(1, 'recent', true)
+
+      set_msg_flag(2, 'recent', false)
+      set_msg_flag(2, 'answered', true)
+
+      set_msg_flag(3, 'recent', false)
+      set_msg_flag(3, 'flagged', true)
+
+      set_msg_flag(4, 'recent', false)
+      set_msg_flag(4, 'deleted', true)
+
+      set_msg_flag(5, 'recent', false)
+      set_msg_flag(5, 'seen', true)
+
+      set_msg_flag(6, 'recent', false)
+      set_msg_flag(6, 'draft', true)
+
+      set_msg_flag(7, 'recent', true)
+      set_msg_flag(7, 'answered', true)
+      set_msg_flag(7, 'flagged', true)
+      set_msg_flag(7, 'deleted', true)
+      set_msg_flag(7, 'seen', true)
+      set_msg_flag(7, 'draft', true)
+
+      parse_fetch_attribute('FLAGS') {
+        assert_fetch(0, [ 'FLAGS ()' ])
+        assert_fetch(1, [ 'FLAGS (\Recent)' ])
+        assert_fetch(2, [ 'FLAGS (\Answered)' ])
+        assert_fetch(3, [ 'FLAGS (\Flagged)' ])
+        assert_fetch(4, [ 'FLAGS (\Deleted)' ])
+        assert_fetch(5, [ 'FLAGS (\Seen)' ])
+        assert_fetch(6, [ 'FLAGS (\Draft)' ])
+        assert_fetch(7, [
+                       'FLAGS',
+                       RIMS::MailStore::MSG_FLAG_NAMES.map{|n| "\\#{n.capitalize}" }
+                     ])
+      }
     end
 
     def test_parse_full
