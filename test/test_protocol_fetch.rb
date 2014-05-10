@@ -43,6 +43,12 @@ module RIMS::Test
     end
     private :parse_fetch_attribute
 
+    def make_body(description)
+      reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
+      reader.parse(reader.scan_line(description))[0]
+    end
+    private :make_body
+
     def assert_fetch(msg_idx, expected_message_data_array, encoding: 'ascii-8bit')
       assert_strenc_equal(encoding,
                           message_data_list(expected_message_data_array),
@@ -173,12 +179,6 @@ Hello world.
       @no_body_mail = RIMS::RFC822::Message.new('foo')
       @mail_store.add_msg(@inbox_id, @no_body_mail.raw_source)
     end
-
-    def make_body(description)
-      reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
-      reader.parse(reader.scan_line(description))[0]
-    end
-    private :make_body
 
     def test_parse_all
       make_fetch_parser{
