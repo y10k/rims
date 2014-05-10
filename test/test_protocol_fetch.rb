@@ -242,47 +242,29 @@ Hello world.
         add_mail_no_body
       }
 
-      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[2].uid, 'seen', true)
-      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[3].uid, 'seen', true)
+      for msg in @folder.msg_list
+        @mail_store.set_msg_flag(@inbox_id, msg.uid, 'seen', true)
+      end
 
       parse_fetch_attribute(make_body('BODY[]')) {
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-        assert_fetch(0, [
-                       'FLAGS (\Seen \Recent)',
-                       "BODY[] #{literal(@simple_mail.raw_source)}"
-                     ])
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-        assert_fetch(0, [
-                       "BODY[] #{literal(@simple_mail.raw_source)}"
-                     ])
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-
+        assert_fetch(0, [ "BODY[] #{literal(@simple_mail.raw_source)}" ])
+        assert_fetch(1, [ "BODY[] #{literal(@mpart_mail.raw_source)}" ])
         assert_fetch(2, [ 'BODY[] ""' ])
-        assert_fetch(3, [ 'BODY[] "foo"' ])
+        assert_fetch(3, [ %Q'BODY[] "#{@no_body_mail.raw_source}"' ])
       }
 
       parse_fetch_attribute(make_body('BODY[TEXT]')) {
         assert_fetch(0, [ "BODY[TEXT] #{literal(@simple_mail.body.raw_source)}" ])
+        assert_fetch(1, [ "BODY[TEXT] #{literal(@mpart_mail.body.raw_source)}" ])
         assert_fetch(2, [ 'BODY[TEXT] ""' ])
         assert_fetch(3, [ 'BODY[TEXT] ""' ])
       }
 
       parse_fetch_attribute(make_body('BODY[HEADER]')) {
         assert_fetch(0, [ "BODY[HEADER] #{literal(@simple_mail.header.raw_source)}" ])
-
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
-        assert_fetch(1, [
-                       'FLAGS (\Seen \Recent)',
-                       "BODY[HEADER] #{literal(@mpart_mail.header.raw_source)}"
-                     ])
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
-        assert_fetch(1, [
-                       "BODY[HEADER] #{literal(@mpart_mail.header.raw_source)}"
-                     ])
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[1].uid, 'seen'))
-
+        assert_fetch(1, [ "BODY[HEADER] #{literal(@mpart_mail.header.raw_source)}" ])
         assert_fetch(2, [ 'BODY[HEADER] ""' ])
-        assert_fetch(3, [ 'BODY[HEADER] "foo"' ])
+        assert_fetch(3, [ %Q'BODY[HEADER] "#{@no_body_mail.header.raw_source}"' ])
       }
 
       parse_fetch_attribute(make_body('BODY[HEADER.FIELDS (From To)]')) {
@@ -445,6 +427,25 @@ Hello world.
                        'BODY[4.2.HEADER.FIELDS.NOT (To From Subject)] ' +
                        literal(make_header_text(@mpart_mail.parts[3].parts[1].message.header, reject_list: %w[ To From Subject ]))
                      ])
+      }
+    end
+
+    def test_parse_body_enabled_seen_flag
+      make_fetch_parser{
+        add_mail_simple
+      }
+
+      parse_fetch_attribute(make_body('BODY[]')) {
+        assert_equal(false, get_msg_flag(0, 'seen'))
+        assert_fetch(0, [
+                       'FLAGS (\Seen \Recent)',
+                       "BODY[] #{literal(@simple_mail.raw_source)}"
+                     ])
+        assert_equal(true, get_msg_flag(0, 'seen'))
+        assert_fetch(0, [
+                       "BODY[] #{literal(@simple_mail.raw_source)}"
+                     ])
+        assert_equal(true, get_msg_flag(0, 'seen'))
       }
     end
 
