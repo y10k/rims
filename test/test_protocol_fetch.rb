@@ -905,14 +905,11 @@ Hello world.
       make_fetch_parser{
         add_mail_simple
       }
-
-      fetch = @parser.parse('RFC822.HEADER')
-      s = @simple_mail.header.raw_source
-      s += "\r\n" unless (s =~ /\r?\n$/)
-      s += "\r\n" unless (s =~ /\r?\n\r?\n$/)
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', "RFC822.HEADER {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
+      parse_fetch_attribute('RFC822.HEADER') {
+        assert_equal(false, get_msg_flag(0, 'seen'))
+        assert_fetch(0, [ "RFC822.HEADER #{literal(@simple_mail.header.raw_source)}" ])
+        assert_equal(false, get_msg_flag(0, 'seen'))
+      }
     end
 
     def test_parse_rfc822_size
