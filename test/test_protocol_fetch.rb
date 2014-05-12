@@ -1083,18 +1083,24 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_get_body_section
-      assert_equal(@simple_mail, RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, []))
-      assert_equal(@simple_mail, RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 1 ]))
+      assert_equal(@simple_mail,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, []))
+      assert_equal(@simple_mail,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 1 ]))
       assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 1, 1 ]))
       assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 2 ]))
 
-      assert_equal(@mpart_mail.raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, []).raw_source)
-      assert_equal(@mpart_mail.parts[0].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 1 ]).raw_source)
-      assert_equal(@mpart_mail.parts[1].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 2 ]).raw_source)
-      assert_equal(@mpart_mail.parts[2].raw_source, RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3 ]).raw_source)
-      assert_equal(RIMS::RFC822::Message.new(@mpart_mail.parts[2].body.raw_source).parts[0].raw_source,
+      assert_equal(@mpart_mail.raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, []).raw_source)
+      assert_equal(@mpart_mail.parts[0].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 1 ]).raw_source)
+      assert_equal(@mpart_mail.parts[1].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 2 ]).raw_source)
+      assert_equal(@mpart_mail.parts[2].raw_source,
+                   RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3 ]).raw_source)
+      assert_equal(@mpart_mail.parts[2].message.parts[0].raw_source,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3, 1 ]).raw_source)
-      assert_equal(RIMS::RFC822::Message.new(@mpart_mail.parts[2].body.raw_source).parts[1].raw_source,
+      assert_equal(@mpart_mail.parts[2].message.parts[1].raw_source,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3, 2 ]).raw_source)
       assert_equal(@mpart_mail.parts[3].raw_source,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4 ]).raw_source)
@@ -1102,13 +1108,13 @@ Content-Type: text/html; charset=us-ascii
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 1 ]).raw_source)
       assert_equal(@mpart_mail.parts[3].parts[1].raw_source,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2 ]).raw_source)
-      assert_equal(RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[0].raw_source,
+      assert_equal(@mpart_mail.parts[3].parts[1].message.parts[0].raw_source,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 1 ]).raw_source)
-      assert_equal(RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].raw_source,
+      assert_equal(@mpart_mail.parts[3].parts[1].message.parts[1].raw_source,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2 ]).raw_source)
-      assert_equal(RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].parts[0].raw_source,
+      assert_equal(@mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2, 1 ]).raw_source)
-      assert_equal(RIMS::RFC822::Message.new(@mpart_mail.parts[3].parts[1].body.raw_source).parts[1].parts[1].raw_source,
+      assert_equal(@mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2, 2 ]).raw_source)
       assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 5 ]))
       assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 3, 3 ]))
