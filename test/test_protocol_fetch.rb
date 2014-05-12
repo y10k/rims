@@ -866,9 +866,10 @@ Hello world.
         add_mail_simple
         add_mail_multipart
       }
-      fetch = @parser.parse('INTERNALDATE')
-      assert_strenc_equal('ascii-8bit', 'INTERNALDATE "08-Nov-2013 06:47:50 +0900"', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'INTERNALDATE "08-Nov-2013 19:31:03 +0900"', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute('INTERNALDATE') {
+        assert_fetch(0, [ 'INTERNALDATE "08-Nov-2013 06:47:50 +0900"' ])
+        assert_fetch(1, [ 'INTERNALDATE "08-Nov-2013 19:31:03 +0900"' ])
+      }
     end
 
     def test_parse_rfc822
