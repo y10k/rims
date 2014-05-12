@@ -876,14 +876,18 @@ Hello world.
       make_fetch_parser{
         add_mail_simple
       }
-
-      fetch = @parser.parse('RFC822')
-      s = @simple_mail.raw_source
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', "FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
-      assert_strenc_equal('ascii-8bit', "RFC822 {#{s.bytesize}}\r\n#{s}", fetch.call(@folder.msg_list[0]))
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, @folder.msg_list[0].uid, 'seen'))
+      parse_fetch_attribute('RFC822') {
+        assert_equal(false, get_msg_flag(0, 'seen'))
+        assert_fetch(0, [
+                       'FLAGS (\Seen \Recent)',
+                       "RFC822 #{literal(@simple_mail.raw_source)}"
+                     ])
+        assert_equal(true, get_msg_flag(0, 'seen'))
+        assert_fetch(0, [
+                       "RFC822 #{literal(@simple_mail.raw_source)}"
+                     ])
+        assert_equal(true, get_msg_flag(0, 'seen'))
+      }
     end
 
     def test_parse_rfc822_read_only
