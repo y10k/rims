@@ -1074,11 +1074,12 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_encode_header
-      s = ''
-      s << "To: foo@nonet.org\r\n"
-      s << "From: bar@nonet.org\r\n"
-      s << "\r\n"
-      assert_equal(s, RIMS::Protocol::FetchParser::Utils.encode_header(%w[ To From ].map{|n| [ n, @simple_mail.header[n] ] }))
+      assert_equal("To: foo@nonet.org\r\n" +
+                   "From: bar@nonet.org\r\n" +
+                   "\r\n",
+                   RIMS::Protocol::FetchParser::Utils.encode_header([ %w[ To foo@nonet.org ],
+                                                                      %w[ From bar@nonet.org ]
+                                                                    ]))
     end
 
     def test_get_body_section
