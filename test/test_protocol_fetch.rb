@@ -968,14 +968,19 @@ Hello world.
       }
     end
 
-    def test_parse_group_empty
+    def test_parse_group
       make_fetch_parser{
         add_mail_simple
         add_mail_multipart
       }
-      fetch = @parser.parse([ :group ])
-      assert_strenc_equal('ascii-8bit', '()', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', '()', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute([ :group ]) {
+        assert_fetch(0, [ '()' ])
+        assert_fetch(1, [ '()' ])
+      }
+      parse_fetch_attribute([ :group, 'RFC822.SIZE' ]) {
+        assert_fetch(0, [ "(RFC822.SIZE #{@simple_mail.raw_source.bytesize})" ])
+        assert_fetch(1, [ "(RFC822.SIZE #{@mpart_mail.raw_source.bytesize})" ])
+      }
     end
   end
 
