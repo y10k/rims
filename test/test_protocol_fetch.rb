@@ -954,17 +954,18 @@ Hello world.
     def test_parse_uid
       make_fetch_parser{
         add_mail_simple
-        id = add_mail_simple
+        add_mail_simple
         add_mail_multipart
 
-        @mail_store.set_msg_flag(@inbox_id, id, 'deleted', true)
+        @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
         @mail_store.expunge_mbox(@inbox_id)
+
         assert_equal([ 1, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
-
-      fetch = @parser.parse('UID')
-      assert_strenc_equal('ascii-8bit', 'UID 1', fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit', 'UID 3', fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute('UID') {
+        assert_fetch(0, [ 'UID 1' ])
+        assert_fetch(1, [ 'UID 3' ])
+      }
     end
 
     def test_parse_group_empty
