@@ -916,9 +916,10 @@ Hello world.
       make_fetch_parser{
         add_mail_simple
       }
-      fetch = @parser.parse('RFC822.SIZE')
-      s = @simple_mail.raw_source
-      assert_strenc_equal('ascii-8bit', "RFC822.SIZE #{s.bytesize}", fetch.call(@folder.msg_list[0]))
+      parse_fetch_attribute('RFC822.SIZE') {
+        s = @simple_mail.raw_source
+        assert_fetch(0, [ "RFC822.SIZE #{@simple_mail.raw_source.bytesize}" ])
+      }
     end
 
     def test_parse_rfc822_text
