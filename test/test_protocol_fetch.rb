@@ -8,66 +8,8 @@ require 'test/unit'
 require 'time'
 
 module RIMS::Test
-  class ProtocolFetchParserTest < Test::Unit::TestCase
-    include AssertUtility
-    include RIMS::Protocol::FetchParser::Utils
-
-    def setup
-      @kv_store = {}
-      @kvs_open = proc{|path| RIMS::Hash_KeyValueStore.new(@kv_store[path] = {}) }
-      @mail_store = RIMS::MailStore.new(RIMS::DB::Meta.new(@kvs_open.call('meta')),
-                                        RIMS::DB::Message.new(@kvs_open.call('msg'))) {|mbox_id|
-        RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
-      }
-      @inbox_id = @mail_store.add_mbox('INBOX')
-    end
-
-    def make_fetch_parser(read_only: false)
-      yield if block_given?
-      if (read_only) then
-        @folder = @mail_store.examine_mbox(@inbox_id)
-      else
-        @folder = @mail_store.select_mbox(@inbox_id)
-      end
-      @parser = RIMS::Protocol::FetchParser.new(@mail_store, @folder)
-    end
-    private :make_fetch_parser
-
-    def parse_fetch_attribute(fetch_att_str)
-      @fetch = @parser.parse(fetch_att_str)
-      begin
-        yield
-      ensure
-        @fetch = nil
-      end
-    end
-    private :parse_fetch_attribute
-
-    def make_body(description)
-      reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
-      reader.parse(reader.scan_line(description))[0]
-    end
-    private :make_body
-
-    def get_msg_flag(msg_idx, flag_name)
-      @mail_store.msg_flag(@inbox_id, @folder.msg_list[msg_idx].uid, flag_name)
-    end
-    private :get_msg_flag
-
-    def set_msg_flag(msg_idx, flag_name, flag_value)
-      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[msg_idx].uid, flag_name, flag_value)
-      nil
-    end
-    private :set_msg_flag
-
-    def assert_fetch(msg_idx, expected_message_data_array, encoding: 'ascii-8bit')
-      assert_strenc_equal(encoding,
-                          message_data_list(expected_message_data_array),
-                          @fetch.call(@folder.msg_list[msg_idx]))
-    end
-    private :assert_fetch
-
-    def add_mail_simple
+  module ProtocolFetchMailSample
+    def make_mail_simple
       @simple_mail = RIMS::RFC822::Message.new(<<-'EOF')
 To: foo@nonet.org
 From: bar@nonet.org
@@ -79,12 +21,10 @@ Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
 
 Hello world.
       EOF
-
-      @mail_store.add_msg(@inbox_id, @simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
     end
-    private :add_mail_simple
+    private :make_mail_simple
 
-    def add_mail_multipart
+    def make_mail_multipart
       @mpart_mail = RIMS::RFC822::Message.new(<<-'EOF')
 To: bar@nonet.com
 From: foo@nonet.com
@@ -158,11 +98,10 @@ Content-Type: text/html; charset=us-ascii
 --1383.905529.351299--
 --1383.905529.351297--
       EOF
-      @mail_store.add_msg(@inbox_id, @mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
     end
-    private :add_mail_multipart
+    private :make_mail_multipart
 
-    def add_mail_mime_subject
+    def make_mail_mime_subject
       @mime_subject_mail = RIMS::RFC822::Message.new(<<-'EOF')
 Date: Fri, 8 Nov 2013 19:31:03 +0900
 Subject: =?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?=
@@ -177,19 +116,109 @@ Message-Id: <20131107214750.445A1255B9F@smtp.nonet.com>
 
 Hello world.
       EOF
+    end
+    private :make_mail_mime_subject
+
+    def make_mail_empty
+      @empty_mail = RIMS::RFC822::Message.new('')
+    end
+    private :make_mail_empty
+
+    def make_mail_no_body
+      @no_body_mail = RIMS::RFC822::Message.new('foo')
+    end
+    private :make_mail_no_body
+  end
+
+  class ProtocolFetchParserTest < Test::Unit::TestCase
+    include AssertUtility
+    include ProtocolFetchMailSample
+    include RIMS::Protocol::FetchParser::Utils
+
+    def setup
+      @kv_store = {}
+      @kvs_open = proc{|path| RIMS::Hash_KeyValueStore.new(@kv_store[path] = {}) }
+      @mail_store = RIMS::MailStore.new(RIMS::DB::Meta.new(@kvs_open.call('meta')),
+                                        RIMS::DB::Message.new(@kvs_open.call('msg'))) {|mbox_id|
+        RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
+      }
+      @inbox_id = @mail_store.add_mbox('INBOX')
+    end
+
+    def make_fetch_parser(read_only: false)
+      yield if block_given?
+      if (read_only) then
+        @folder = @mail_store.examine_mbox(@inbox_id)
+      else
+        @folder = @mail_store.select_mbox(@inbox_id)
+      end
+      @parser = RIMS::Protocol::FetchParser.new(@mail_store, @folder)
+    end
+    private :make_fetch_parser
+
+    def parse_fetch_attribute(fetch_att_str)
+      @fetch = @parser.parse(fetch_att_str)
+      begin
+        yield
+      ensure
+        @fetch = nil
+      end
+    end
+    private :parse_fetch_attribute
+
+    def make_body(description)
+      reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
+      reader.parse(reader.scan_line(description))[0]
+    end
+    private :make_body
+
+    def get_msg_flag(msg_idx, flag_name)
+      @mail_store.msg_flag(@inbox_id, @folder.msg_list[msg_idx].uid, flag_name)
+    end
+    private :get_msg_flag
+
+    def set_msg_flag(msg_idx, flag_name, flag_value)
+      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[msg_idx].uid, flag_name, flag_value)
+      nil
+    end
+    private :set_msg_flag
+
+    def assert_fetch(msg_idx, expected_message_data_array, encoding: 'ascii-8bit')
+      assert_strenc_equal(encoding,
+                          message_data_list(expected_message_data_array),
+                          @fetch.call(@folder.msg_list[msg_idx]))
+    end
+    private :assert_fetch
+
+    def add_mail_simple
+      make_mail_simple
+      @mail_store.add_msg(@inbox_id, @simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
+    end
+    private :add_mail_simple
+
+    def add_mail_multipart
+      make_mail_multipart
+      @mail_store.add_msg(@inbox_id, @mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+    end
+    private :add_mail_multipart
+
+    def add_mail_mime_subject
+      make_mail_mime_subject
       @mail_store.add_msg(@inbox_id, @mime_subject_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
     end
     private :add_mail_mime_subject
 
     def add_mail_empty
-      @empty_mail = RIMS::RFC822::Message.new('')
+      make_mail_empty
       @mail_store.add_msg(@inbox_id, @empty_mail.raw_source)
     end
+    private :add_mail_empty
 
     def add_mail_no_body
-      @no_body_mail = RIMS::RFC822::Message.new('foo')
+      make_mail_no_body
       @mail_store.add_msg(@inbox_id, @no_body_mail.raw_source)
     end
+    private :add_mail_no_body
 
     def test_parse_all
       make_fetch_parser{
@@ -985,93 +1014,7 @@ Hello world.
   end
 
   class ProtocolFetchParserUtilsTest < Test::Unit::TestCase
-    def setup
-      @simple_mail = RIMS::RFC822::Message.new(<<-'EOF')
-To: foo@nonet.org
-From: bar@nonet.org
-Subject: test
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
-
-Hello world.
-      EOF
-
-      @mpart_mail = RIMS::RFC822::Message.new(<<-'EOF')
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: multipart test
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351297"
-
---1383.905529.351297
-Content-Type: text/plain; charset=us-ascii
-
-Multipart test.
---1383.905529.351297
-Content-Type: application/octet-stream
-
-0123456789
---1383.905529.351297
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351298"
-
---1383.905529.351298
-Content-Type: text/plain; charset=us-ascii
-
-Hello world.
---1383.905529.351298
-Content-Type: application/octet-stream
-
-9876543210
---1383.905529.351298--
---1383.905529.351297
-Content-Type: multipart/mixed; boundary="1383.905529.351299"
-
---1383.905529.351299
-Content-Type: image/gif
-
---1383.905529.351299
-Content-Type: message/rfc822
-
-To: bar@nonet.com
-From: foo@nonet.com
-Subject: inner multipart
-MIME-Version: 1.0
-Date: Fri, 8 Nov 2013 19:31:03 +0900
-Content-Type: multipart/mixed; boundary="1383.905529.351300"
-
---1383.905529.351300
-Content-Type: text/plain; charset=us-ascii
-
-HALO
---1383.905529.351300
-Content-Type: multipart/alternative; boundary="1383.905529.351301"
-
---1383.905529.351301
-Content-Type: text/plain; charset=us-ascii
-
-alternative message.
---1383.905529.351301
-Content-Type: text/html; charset=us-ascii
-
-<html>
-<body><p>HTML message</p></body>
-</html>
---1383.905529.351301--
---1383.905529.351300--
---1383.905529.351299--
---1383.905529.351297--
-      EOF
-    end
+    include ProtocolFetchMailSample
 
     def test_encode_header
       assert_equal("To: foo@nonet.org\r\n" +
@@ -1083,6 +1026,9 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_get_body_section
+      make_mail_simple
+      make_mail_multipart
+
       assert_equal(@simple_mail,
                    RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, []))
       assert_equal(@simple_mail,
@@ -1131,10 +1077,15 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_get_body_content
+      make_mail_simple
+      make_mail_multipart
+
       assert_equal('test', RIMS::Protocol::FetchParser::Utils.get_body_content(@simple_mail, :header)['Subject'])
       assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_content(@simple_mail, :header, nest_mail: true))
+
       assert_equal('multipart test', RIMS::Protocol::FetchParser::Utils.get_body_content(@mpart_mail, :header)['Subject'])
       assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_content(@mpart_mail, :header, nest_mail: true))
+
       assert_equal('inner multipart', RIMS::Protocol::FetchParser::Utils.get_body_content(@mpart_mail.parts[2], :header, nest_mail: true)['Subject'])
     end
   end
