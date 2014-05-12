@@ -758,90 +758,107 @@ Hello world.
         add_mail_simple
         add_mail_multipart
       }
-      fetch = @parser.parse('FULL')
-      assert_strenc_equal('ascii-8bit',
-                          'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-Nov-2013 06:47:50 +0900" ' +
-                          'RFC822.SIZE 203 ' +
-                          'ENVELOPE (' + [
-                            '"Fri,  8 Nov 2013 06:47:50 +0900 (JST)"', # Date
-                            '"test"',                                  # Subject
-                            '((NIL NIL "bar" "nonet.org"))',           # From
-                            'NIL',                                     # Sender
-                            'NIL',                                     # Reply-To
-                            '((NIL NIL "foo" "nonet.org"))',           # To
-                            'NIL',                                     # Cc
-                            'NIL',                                     # Bcc
-                            'NIL',                                     # In-Reply-To
-                            'NIL'                                      # Message-Id
-                          ].join(' ') +') ' +
-                          'BODY ' +
-                          encode_list([ 'text',
-                                        'plain',
-                                        %w[ charset us-ascii ],
-                                        nil,
-                                        nil,
-                                        '7bit',
-                                        203,
-                                        9
-                                      ]),
-                          fetch.call(@folder.msg_list[0]))
-      assert_strenc_equal('ascii-8bit',
-                          'FLAGS (\Recent) ' +
-                          'INTERNALDATE "08-Nov-2013 19:31:03 +0900" ' +
-                          'RFC822.SIZE 1545 ' +
-                          'ENVELOPE (' + [
-                            '"Fri, 8 Nov 2013 19:31:03 +0900"',        # Date
-                            '"multipart test"',                        # Subject
-                            '((NIL NIL "foo" "nonet.com"))',           # From
-                            'NIL',                                     # Sender
-                            'NIL',                                     # Reply-To
-                            '((NIL NIL "bar" "nonet.com"))',           # To
-                            'NIL',                                     # Cc
-                            'NIL',                                     # Bcc
-                            'NIL',                                     # In-Reply-To
-                            'NIL'                                      # Message-Id
-                          ].join(' ') +') ' +
-                          'BODY ' +
-                          encode_list([ [ 'text', 'plain', %w[ charset us-ascii], nil, nil, nil, 59, 3 ],
-                                        [ 'application', 'octet-stream', [], nil, nil, nil, 50 ],
-                                        [
-                                          'message', 'rfc822', [], nil, nil, nil, 382,
-                                          [
-                                            'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                            [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
-                                          ],
-                                          [
-                                            [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 56, 3 ],
-                                            [ 'application', 'octet-stream', [], nil, nil, nil, 50 ],
-                                            'mixed'
-                                          ],
-                                          18
-                                        ],
-                                        [
-                                          [ 'image', 'gif', [], nil, nil, nil, 24 ],
-                                          [
-                                            'message', 'rfc822', [], nil, nil, nil, 612,
-                                            [
-                                              'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                              [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
-                                            ],
-                                            [
-                                              [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 48, 3 ],
-                                              [
-                                                [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil, 64, 3 ],
-                                                [ 'text', 'html', %w[ charset us-ascii ], nil, nil, nil, 90, 5 ],
-                                                'alternative'
-                                              ],
-                                              'mixed'
-                                            ],
-                                            28
-                                          ],
-                                          'mixed',
-                                        ],
-                                        'mixed'
-                                      ]),
-                          fetch.call(@folder.msg_list[1]))
+      parse_fetch_attribute('FULL') {
+        assert_fetch(0, [
+                       'FLAGS (\Recent)',
+                       'INTERNALDATE "08-Nov-2013 06:47:50 +0900"',
+                       "RFC822.SIZE #{@simple_mail.raw_source.bytesize}",
+                       'ENVELOPE',
+                       [ '"Fri,  8 Nov 2013 06:47:50 +0900 (JST)"', # Date
+                         '"test"',                                  # Subject
+                         '((NIL NIL "bar" "nonet.org"))',           # From
+                         'NIL',                                     # Sender
+                         'NIL',                                     # Reply-To
+                         '((NIL NIL "foo" "nonet.org"))',           # To
+                         'NIL',                                     # Cc
+                         'NIL',                                     # Bcc
+                         'NIL',                                     # In-Reply-To
+                         'NIL'                                      # Message-Id
+                       ],
+                       'BODY',
+                       encode_list([ 'text',
+                                     'plain',
+                                     %w[ charset us-ascii ],
+                                     nil,
+                                     nil,
+                                     '7bit',
+                                     @simple_mail.raw_source.bytesize,
+                                     @simple_mail.raw_source.each_line.count
+                                   ])
+                     ])
+        assert_fetch(1, [
+                       'FLAGS (\Recent)',
+                       'INTERNALDATE "08-Nov-2013 19:31:03 +0900"',
+                       "RFC822.SIZE #{@mpart_mail.raw_source.bytesize}",
+                       'ENVELOPE',
+                       [ '"Fri, 8 Nov 2013 19:31:03 +0900"',        # Date
+                         '"multipart test"',                        # Subject
+                         '((NIL NIL "foo" "nonet.com"))',           # From
+                         'NIL',                                     # Sender
+                         'NIL',                                     # Reply-To
+                         '((NIL NIL "bar" "nonet.com"))',           # To
+                         'NIL',                                     # Cc
+                         'NIL',                                     # Bcc
+                         'NIL',                                     # In-Reply-To
+                         'NIL'                                      # Message-Id
+                       ],
+                       'BODY',
+                       encode_list([ [ 'text', 'plain', %w[ charset us-ascii], nil, nil, nil,
+                                       @mpart_mail.parts[0].raw_source.bytesize,
+                                       @mpart_mail.parts[0].raw_source.each_line.count
+                                     ],
+                                     [ 'application', 'octet-stream', [], nil, nil, nil,
+                                       @mpart_mail.parts[1].raw_source.bytesize
+                                     ],
+                                     [ 'message', 'rfc822', [], nil, nil, nil,
+                                       @mpart_mail.parts[2].raw_source.bytesize,
+                                       [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                         [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
+                                       ],
+                                       [ [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil,
+                                           @mpart_mail.parts[2].message.parts[0].raw_source.bytesize,
+                                           @mpart_mail.parts[2].message.parts[0].raw_source.each_line.count
+                                         ],
+                                         [ 'application', 'octet-stream', [], nil, nil, nil,
+                                           @mpart_mail.parts[2].message.parts[1].raw_source.bytesize
+                                         ],
+                                         'mixed'
+                                       ],
+                                       @mpart_mail.parts[2].raw_source.each_line.count
+                                     ],
+                                     [
+                                       [ 'image', 'gif', [], nil, nil, nil,
+                                         @mpart_mail.parts[3].parts[0].raw_source.bytesize
+                                       ],
+                                       [ 'message', 'rfc822', [], nil, nil, nil,
+                                         @mpart_mail.parts[3].parts[1].raw_source.bytesize,
+                                         [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                           [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
+                                         ],
+                                         [ [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil,
+                                             @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.bytesize,
+                                             @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.each_line.count
+                                           ],
+                                           [ [ 'text', 'plain', %w[ charset us-ascii ], nil, nil, nil,
+                                               @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.bytesize,
+                                               @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.each_line.count
+                                             ],
+                                             [ 'text', 'html', %w[ charset us-ascii ], nil, nil, nil,
+                                               @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.bytesize,
+                                               @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.each_line.count
+                                             ],
+                                             'alternative'
+                                           ],
+                                           'mixed'
+                                         ],
+                                         @mpart_mail.parts[3].parts[1].raw_source.each_line.count
+                                       ],
+                                       'mixed',
+                                     ],
+                                     'mixed'
+                                   ])
+                       ])
+      }
     end
 
     def test_parse_internaldate
