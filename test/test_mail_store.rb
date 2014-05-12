@@ -8,6 +8,8 @@ require 'time'
 
 module RIMS::Test
   class MailStoreTest < Test::Unit::TestCase
+    include AssertUtility
+
     def setup
       @kvs = Hash.new{|h, k| h[k] = Hash.new }
       @kvs_open = proc{|name| RIMS::Hash_KeyValueStore.new(@kvs[name]) }
@@ -21,12 +23,6 @@ module RIMS::Test
       @mail_store.close if @mail_store
       pp @kvs if $DEBUG
     end
-
-    def assert_strenc_equal(expected_enc, expected_str, expr_str)
-      assert_equal(Encoding.find(expected_enc), expr_str.encoding)
-      assert_equal(expected_str.dup.force_encoding(expected_enc), expr_str)
-    end
-    private :assert_strenc_equal
 
     def test_mbox
       assert_equal(0, @mail_store.cnum)

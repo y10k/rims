@@ -6,11 +6,7 @@ require 'test/unit'
 
 module RIMS::Test
   class RFC822ParserTest < Test::Unit::TestCase
-    def assert_strenc_equal(expected_enc, expected_str, expr_str)
-      assert_equal(Encoding.find(expected_enc), expr_str.encoding)
-      assert_equal(expected_str.dup.force_encoding(expected_enc), expr_str)
-    end
-    private :assert_strenc_equal
+    include AssertUtility
 
     def test_split_message
       msg =
