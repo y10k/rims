@@ -156,6 +156,12 @@ Hello world.
     end
     private :make_fetch_parser
 
+    def make_body(description)
+      reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
+      reader.parse(reader.scan_line(description))[0]
+    end
+    private :make_body
+
     def parse_fetch_attribute(fetch_att_str)
       @fetch = @parser.parse(fetch_att_str)
       begin
@@ -166,11 +172,12 @@ Hello world.
     end
     private :parse_fetch_attribute
 
-    def make_body(description)
-      reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
-      reader.parse(reader.scan_line(description))[0]
+    def assert_fetch(msg_idx, expected_message_data_array, encoding: 'ascii-8bit')
+      assert_strenc_equal(encoding,
+                          message_data_list(expected_message_data_array),
+                          @fetch.call(@folder.msg_list[msg_idx]))
     end
-    private :make_body
+    private :assert_fetch
 
     def get_msg_flag(msg_idx, flag_name)
       @mail_store.msg_flag(@inbox_id, @folder.msg_list[msg_idx].uid, flag_name)
@@ -182,13 +189,6 @@ Hello world.
       nil
     end
     private :set_msg_flag
-
-    def assert_fetch(msg_idx, expected_message_data_array, encoding: 'ascii-8bit')
-      assert_strenc_equal(encoding,
-                          message_data_list(expected_message_data_array),
-                          @fetch.call(@folder.msg_list[msg_idx]))
-    end
-    private :assert_fetch
 
     def add_mail_simple
       make_mail_simple
