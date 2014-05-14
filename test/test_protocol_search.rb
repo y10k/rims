@@ -133,27 +133,21 @@ module RIMS::Test
 
     def test_parse_before
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-07 12:34:56'))
-        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-08 12:34:56'))
-        @mail_store.add_msg(@inbox_id, 'foo', Time.parse('2013-11-09 12:34:56'))
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-        assert_equal(Time.parse('2013-11-07 12:34:56'), @mail_store.msg_date(@inbox_id, 1))
-        assert_equal(Time.parse('2013-11-08 12:34:56'), @mail_store.msg_date(@inbox_id, 2))
-        assert_equal(Time.parse('2013-11-09 12:34:56'), @mail_store.msg_date(@inbox_id, 3))
+        add_msg('foo', Time.parse('2013-11-07 12:34:56'))
+        add_msg('foo', Time.parse('2013-11-08 12:34:56'))
+        add_msg('foo', Time.parse('2013-11-09 12:34:56'))
+        assert_msg_uid(1, 2, 3)
       }
-      cond = @parser.parse([ 'BEFORE', '08-Nov-2013' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'BEFORE' ])
+
+      parse_search_key([ 'BEFORE', '08-Nov-2013' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'BEFORE', '99-Nov-2013' ])
-      }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'BEFORE', [ :group, '08-Nov-2013'] ])
-      }
+
+      assert_search_syntax_error([ 'BEFORE' ])
+      assert_search_syntax_error([ 'BEFORE', '99-Nov-2013' ])
+      assert_search_syntax_error([ 'BEFORE', [ :group, '08-Nov-2013'] ])
     end
 
     def test_parse_body
