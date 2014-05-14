@@ -145,6 +145,15 @@ Hello world.
       @inbox_id = @mail_store.add_mbox('INBOX')
     end
 
+    def expunge(*uid_list)
+      for uid in uid_list
+        @mail_store.set_msg_flag(@inbox_id, uid, 'deleted', true)
+      end
+      @mail_store.expunge_mbox(@inbox_id)
+      nil
+    end
+    private :expunge
+
     def make_fetch_parser(read_only: false)
       yield if block_given?
       if (read_only) then
@@ -985,10 +994,7 @@ Hello world.
         add_mail_simple
         add_mail_simple
         add_mail_multipart
-
-        @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
-        @mail_store.expunge_mbox(@inbox_id)
-
+        expunge(2)
         assert_equal([ 1, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
       parse_fetch_attribute('UID') {
