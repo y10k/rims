@@ -16,12 +16,71 @@ module RIMS::Test
       @inbox_id = @mail_store.add_mbox('INBOX')
     end
 
+    def add_msg(msg_txt, *optional_args)
+      @mail_store.add_msg(@inbox_id, msg_txt, *optional_args)
+      nil
+    end
+    private :add_msg
+
+    def get_msg_flag(uid, flag_name)
+      @mail_store.msg_flag(@inbox_id, uid, flag_name)
+    end
+    private :get_msg_flag
+
+    def set_msg_flag(uid, flag_name, flag_value)
+      @mail_store.set_msg_flag(@inbox_id, uid, flag_name, flag_value)
+      nil
+    end
+    private :set_msg_flag
+
+    def expunge(*uid_list)
+      for uid in uid_list
+        set_msg_flag(uid, 'deleted', true)
+      end
+      @mail_store.expunge_mbox(@inbox_id)
+      nil
+    end
+    private :expunge
+
+    def assert_msg_uid(*uid_list)
+      assert_equal(uid_list, @mail_store.each_msg_uid(@inbox_id).to_a)
+    end
+    private :assert_msg_uid
+
+    def assert_msg_flag(flag_name, *flag_value_list)
+      uid_list = @mail_store.each_msg_uid(@inbox_id).to_a
+      assert_equal(uid_list.map{|uid| get_msg_flag(uid, flag_name) }, flag_value_list)
+    end
+    private :assert_msg_flag
+
     def make_search_parser
       yield
       @folder = @mail_store.select_mbox(@inbox_id)
       @parser = RIMS::Protocol::SearchParser.new(@mail_store, @folder)
     end
     private :make_search_parser
+
+    def parse_search_key(search_key_list)
+      @cond = @parser.parse(search_key_list)
+      begin
+        yield
+      ensure
+        @cond = nil
+      end
+    end
+    private :parse_search_key
+
+    def assert_search_cond(msg_idx, expected_found_flag)
+      assert_equal(expected_found_flag, @cond.call(@folder.msg_list[msg_idx]))
+    end
+    private :assert_search_cond
+
+    def assert_search_syntax_error(search_key_list)
+      assert_raise(RIMS::SyntaxError) {
+        @parser.parse(search_key_list)
+      }
+    end
+    private :assert_search_syntax_error
 
     def test_parse_all
       make_search_parser{
