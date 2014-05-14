@@ -84,11 +84,13 @@ module RIMS::Test
 
     def test_parse_all
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg('foo')
+        assert_msg_uid(1)
       }
-      cond = @parser.parse([ 'ALL' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
+
+      parse_search_key([ 'ALL' ]) {
+        assert_search_cond(0, true)
+      }
     end
 
     def test_parse_answered
