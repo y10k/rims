@@ -111,21 +111,24 @@ module RIMS::Test
 
     def test_parse_bcc
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, "Bcc: foo\r\n\r\nfoo")
-        @mail_store.add_msg(@inbox_id, "Bcc: bar\r\n\r\foo")
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg("Bcc: foo\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Bcc: bar\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg('foo')
+        assert_msg_uid(1, 2, 3)
       }
-      cond = @parser.parse([ 'BCC', 'foo' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'BCC' ])
+
+      parse_search_key([ 'BCC', 'foo' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'BCC', [ :group, 'foo' ] ])
-      }
+
+      assert_search_syntax_error([ 'BCC' ])
+      assert_search_syntax_error([ 'BCC', [ :group, 'foo' ] ])
     end
 
     def test_parse_before
