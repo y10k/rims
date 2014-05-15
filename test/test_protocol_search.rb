@@ -152,10 +152,16 @@ module RIMS::Test
 
     def test_parse_body
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\n\r\nfoo")
-        @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\n\r\nbar")
-        @mail_store.add_msg(@inbox_id, "Content-Type: message/rfc822\r\n\r\nfoo")
-        @mail_store.add_msg(@inbox_id, <<-'EOF')
+        add_msg("Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "bar")
+        add_msg("Content-Type: message/rfc822\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg(<<-'EOF')
 Content-Type: multipart/alternative; boundary="1383.905529.351297"
 
 --1383.905529.351297
@@ -168,19 +174,19 @@ Content-Type: text/html
 <html><body><p>foo</p></body></html>
 --1383.905529.351297--
         EOF
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+
+        assert_msg_uid(1, 2, 3, 4)
       }
-      cond = @parser.parse([ 'BODY', 'foo' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(true, cond.call(@folder.msg_list[2]))
-      assert_equal(false, cond.call(@folder.msg_list[3])) # ignored text part of multipart message.
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'BODY' ])
+
+      parse_search_key([ 'BODY', 'foo' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, true)
+        assert_search_cond(3, false) # ignored text part of multipart message.
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'BODY', [ :group, 'foo' ] ])
-      }
+
+      assert_search_syntax_error([ 'BODY' ])
+      assert_search_syntax_error([ 'BODY', [ :group, 'foo' ] ])
     end
 
     def test_parse_cc
