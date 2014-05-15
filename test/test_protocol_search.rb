@@ -341,24 +341,21 @@ Content-Type: text/html
 
     def test_parse_larger
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, '1234')
-        @mail_store.add_msg(@inbox_id, 'bar')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg('foo')
+        add_msg('1234')
+        add_msg('bar')
+        assert_msg_uid(1, 2, 3)
       }
-      cond = @parser.parse([ 'LARGER', '3' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_equal(true, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'LARGER' ])
+
+      parse_search_key([ 'LARGER', '3' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, true)
+        assert_search_cond(2, false)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'LARGER', [ :group, '3' ] ])
-      }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'LARGER', 'nonum' ])
-      }
+
+      assert_search_syntax_error([ 'LARGER' ])
+      assert_search_syntax_error([ 'LARGER', [ :group, '3' ] ])
+      assert_search_syntax_error([ 'LARGER', 'nonum' ])
     end
 
     def test_parse_new
