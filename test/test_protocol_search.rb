@@ -213,16 +213,18 @@ Content-Type: text/html
 
     def test_parse_deleted
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-        @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'deleted'))
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'deleted'))
+        add_msg('foo')
+        add_msg('foo')
+        assert_msg_uid(1, 2)
+
+        set_msg_flag(1, 'deleted', true)
+        assert_msg_flag('deleted', true, false)
       }
-      cond = @parser.parse([ 'DELETED' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
+
+      parse_search_key([ 'DELETED' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+      }
     end
 
     def test_parse_draft
