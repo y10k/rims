@@ -327,17 +327,16 @@ Content-Type: text/html
 
     def test_parse_keyword
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg('')
+        assert_msg_uid(1)
       }
-      cond = @parser.parse([ 'KEYWORD', 'foo' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'KEYWORD' ])
+
+      parse_search_key([ 'KEYWORD', 'foo' ]) {
+        assert_search_cond(0, false) # always false
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'KEYWORD', [ :group, 'foo' ] ])
-      }
+
+      assert_search_syntax_error([ 'KEYWORD' ])
+      assert_search_syntax_error([ 'KEYWORD', [ :group, 'foo' ] ])
     end
 
     def test_parse_larger
