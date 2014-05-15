@@ -283,40 +283,46 @@ Content-Type: text/html
 
     def test_parse_header
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, "X-Foo: alice\r\nX-Bar: bob\r\n\r\nfoo")
-        @mail_store.add_msg(@inbox_id, "X-Foo: bob\r\nX-Bar: alice\r\n\r\nfoo")
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg("X-Foo: alice\r\n" +
+                "X-Bar: bob\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("X-Foo: bob\r\n" +
+                "X-Bar: alice\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg('foo')
+        assert_msg_uid(1, 2, 3)
       }
-      cond = @parser.parse([ 'HEADER', 'x-foo', 'alice' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      cond = @parser.parse([ 'HEADER', 'x-foo', 'bob' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_equal(true, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      cond = @parser.parse([ 'HEADER', 'x-bar', 'alice' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_equal(true, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      cond = @parser.parse([ 'HEADER', 'x-bar', 'bob' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
 
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'HEADER' ])
+      parse_search_key([ 'HEADER', 'x-foo', 'alice' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'HEADER', 'Received' ])
+
+      parse_search_key([ 'HEADER', 'x-foo', 'bob' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, true)
+        assert_search_cond(2, false)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'HEADER', 'Received', [ :group, 'foo' ] ])
+
+      parse_search_key([ 'HEADER', 'x-bar', 'alice' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, true)
+        assert_search_cond(2, false)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'HEADER', [ :group, 'Received' ], 'foo' ])
+
+      parse_search_key([ 'HEADER', 'x-bar', 'bob' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
       }
+
+      assert_search_syntax_error([ 'HEADER' ])
+      assert_search_syntax_error([ 'HEADER', 'Received' ])
+      assert_search_syntax_error([ 'HEADER', 'Received', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'HEADER', [ :group, 'Received' ], 'foo' ])
     end
 
     def test_parse_keyword
