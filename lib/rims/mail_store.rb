@@ -265,7 +265,7 @@ module RIMS
       elsif (flag_name == 'deleted') then
         mbox_db.msg_flag_deleted(uid)
       else
-        raise "unnown flag name: #{flag_name}"
+        raise "unknown flag name: #{flag_name}"
       end
     end
 
@@ -285,7 +285,7 @@ module RIMS
             @meta_db.mbox_flag_num_decrement(mbox_id, 'deleted')
           end
         else
-          raise "unnown flag name: #{flag_name}"
+          raise "unknown flag name: #{flag_name}"
         end
 
         @meta_db.cnum_succ!
