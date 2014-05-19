@@ -601,24 +601,21 @@ Content-Type: text/html
 
     def test_parse_smaller
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, '12')
-        @mail_store.add_msg(@inbox_id, 'bar')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg('foo')
+        add_msg('12')
+        add_msg('bar')
+        assert_msg_uid(1, 2, 3)
       }
-      cond = @parser.parse([ 'SMALLER', '3' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_equal(true, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'SMALLER' ])
+
+      parse_search_key([ 'SMALLER', '3' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, true)
+        assert_search_cond(2, false)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'SMALLER', [ :group, '3' ] ])
-      }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'SMALLER', 'nonum' ])
-      }
+
+      assert_search_syntax_error([ 'SMALLER' ])
+      assert_search_syntax_error([ 'SMALLER', [ :group, '3' ] ])
+      assert_search_syntax_error([ 'SMALLER', 'nonum' ])
     end
 
     def test_parse_subject
