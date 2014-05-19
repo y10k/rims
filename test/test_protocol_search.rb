@@ -642,23 +642,28 @@ Content-Type: text/html
 
     def test_parse_text
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nSubject: foo\r\n\r\nbar")
-        assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg("Content-Type: text/plain\r\n" +
+                "Subject: foo\r\n" +
+                "\r\n" +
+                "bar")
+        assert_msg_uid(1)
       }
-      cond = @parser.parse([ 'TEXT', 'jec' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      cond = @parser.parse([ 'TEXT', 'foo' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      cond = @parser.parse([ 'TEXT', 'bar' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      cond = @parser.parse([ 'TEXT', 'baz' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'TEXT' ])
+
+      parse_search_key([ 'TEXT', 'jec' ]) {
+        assert_search_cond(0, true)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'TEXT', [ :group, 'foo'] ])
+      parse_search_key([ 'TEXT', 'foo' ]) {
+        assert_search_cond(0, true)
       }
+      parse_search_key([ 'TEXT', 'bar' ]) {
+        assert_search_cond(0, true)
+      }
+      parse_search_key([ 'TEXT', 'baz' ]) {
+        assert_search_cond(0, false)
+      }
+
+      assert_search_syntax_error([ 'TEXT' ])
+      assert_search_syntax_error([ 'TEXT', [ :group, 'foo'] ])
     end
 
     def test_parse_to
