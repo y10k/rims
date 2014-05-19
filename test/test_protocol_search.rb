@@ -528,26 +528,29 @@ Content-Type: text/html
 
     def test_parse_senton
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, "Date: Thu, 07 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
-        @mail_store.add_msg(@inbox_id, "Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
-        @mail_store.add_msg(@inbox_id, "Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n\r\nfoo")
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg("Date: Thu, 07 Nov 2013 12:34:56 +0900\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg('foo')
+        assert_msg_uid(1, 2, 3, 4)
       }
-      cond = @parser.parse([ 'SENTON', '08-Nov-2013' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_equal(true, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_equal(false, cond.call(@folder.msg_list[3]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'SENTON' ])
+
+      parse_search_key([ 'SENTON', '08-Nov-2013' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, true)
+        assert_search_cond(2, false)
+        assert_search_cond(3, false)
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'SENTON', '99-Nov-2013' ])
-      }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'SENTON', [ :group, '08-Nov-2013'] ])
-      }
+
+      assert_search_syntax_error([ 'SENTON' ])
+      assert_search_syntax_error([ 'SENTON', '99-Nov-2013' ])
+      assert_search_syntax_error([ 'SENTON', [ :group, '08-Nov-2013'] ])
     end
 
     def test_parse_sentsince
