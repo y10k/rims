@@ -690,22 +690,21 @@ Content-Type: text/html
 
     def test_parse_uid
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
-        @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
-        @mail_store.set_msg_flag(@inbox_id, 5, 'deleted', true)
-        @mail_store.expunge_mbox(@inbox_id)
-        assert_equal([ 2, 4, 6 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg('foo')
+        add_msg('foo')
+        add_msg('foo')
+        add_msg('foo')
+        add_msg('foo')
+        add_msg('foo')
+        expunge(1, 3, 5)
+        assert_msg_uid(2, 4, 6)
       }
-      cond = @parser.parse([ 'UID', '2,*' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(true, cond.call(@folder.msg_list[2]))
+
+      parse_search_key([ 'UID', '2,*' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, true)
+      }
 
       begin
         @parser.parse([ 'UID', 'detarame' ])
