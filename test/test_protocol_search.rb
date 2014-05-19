@@ -794,16 +794,18 @@ Content-Type: text/html
 
     def test_parse_unseen
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-        @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'seen'))
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
+        add_msg('foo')
+        add_msg('foo')
+        assert_msg_uid(1, 2)
+
+        set_msg_flag(1, 'seen', true)
+        assert_msg_flag('seen', true, false)
       }
-      cond = @parser.parse([ 'UNSEEN' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_equal(true, cond.call(@folder.msg_list[1]))
+
+      parse_search_key([ 'UNSEEN' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, true)
+      }
     end
 
     def test_parse_msg_set
