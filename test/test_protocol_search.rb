@@ -380,26 +380,28 @@ Content-Type: text/html
 
     def test_parse_not
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, '1234')
-        @mail_store.add_msg(@inbox_id, 'bar')
-        assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-        @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
+        add_msg('foo')
+        add_msg('1234')
+        add_msg('bar')
+        assert_msg_uid(1, 2, 3)
+
+        set_msg_flag(1, 'answered', true)
+        assert_msg_flag('answered', true, false, false)
       }
-      cond = @parser.parse([ 'NOT', 'LARGER', '3' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(true, cond.call(@folder.msg_list[2]))
-      cond = @parser.parse([ 'NOT', 'ANSWERED' ])
-      assert_equal(false, cond.call(@folder.msg_list[0]))
-      assert_equal(true, cond.call(@folder.msg_list[1]))
-      assert_equal(true, cond.call(@folder.msg_list[2]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'NOT' ])
+
+      parse_search_key([ 'NOT', 'LARGER', '3' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, true)
       }
+
+      parse_search_key([ 'NOT', 'ANSWERED' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, true)
+        assert_search_cond(2, true)
+      }
+
+      assert_search_syntax_error([ 'NOT' ])
     end
 
     def test_parse_old
