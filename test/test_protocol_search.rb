@@ -831,37 +831,35 @@ Content-Type: text/html
 
     def test_parse_group
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-        @mail_store.set_msg_flag(@inbox_id, 1, 'answered', true)
-        @mail_store.set_msg_flag(@inbox_id, 2, 'answered', true)
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'answered'))
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'answered'))
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'answered'))
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, 4, 'answered'))
-        @mail_store.set_msg_flag(@inbox_id, 1, 'flagged', true)
-        @mail_store.set_msg_flag(@inbox_id, 3, 'flagged', true)
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, 1, 'flagged'))
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'flagged'))
-        assert_equal(true, @mail_store.msg_flag(@inbox_id, 3, 'flagged'))
-        assert_equal(false, @mail_store.msg_flag(@inbox_id, 4, 'flagged'))
+        add_msg('foo')
+        add_msg('foo')
+        add_msg('foo')
+        add_msg('foo')
+        assert_msg_uid(1, 2, 3, 4)
+
+        set_msg_flag(1, 'answered', true)
+        set_msg_flag(2, 'answered', true)
+        set_msg_flag(1, 'flagged', true)
+        set_msg_flag(3, 'flagged', true)
+        assert_msg_flag('answered', true, true,  false, false)
+        assert_msg_flag('flagged',  true, false, true,  false)
       }
-      cond = @parser.parse([ 'ANSWERED', 'FLAGGED' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_equal(false, cond.call(@folder.msg_list[3]))
-      cond = @parser.parse([ [ :group, 'ANSWERED', 'FLAGGED' ] ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_equal(false, cond.call(@folder.msg_list[1]))
-      assert_equal(false, cond.call(@folder.msg_list[2]))
-      assert_equal(false, cond.call(@folder.msg_list[3]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ [ :block, 'ANSWERED', 'FLAGGED' ] ])
+
+      parse_search_key([ 'ANSWERED', 'FLAGGED' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
+        assert_search_cond(3, false)
       }
+
+      parse_search_key([ [ :group, 'ANSWERED', 'FLAGGED' ] ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
+        assert_search_cond(3, false)
+      }
+
+      assert_search_syntax_error([ [ :block, 'ANSWERED', 'FLAGGED' ] ])
     end
   end
 end
