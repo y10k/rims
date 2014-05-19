@@ -780,17 +780,16 @@ Content-Type: text/html
 
     def test_parse_unkeyword
       make_search_parser{
-        @mail_store.add_msg(@inbox_id, 'foo')
-        assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        add_msg('')
+        assert_msg_uid(1)
       }
-      cond = @parser.parse([ 'UNKEYWORD', 'foo' ])
-      assert_equal(true, cond.call(@folder.msg_list[0]))
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'UNKEYWORD' ])
+
+      parse_search_key([ 'UNKEYWORD', 'foo' ]) {
+        assert_search_cond(0, true) # always true
       }
-      assert_raise(RIMS::SyntaxError) {
-        @parser.parse([ 'UNKEYWORD', [ :group, 'foo' ] ])
-      }
+
+      assert_search_syntax_error([ 'UNKEYWORD' ])
+      assert_search_syntax_error([ 'UNKEYWORD', [ :group, 'foo' ] ])
     end
 
     def test_parse_unseen
