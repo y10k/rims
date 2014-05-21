@@ -53,10 +53,12 @@ module RIMS::Test
     end
     private :assert_msg_flag
 
-    def make_search_parser
+    def make_search_parser(charset: nil)
       yield
       @folder = @mail_store.select_mbox(@inbox_id)
       @parser = RIMS::Protocol::SearchParser.new(@mail_store, @folder)
+      @parser.charset = charset if charset
+      nil
     end
     private :make_search_parser
 
