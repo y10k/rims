@@ -187,7 +187,11 @@ module RIMS
       private :str2time
 
       def string_include?(search_string, text)
-        unless (search_string.ascii_only?) then
+        if (search_string.ascii_only?) then
+          unless (text.encoding.ascii_compatible?) then
+            text = text.encode('utf-8')
+          end
+        else
           if (@charset) then
             search_string = search_string.dup.force_encoding(@charset)
             text = text.encode(@charset)
