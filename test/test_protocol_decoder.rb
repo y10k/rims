@@ -91,6 +91,7 @@ module RIMS::Test
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
       @passwd = proc{|username, password|username == 'foo' && password == 'open_sesame'}
       @decoder = RIMS::Protocol::Decoder.new(@mail_store_pool, @passwd, @logger)
+      @tag = 'T000'
     end
 
     def teardown
@@ -99,6 +100,30 @@ module RIMS::Test
       assert(@mail_store_pool.empty?)
       pp @kvs if $DEBUG
     end
+
+    def tag
+      @tag.dup
+    end
+    private :tag
+
+    def next_tag!
+      @tag.succ!.dup
+    end
+    private :next_tag!
+
+    def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, **cmd_opts)
+      next_tag!
+      if (cmd_opts.empty?) then
+        response_lines = @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args).each
+      else
+        response_lines = @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args, **cmd_opts).each
+      end
+      assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert|
+        yield(assert)
+      }
+      nil
+    end
+    private :assert_imap_command
 
     def mail_store_add_mail_simple
       @simple_mail = RIMS::RFC822::Message.new(<<-'EOF')
