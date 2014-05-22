@@ -590,37 +590,32 @@ Content-Type: text/html; charset=us-ascii
     def test_create
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.create('T001', 'foo').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:create, 'foo') {|assert|
+        assert.match(/^T001 NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_nil(@mail_store.mbox_id('foo'))
 
-      res = @decoder.create('T003', 'foo').each
-      assert_imap_response(res) {|a|
-        a.equal('T003 OK CREATE completed')
+      assert_imap_command(:create, 'foo') {|assert|
+        assert.equal("#{tag} OK CREATE completed")
       }
 
       assert_not_nil(@mail_store.mbox_id('foo'))
 
-      res = @decoder.create('T004', 'inbox').each
-      assert_imap_response(res) {|a|
-        a.match(/^T004 NO /)
+      assert_imap_command(:create, 'inbox') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      res = @decoder.logout('T005').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T005 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
