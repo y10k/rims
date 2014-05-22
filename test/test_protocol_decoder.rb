@@ -13,76 +13,60 @@ module RIMS::Test
     class IMAPResponseAssertionDSL
       include Test::Unit::Assertions
 
-      def initialize(crlf_at_eol: true)
+      def initialize(response_lines, crlf_at_eol: true)
+        @lines = response_lines
         @crlf_at_eol = crlf_at_eol
-        @assertions = []
       end
 
-      attr_reader :assertions
-
-      def fetch_line(response_lines, peek_next_line: false)
+      def fetch_line(peek_next_line: false)
         if (peek_next_line) then
-          response_lines.peek
+          @lines.peek
         else
-          response_lines.next
+          @lines.next
         end
       end
       private :fetch_line
 
       def skip_while(&cond)
-        @assertions << proc{|lines|
-          while (cond.call(lines.peek))
-            lines.next
-          end
-        }
+        while (cond.call(@lines.peek))
+          @lines.next
+        end
         self
       end
 
       def equal(expected_string, peek_next_line: false)
         expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n\z/)
-        @assertions << proc{|lines|
-          line = fetch_line(lines, peek_next_line: peek_next_line)
-          assert_equal(expected_string, line)
-        }
+        line = fetch_line(peek_next_line: peek_next_line)
+        assert_equal(expected_string, line)
         self
       end
 
       def strenc_equal(expected_string, peek_next_line: false)
         expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n\z/)
-        @assertions << proc{|lines|
-          line = fetch_line(lines, peek_next_line: peek_next_line)
-          assert_equal(expected_string.encoding, line.encoding)
-          assert_equal(expected_string, line)
-        }
+        line = fetch_line(peek_next_line: peek_next_line)
+        assert_equal(expected_string.encoding, line.encoding)
+        assert_equal(expected_string, line)
         self
       end
 
       def match(expected_regexp, peek_next_line: false)
-        @assertions << proc{|lines|
-          line = fetch_line(lines, peek_next_line: peek_next_line)
-          assert_match(expected_regexp, line)
-          assert_match(/\r\n\z/, line) if @crlf_at_eol
-        }
+        line = fetch_line(peek_next_line: peek_next_line)
+        assert_match(expected_regexp, line)
+        assert_match(/\r\n\z/, line) if @crlf_at_eol
         self
       end
 
       def no_match(expected_regexp, peek_next_line: false)
-        @assertions << proc{|lines|
-          line = fetch_line(lines, peek_next_line: peek_next_line)
-          assert_not_nil(expected_regexp, line)
-          assert_match(/\r\n\z/, line) if @crlf_at_eol
-        }
+        line = fetch_line(peek_next_line: peek_next_line)
+        assert_not_nil(expected_regexp, line)
+        assert_match(/\r\n\z/, line) if @crlf_at_eol
         self
       end
     end
 
     def assert_imap_response(response_lines, crlf_at_eol: true)
-      dsl = IMAPResponseAssertionDSL.new(crlf_at_eol: crlf_at_eol)
+      dsl = IMAPResponseAssertionDSL.new(response_lines, crlf_at_eol: crlf_at_eol)
       yield(dsl)
-
-      for a in dsl.assertions
-        a.call(response_lines)
-      end
       assert_raise(StopIteration) { response_lines.next }
 
       nil
