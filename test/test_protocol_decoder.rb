@@ -620,24 +620,21 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_create_utf7_mbox_name
-      res = @decoder.login('T001', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T001 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      assert_nil(@mail_store.mbox_id(UTF8_MBOX_NAME))
 
-      res = @decoder.create('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK CREATE completed')
+      assert_imap_command(:create, UTF7_MBOX_NAME) {|assert|
+        assert.equal("#{tag} OK CREATE completed")
       }
 
-      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      assert_not_nil(@mail_store.mbox_id(UTF8_MBOX_NAME))
 
-      res = @decoder.logout('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T003 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
