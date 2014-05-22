@@ -701,59 +701,47 @@ Content-Type: text/html; charset=us-ascii
     def test_rename
       mbox_id = @mail_store.add_mbox('foo')
 
-      assert_equal(mbox_id, @mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('bar'))
-
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.rename('T001', 'foo', 'bar').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
+      assert_imap_command(:rename, 'foo', 'bar') {|assert|
+        assert.match(/^#{tag} NO /)
       }
-
-      assert_equal(mbox_id, @mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('bar'))
+      assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
 
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.rename('T003', 'foo', 'bar').each
-      assert_imap_response(res) {|a|
-        a.equal('T003 OK RENAME completed')
+      assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
+      assert_imap_command(:rename, 'foo', 'bar') {|assert|
+        assert.equal("#{tag} OK RENAME completed")
+      }
+      assert_equal([ nil, mbox_id ], get_mbox_id_list('foo', 'bar'))
+
+      assert_imap_command(:rename, 'nobox', 'baz') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      assert_nil(@mail_store.mbox_id('foo'))
-      assert_equal(mbox_id, @mail_store.mbox_id('bar'))
-
-      res = @decoder.rename('T004', 'nobox', 'baz').each
-      assert_imap_response(res) {|a|
-        a.match(/^T004 NO /)
+      assert_equal([ @inbox_id, nil ], get_mbox_id_list('INBOX', 'baz'))
+      assert_imap_command(:rename, 'INBOX', 'baz') {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_equal([ @inbox_id, nil ], get_mbox_id_list('INBOX', 'baz'))
 
-      res = @decoder.rename('T005', 'INBOX', 'baz').each
-      assert_imap_response(res) {|a|
-        a.match(/^T005 NO /)
+      assert_equal([ mbox_id, @inbox_id ], get_mbox_id_list('bar', 'INBOX'))
+      assert_imap_command(:rename, 'bar', 'inbox') {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_equal([ mbox_id, @inbox_id ], get_mbox_id_list('bar', 'INBOX'))
 
-      assert_equal('INBOX', @mail_store.mbox_name(@inbox_id))
-
-      res = @decoder.rename('T006', 'bar', 'inbox').each
-      assert_imap_response(res) {|a|
-        a.match(/^T006 NO /)
-      }
-
-      assert_equal('INBOX', @mail_store.mbox_name(@inbox_id))
-
-      res = @decoder.logout('T007').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T007 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
