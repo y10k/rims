@@ -640,46 +640,42 @@ Content-Type: text/html; charset=us-ascii
 
     def test_delete
       @mail_store.add_mbox('foo')
-      assert_not_nil(@mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('bar'))
 
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.delete('T001', 'foo').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_mbox_exists('foo')
+      assert_imap_command(:delete, 'foo') {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_mbox_exists('foo')
 
-      assert_not_nil(@mail_store.mbox_id('foo'))
-
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.delete('T003', 'foo').each
-      assert_imap_response(res) {|a|
-        a.equal('T003 OK DELETE completed')
+      assert_mbox_exists('foo')
+      assert_imap_command(:delete, 'foo') {|assert|
+        assert.equal("#{tag} OK DELETE completed")
       }
+      assert_mbox_not_exists('foo')
 
-      res = @decoder.delete('T004', 'bar').each
-      assert_imap_response(res) {|a|
-        a.match(/^T004 NO /)
+      assert_mbox_not_exists('bar')
+      assert_imap_command(:delete, 'bar') {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_mbox_not_exists('bar')
 
-      res = @decoder.delete('T005', 'inbox').each
-      assert_imap_response(res) {|a|
-        a.match(/^T005 NO /)
+      assert_mbox_exists('INBOX')
+      assert_imap_command(:delete, 'inbox') {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_mbox_exists('INBOX')
 
-      assert_not_nil(@mail_store.mbox_id('inbox'))
-
-      res = @decoder.logout('T006').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T006 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
