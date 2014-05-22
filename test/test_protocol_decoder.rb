@@ -373,10 +373,9 @@ Content-Type: text/html; charset=us-ascii
     private :make_string_source
 
     def test_capability
-      res = @decoder.capability('T001').each
-      assert_imap_response(res) {|a|
-        a.equal('* CAPABILITY IMAP4rev1')
-        a.equal('T001 OK CAPABILITY completed')
+      assert_imap_command(:capability) {|assert|
+        assert.equal('* CAPABILITY IMAP4rev1')
+        assert.equal("#{tag} OK CAPABILITY completed")
       }
     end
 
