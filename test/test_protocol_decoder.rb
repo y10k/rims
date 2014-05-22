@@ -380,10 +380,9 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_logout
-      res = @decoder.logout('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T003 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
