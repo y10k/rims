@@ -474,30 +474,27 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_select_utf7_mbox_name
-      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      res = @decoder.login('T001', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T001 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.select('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
-      assert_imap_response(res) {|a|
-        a.equal('* 0 EXISTS')
-        a.equal('* 0 RECENT')
-        a.equal('* OK [UNSEEN 0]')
-        a.equal("* OK [UIDVALIDITY #{mbox_id}]")
-        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
-        a.equal('T002 OK [READ-WRITE] SELECT completed')
+      assert_imap_command(:select, UTF7_MBOX_NAME) {|assert|
+        assert.equal('* 0 EXISTS')
+        assert.equal('* 0 RECENT')
+        assert.equal('* OK [UNSEEN 0]')
+        assert.equal("* OK [UIDVALIDITY #{utf8_name_mbox_id}]")
+        assert.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
       }
 
-      res = @decoder.logout('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T003 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
