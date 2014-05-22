@@ -125,6 +125,116 @@ module RIMS::Test
     end
     private :assert_imap_command
 
+    def add_msg(msg_txt, *optional_args, mbox_id: @inbox_id)
+      @mail_store.add_msg(mbox_id, msg_txt, *optional_args)
+    end
+    private :add_msg
+
+    def get_msg_text(uid, mbox_id: @inbox_id)
+      @mail_store.msg_text(mbox_id, uid)
+    end
+    private :get_msg_text
+
+    def get_msg_date(uid, mbox_id: @inbox_id)
+      @mail_store.msg_date(mbox_id, uid)
+    end
+    private :get_msg_date
+
+    def assert_msg_text(*msg_txt_list, mbox_id: @inbox_id)
+      assert_equal(msg_txt_list,
+                   @mail_store.each_msg_uid(mbox_id).map{|uid|
+                     get_msg_text(uid, mbox_id: mbox_id)
+                   })
+    end
+    private :assert_msg_text
+
+    def expunge(*uid_list)
+      for uid in uid_list
+        set_msg_flag(uid, 'deleted', true)
+      end
+      @mail_store.expunge_mbox(@inbox_id)
+      nil
+    end
+    private :expunge
+
+    def assert_msg_uid(*uid_list, mbox_id: @inbox_id)
+      assert_equal(uid_list, @mail_store.each_msg_uid(mbox_id).to_a)
+    end
+    private :assert_msg_uid
+
+    def get_msg_flag(uid, flag_name, mbox_id: @inbox_id)
+      @mail_store.msg_flag(mbox_id, uid, flag_name)
+    end
+    private :get_msg_flag
+
+    def set_msg_flag(uid, flag_name, flag_value, mbox_id: @inbox_id)
+      @mail_store.set_msg_flag(mbox_id, uid, flag_name, flag_value)
+      nil
+    end
+    private :set_msg_flag
+
+    def set_msg_flags(flag_name, flag_value, *uid_list, mbox_id: @inbox_id)
+      for uid in uid_list
+        set_msg_flag(uid, flag_name, flag_value, mbox_id: mbox_id)
+      end
+      nil
+    end
+    private :set_msg_flags
+
+    def assert_msg_flags(uid, answered: false, flagged: false, deleted: false, seen: false, draft: false, recent: false, mbox_id: @inbox_id)
+      [ [ 'answered', answered],
+        [ 'flagged', flagged ],
+        [ 'deleted', deleted ],
+        [ 'seen', seen ],
+        [ 'draft', draft ],
+        [ 'recent', recent ]
+      ].each do |flag_name, flag_value|
+        assert_equal([ flag_name, flag_value ],
+                     [ flag_name, @mail_store.msg_flag(mbox_id, uid, flag_name) ])
+      end
+      nil
+    end
+    private :assert_msg_flags
+
+    def assert_flag_enabled_msgs(flag_name, *uid_list, mbox_id: @inbox_id)
+      assert_equal([ flag_name, uid_list ],
+                   [ flag_name,
+                     @mail_store.each_msg_uid(mbox_id).find_all{|uid|
+                       @mail_store.msg_flag(mbox_id, uid, flag_name)
+                     }
+                   ])
+    end
+    private :assert_flag_enabled_msgs
+
+    def assert_mbox_flag_num(answered: 0, flagged: 0, deleted: 0, seen: 0, draft: 0, recent: 0, mbox_id: @inbox_id)
+      [ [ :answered, answered ],
+        [ :flagged, flagged ],
+        [ :deleted, deleted ],
+        [ :seen, seen ],
+        [ :draft, draft ],
+        [ :recent, recent ]
+      ].each do |flag_sym, flag_num|
+        assert_equal([ flag_sym, flag_num ], [ flag_sym, @mail_store.mbox_flag_num(mbox_id, flag_sym.to_s) ])
+      end
+      nil
+    end
+    private :assert_mbox_flag_num
+
+    def get_mbox_id_list(*mbox_name_list)
+      mbox_name_list.map{|name| @mail_store.mbox_id(name) }
+    end
+    private :get_mbox_id_list
+
+    def assert_mbox_exists(name)
+      assert_not_nil(@mail_store.mbox_id(name))
+    end
+    private :assert_mbox_exists
+
+    def assert_mbox_not_exists(name)
+      assert_nil(@mail_store.mbox_id(name))
+    end
+    private :assert_mbox_not_exists
+
     def mail_store_add_mail_simple
       @simple_mail = RIMS::RFC822::Message.new(<<-'EOF')
 To: foo@nonet.org
