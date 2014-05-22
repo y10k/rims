@@ -680,26 +680,21 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_delete_utf7_mbox_name
-      @mail_store.add_mbox('~peter/mail/日本語/台北')
+      @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      res = @decoder.login('T001', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T001 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
-
-      res = @decoder.delete('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK DELETE completed')
+      assert_mbox_exists(UTF8_MBOX_NAME)
+      assert_imap_command(:delete, UTF7_MBOX_NAME) {|assert|
+        assert.equal("#{tag} OK DELETE completed")
       }
+      assert_mbox_not_exists(UTF8_MBOX_NAME)
 
-      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
-
-      res = @decoder.logout('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T003 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
