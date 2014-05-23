@@ -921,89 +921,73 @@ Content-Type: text/html; charset=us-ascii
     def test_status
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.status('T001', 'nobox', [ :group, 'MESSAGES' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:status, 'nobox', [ :group, 'MESSAGES' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.status('T003', 'nobox', [ :group, 'MESSAGES' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T003 NO /)
+      assert_imap_command(:status, 'nobox', [ :group, 'MESSAGES' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      res = @decoder.status('T004', 'INBOX', [ :group, 'MESSAGES' ]).each
-      assert_imap_response(res) {|a|
-        a.equal('* STATUS "INBOX" (MESSAGES 0)')
-        a.equal('T004 OK STATUS completed')
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES' ]) {|assert|
+        assert.equal('* STATUS "INBOX" (MESSAGES 0)')
+        assert.equal("#{tag} OK STATUS completed")
       }
 
-      res = @decoder.status('T005', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_imap_response(res) {|a|
-        a.equal("* STATUS \"INBOX\" (MESSAGES 0 RECENT 0 UIDNEXT 1 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
-        a.equal('T005 OK STATUS completed')
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+        assert.equal("* STATUS \"INBOX\" (MESSAGES 0 RECENT 0 UIDNEXT 1 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
+        assert.equal("#{tag} OK STATUS completed")
       }
 
-      @mail_store.add_msg(@inbox_id, 'foo')
-      res = @decoder.status('T006', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_imap_response(res) {|a|
-        a.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
-        a.equal('T006 OK STATUS completed')
+      add_msg('')
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+        assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
+        assert.equal("#{tag} OK STATUS completed")
       }
 
-      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
-      res = @decoder.status('T007', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_imap_response(res) {|a|
-        a.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
-        a.equal('T007 OK STATUS completed')
+      set_msg_flag(1, 'recent', false)
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+        assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
+        assert.equal("#{tag} OK STATUS completed")
       }
 
-      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
-      res = @decoder.status('T008', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_imap_response(res) {|a|
-        a.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
-        a.equal('T008 OK STATUS completed')
+      set_msg_flag(1, 'seen', true)
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+        assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
+        assert.equal("#{tag} OK STATUS completed")
       }
 
-      @mail_store.add_msg(@inbox_id, 'bar')
-
-      res = @decoder.status('T009', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_imap_response(res) {|a|
-        a.equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
-        a.equal('T009 OK STATUS completed')
+      add_msg('')
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+        assert.equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
+        assert.equal("#{tag} OK STATUS completed")
       }
 
-      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
-      @mail_store.expunge_mbox(@inbox_id)
-
-      res = @decoder.status('T010', 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]).each
-      assert_imap_response(res) {|a|
-        a.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
-        a.equal('T010 OK STATUS completed')
+      expunge(2)
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+        assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
+        assert.equal("#{tag} OK STATUS completed")
       }
 
-      res = @decoder.status('T011', 'INBOX', 'MESSAGES').each
-      assert_imap_response(res) {|a|
-        a.match(/^T011 BAD /)
+      assert_imap_command(:status, 'INBOX', 'MESSAGES') {|assert|
+        assert.match(/^#{tag} BAD /)
       }
 
-      res = @decoder.status('T012', 'INBOX', [ :group, 'DETARAME' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T012 BAD /)
+      assert_imap_command(:status, 'INBOX', [ :group, 'DETARAME' ]) {|assert|
+        assert.match(/^#{tag} BAD /)
       }
 
-      res = @decoder.logout('T013').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T013 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
