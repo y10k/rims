@@ -1128,28 +1128,22 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_append_utf7_mbox_name
-      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
-      assert_equal([], @mail_store.each_msg_uid(mbox_id).to_a)
+      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      res = @decoder.login('T001', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T001 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_equal([], @mail_store.each_msg_uid(mbox_id).to_a)
-
-      res = @decoder.append('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-', 'Hello world.').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK APPEND completed')
+      assert_msg_uid(mbox_id: utf8_name_mbox_id)
+      assert_imap_command(:append, UTF7_MBOX_NAME, 'Hello world.') {|assert|
+        assert.equal("#{tag} OK APPEND completed")
       }
+      assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
+      assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
 
-      assert_equal([ 1 ], @mail_store.each_msg_uid(mbox_id).to_a)
-      assert_equal('Hello world.', @mail_store.msg_text(mbox_id, 1))
-
-      res = @decoder.logout('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T003 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
