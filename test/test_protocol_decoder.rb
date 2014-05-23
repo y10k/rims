@@ -746,39 +746,27 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_rename_utf7_mbox_name
-      @mail_store.add_mbox('foo')
+      mbox_id = @mail_store.add_mbox('foo')
 
-      res = @decoder.login('T001', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T001 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_not_nil(@mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
-      assert_nil(@mail_store.mbox_id('bar'))
-
-      res = @decoder.rename('T002', 'foo', '~peter/mail/&ZeVnLIqe-/&U,BTFw-').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK RENAME completed')
+      assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', UTF8_MBOX_NAME))
+      assert_imap_command(:rename, 'foo', UTF7_MBOX_NAME) {|assert|
+        assert.equal("#{tag} OK RENAME completed")
       }
+      assert_equal([ nil, mbox_id ], get_mbox_id_list('foo', UTF8_MBOX_NAME))
 
-      assert_nil(@mail_store.mbox_id('foo'))
-      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
-      assert_nil(@mail_store.mbox_id('bar'))
-
-      res = @decoder.rename('T003', '~peter/mail/&ZeVnLIqe-/&U,BTFw-', 'bar').each
-      assert_imap_response(res) {|a|
-        a.equal('T003 OK RENAME completed')
+      assert_equal([ mbox_id, nil ], get_mbox_id_list(UTF8_MBOX_NAME, 'bar'))
+      assert_imap_command(:rename, UTF7_MBOX_NAME, 'bar') {|assert|
+        assert.equal("#{tag} OK RENAME completed")
       }
+      assert_equal([ nil, mbox_id ], get_mbox_id_list(UTF8_MBOX_NAME, 'bar'))
 
-      assert_nil(@mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
-      assert_not_nil(@mail_store.mbox_id('bar'))
-
-      res = @decoder.logout('T004').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T004 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
