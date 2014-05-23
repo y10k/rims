@@ -850,7 +850,7 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
-    def test_subscribe_not_implemented
+    def test_subscribe_dummy
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.subscribe('T001', 'INBOX').each
@@ -898,7 +898,7 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
-    def test_unsubscribe_not_implemented
+    def test_unsubscribe_dummy
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.unsubscribe('T001', 'INBOX').each
@@ -1128,7 +1128,7 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
-    def test_lsub_not_implemented
+    def test_lsub_dummy
       assert_equal(false, @decoder.auth?)
 
       res = @decoder.lsub('T001', '', '*').each
@@ -1152,7 +1152,7 @@ Content-Type: text/html; charset=us-ascii
       }
     end
 
-    def test_lsub_utf7_mbox_name
+    def test_lsub_dummy_utf7_mbox_name
       @mail_store.add_mbox('~peter/mail/日本語/台北')
 
       res = @decoder.login('T001', 'foo', 'open_sesame').each
