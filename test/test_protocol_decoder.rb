@@ -1151,45 +1151,39 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.check('T001').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:check) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.check('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^T003 NO /)
+      assert_imap_command(:check) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      res = @decoder.select('T004', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.skip_while{|line| line =~ /^\* /}
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      res = @decoder.check('T005').each
-      assert_imap_response(res) {|a|
-        a.equal('T005 OK CHECK completed')
+      assert_imap_command(:check) {|assert|
+        assert.equal("#{tag} OK CHECK completed")
       }
 
-      res = @decoder.logout('T006').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T006 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
