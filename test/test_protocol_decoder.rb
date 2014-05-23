@@ -1053,109 +1053,77 @@ Content-Type: text/html; charset=us-ascii
     def test_append
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.append('T001', 'INBOX', 'a').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+      assert_imap_command(:append, 'INBOX', 'a') {|assert|
+        assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
       }
+      assert_msg_uid()
 
-      assert_equal([], @mail_store.each_msg_uid(@inbox_id).to_a)
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.append('T003', 'INBOX', 'a').each
-      assert_imap_response(res) {|a|
-        a.equal('T003 OK APPEND completed')
+      assert_imap_command(:append, 'INBOX', 'a') {|assert|
+        assert.equal("#{tag} OK APPEND completed")
       }
+      assert_msg_uid(1)
+      assert_equal('a', get_msg_text(1))
+      assert_msg_flags(1, recent: true)
 
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal('a', @mail_store.msg_text(@inbox_id, 1))
-      assert_equal([ false, false, false, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
-
-      res = @decoder.append('T004', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'b').each
-      assert_imap_response(res) {|a|
-        a.equal('T004 OK APPEND completed')
+      assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'b') {|assert|
+        assert.equal("#{tag} OK APPEND completed")
       }
+      assert_msg_uid(1, 2)
+      assert_equal('b', get_msg_text(2))
+      assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
 
-      assert_equal([ 1, 2 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal('b', @mail_store.msg_text(@inbox_id, 2))
-      assert_equal([ true, true, true, true, true, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 2, name)
-                   })
-
-      res = @decoder.append('T005', 'INBOX', '19-Nov-1975 12:34:56 +0900', 'c').each
-      assert_imap_response(res) {|a|
-        a.equal('T005 OK APPEND completed')
+      assert_imap_command(:append, 'INBOX', '19-Nov-1975 12:34:56 +0900', 'c') {|assert|
+        assert.equal("#{tag} OK APPEND completed")
       }
+      assert_msg_uid(1, 2, 3)
+      assert_equal('c', get_msg_text(3))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(3))
+      assert_msg_flags(3, recent: true)
 
-      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal('c', @mail_store.msg_text(@inbox_id, 3))
-      assert_equal([ false, false, false, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 3, name)
-                   })
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 3))
-
-      res = @decoder.append('T006', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'd').each
-      assert_imap_response(res) {|a|
-        a.equal('T006 OK APPEND completed')
+      assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'd') {|assert|
+        assert.equal("#{tag} OK APPEND completed")
       }
+      assert_msg_uid(1, 2, 3, 4)
+      assert_equal('d', get_msg_text(4))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(4))
+      assert_msg_flags(4, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
 
-      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal('d', @mail_store.msg_text(@inbox_id, 4))
-      assert_equal([ true, true, true, true, true, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 4, name)
-                   })
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 4))
-
-      res = @decoder.append('T007', 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', :NIL, 'x').each
-      assert_imap_response(res) {|a|
-        a.match(/^T007 BAD /)
+      assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', :NIL, 'x') {|assert|
+        assert.match(/^#{tag} BAD /)
       }
-      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+      assert_msg_uid(1, 2, 3, 4)
 
-      res = @decoder.append('T008', 'INBOX', '19-Nov-1975 12:34:56 +0900', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'x').each
-      assert_imap_response(res) {|a|
-        a.match(/^T008 BAD /)
+      assert_imap_command(:append, 'INBOX', '19-Nov-1975 12:34:56 +0900', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'x') {|assert|
+        assert.match(/^#{tag} BAD /)
       }
+      assert_msg_uid(1, 2, 3, 4)
 
-      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-
-      res = @decoder.append('T009', 'INBOX', [ :group, '\Recent' ], 'x').each
-      assert_imap_response(res) {|a|
-        a.match(/^T009 BAD /)
+      assert_imap_command(:append, 'INBOX', [ :group, '\Recent' ], 'x') {|assert|
+        assert.match(/^#{tag} BAD /)
       }
+      assert_msg_uid(1, 2, 3, 4)
 
-      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-
-      res = @decoder.append('T010', 'INBOX', 'bad date-time', 'x').each
-      assert_imap_response(res) {|a|
-        a.match(/^T010 BAD /)
+      assert_imap_command(:append, 'INBOX', 'bad date-time', 'x') {|assert|
+        assert.match(/^#{tag} BAD /)
       }
+      assert_msg_uid(1, 2, 3, 4)
 
-      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-
-      res = @decoder.append('T011', 'nobox', 'x').each
-      assert_imap_response(res) {|a|
-        a.match(/^T011 NO \[TRYCREATE\]/)
+      assert_imap_command(:append, 'nobox', 'x') {|assert|
+        assert.match(/^#{tag} NO \[TRYCREATE\]/)
       }
+      assert_msg_uid(1, 2, 3, 4)
 
-      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-
-      res = @decoder.logout('T012').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T012 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
