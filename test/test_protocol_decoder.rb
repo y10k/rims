@@ -773,28 +773,24 @@ Content-Type: text/html; charset=us-ascii
     def test_subscribe_dummy
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.subscribe('T001', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:subscribe, 'INBOX') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.subscribe('T003', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.equal('T003 OK SUBSCRIBE completed')
+      assert_imap_command(:subscribe, 'INBOX') {|assert|
+        assert.equal("#{tag} OK SUBSCRIBE completed")
       }
 
-      res = @decoder.subscribe('T004', 'NOBOX').each
-      assert_imap_response(res) {|a|
-        a.equal('T004 NO not found a mailbox')
+      assert_imap_command(:subscribe, 'NOBOX') {|assert|
+        assert.equal("#{tag} NO not found a mailbox")
       }
     end
 
