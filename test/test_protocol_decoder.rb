@@ -1012,24 +1012,21 @@ Content-Type: text/html; charset=us-ascii
     def test_lsub_dummy
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.lsub('T001', '', '*').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:lsub, '', '*') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.lsub('T003', '', '*').each
-      assert_imap_response(res) {|a|
-        a.equal('* LSUB (\Noinferiors \Unmarked) NIL "INBOX"')
-        a.equal('T003 OK LSUB completed')
+      assert_imap_command(:lsub, '', '*') {|assert|
+        assert.equal('* LSUB (\Noinferiors \Unmarked) NIL "INBOX"')
+        assert.equal("#{tag} OK LSUB completed")
       }
     end
 
