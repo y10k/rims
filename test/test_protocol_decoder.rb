@@ -834,70 +834,60 @@ Content-Type: text/html; charset=us-ascii
     def test_list
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.list('T001', '', '').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:list, '', '') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.list('T003', '', '').each
-      assert_imap_response(res) {|a|
-        a.equal('* LIST (\Noselect) NIL ""')
-        a.equal('T003 OK LIST completed')
+      assert_imap_command(:list, '', '') {|assert|
+        assert.equal('* LIST (\Noselect) NIL ""')
+        assert.equal("#{tag} OK LIST completed")
       }
 
-      res = @decoder.list('T004', '', 'nobox').each
-      assert_imap_response(res) {|a|
-        a.equal('T004 OK LIST completed')
+      assert_imap_command(:list, '', 'nobox') {|assert|
+        assert.equal("#{tag} OK LIST completed")
       }
 
-      res = @decoder.list('T005', '', '*').each
-      assert_imap_response(res) {|a|
-        a.equal('* LIST (\Noinferiors \Unmarked) NIL "INBOX"')
-        a.equal('T005 OK LIST completed')
+      assert_imap_command(:list, '', '*') {|assert|
+        assert.equal('* LIST (\Noinferiors \Unmarked) NIL "INBOX"')
+        assert.equal("#{tag} OK LIST completed")
       }
 
-      @mail_store.add_msg(@inbox_id, 'foo')
+      add_msg('')
 
-      res = @decoder.list('T006', '', '*').each
-      assert_imap_response(res) {|a|
-        a.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
-        a.equal('T006 OK LIST completed')
+      assert_imap_command(:list, '', '*') {|assert|
+        assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        assert.equal("#{tag} OK LIST completed")
       }
 
       @mail_store.add_mbox('foo')
 
-      res = @decoder.list('T007', '', '*').each
-      assert_imap_response(res) {|a|
-        a.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
-        a.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
-        a.equal('T007 OK LIST completed')
+      assert_imap_command(:list, '', '*') {|assert|
+        assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        assert.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
+        assert.equal("#{tag} OK LIST completed")
       }
 
-      res = @decoder.list('T008', '', 'f*').each
-      assert_imap_response(res) {|a|
-        a.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
-        a.equal('T008 OK LIST completed')
+      assert_imap_command(:list, '', 'f*') {|assert|
+        assert.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
+        assert.equal("#{tag} OK LIST completed")
       }
 
-      res = @decoder.list('T009', 'IN', '*').each
-      assert_imap_response(res) {|a|
-        a.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
-        a.equal('T009 OK LIST completed')
+      assert_imap_command(:list, 'IN', '*') {|assert|
+        assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        assert.equal("#{tag} OK LIST completed")
       }
 
-      res = @decoder.logout('T010').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T010 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
