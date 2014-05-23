@@ -992,23 +992,20 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_status_utf7_mbox_name
-      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+      mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      res = @decoder.login('T001', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T001 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
-      res = @decoder.status('T002', '~peter/mail/&ZeVnLIqe-/&U,BTFw-', [ :group, 'UIDVALIDITY', 'MESSAGES', 'RECENT', 'UNSEEN' ]).each
-      assert_imap_response(res) {|a|
-        a.equal("* STATUS \"~peter/mail/&ZeVnLIqe-/&U,BTFw-\" (UIDVALIDITY #{mbox_id} MESSAGES 0 RECENT 0 UNSEEN 0)")
-        a.equal('T002 OK STATUS completed')
+      assert_imap_command(:status, UTF7_MBOX_NAME, [ :group, 'UIDVALIDITY', 'MESSAGES', 'RECENT', 'UNSEEN' ]) {|assert|
+        assert.equal(%Q'* STATUS "#{UTF7_MBOX_NAME}" (UIDVALIDITY #{mbox_id} MESSAGES 0 RECENT 0 UNSEEN 0)')
+        assert.equal("#{tag} OK STATUS completed")
       }
 
-      res = @decoder.logout('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T003 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
