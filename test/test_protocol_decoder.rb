@@ -1459,65 +1459,53 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_expunge_read_only
-      @mail_store.add_msg(@inbox_id, 'a')
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      add_msg('')
+      set_msg_flag(1, 'deleted', true)
 
-      assert_equal(1, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ false, false, true, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
+      assert_msg_uid(1)
+      assert_msg_flags(1, deleted: true, recent: true)
+      assert_mbox_flag_num(deleted: 1, recent: 1)
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.expunge('T001').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:expunge) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.expunge('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^T003 NO /)
+      assert_imap_command(:expunge) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      res = @decoder.examine('T004', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-ONLY] EXAMINE completed')
+      assert_imap_command(:examine, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      res = @decoder.expunge('T005').each
-      assert_imap_response(res) {|a|
-        a.match(/^T005 NO /)
+      assert_imap_command(:expunge) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      assert_equal(1, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ false, false, true, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
+      assert_msg_uid(1)
+      assert_msg_flags(1, deleted: true, recent: true)
+      assert_mbox_flag_num(deleted: 1, recent: 1)
 
-      res = @decoder.logout('T006').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T006 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
