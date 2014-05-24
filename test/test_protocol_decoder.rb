@@ -1341,135 +1341,120 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.expunge('T001').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:expunge) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.expunge('T003').each
-      assert_imap_response(res) {|a|
-        a.match(/^T003 NO /)
+      assert_imap_command(:expunge) {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      res = @decoder.select('T004', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      res = @decoder.expunge('T005').each
-      assert_imap_response(res) {|a|
-        a.equal('T005 OK EXPUNGE completed')
+      assert_imap_command(:expunge) {|assert|
+        assert.equal("#{tag} OK EXPUNGE completed")
       }
 
-      @mail_store.add_msg(@inbox_id, 'a')
-      @mail_store.add_msg(@inbox_id, 'b')
-      @mail_store.add_msg(@inbox_id, 'c')
+      add_msg('')
+      add_msg('')
+      add_msg('')
 
-      assert_equal(3, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 3, 0, 0, 0, 0, 0 ],
-                   %w[ recent answered flagged seen draft deleted ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
-      assert_equal([ 1, 2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
-      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([         ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
+      assert_msg_uid(                      1, 2, 3)
+      assert_flag_enabled_msgs('answered',        )
+      assert_flag_enabled_msgs('flagged' ,        )
+      assert_flag_enabled_msgs('deleted' ,        )
+      assert_flag_enabled_msgs('seen'    ,        )
+      assert_flag_enabled_msgs('draft'   ,        )
+      assert_flag_enabled_msgs('recent'  , 1, 2, 3)
+      assert_mbox_flag_num(recent: 3)
 
-      res = @decoder.expunge('T006').each
-      assert_imap_response(res) {|a|
-        a.equal('T006 OK EXPUNGE completed')
+      assert_imap_command(:expunge) {|assert|
+        assert.equal("#{tag} OK EXPUNGE completed")
       }
 
-      for name in %w[ answered flagged seen draft ]
-        @mail_store.set_msg_flag(@inbox_id, 2, name, true)
-        @mail_store.set_msg_flag(@inbox_id, 3, name, true)
-      end
-      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
+      assert_msg_uid(                      1, 2, 3)
+      assert_flag_enabled_msgs('answered',        )
+      assert_flag_enabled_msgs('flagged' ,        )
+      assert_flag_enabled_msgs('deleted' ,        )
+      assert_flag_enabled_msgs('seen'    ,        )
+      assert_flag_enabled_msgs('draft'   ,        )
+      assert_flag_enabled_msgs('recent'  , 1, 2, 3)
+      assert_mbox_flag_num(recent: 3)
 
-      assert_equal(3, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([ 1, 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 3, 2, 2, 2, 2, 1 ],
-                   %w[ recent answered flagged seen draft deleted ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
-      assert_equal([ 1, 2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
-      assert_equal([    2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([    2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([    2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([    2, 3 ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([    2    ], [ 1, 2, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
+      set_msg_flags('answered', true, 2, 3)
+      set_msg_flags('flagged',  true, 2, 3)
+      set_msg_flags('deleted',  true, 2)
+      set_msg_flags('seen',     true, 2, 3)
+      set_msg_flags('draft',    true, 2, 3)
 
-      res = @decoder.expunge('T007').each
-      assert_imap_response(res) {|a|
-        a.equal('* 2 EXPUNGE')
-        a.equal('T007 OK EXPUNGE completed')
+      assert_msg_uid(1, 2, 3)
+      assert_flag_enabled_msgs('answered',    2, 3)
+      assert_flag_enabled_msgs('flagged' ,    2, 3)
+      assert_flag_enabled_msgs('deleted' ,    2   )
+      assert_flag_enabled_msgs('seen'    ,    2, 3)
+      assert_flag_enabled_msgs('draft'   ,    2, 3)
+      assert_flag_enabled_msgs('recent'  , 1, 2, 3)
+      assert_mbox_flag_num(answered: 2, flagged: 2, deleted: 1, seen: 2, draft: 2, recent: 3)
+
+      assert_imap_command(:expunge) {|assert|
+        assert.equal('* 2 EXPUNGE')
+        assert.equal("#{tag} OK EXPUNGE completed")
       }
 
-      assert_equal(2, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([ 1, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 2, 1, 1, 1, 1, 0 ],
-                   %w[ recent answered flagged seen draft deleted ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
-      assert_equal([ 1, 3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
-      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([      ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
+      assert_msg_uid(                      1, 3)
+      assert_flag_enabled_msgs('answered',    3)
+      assert_flag_enabled_msgs('flagged' ,    3)
+      assert_flag_enabled_msgs('deleted' ,     )
+      assert_flag_enabled_msgs('seen'    ,    3)
+      assert_flag_enabled_msgs('draft'   ,    3)
+      assert_flag_enabled_msgs('recent'  , 1, 3)
+      assert_mbox_flag_num(answered: 1, flagged: 1, deleted: 0, seen: 1, draft: 1, recent: 2)
 
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
-      @mail_store.set_msg_flag(@inbox_id, 3, 'deleted', true)
+      set_msg_flags('deleted', true, 1, 3)
 
-      assert_equal(2, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([ 1, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 2, 1, 1, 1, 1, 2 ],
-                   %w[ recent answered flagged seen draft deleted ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
-      assert_equal([ 1, 3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
-      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([    3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([ 1, 3 ], [ 1, 3 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
+      assert_msg_uid(                      1, 3)
+      assert_flag_enabled_msgs('answered',    3)
+      assert_flag_enabled_msgs('flagged' ,    3)
+      assert_flag_enabled_msgs('deleted' , 1, 3)
+      assert_flag_enabled_msgs('seen'    ,    3)
+      assert_flag_enabled_msgs('draft'   ,    3)
+      assert_flag_enabled_msgs('recent'  , 1, 3)
+      assert_mbox_flag_num(answered: 1, flagged: 1, deleted: 2, seen: 1, draft: 1, recent: 2)
 
-      res = @decoder.expunge('T008').each
-      assert_imap_response(res) {|a|
-        a.equal('* 1 EXPUNGE')
-        a.equal('* 2 EXPUNGE')
-        a.equal('T008 OK EXPUNGE completed')
+      assert_imap_command(:expunge) {|assert|
+        assert.equal('* 1 EXPUNGE')
+        assert.equal('* 2 EXPUNGE')
+        assert.equal("#{tag} OK EXPUNGE completed")
       }
 
-      assert_equal(0, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 0, 0, 0, 0, 0, 0 ],
-                   %w[ recent answered flagged seen draft deleted ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
+      assert_msg_uid(                      )
+      assert_flag_enabled_msgs('answered', )
+      assert_flag_enabled_msgs('flagged' , )
+      assert_flag_enabled_msgs('deleted' , )
+      assert_flag_enabled_msgs('seen'    , )
+      assert_flag_enabled_msgs('draft'   , )
+      assert_flag_enabled_msgs('recent'  , )
+      assert_mbox_flag_num(answered: 0, flagged: 0, deleted: 0, seen: 0, draft: 0, recent: 0)
 
-      res = @decoder.logout('T009').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T009 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
