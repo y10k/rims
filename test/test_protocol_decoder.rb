@@ -1513,80 +1513,78 @@ Content-Type: text/html; charset=us-ascii
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.search('T001', 'ALL').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:search, 'ALL') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.search('T003', 'ALL').each
-      assert_imap_response(res) {|a|
-        a.match(/^T003 NO /)
+      assert_imap_command(:search, 'ALL') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      res = @decoder.select('T004', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      res = @decoder.search('T005', 'ALL').each
-      assert_imap_response(res, crlf_at_eol: false) {|a|
-        a.equal('* SEARCH').equal("\r\n")
-        a.equal("T005 OK SEARCH completed\r\n")
+      assert_imap_command(:search, 'ALL', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal("\r\n")
+        assert.equal("T005 OK SEARCH completed\r\n")
       }
 
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\napple")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\nbnana")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\norange")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\nmelon")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\npineapple")
-      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
-      @mail_store.set_msg_flag(@inbox_id, 4, 'deleted', true)
-      @mail_store.expunge_mbox(@inbox_id)
+      add_msg("Content-Type: text/plain\r\n" +
+              "From: alice\r\n" +
+              "\r\n" +
+              "apple")
+      add_msg('')
+      add_msg("Content-Type: text/plain\r\n" +
+              "From: bob\r\n" +
+              "\r\n" +
+              "orange")
+      add_msg('')
+      add_msg("Content-Type: text/plain\r\n" +
+              "From: bob\r\n" +
+              "\r\n" +
+              "pineapple")
+      expunge(2, 4)
+
       assert_equal([ 1, 3, 5 ], @mail_store.each_msg_uid(@inbox_id).to_a)
 
-      res = @decoder.search('T006', 'ALL').each
-      assert_imap_response(res, crlf_at_eol: false) {|a|
-        a.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
-        a.equal("T006 OK SEARCH completed\r\n")
+      assert_imap_command(:search, 'ALL', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
+        assert.equal("T006 OK SEARCH completed\r\n")
       }
 
-      res = @decoder.search('T007', 'ALL', uid: true).each
-      assert_imap_response(res, crlf_at_eol: false) {|a|
-        a.equal('* SEARCH').equal(' 1').equal(' 3').equal(' 5').equal("\r\n")
-        a.equal("T007 OK SEARCH completed\r\n")
+      assert_imap_command(:search, 'ALL', uid: true, crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 1').equal(' 3').equal(' 5').equal("\r\n")
+        assert.equal("T007 OK SEARCH completed\r\n")
       }
 
-      res = @decoder.search('T008', 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple').each
-      assert_imap_response(res, crlf_at_eol: false) {|a|
-        a.equal('* SEARCH').equal(' 1').equal(' 3').equal("\r\n")
-        a.equal("T008 OK SEARCH completed\r\n")
+      assert_imap_command(:search, 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 1').equal(' 3').equal("\r\n")
+        assert.equal("T008 OK SEARCH completed\r\n")
       }
 
-      res = @decoder.search('T009', 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', uid: true).each
-      assert_imap_response(res, crlf_at_eol: false) {|a|
-        a.equal('* SEARCH').equal(' 1').equal(' 5').equal("\r\n")
-        a.equal("T009 OK SEARCH completed\r\n")
+      assert_imap_command(:search, 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', uid: true, crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 1').equal(' 5').equal("\r\n")
+        assert.equal("T009 OK SEARCH completed\r\n")
       }
 
-      res = @decoder.logout('T010').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T010 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
