@@ -8,6 +8,8 @@ require 'time'
 
 module RIMS::Test
   class ProtocolDecoderTest < Test::Unit::TestCase
+    include RIMS::Test::AssertUtility
+
     class IMAPResponseAssertionDSL
       include Test::Unit::Assertions
 
