@@ -331,6 +331,17 @@ Content-Type: text/html; charset=us-ascii
     end
     private :mail_store_add_mail_simple
 
+    def make_string_source(start_string)
+      Enumerator.new{|y|
+        s = start_string.dup
+        loop do
+          y << s
+          s = s.succ
+        end
+      }
+    end
+    private :make_string_source
+
     def test_capability
       res = @decoder.capability('T001').each
       assert_imap_response(res) {|a|
