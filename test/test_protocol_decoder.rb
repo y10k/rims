@@ -1599,118 +1599,95 @@ module RIMS::Test
     end
 
     def test_fetch_read_only
-      @mail_store.add_msg(@inbox_id, '')
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
-      @mail_store.expunge_mbox(@inbox_id)
+      add_msg('')
+      expunge(1)
       add_mail_simple
       add_mail_multipart
 
-      assert_equal([ 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+      assert_msg_uid(2, 3)
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.fetch('T001', '1:*', 'FAST').each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.fetch('T003', '1:*', 'FAST').each
-      assert_imap_response(res) {|a|
-        a.match(/^T003 NO /)
+      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+        assert.match(/^#{tag} NO /)
       }
 
-      res = @decoder.examine('T004', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-ONLY] EXAMINE completed')
+      assert_imap_command(:examine, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      res = @decoder.fetch('T005', '1:*', 'FAST').each
-      assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
-        a.equal('T005 OK FETCH completed')
+      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+        assert.strenc_equal(%Q'* 1 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE #{@simple_mail.raw_source.bytesize})'.b)
+        assert.strenc_equal(%Q'* 2 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})'.b)
+        assert.equal("#{tag} OK FETCH completed")
       }
 
-      res = @decoder.fetch('T006', '1:*', [ :group, 'FAST' ]).each
-      assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 06:47:50 +0900\" RFC822.SIZE #{@simple_mail.raw_source.bytesize})".b)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) INTERNALDATE \"08-Nov-2013 19:31:03 +0900\" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})".b)
-        a.equal('T006 OK FETCH completed')
+      assert_imap_command(:fetch, '1:*', [ :group, 'FAST' ]) {|assert|
+        assert.strenc_equal(%Q'* 1 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE #{@simple_mail.raw_source.bytesize})'.b)
+        assert.strenc_equal(%Q'* 2 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})'.b)
+        assert.equal("#{tag} OK FETCH completed")
       }
 
-      res = @decoder.fetch('T007', '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]).each
-      assert_imap_response(res) {|a|
-        s = @simple_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r?\n\z/)
-        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
-        a.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 2)".b)
-
-        s = @mpart_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r?\n\z/)
-        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
-        a.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n#{s} UID 3)".b)
-
-        a.equal('T007 OK FETCH completed')
+      assert_imap_command(:fetch, '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]) {|assert|
+        assert.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@simple_mail.header.raw_source)} UID 2)".b)
+        assert.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@mpart_mail.header.raw_source)} UID 3)".b)
+        assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_msg_flags(2, seen: false, recent: true)
+      assert_msg_flags(3, seen: false, recent: true)
 
-      res = @decoder.fetch('T008', '1', 'RFC822').each
-      assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (RFC822 {#{@simple_mail.raw_source.bytesize}}\r\n#{@simple_mail.raw_source})".b)
-        a.equal('T008 OK FETCH completed')
+      assert_imap_command(:fetch, '1', 'RFC822') {|assert|
+        assert.strenc_equal("* 1 FETCH (RFC822 #{literal(@simple_mail.raw_source)})".b)
+        assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_msg_flags(2, seen: false, recent: true)
+      assert_msg_flags(3, seen: false, recent: true)
 
-      body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
-      res = @decoder.fetch('T009', '2', [ :body, body ]).each
-      assert_imap_response(res) {|a|
-        a.strenc_equal("* 2 FETCH (BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")".b)
-        a.equal('T009 OK FETCH completed')
+      assert_imap_command(:fetch, '2', make_body('BODY.PEEK[1]')) {|assert|
+        assert.strenc_equal(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
+        assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_msg_flags(2, seen: false, recent: true)
+      assert_msg_flags(3, seen: false, recent: true)
 
-      res = @decoder.fetch('T010', '2', 'RFC822', uid: true).each
-      assert_imap_response(res) {|a|
-        a.strenc_equal("* 1 FETCH (UID 2 RFC822 {#{@simple_mail.raw_source.bytesize}}\r\n#{@simple_mail.raw_source})".b)
-        a.equal('T010 OK FETCH completed')
+      assert_imap_command(:fetch, '2', 'RFC822', uid: true) {|assert|
+        assert.strenc_equal("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
+        assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_msg_flags(2, seen: false, recent: true)
+      assert_msg_flags(3, seen: false, recent: true)
 
-      body = RIMS::Protocol.body(symbol: 'BODY', option: 'PEEK', section: '1', section_list: [ '1' ])
-      res = @decoder.fetch('T011', '3', [ :group, 'UID', [ :body, body ] ], uid: true).each
-      assert_imap_response(res) {|a|
-        a.strenc_equal("* 2 FETCH (UID 3 BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")".b)
-        a.equal('T011 OK FETCH completed')
+      assert_imap_command(:fetch, '3', [ :group, 'UID', make_body('BODY.PEEK[1]') ], uid: true) {|assert|
+        assert.strenc_equal(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
+        assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_msg_flags(2, seen: false, recent: true)
+      assert_msg_flags(3, seen: false, recent: true)
 
-      res = @decoder.logout('T012').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T012 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
