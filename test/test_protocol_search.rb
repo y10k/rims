@@ -18,7 +18,6 @@ module RIMS::Test
 
     def add_msg(msg_txt, *optional_args)
       @mail_store.add_msg(@inbox_id, msg_txt, *optional_args)
-      nil
     end
     private :add_msg
 
