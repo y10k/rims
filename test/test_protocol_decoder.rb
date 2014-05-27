@@ -3042,78 +3042,68 @@ module RIMS::Test
     end
 
     def test_noop
-      @mail_store.add_msg(@inbox_id, '')
+      add_msg('')
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.noop('T001').each
-      assert_imap_response(res) {|a|
-        a.equal('T001 OK NOOP completed')
+      assert_imap_command(:noop) {|assert|
+        assert.equal("#{tag} OK NOOP completed")
       }
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
-      }
-
-      assert_equal(true, @decoder.auth?)
-      assert_equal(false, @decoder.selected?)
-
-      res = @decoder.noop('T003').each
-      assert_imap_response(res) {|a|
-        a.equal('T003 OK NOOP completed')
-      }
-
-      res = @decoder.select('T004', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.skip_while{|line| line =~ /^\* /}
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
-      }
-
-      assert_equal(true, @decoder.auth?)
-      assert_equal(true, @decoder.selected?)
-
-      res = @decoder.noop('T005').each
-      assert_imap_response(res) {|a|
-        a.equal('* 1 EXISTS')
-        a.equal('* 1 RECENTS')
-        a.equal('T005 OK NOOP completed')
-      }
-
-      res = @decoder.close('T006').each
-      assert_imap_response(res) {|a|
-        a.equal('T006 OK CLOSE completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.noop('T007').each
-      assert_imap_response(res) {|a|
-        a.equal('T007 OK NOOP completed')
+      assert_imap_command(:noop) {|assert|
+        assert.equal("#{tag} OK NOOP completed")
       }
 
-      res = @decoder.examine('T008', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.skip_while{|line| line =~ /^\* /}
-        a.equal('T008 OK [READ-ONLY] EXAMINE completed')
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      res = @decoder.noop('T009').each
-      assert_imap_response(res) {|a|
-        a.equal('* 1 EXISTS')
-        a.equal('* 0 RECENTS')
-        a.equal('T009 OK NOOP completed')
+      assert_imap_command(:noop) {|assert|
+        assert.equal('* 1 EXISTS')
+        assert.equal('* 1 RECENTS')
+        assert.equal("#{tag} OK NOOP completed")
       }
 
-      res = @decoder.logout('T010').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T010 OK LOGOUT completed')
+      assert_imap_command(:close) {|assert|
+        assert.equal("#{tag} OK CLOSE completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:noop) {|assert|
+        assert.equal("#{tag} OK NOOP completed")
+      }
+
+      assert_imap_command(:examine, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      assert_imap_command(:noop) {|assert|
+        assert.equal('* 1 EXISTS')
+        assert.equal('* 0 RECENTS')
+        assert.equal("#{tag} OK NOOP completed")
+      }
+
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
 
       assert_equal(false, @decoder.auth?)
