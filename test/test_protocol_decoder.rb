@@ -2562,114 +2562,105 @@ module RIMS::Test
     end
 
     def test_store_read_only
-      @mail_store.add_msg(@inbox_id, '')
+      add_msg('')
+      set_msg_flag(1, 'flagged', true)
+      set_msg_flag(1, 'seen', true)
 
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ false, false, false, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
+      assert_msg_uid(1)
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.store('T001', '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T001 NO /)
+      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.login('T002', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T002 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      res = @decoder.store('T003', '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T003 NO /)
+      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.examine('T004', 'INBOX').each
-      assert_imap_response(res) {|a|
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-ONLY] EXAMINE completed')
+      assert_imap_command(:examine, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      res = @decoder.store('T005', '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T005 NO /)
+      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T006', '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted',  '\Seen','\Draft' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T006 NO /)
+      assert_imap_command(:store, '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted',  '\Seen','\Draft' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T007', '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T007 NO /)
+      assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T008', '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T008 NO /)
+      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T009', '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T009 NO /)
+      assert_imap_command(:store, '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T010', '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]).each
-      assert_imap_response(res) {|a|
-        a.match(/^T010 NO /)
+      assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T011', '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
-      assert_imap_response(res) {|a|
-        a.match(/^T011 NO /)
+      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T012', '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
-      assert_imap_response(res) {|a|
-        a.match(/^T012 NO /)
+      assert_imap_command(:store, '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T013', '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
-      assert_imap_response(res) {|a|
-        a.match(/^T013 NO /)
+      assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T014', '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
-      assert_imap_response(res) {|a|
-        a.match(/^T014 NO /)
+      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T015', '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
-      assert_imap_response(res) {|a|
-        a.match(/^T015 NO /)
+      assert_imap_command(:store, '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      res = @decoder.store('T016', '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true).each
-      assert_imap_response(res) {|a|
-        a.match(/^T016 NO /)
+      assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+        assert.match(/^#{tag} NO /)
       }
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ false, false, false, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
-
-      res = @decoder.logout('T017').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T017 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
