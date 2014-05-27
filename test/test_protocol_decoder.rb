@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'logger'
+require 'net/imap'
 require 'rims'
 require 'stringio'
 require 'test/unit'
@@ -9,6 +10,19 @@ require 'time'
 module RIMS::Test
   class ProtocolDecoderTest < Test::Unit::TestCase
     include RIMS::Test::AssertUtility
+
+    UTF8_MBOX_NAME = '~peter/mail/日本語/台北'.freeze
+    UTF7_MBOX_NAME = '~peter/mail/&ZeVnLIqe-/&U,BTFw-'.b.freeze
+
+    def encode_utf7(utf8_str)
+      Net::IMAP.encode_utf7(utf8_str) # -> utf7_str
+    end
+    private :encode_utf7
+
+    def decode_utf7(utf7_str)
+      Net::IMAP.decode_utf7(utf7_str) # -> utf8_str
+    end
+    private :decode_utf7
 
     class IMAPResponseAssertionDSL
       include Test::Unit::Assertions
