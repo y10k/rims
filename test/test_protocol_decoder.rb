@@ -94,6 +94,22 @@ module RIMS::Test
       @tag = 'T000'
     end
 
+    def reload_mail_store
+      @mail_store_pool.put(@mail_store_holder)
+      assert(@mail_store_pool.empty?)
+
+      @mail_store_holder = nil
+      @mail_store = nil
+
+      begin
+        yield
+      ensure
+        @mail_store_holder = @mail_store_pool.get('foo')
+        @mail_store = @mail_store_holder.mail_store
+      end
+    end
+    private :reload_mail_store
+
     def teardown
       @decoder.cleanup
       @mail_store_pool.put(@mail_store_holder)
