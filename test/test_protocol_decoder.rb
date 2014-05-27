@@ -3111,28 +3111,24 @@ module RIMS::Test
     end
 
     def test_db_recovery
-      @mail_store_pool.put(@mail_store_holder)
-      assert(@mail_store_pool.empty?)
-      meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs['test/meta']))
-      meta_db.dirty = true
-      meta_db.close
-      @mail_store_holder = @mail_store_pool.get('foo')
-      @mail_store = @mail_store_holder.mail_store
+      reload_mail_store{
+        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs['test/meta']))
+        meta_db.dirty = true
+        meta_db.close
+      }
 
       assert_equal(false, @decoder.auth?)
 
-      res = @decoder.login('T001', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* OK \[ALERT\] recovery/)
-        a.equal('T001 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.match(/^\* OK \[ALERT\] recovery/)
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      res = @decoder.logout('T002').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T002 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
 
       assert_equal(false, @decoder.auth?)
