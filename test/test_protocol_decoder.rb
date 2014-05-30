@@ -156,6 +156,28 @@ module RIMS::Test
     end
     private :assert_imap_command
 
+    def assert_imap_command_loop(client_command_list_text, notag: false)
+      if (! notag) then
+        tag = 'T000'
+        tag_command_list = []
+        client_command_list_text.each_line do |line|
+          tag_command_list << "#{tag.succ!} #{line}"
+        end
+        client_command_list_text = tag_command_list.join('')
+      end
+
+      input = StringIO.new(client_command_list_text, 'r')
+      output = StringIO.new('', 'w')
+
+      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      response_lines = output.string.each_line
+
+      assert_imap_response(response_lines) {|assert|
+        yield(assert)
+      }
+    end
+    private :assert_imap_command_loop
+
     def add_msg(msg_txt, *optional_args, mbox_id: @inbox_id)
       @mail_store.add_msg(mbox_id, msg_txt, *optional_args)
     end
