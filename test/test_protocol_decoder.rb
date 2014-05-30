@@ -892,29 +892,29 @@ Content-Type: text/html; charset=us-ascii
     end
 
     def test_list_utf7_mbox_name
-      @mail_store.add_mbox('~peter/mail/日本語/台北')
+      @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      res = @decoder.login('T001', 'foo', 'open_sesame').each
-      assert_imap_response(res) {|a|
-        a.equal('T001 OK LOGIN completed')
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
       }
 
-      res = @decoder.list('T002', '~peter/', '*&ZeVnLIqe-*').each
-      assert_imap_response(res) {|a|
-        a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
-        a.equal('T002 OK LIST completed')
+      assert_imap_command(:list,
+                          encode_utf7(UTF8_MBOX_NAME[0..6]),
+                          '*' + encode_utf7(UTF8_MBOX_NAME[12..14]) + '*') {|assert|
+        assert.equal(%Q'* LIST (\\Noinferiors \\Unmarked) NIL "#{UTF7_MBOX_NAME}"')
+        assert.equal("#{tag} OK LIST completed")
       }
 
-      res = @decoder.list('T003', '~peter/mail/&ZeVnLA-', '*&U,A-*').each
-      assert_imap_response(res) {|a|
-        a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
-        a.equal('T003 OK LIST completed')
+      assert_imap_command(:list,
+                          encode_utf7(UTF8_MBOX_NAME[0..13]),
+                          '*' + encode_utf7(UTF8_MBOX_NAME[16]) + '*') {|assert|
+        assert.equal(%Q'* LIST (\\Noinferiors \\Unmarked) NIL "#{UTF7_MBOX_NAME}"')
+        assert.equal("#{tag} OK LIST completed")
       }
 
-      res = @decoder.logout('T004').each
-      assert_imap_response(res) {|a|
-        a.match(/^\* BYE /)
-        a.equal('T004 OK LOGOUT completed')
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
       }
     end
 
