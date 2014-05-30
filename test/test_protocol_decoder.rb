@@ -137,13 +137,13 @@ module RIMS::Test
     end
     private :tag
 
-    def next_tag!
+    def tag!
       @tag.succ!.dup
     end
-    private :next_tag!
+    private :tag!
 
     def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, **cmd_opts)
-      next_tag!
+      tag!
       if (cmd_opts.empty?) then
         response_lines = @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args).each
       else
