@@ -3157,13 +3157,13 @@ module RIMS::Test
     end
 
     def test_command_loop_empty
-      output = StringIO.new('', 'w')
-      RIMS::Protocol::Decoder.repl(@decoder, StringIO.new(''.b, 'r'), output, @logger)
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", output.string)
+      assert_imap_command_loop(''.b, notag: true) {|assert|
+	assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+      }
 
-      output = StringIO.new('', 'w')
-      RIMS::Protocol::Decoder.repl(@decoder, StringIO.new("\n\t\n \r\n ".b, 'r'), output, @logger)
-      assert_equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.\r\n", output.string)
+      assert_imap_command_loop("\n\t\n \r\n ".b, notag: true) {|assert|
+	assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+      }
     end
 
     def test_command_loop_capability
