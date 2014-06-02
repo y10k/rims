@@ -3524,28 +3524,24 @@ LOGOUT
     end
 
     def test_command_loop_list_utf7_mbox_name
-      @mail_store.add_mbox('~peter/mail/日本語/台北')
+      @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 LOGIN foo open_sesame
-T002 LIST "~peter/" "*&ZeVnLIqe-*"
-T003 LIST "~peter/mail/&ZeVnLA-" "*&U,A-*"
-T004 LOGOUT
+      cmd_txt = <<-"EOF".b
+LOGIN foo open_sesame
+LIST "#{encode_utf7(UTF8_MBOX_NAME[0..6])}" "#{'*' + encode_utf7(UTF8_MBOX_NAME[12..14]) + '*'}"
+LIST "#{encode_utf7(UTF8_MBOX_NAME[0..13])}" "#{'*' + encode_utf7(UTF8_MBOX_NAME[16]) + '*'}"
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('T001 OK LOGIN completed')
-        a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
-        a.equal('T002 OK LIST completed')
-        a.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
-        a.equal('T003 OK LIST completed')
-        a.match(/^\* BYE /)
-        a.equal('T004 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
+        assert.equal("#{tag!} OK LIST completed")
+        assert.equal('* LIST (\Noinferiors \Unmarked) NIL "~peter/mail/&ZeVnLIqe-/&U,BTFw-"')
+        assert.equal("#{tag!} OK LIST completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
     end
 
