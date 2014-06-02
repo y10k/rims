@@ -3385,37 +3385,34 @@ LOGOUT
 
     def test_command_loop_delete
       @mail_store.add_mbox('foo')
-      assert_not_nil(@mail_store.mbox_id('inbox'))
-      assert_not_nil(@mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('bar'))
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 DELETE foo
-T002 LOGIN foo open_sesame
-T003 DELETE foo
-T004 DELETE bar
-T005 DELETE inbox
-T006 LOGOUT
+      assert_mbox_exists('inbox')
+      assert_mbox_exists('foo')
+      assert_mbox_not_exists('bar')
+
+      cmd_txt = <<-'EOF'.b
+DELETE foo
+LOGIN foo open_sesame
+DELETE foo
+DELETE bar
+DELETE inbox
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.equal('T003 OK DELETE completed')
-        a.match(/^T004 NO /)
-        a.match(/^T005 NO /)
-        a.match(/^\* BYE /)
-        a.equal('T006 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal("#{tag!} OK DELETE completed")
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_not_nil(@mail_store.mbox_id('inbox'))
-      assert_nil(@mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('bar'))
+      assert_mbox_exists('inbox')
+      assert_mbox_not_exists('foo')
+      assert_mbox_not_exists('bar')
     end
 
     def test_command_loop_delete_utf7_mbox_name
