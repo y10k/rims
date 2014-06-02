@@ -3167,21 +3167,17 @@ module RIMS::Test
     end
 
     def test_command_loop_capability
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 CAPABILITY
-T002 LOGOUT
+      cmd_txt = <<-'EOF'.b
+CAPABILITY
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('* CAPABILITY IMAP4rev1')
-        a.equal('T001 OK CAPABILITY completed')
-        a.match(/^\* BYE /)
-        a.equal('T002 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal('* CAPABILITY IMAP4rev1')
+        assert.equal("#{tag!} OK CAPABILITY completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
     end
 
