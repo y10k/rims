@@ -3468,35 +3468,27 @@ LOGOUT
     end
 
     def test_command_loop_rename_utf7_mbox_name
-      @mail_store.add_mbox('foo')
+      mbox_id = @mail_store.add_mbox('foo')
 
-      assert_not_nil(@mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
-      assert_nil(@mail_store.mbox_id('bar'))
+      assert_equal([ mbox_id, nil, nil ], get_mbox_id_list('foo', UTF8_MBOX_NAME, 'bar'))
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 LOGIN foo open_sesame
-T002 RENAME foo "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
-T003 RENAME "~peter/mail/&ZeVnLIqe-/&U,BTFw-" bar
-T004 LOGOUT
+      cmd_txt = <<-"EOF".b
+LOGIN foo open_sesame
+RENAME foo "#{UTF7_MBOX_NAME}"
+RENAME "#{UTF7_MBOX_NAME}" bar
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('T001 OK LOGIN completed')
-        a.equal('T002 OK RENAME completed')
-        a.equal('T003 OK RENAME completed')
-        a.match(/^\* BYE /)
-        a.equal('T004 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal("#{tag!} OK RENAME completed")
+        assert.equal("#{tag!} OK RENAME completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_nil(@mail_store.mbox_id('foo'))
-      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
-      assert_not_nil(@mail_store.mbox_id('bar'))
+      assert_equal([ nil, nil, mbox_id ], get_mbox_id_list('foo', UTF8_MBOX_NAME, 'bar'))
     end
 
     def test_command_loop_list
