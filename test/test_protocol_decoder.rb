@@ -3416,28 +3416,25 @@ LOGOUT
     end
 
     def test_command_loop_delete_utf7_mbox_name
-      @mail_store.add_mbox('~peter/mail/日本語/台北')
-      assert_not_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 LOGIN foo open_sesame
-T002 DELETE "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
-T003 LOGOUT
+      assert_mbox_exists(UTF8_MBOX_NAME)
+
+      cmd_txt = <<-"EOF".b
+LOGIN foo open_sesame
+DELETE "#{UTF7_MBOX_NAME}"
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('T001 OK LOGIN completed')
-        a.equal('T002 OK DELETE completed')
-        a.match(/^\* BYE /)
-        a.equal('T003 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal("#{tag!} OK DELETE completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_nil(@mail_store.mbox_id('~peter/mail/日本語/台北'))
+      assert_mbox_not_exists(UTF8_MBOX_NAME)
     end
 
     def test_command_loop_rename
