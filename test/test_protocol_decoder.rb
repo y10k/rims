@@ -3317,29 +3317,25 @@ LOGOUT
     end
 
     def test_command_loop_examine_utf7_mbox_name
-      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 LOGIN foo open_sesame
-T002 EXAMINE "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
-T003 LOGOUT
+      cmd_txt = <<-"EOF".b
+LOGIN foo open_sesame
+EXAMINE "#{UTF7_MBOX_NAME}"
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('T001 OK LOGIN completed')
-        a.equal('* 0 EXISTS')
-        a.equal('* 0 RECENT')
-        a.equal('* OK [UNSEEN 0]')
-        a.equal("* OK [UIDVALIDITY #{mbox_id}]")
-        a.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
-        a.equal('T002 OK [READ-ONLY] EXAMINE completed')
-        a.match(/^\* BYE /)
-        a.equal('T003 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal('* 0 EXISTS')
+        assert.equal('* 0 RECENT')
+        assert.equal('* OK [UNSEEN 0]')
+        assert.equal("* OK [UIDVALIDITY #{utf8_name_mbox_id}]")
+        assert.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        assert.equal("#{tag!} OK [READ-ONLY] EXAMINE completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
     end
 
