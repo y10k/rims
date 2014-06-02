@@ -3546,36 +3546,32 @@ LOGOUT
     end
 
     def test_command_loop_status
-      @mail_store.add_msg(@inbox_id, 'foo')
-      @mail_store.set_msg_flag(@inbox_id, 1, 'recent', false)
-      @mail_store.set_msg_flag(@inbox_id, 1, 'seen', true)
-      @mail_store.add_msg(@inbox_id, 'bar')
+      add_msg('')
+      add_msg('')
+      set_msg_flag(1, 'recent', false)
+      set_msg_flag(1, 'seen',   true)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 STATUS nobox (MESSAGES)
-T002 LOGIN foo open_sesame
-T003 STATUS nobox (MESSAGES)
-T009 STATUS INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)
-T011 STATUS INBOX MESSAGES
-T012 STATUS INBOX (DETARAME)
-T013 LOGOUT
+      cmd_txt = <<-'EOF'.b
+STATUS nobox (MESSAGES)
+LOGIN foo open_sesame
+STATUS nobox (MESSAGES)
+STATUS INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)
+STATUS INBOX MESSAGES
+STATUS INBOX (DETARAME)
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.match(/^T003 NO /)
-        a.equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
-        a.equal('T009 OK STATUS completed')
-        a.match(/^T011 BAD /)
-        a.match(/^T012 BAD /)
-        a.match(/^\* BYE /)
-        a.equal('T013 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
+        assert.equal("#{tag!} OK STATUS completed")
+        assert.match(/^#{tag!} BAD /)
+        assert.match(/^#{tag!} BAD /)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
     end
 
