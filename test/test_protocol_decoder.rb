@@ -3340,31 +3340,27 @@ LOGOUT
     end
 
     def test_command_loop_create
-      assert_nil(@mail_store.mbox_id('foo'))
+      assert_mbox_not_exists('foo')
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 CREATE foo
-T002 LOGIN foo open_sesame
-T003 CREATE foo
-T004 CREATE inbox
-T005 LOGOUT
+      cmd_txt = <<-'EOF'.b
+CREATE foo
+LOGIN foo open_sesame
+CREATE foo
+CREATE inbox
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.equal('T003 OK CREATE completed')
-        a.match(/^T004 NO /)
-        a.match(/^\* BYE /)
-        a.equal('T005 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal("#{tag!} OK CREATE completed")
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_not_nil(@mail_store.mbox_id('foo'))
+      assert_mbox_exists('foo')
     end
 
     def test_command_loop_create_utf7_mbox_name
