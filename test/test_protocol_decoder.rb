@@ -4230,127 +4230,105 @@ LOGOUT
     end
 
     def test_command_loop_uid_store
-      msg_src = Enumerator.new{|y|
-        s = 'a'
-        loop do
-          y << s
-          s = s.succ
-        end
-      }
-
+      msg_src = make_string_source('a')
       10.times do
-        @mail_store.add_msg(@inbox_id, msg_src.next)
+        add_msg(msg_src.next)
       end
-      @mail_store.each_msg_uid(@inbox_id) do |uid|
-        if (uid % 2 == 0) then
-          @mail_store.set_msg_flag(@inbox_id, uid, 'deleted', true)
-        end
-      end
-      @mail_store.expunge_mbox(@inbox_id)
+      expunge(2, 4, 6, 8, 10)
 
-      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 0, 0, 0, 0, 0, 5 ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([ 1, 3, 5, 7, 9 ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
+      assert_msg_uid(                      1, 3, 5, 7, 9)
+      assert_flag_enabled_msgs('answered',              )
+      assert_flag_enabled_msgs('flagged' ,              )
+      assert_flag_enabled_msgs('deleted' ,              )
+      assert_flag_enabled_msgs('seen'    ,              )
+      assert_flag_enabled_msgs('draft'   ,              )
+      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+      assert_mbox_flag_num(recent: 5)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 UID STORE 1 +FLAGS (\Answered)
-T002 LOGIN foo open_sesame
-T003 UID STORE 1 +FLAGS (\Answered)
-T004 SELECT INBOX
-T005 UID STORE 1 +FLAGS (\Answered)
-T006 UID STORE 1,3 +FLAGS (\Flagged)
-T007 UID STORE 1,3,5 +FLAGS (\Deleted)
-T008 UID STORE 1,3,5,7 +FLAGS (\Seen)
-T009 UID STORE 1,3,5,7,9 +FLAGS (\Draft)
-T010 UID STORE 1:* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T011 UID STORE 1 -FLAGS (\Answered)
-T012 UID STORE 1,3 -FLAGS (\Flagged)
-T013 UID STORE 1,3,5 -FLAGS (\Deleted)
-T014 UID STORE 1,3,5,7 -FLAGS (\Seen)
-T015 UID STORE 1,3,5,7,9 -FLAGS (\Draft)
-T016 LOGOUT
+      cmd_txt = <<-'EOF'.b
+UID STORE 1 +FLAGS (\Answered)
+LOGIN foo open_sesame
+UID STORE 1 +FLAGS (\Answered)
+SELECT INBOX
+UID STORE 1 +FLAGS (\Answered)
+UID STORE 1,3 +FLAGS (\Flagged)
+UID STORE 1,3,5 +FLAGS (\Deleted)
+UID STORE 1,3,5,7 +FLAGS (\Seen)
+UID STORE 1,3,5,7,9 +FLAGS (\Draft)
+UID STORE 1:* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+UID STORE 1 -FLAGS (\Answered)
+UID STORE 1,3 -FLAGS (\Flagged)
+UID STORE 1,3,5 -FLAGS (\Deleted)
+UID STORE 1,3,5,7 -FLAGS (\Seen)
+UID STORE 1,3,5,7,9 -FLAGS (\Draft)
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.match(/^T003 NO /)
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
-        a.equal('* 1 FETCH FLAGS (\Answered \Recent)')
-        a.equal('T005 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)')
-        a.equal('* 2 FETCH FLAGS (\Flagged \Recent)')
-        a.equal('T006 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
-        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)')
-        a.equal('* 3 FETCH FLAGS (\Deleted \Recent)')
-        a.equal('T007 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
-        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)')
-        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)')
-        a.equal('* 4 FETCH FLAGS (\Seen \Recent)')
-        a.equal('T008 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        a.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
-        a.equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
-        a.equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)')
-        a.equal('* 5 FETCH FLAGS (\Draft \Recent)')
-        a.equal('T009 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        a.equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        a.equal('T010 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
-        a.equal('T011 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
-        a.equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)')
-        a.equal('T012 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)')
-        a.equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)')
-        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)')
-        a.equal('T013 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Draft \Recent)')
-        a.equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)')
-        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)')
-        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)')
-        a.equal('T014 OK STORE completed')
-        a.equal('* 1 FETCH FLAGS (\Recent)')
-        a.equal('* 2 FETCH FLAGS (\Answered \Recent)')
-        a.equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)')
-        a.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
-        a.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
-        a.equal('T015 OK STORE completed')
-        a.match(/^\* BYE /)
-        a.equal('T016 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal('* 1 FETCH FLAGS (\Answered \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Flagged \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)')
+        assert.equal('* 3 FETCH FLAGS (\Deleted \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)')
+        assert.equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)')
+        assert.equal('* 4 FETCH FLAGS (\Seen \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        assert.equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)')
+        assert.equal('* 5 FETCH FLAGS (\Draft \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)')
+        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Draft \Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)')
+        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)')
+        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal('* 1 FETCH FLAGS (\Recent)')
+        assert.equal('* 2 FETCH FLAGS (\Answered \Recent)')
+        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)')
+        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
+        assert.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        assert.equal("#{tag!} OK STORE completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal([ 1, 3, 5,      ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 2, 1, 0, 0, 0, 0 ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
-      assert_equal([    3, 5,      ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([       5,      ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') }) # expunge by LOGOUT
-      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') }) # clear by LOGOUT
+      assert_msg_uid(                      1, 3, 5)
+      assert_flag_enabled_msgs('answered',    3, 5)
+      assert_flag_enabled_msgs('flagged' ,       5)
+      assert_flag_enabled_msgs('deleted' ,        )
+      assert_flag_enabled_msgs('seen'    ,        )
+      assert_flag_enabled_msgs('draft'   ,        )
+      assert_flag_enabled_msgs('recent'  ,        )
+      assert_mbox_flag_num(answered: 2, flagged: 1)
     end
 
     def test_command_loop_uid_store_silent
