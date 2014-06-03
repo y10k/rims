@@ -4616,35 +4616,32 @@ LOGOUT
     end
 
     def test_command_loop_copy_utf7_mbox_name
-      @mail_store.add_msg(@inbox_id, 'Hello world.')
-      mbox_id = @mail_store.add_mbox('~peter/mail/日本語/台北')
+      add_msg('Hello world.')
+      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([], @mail_store.each_msg_uid(mbox_id).to_a)
+      assert_msg_uid(1)
+      assert_msg_uid(mbox_id: utf8_name_mbox_id)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 LOGIN foo open_sesame
-T002 SELECT INBOX
-T003 COPY 1 "~peter/mail/&ZeVnLIqe-/&U,BTFw-"
-T004 LOGOUT
+      cmd_txt = <<-"EOF".b
+LOGIN foo open_sesame
+SELECT INBOX
+COPY 1 "#{UTF7_MBOX_NAME}"
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('T001 OK LOGIN completed')
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T002 OK [READ-WRITE] SELECT completed')
-        a.equal('T003 OK COPY completed')
-        a.match(/^\* BYE /)
-        a.equal('T004 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal("#{tag!} OK COPY completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal([ 1 ], @mail_store.each_msg_uid(mbox_id).to_a)
-      assert_equal('Hello world.', @mail_store.msg_text(mbox_id, 1))
+      assert_msg_uid(1)
+      assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
+      assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
     end
 
     def test_command_loop_noop
