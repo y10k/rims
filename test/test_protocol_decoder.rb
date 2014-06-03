@@ -4332,92 +4332,70 @@ LOGOUT
     end
 
     def test_command_loop_uid_store_silent
-      msg_src = Enumerator.new{|y|
-        s = 'a'
-        loop do
-          y << s
-          s = s.succ
-        end
-      }
-
+      msg_src = make_string_source('a')
       10.times do
-        @mail_store.add_msg(@inbox_id, msg_src.next)
+        add_msg(msg_src.next)
       end
-      @mail_store.each_msg_uid(@inbox_id) do |uid|
-        if (uid % 2 == 0) then
-          @mail_store.set_msg_flag(@inbox_id, uid, 'deleted', true)
-        end
-      end
-      @mail_store.expunge_mbox(@inbox_id)
+      expunge(2, 4, 6, 8, 10)
 
-      assert_equal([ 1, 3, 5, 7, 9 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 0, 0, 0, 0, 0, 5 ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([               ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([ 1, 3, 5, 7, 9 ], [ 1, 3, 5, 7, 9 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
+      assert_msg_uid(                      1, 3, 5, 7, 9)
+      assert_flag_enabled_msgs('answered',              )
+      assert_flag_enabled_msgs('flagged' ,              )
+      assert_flag_enabled_msgs('deleted' ,              )
+      assert_flag_enabled_msgs('seen'    ,              )
+      assert_flag_enabled_msgs('draft'   ,              )
+      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+      assert_mbox_flag_num(recent: 5)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 UID STORE 1 +FLAGS.SILENT (\Answered)
-T002 LOGIN foo open_sesame
-T003 UID STORE 1 +FLAGS.SILENT (\Answered)
-T004 SELECT INBOX
-T005 UID STORE 1 +FLAGS.SILENT (\Answered)
-T006 UID STORE 1,3 +FLAGS.SILENT (\Flagged)
-T007 UID STORE 1,3,5 +FLAGS.SILENT (\Deleted)
-T008 UID STORE 1,3,5,7 +FLAGS.SILENT (\Seen)
-T009 UID STORE 1,3,5,7,9 +FLAGS.SILENT (\Draft)
-T010 UID STORE 1:* FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
-T011 UID STORE 1 -FLAGS.SILENT (\Answered)
-T012 UID STORE 1,3 -FLAGS.SILENT (\Flagged)
-T013 UID STORE 1,3,5 -FLAGS.SILENT (\Deleted)
-T014 UID STORE 1,3,5,7 -FLAGS.SILENT (\Seen)
-T015 UID STORE 1,3,5,7,9 -FLAGS.SILENT (\Draft)
-T016 LOGOUT
+      cmd_txt = <<-'EOF'.b
+UID STORE 1 +FLAGS.SILENT (\Answered)
+LOGIN foo open_sesame
+UID STORE 1 +FLAGS.SILENT (\Answered)
+SELECT INBOX
+UID STORE 1 +FLAGS.SILENT (\Answered)
+UID STORE 1,3 +FLAGS.SILENT (\Flagged)
+UID STORE 1,3,5 +FLAGS.SILENT (\Deleted)
+UID STORE 1,3,5,7 +FLAGS.SILENT (\Seen)
+UID STORE 1,3,5,7,9 +FLAGS.SILENT (\Draft)
+UID STORE 1:* FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+UID STORE 1 -FLAGS.SILENT (\Answered)
+UID STORE 1,3 -FLAGS.SILENT (\Flagged)
+UID STORE 1,3,5 -FLAGS.SILENT (\Deleted)
+UID STORE 1,3,5,7 -FLAGS.SILENT (\Seen)
+UID STORE 1,3,5,7,9 -FLAGS.SILENT (\Draft)
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.match(/^T003 NO /)
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
-        a.equal('T005 OK STORE completed')
-        a.equal('T006 OK STORE completed')
-        a.equal('T007 OK STORE completed')
-        a.equal('T008 OK STORE completed')
-        a.equal('T009 OK STORE completed')
-        a.equal('T010 OK STORE completed')
-        a.equal('T011 OK STORE completed')
-        a.equal('T012 OK STORE completed')
-        a.equal('T013 OK STORE completed')
-        a.equal('T014 OK STORE completed')
-        a.equal('T015 OK STORE completed')
-        a.match(/^\* BYE /)
-        a.equal('T016 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.equal("#{tag!} OK STORE completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal([ 1, 3, 5,      ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ 2, 1, 0, 0, 0, 0 ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.mbox_flag_num(@inbox_id, name)
-                   })
-      assert_equal([    3, 5,      ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([       5,      ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') }) # expunge by LOGOUT
-      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([               ], [ 1, 3, 5,      ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') }) # clear by LOGOUT
+      assert_msg_uid(                      1, 3, 5)
+      assert_flag_enabled_msgs('answered',    3, 5)
+      assert_flag_enabled_msgs('flagged' ,       5)
+      assert_flag_enabled_msgs('deleted' ,        )
+      assert_flag_enabled_msgs('seen'    ,        )
+      assert_flag_enabled_msgs('draft'   ,        )
+      assert_flag_enabled_msgs('recent'  ,        )
+      assert_mbox_flag_num(answered: 2, flagged: 1)
     end
 
     def test_command_loop_store_read_only
