@@ -4683,10 +4683,9 @@ LOGOUT
     end
 
     def test_command_loop_error_handling
-      @mail_store.add_msg(@inbox_id, '')
+      add_msg('')
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
+      cmd_txt = <<-'EOF'.b
 SYNTAX_ERROR
 T001 NO_COMMAND
 T002 UID NO_COMMAND
@@ -4694,16 +4693,13 @@ T003 UID
 T004 NOOP DETARAME
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('* BAD client command syntax error')
-        a.equal('T001 BAD unknown command')
-        a.equal('T002 BAD unknown uid command')
-        a.equal('T003 BAD empty uid parameter')
-        a.equal('T004 BAD invalid command parameter')
+      assert_imap_command_loop(cmd_txt, notag: true) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal('* BAD client command syntax error')
+        assert.equal("#{tag!} BAD unknown command")
+        assert.equal("#{tag!} BAD unknown uid command")
+        assert.equal("#{tag!} BAD empty uid parameter")
+        assert.equal("#{tag!} BAD invalid command parameter")
       }
     end
 
