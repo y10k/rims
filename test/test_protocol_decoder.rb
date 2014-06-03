@@ -3874,49 +3874,53 @@ LOGOUT
     end
 
     def test_command_loop_search
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\napple")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: alice\r\n\r\nbnana")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\norange")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\nmelon")
-      @mail_store.add_msg(@inbox_id, "Content-Type: text/plain\r\nFrom: bob\r\n\r\npineapple")
-      @mail_store.set_msg_flag(@inbox_id, 2, 'deleted', true)
-      @mail_store.set_msg_flag(@inbox_id, 4, 'deleted', true)
-      @mail_store.expunge_mbox(@inbox_id)
-      assert_equal([ 1, 3, 5 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+      add_msg("Content-Type: text/plain\r\n" +
+              "From: alice\r\n" +
+              "\r\n" +
+              "apple")
+      add_msg('')
+      add_msg("Content-Type: text/plain\r\n" +
+              "From: bob\r\n" +
+              "\r\n" +
+              "orange")
+      add_msg('')
+      add_msg("Content-Type: text/plain\r\n" +
+              "From: bob\r\n" +
+              "\r\n" +
+              "pineapple")
+      expunge(2, 4)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 SEARCH ALL
-T002 LOGIN foo open_sesame
-T003 SEARCH ALL
-T004 SELECT INBOX
-T006 SEARCH ALL
-T007 UID SEARCH ALL
-T008 SEARCH OR FROM alice FROM bob BODY apple
-T009 UID SEARCH OR FROM alice FROM bob BODY apple
-T010 LOGOUT
+      assert_msg_uid(1, 3, 5)
+
+      cmd_txt = <<-'EOF'.b
+SEARCH ALL
+LOGIN foo open_sesame
+SEARCH ALL
+SELECT INBOX
+SEARCH ALL
+UID SEARCH ALL
+SEARCH OR FROM alice FROM bob BODY apple
+UID SEARCH OR FROM alice FROM bob BODY apple
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.match(/^T003 NO /)
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
-        a.equal('* SEARCH 1 2 3')
-        a.equal('T006 OK SEARCH completed')
-        a.equal('* SEARCH 1 3 5')
-        a.equal('T007 OK SEARCH completed')
-        a.equal('* SEARCH 1 3')
-        a.equal('T008 OK SEARCH completed')
-        a.equal('* SEARCH 1 5')
-        a.equal('T009 OK SEARCH completed')
-        a.match(/^\* BYE /)
-        a.equal('T010 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal('* SEARCH 1 2 3')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 1 3 5')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 1 3')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 1 5')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
     end
 
