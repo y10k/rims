@@ -4704,29 +4704,23 @@ T004 NOOP DETARAME
     end
 
     def test_command_loop_db_recovery
-      @mail_store_pool.put(@mail_store_holder)
-      assert(@mail_store_pool.empty?)
-      meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs['test/meta']))
-      meta_db.dirty = true
-      meta_db.close
-      @mail_store_holder = @mail_store_pool.get('foo')
-      @mail_store = @mail_store_holder.mail_store
+      reload_mail_store{
+        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs['test/meta']))
+        meta_db.dirty = true
+        meta_db.close
+      }
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 LOGIN foo open_sesame
-T002 LOGOUT
+      cmd_txt = <<-'EOF'.b
+LOGIN foo open_sesame
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^\* OK \[ALERT\] recovery/)
-        a.equal('T001 OK LOGIN completed')
-        a.match(/^\* BYE /)
-        a.equal('T002 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^\* OK \[ALERT\] recovery/)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
     end
   end
