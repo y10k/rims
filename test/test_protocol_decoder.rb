@@ -3595,8 +3595,7 @@ LOGOUT
     end
 
     def test_command_loop_append
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
+      cmd_txt = <<-'EOF'.b
 T001 APPEND INBOX a
 T002 LOGIN foo open_sesame
 T003 APPEND INBOX a
@@ -3612,40 +3611,35 @@ T011 APPEND nobox x
 T012 LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
-        a.equal('T002 OK LOGIN completed')
-        a.equal('T003 OK APPEND completed')
-        a.equal('T004 OK APPEND completed')
-        a.match(/^\+ /)
-        a.equal('T005 OK APPEND completed')
-        a.equal('T006 OK APPEND completed')
-        a.match(/^T007 BAD /)
-        a.match(/^T008 BAD /)
-        a.match(/^T009 BAD /)
-        a.match(/^T010 BAD /)
-        a.match(/^T011 NO \[TRYCREATE\]/)
-        a.match(/^\* BYE /)
-        a.equal('T012 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt, notag: true) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal("#{tag!} OK APPEND completed")
+        assert.equal("#{tag!} OK APPEND completed")
+        assert.match(/^\+ /)
+        assert.equal("#{tag!} OK APPEND completed")
+        assert.equal("#{tag!} OK APPEND completed")
+        assert.match(/^#{tag!} BAD /)
+        assert.match(/^#{tag!} BAD /)
+        assert.match(/^#{tag!} BAD /)
+        assert.match(/^#{tag!} BAD /)
+        assert.match(/^#{tag!} NO \[TRYCREATE\]/)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal([ 1, 2, 3, 4 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal('a', @mail_store.msg_text(@inbox_id, 1))
-      assert_equal('b', @mail_store.msg_text(@inbox_id, 2))
-      assert_equal('c', @mail_store.msg_text(@inbox_id, 3))
-      assert_equal('d', @mail_store.msg_text(@inbox_id, 4))
-      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'answered') })
-      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'flagged') })
-      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'deleted') })
-      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'seen') })
-      assert_equal([    2,    4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'draft') })
-      assert_equal([ 1, 2, 3, 4 ], [ 1, 2, 3, 4 ].find_all{|id| @mail_store.msg_flag(@inbox_id, id, 'recent') })
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 3))
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), @mail_store.msg_date(@inbox_id, 4))
+      assert_msg_uid(                      1, 2, 3, 4)
+      assert_flag_enabled_msgs('answered',    2,    4)
+      assert_flag_enabled_msgs('flagged' ,    2,    4)
+      assert_flag_enabled_msgs('deleted' ,    2,    4)
+      assert_flag_enabled_msgs('seen'    ,    2,    4)
+      assert_flag_enabled_msgs('draft'   ,    2,    4)
+      assert_flag_enabled_msgs('recent'  , 1, 2, 3, 4)
+      assert_mbox_flag_num(answered: 2, flagged: 2, deleted: 2, seen: 2, draft: 2, recent: 4)
+      assert_msg_text('a', 'b', 'c', 'd')
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(3))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(4))
     end
 
     def test_command_loop_append_utf7_mbox_name
