@@ -3925,96 +3925,71 @@ LOGOUT
     end
 
     def test_command_loop_fetch
-      @mail_store.add_msg(@inbox_id, '')
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
-      @mail_store.expunge_mbox(@inbox_id)
+      add_msg('')
       add_mail_simple
       add_mail_multipart
+      expunge(1)
 
-      assert_equal([ 2, 3 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_msg_uid(                      2, 3)
+      assert_flag_enabled_msgs('answered',     )
+      assert_flag_enabled_msgs('flagged' ,     )
+      assert_flag_enabled_msgs('deleted' ,     )
+      assert_flag_enabled_msgs('seen'    ,     )
+      assert_flag_enabled_msgs('draft'   ,     )
+      assert_flag_enabled_msgs('recent'  , 2, 3)
+      assert_mbox_flag_num(recent: 2)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 FETCH 1:* FAST
-T002 LOGIN foo open_sesame
-T003 FETCH 1:* FAST
-T004 SELECT INBOX
-T005 FETCH 1:* FAST
-T006 FETCH 1:* (FAST)
-T007 FETCH 1:* (FLAGS RFC822.HEADER UID)
-T008 FETCH 1 RFC822
-T009 FETCH 2 BODY.PEEK[1]
-T010 UID FETCH 2 RFC822
-T011 UID FETCH 3 (UID BODY.PEEK[1])
-T012 LOGOUT
+      cmd_txt = <<-'EOF'.b
+FETCH 1:* FAST
+LOGIN foo open_sesame
+FETCH 1:* FAST
+SELECT INBOX
+FETCH 1:* FAST
+FETCH 1:* (FAST)
+FETCH 1:* (FLAGS RFC822.HEADER UID)
+FETCH 1 RFC822
+FETCH 2 BODY.PEEK[1]
+UID FETCH 2 RFC822
+UID FETCH 3 (UID BODY.PEEK[1])
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.match(/^T003 NO /)
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 203)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1545)')
-        a.equal('T005 OK FETCH completed')
-        a.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 203)')
-        a.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1545)')
-        a.equal('T006 OK FETCH completed')
-
-        s = @simple_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r?\n\z/)
-        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
-        a.equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
-        s.each_line do |line|
-          a.equal(line)
-        end
-        a.equal(' UID 2)')
-
-        s = @mpart_mail.header.raw_source
-        s += "\r\n" unless (s =~ /\r?\n\z/)
-        s += "\r\n" unless (s =~ /\r?\n\r?\n\z/)
-        a.equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER {#{s.bytesize}}\r\n")
-        s.each_line do |line|
-          a.equal(line)
-        end
-        a.equal(' UID 3)')
-
-        a.equal('T007 OK FETCH completed')
-
-        s = @simple_mail.raw_source
-        a.equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 {#{s.bytesize}}\r\n")
-        s.each_line do |line|
-          a.equal(line)
-        end
-        a.equal(')')
-
-        a.equal('T008 OK FETCH completed')
-        a.equal("* 2 FETCH (BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")")
-        a.equal('T009 OK FETCH completed')
-
-        s = @simple_mail.raw_source
-        a.equal("* 1 FETCH (UID 2 RFC822 {#{s.bytesize}}\r\n")
-        s.each_line do |line|
-          a.equal(line)
-        end
-        a.equal(')')
-
-        a.equal('T010 OK FETCH completed')
-        a.equal("* 2 FETCH (UID 3 BODY[1] \"#{@mpart_mail.parts[0].body.raw_source}\")")
-        a.equal('T011 OK FETCH completed')
-        a.match(/^\* BYE /)
-        a.equal('T012 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 203)')
+        assert.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1545)')
+        assert.equal("#{tag!} OK FETCH completed")
+        assert.equal('* 1 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE 203)')
+        assert.equal('* 2 FETCH (FLAGS (\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE 1545)')
+        assert.equal("#{tag!} OK FETCH completed")
+        assert.equal_lines("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@simple_mail.header.raw_source)} UID 2)")
+        assert.equal_lines("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@mpart_mail.header.raw_source)} UID 3)")
+        assert.equal("#{tag!} OK FETCH completed")
+        assert.equal_lines("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 #{literal(@simple_mail.raw_source)})")
+        assert.equal("#{tag!} OK FETCH completed")
+        assert.equal(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")')
+        assert.equal("#{tag!} OK FETCH completed")
+        assert.equal_lines("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})")
+        assert.equal("#{tag!} OK FETCH completed")
+        assert.equal(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")')
+        assert.equal("#{tag!} OK FETCH completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal(true, @mail_store.msg_flag(@inbox_id, 2, 'seen'))
-      assert_equal(false, @mail_store.msg_flag(@inbox_id, 3, 'seen'))
+      assert_msg_uid(                      2, 3)
+      assert_flag_enabled_msgs('answered',     )
+      assert_flag_enabled_msgs('flagged' ,     )
+      assert_flag_enabled_msgs('deleted' ,     )
+      assert_flag_enabled_msgs('seen'    , 2   )
+      assert_flag_enabled_msgs('draft'   ,     )
+      assert_flag_enabled_msgs('recent'  ,     )
+      assert_mbox_flag_num(seen: 1)
     end
 
     def test_command_loop_fetch_read_only
