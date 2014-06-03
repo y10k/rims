@@ -3842,47 +3842,35 @@ LOGOUT
     end
 
     def test_command_loop_expunge_read_only
-      @mail_store.add_msg(@inbox_id, 'a')
-      @mail_store.set_msg_flag(@inbox_id, 1, 'deleted', true)
+      add_msg('a')
+      set_msg_flag(1, 'deleted', true)
 
-      assert_equal(1, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ false, false, true, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
+      assert_msg_uid(1)
+      assert_msg_flags(1, deleted: true, recent: true)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 EXPUNGE
-T002 LOGIN foo open_sesame
-T003 EXPUNGE
-T004 EXAMINE INBOX
-T005 EXPUNGE
-T006 LOGOUT
+      cmd_txt = <<-'EOF'.b
+EXPUNGE
+LOGIN foo open_sesame
+EXPUNGE
+EXAMINE INBOX
+EXPUNGE
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.match(/^T003 NO /)
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-ONLY] EXAMINE completed')
-        a.match(/^T005 NO /)
-        a.match(/^\* BYE /)
-        a.equal('T006 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-ONLY] EXAMINE completed")
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal(1, @mail_store.mbox_msg_num(@inbox_id))
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ false, false, true, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
+      assert_msg_uid(1)
+      assert_msg_flags(1, deleted: true, recent: true)
     end
 
     def test_command_loop_search
