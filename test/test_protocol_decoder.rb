@@ -62,6 +62,13 @@ module RIMS::Test
         assert_match(/\r\n\z/, line) if @crlf_at_eol
         self
       end
+
+      def equal_lines(expected_multiline_string)
+        expected_multiline_string.each_line do |line|
+          self.equal(line)
+        end
+        self
+      end
     end
 
     def assert_imap_response(response_lines, crlf_at_eol: true)
