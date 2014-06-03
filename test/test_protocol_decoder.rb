@@ -4645,44 +4645,40 @@ LOGOUT
     end
 
     def test_command_loop_noop
-      @mail_store.add_msg(@inbox_id, '')
+      add_msg('')
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 NOOP
-T002 LOGIN foo open_sesame
-T003 NOOP
-T004 SELECT INBOX
-T005 NOOP
-T006 CLOSE
-T007 NOOP
-T008 EXAMINE INBOX
-T009 NOOP
-T010 LOGOUT
+      cmd_txt = <<-'EOF'.b
+NOOP
+LOGIN foo open_sesame
+NOOP
+SELECT INBOX
+NOOP
+CLOSE
+NOOP
+EXAMINE INBOX
+NOOP
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.equal('T001 OK NOOP completed')
-        a.equal('T002 OK LOGIN completed')
-        a.equal('T003 OK NOOP completed')
-        a.skip_while{|line| line =~ /^\* /}
-        a.equal('T004 OK [READ-WRITE] SELECT completed')
-        a.equal('* 1 EXISTS')
-        a.equal('* 1 RECENTS')
-        a.equal('T005 OK NOOP completed')
-        a.equal('T006 OK CLOSE completed')
-        a.equal('T007 OK NOOP completed')
-        a.skip_while{|line| line =~ /^\* /}
-        a.equal('T008 OK [READ-ONLY] EXAMINE completed')
-        a.equal('* 1 EXISTS')
-        a.equal('* 0 RECENTS')
-        a.equal('T009 OK NOOP completed')
-        a.match(/^\* BYE /)
-        a.equal('T010 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("#{tag!} OK NOOP completed")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal("#{tag!} OK NOOP completed")
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal('* 1 EXISTS')
+        assert.equal('* 1 RECENTS')
+        assert.equal("#{tag!} OK NOOP completed")
+        assert.equal("#{tag!} OK CLOSE completed")
+        assert.equal("#{tag!} OK NOOP completed")
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag!} OK [READ-ONLY] EXAMINE completed")
+        assert.equal('* 1 EXISTS')
+        assert.equal('* 0 RECENTS')
+        assert.equal("#{tag!} OK NOOP completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
     end
 
