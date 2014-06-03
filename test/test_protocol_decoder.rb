@@ -4399,66 +4399,58 @@ LOGOUT
     end
 
     def test_command_loop_store_read_only
-      @mail_store.add_msg(@inbox_id, '')
+      add_msg('')
+      set_msg_flag(1, 'flagged', true)
+      set_msg_flag(1, 'seen', true)
 
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ false, false, false, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
+      assert_msg_uid(1)
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
 
-      output = StringIO.new('', 'w')
-      input = StringIO.new(<<-'EOF'.b, 'r')
-T001 STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T002 LOGIN foo open_sesame
-T003 STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T004 EXAMINE INBOX
-T005 STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T006 STORE 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T007 STORE 1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T008 STORE 1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
-T009 STORE 1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
-T010 STORE 1 0FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
-T011 UID STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T012 UID STORE 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T013 UID STORE 1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
-T014 UID STORE 1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
-T015 UID STORE 1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
-T016 UID STORE 1 -FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
-T017 LOGOUT
+      cmd_txt = <<-'EOF'.b
+STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+LOGIN foo open_sesame
+STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+EXAMINE INBOX
+STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+STORE 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+STORE 1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+STORE 1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+STORE 1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+STORE 1 0FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+UID STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+UID STORE 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+UID STORE 1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+UID STORE 1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+UID STORE 1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+UID STORE 1 -FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)
+LOGOUT
       EOF
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
-      res = output.string.each_line
-
-      assert_imap_response(res) {|a|
-        a.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        a.match(/^T001 NO /)
-        a.equal('T002 OK LOGIN completed')
-        a.match(/^T003 NO /)
-        a.skip_while{|line| line =~ /^\* / }
-        a.equal('T004 OK [READ-ONLY] EXAMINE completed')
-        a.match(/^T005 NO /)
-        a.match(/^T006 NO /)
-        a.match(/^T007 NO /)
-        a.match(/^T008 NO /)
-        a.match(/^T009 NO /)
-        a.match(/^T010 NO /)
-        a.match(/^T011 NO /)
-        a.match(/^T012 NO /)
-        a.match(/^T013 NO /)
-        a.match(/^T014 NO /)
-        a.match(/^T015 NO /)
-        a.match(/^T016 NO /)
-        a.match(/^\* BYE /)
-        a.equal('T017 OK LOGOUT completed')
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-ONLY] EXAMINE completed")
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal([ 1 ], @mail_store.each_msg_uid(@inbox_id).to_a)
-      assert_equal([ false, false, false, false, false, true ],
-                   %w[ answered flagged deleted seen draft recent ].map{|name|
-                     @mail_store.msg_flag(@inbox_id, 1, name)
-                   })
+      assert_msg_uid(1)
+      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
     end
 
     def test_command_loop_copy
