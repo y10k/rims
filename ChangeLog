@@ -1,3 +1,8 @@
+2014-06-05  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/test.rb, test/test_protocol_decoder.rb,
+	test/test_protocol_fetch.rb, test/test_protocol_search.rb: refactored unit test.
+
 2014-05-21  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/test.rb, test/test_rfc822.rb, test/test_mail_store.rb,
