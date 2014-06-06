@@ -175,17 +175,6 @@ module RIMS
 
       attr_accessor :charset
 
-      def str2time(time_string)
-        if (time_string.is_a? String) then
-          begin
-            Time.parse(time_string)
-          rescue ArgumentError
-            nil
-          end
-        end
-      end
-      private :str2time
-
       def string_include?(search_string, text)
         if (search_string.ascii_only?) then
           unless (text.encoding.ascii_compatible?) then
@@ -405,6 +394,46 @@ module RIMS
       end
       private :parse_group
 
+      def shift_string_value(operation_name, search_key)
+        unless (search_string = search_key.shift) then
+          raise SyntaxError, "need for a search string of #{operation_name}."
+        end
+        unless (search_string.is_a? String) then
+          raise SyntaxError, "#{operation_name} search string expected as <String> but was <#{search_string.class}>."
+        end
+
+        search_string
+      end
+      private :shift_string_value
+
+      def shift_date_value(operation_name, search_key)
+        unless (search_date_string = search_key.shift) then
+          raise SyntaxError, "need for a search date of #{operation_name}."
+        end
+        unless (search_date_string.is_a? String) then
+          raise SyntaxError, "#{operation_name} search date string expected as <String> but was <#{search_date_string.class}>."
+        end
+
+        begin
+          Time.parse(search_date_string)
+        rescue ArgumentError
+          raise SyntaxError, "#{operation_name} search date is invalid: #{search_date_string}"
+        end
+      end
+      private :shift_date_value
+
+      def shift_octet_size_value(operation_name, search_key)
+        unless (octet_size_string = search_key.shift) then
+          raise SyntaxError, "need for a octet size of #{operation_name}."
+        end
+        unless ((octet_size_string.is_a? String) && (octet_size_string =~ /\A\d+\z/)) then
+          raise SyntaxError, "#{operation_name} octet size is expected as numeric string but was <#{octet_size_string}>."
+        end
+
+        octet_size_string.to_i
+      end
+      private :shift_octet_size_value
+
       def fetch_next_node(search_key)
         if (search_key.empty?) then
           raise SyntaxError, 'unexpected end of search key.'
@@ -419,20 +448,16 @@ module RIMS
         when 'ANSWERED'
           factory = parse_msg_flag_enabled('answered')
         when 'BCC'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of BCC.'
-          search_string.is_a? String or raise SyntaxError, "BCC search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('BCC', search_key)
           factory = parse_search_header('bcc', search_string)
         when 'BEFORE'
-          search_date = search_key.shift or raise SyntaxError, 'need for a search date of BEFORE.'
-          t = str2time(search_date) or raise SyntaxError, "BEFORE search date is invalid: #{search_date}"
-          factory = parse_internal_date(t) {|d, boundary| d < boundary }
+          search_date = shift_date_value('BEFORE', search_key)
+          factory = parse_internal_date(search_date) {|d, boundary| d < boundary }
         when 'BODY'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of BODY.'
-          search_string.is_a? String or raise SyntaxError, "BODY search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('BODY', search_key)
           factory = parse_body(search_string)
         when 'CC'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of CC.'
-          search_string.is_a? String or raise SyntaxError, "CC search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('CC', search_key)
           factory = parse_search_header('cc', search_string)
         when 'DELETED'
           factory = parse_msg_flag_enabled('deleted')
@@ -441,24 +466,18 @@ module RIMS
         when 'FLAGGED'
           factory = parse_msg_flag_enabled('flagged')
         when 'FROM'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of FROM.'
-          search_string.is_a? String or raise SyntaxError, "FROM search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('FROM', search_key)
           factory = parse_search_header('from', search_string)
         when 'HEADER'
-          header_name = search_key.shift or raise SyntaxError, 'need for a header name of HEADER.'
-          header_name.is_a? String or raise SyntaxError, "HEADER header name expected as <String> but was <#{header_name.class}>."
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of HEADER.'
-          search_string.is_a? String or raise SyntaxError, "HEADER search string expected as <String> but was <#{search_string.class}>."
+          header_name = shift_string_value('HEADER', search_key)
+          search_string = shift_string_value('HEADER', search_key)
           factory = parse_search_header(header_name, search_string)
         when 'KEYWORD'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of KEYWORD.'
-          search_string.is_a? String or raise SyntaxError, "KEYWORD search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('KEYWORD', search_key)
           factory = parse_keyword(search_string)
         when 'LARGER'
-          octet_size = search_key.shift or raise SyntaxError, 'need for a octet size of LARGER.'
-          (octet_size.is_a? String) && (octet_size =~ /\A\d+\z/) or
-            raise SyntaxError, "LARGER octet size is expected as numeric string but was <#{octet_size}>."
-          factory = parse_mail_bytesize(octet_size.to_i) {|size, boundary| size > boundary }
+          octet_size = shift_octet_size_value('LARGER', search_key)
+          factory = parse_mail_bytesize(octet_size) {|size, boundary| size > boundary }
         when 'NEW'
           factory = parse_new
         when 'NOT'
@@ -467,9 +486,8 @@ module RIMS
         when 'OLD'
           factory = parse_old
         when 'ON'
-          search_date = search_key.shift or raise SyntaxError, 'need for a search date of ON.'
-          t = str2time(search_date) or raise SyntaxError, "ON search date is invalid: #{search_date}"
-          factory = parse_internal_date(t) {|d, boundary| d == boundary }
+          search_date = shift_date_value('ON', search_key)
+          factory = parse_internal_date(search_date) {|d, boundary| d == boundary }
         when 'OR'
           next_node1 = fetch_next_node(search_key)
           next_node2 = fetch_next_node(search_key)
@@ -479,41 +497,31 @@ module RIMS
         when 'SEEN'
           factory = parse_msg_flag_enabled('seen')
         when 'SENTBEFORE'
-          search_date = search_key.shift or raise SyntaxError, 'need for a search date of SENTBEFORE.'
-          t = str2time(search_date) or raise SyntaxError, "SENTBEFORE search date is invalid: #{search_date}"
-          factory = parse_mail_date(t) {|d, boundary| d < boundary }
+          search_date = shift_date_value('SENTBEFORE', search_key)
+          factory = parse_mail_date(search_date) {|d, boundary| d < boundary }
         when 'SENTON'
-          search_date = search_key.shift or raise SyntaxError, 'need for a search date of SENTON.'
-          t = str2time(search_date) or raise SyntaxError, "SENTON search date is invalid: #{search_date}"
-          factory = parse_mail_date(t) {|d, boundary| d == boundary }
+          search_date = shift_date_value('SENTON', search_key)
+          factory = parse_mail_date(search_date) {|d, boundary| d == boundary }
         when 'SENTSINCE'
-          search_date = search_key.shift or raise SyntaxError, 'need for a search date of SENTSINCE.'
-          t = str2time(search_date) or raise SyntaxError, "SENTSINCE search date is invalid: #{search_date}"
-          factory = parse_mail_date(t) {|d, boundary| d > boundary }
+          search_date = shift_date_value('SENTSINCE', search_key)
+          factory = parse_mail_date(search_date) {|d, boundary| d > boundary }
         when 'SINCE'
-          search_date = search_key.shift or raise SyntaxError, 'need for a search date of SINCE.'
-          t = str2time(search_date) or raise SyntaxError, "SINCE search date is invalid: #{search_date}"
-          factory = parse_internal_date(t) {|d, boundary| d > boundary }
+          search_date = shift_date_value('SINCE', search_key)
+          factory = parse_internal_date(search_date) {|d, boundary| d > boundary }
         when 'SMALLER'
-          octet_size = search_key.shift or raise SyntaxError, 'need for a octet size of SMALLER.'
-          (octet_size.is_a? String) && (octet_size =~ /\A\d+\z/) or
-            raise SyntaxError, "SMALLER octet size is expected as numeric string but was <#{octet_size}>."
-          factory = parse_mail_bytesize(octet_size.to_i) {|size, boundary| size < boundary }
+          octet_size = shift_octet_size_value('SMALLER', search_key)
+          factory = parse_mail_bytesize(octet_size) {|size, boundary| size < boundary }
         when 'SUBJECT'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of SUBJECT.'
-          search_string.is_a? String or raise SyntaxError, "SUBJECT search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('SUBJECT', search_key)
           factory = parse_search_header('subject', search_string)
         when 'TEXT'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of TEXT.'
-          search_string.is_a? String or raise SyntaxError, "TEXT search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('TEXT', search_key)
           factory = parse_text(search_string)
         when 'TO'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of TO.'
-          search_string.is_a? String or raise SyntaxError, "TO search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('TO', search_key)
           factory = parse_search_header('to', search_string)
         when 'UID'
-          mset_string = search_key.shift or raise SyntaxError, 'need for a message set of UID.'
-          mset_string.is_a? String or raise SyntaxError, "UID message set expected as <String> but was <#{search_string.class}>."
+          mset_string = shift_string_value('UID', search_key)
           msg_set = @folder.parse_msg_set(mset_string, uid: true)
           factory = parse_uid(msg_set)
         when 'UNANSWERED'
@@ -525,8 +533,7 @@ module RIMS
         when 'UNFLAGGED'
           factory = parse_msg_flag_disabled('flagged')
         when 'UNKEYWORD'
-          search_string = search_key.shift or raise SyntaxError, 'need for a search string of UNKEYWORD.'
-          search_string.is_a? String or raise SyntaxError, "UNKEYWORD search string expected as <String> but was <#{search_string.class}>."
+          search_string = shift_string_value('UNKEYWORD', search_key)
           factory = parse_unkeyword(search_string)
         when 'UNSEEN'
           factory = parse_msg_flag_disabled('seen')
