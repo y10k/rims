@@ -52,10 +52,12 @@ module RIMS::Test
     end
     private :assert_msg_flag
 
-    def make_search_parser
+    def make_search_parser(charset: nil)
       yield
       @folder = @mail_store.select_mbox(@inbox_id)
       @parser = RIMS::Protocol::SearchParser.new(@mail_store, @folder)
+      @parser.charset = charset if charset
+      nil
     end
     private :make_search_parser
 
@@ -859,6 +861,109 @@ Content-Type: text/html
       }
 
       assert_search_syntax_error([ [ :block, 'ANSWERED', 'FLAGGED' ] ])
+    end
+
+    def test_parse_charset_body
+      make_search_parser(charset: 'utf-8') {
+        add_msg("Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                "\u3042\u3044\u3046\u3048\u304A\r\n")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+        assert_msg_uid(1, 2, 3, 4, 5)
+      }
+
+      parse_search_key([ 'BODY', 'foo' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, true)
+        assert_search_cond(2, true)
+        assert_search_cond(3, false)
+        assert_search_cond(4, false)
+      }
+
+      parse_search_key([ 'BODY', 'bar' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
+        assert_search_cond(3, false)
+        assert_search_cond(4, false)
+      }
+
+      parse_search_key([ 'BODY', "\u306F\u306B\u307B".b ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
+        assert_search_cond(3, true)
+        assert_search_cond(4, true)
+      }
+    end
+
+    def test_parse_charset_text
+      make_search_parser(charset: 'utf-8') {
+        add_msg("Content-Type: text/plain\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "X-foo: dummy\r\n" +
+                "\r\n" +
+                "bar")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "X-dummy: foo\r\n" +
+                "\r\n" +
+                "bar")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                "\u3042\u3044\u3046\u3048\u304A\r\n")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+        assert_msg_uid(1, 2, 3, 4, 5)
+      }
+
+      parse_search_key([ 'TEXT', 'foo' ]) {
+        assert_search_cond(0, true)
+        assert_search_cond(1, true)
+        assert_search_cond(2, true)
+        assert_search_cond(3, false)
+        assert_search_cond(4, false)
+      }
+
+      parse_search_key([ 'TEXT', 'bar' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, true)
+        assert_search_cond(2, true)
+        assert_search_cond(3, false)
+        assert_search_cond(4, false)
+      }
+
+      parse_search_key([ 'TEXT', 'baz' ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
+        assert_search_cond(3, false)
+        assert_search_cond(4, false)
+      }
+
+      parse_search_key([ 'TEXT', "\u306F\u306B\u307B".b ]) {
+        assert_search_cond(0, false)
+        assert_search_cond(1, false)
+        assert_search_cond(2, false)
+        assert_search_cond(3, true)
+        assert_search_cond(4, true)
+      }
     end
   end
 end

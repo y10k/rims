@@ -1527,6 +1527,164 @@ module RIMS::Test
       }
     end
 
+    def test_search_charset_body
+      add_msg("Content-Type: text/plain\r\n" +
+              "\r\n" +
+              "foo")
+      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+              "\r\n" +
+              "foo")
+      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+              "\r\n" +
+              "foo")
+      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+              "\r\n" +
+              "\u3053\u3093\u306B\u3061\u306F\r\n" +
+              "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+              "\u3042\u3044\u3046\u3048\u304A\r\n")
+      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+              "\r\n" +
+              "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+
+      assert_msg_uid(1, 2, 3, 4, 5)
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL') {|assert|
+        assert.match(/^#{tag} NO /)
+      }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL') {|assert|
+        assert.match(/^#{tag} NO /)
+      }
+
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal(' 4').equal(' 5').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'BODY', 'foo', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'BODY', 'bar', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'BODY', "\u306F\u306B\u307B".b, crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 4').equal(' 5').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
+      }
+    end
+
+    def test_search_charset_text
+      add_msg("Content-Type: text/plain\r\n" +
+              "foo")
+      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+              "X-foo: dummy\r\n" +
+              "\r\n" +
+              "bar")
+      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+              "X-dummy: foo\r\n" +
+              "\r\n" +
+              "bar")
+      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+              "\r\n" +
+              "\u3053\u3093\u306B\u3061\u306F\r\n" +
+              "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+              "\u3042\u3044\u3046\u3048\u304A\r\n")
+      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+              "\r\n" +
+              "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+
+      assert_msg_uid(1, 2, 3, 4, 5)
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL') {|assert|
+        assert.match(/^#{tag} NO /)
+      }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL') {|assert|
+        assert.match(/^#{tag} NO /)
+      }
+
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal(' 4').equal(' 5').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'TEXT', 'foo', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'TEXT', 'bar', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 2').equal(' 3').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'TEXT', 'baz', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:search, 'CHARSET', 'utf-8', 'TEXT', "\u306F\u306B\u307B".b, crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 4').equal(' 5').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
+      }
+    end
+
     def test_fetch
       add_msg('')
       expunge(1)
@@ -3918,6 +4076,116 @@ LOGOUT
         assert.equal('* SEARCH 1 3')
         assert.equal("#{tag!} OK SEARCH completed")
         assert.equal('* SEARCH 1 5')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
+      }
+    end
+
+    def test_command_loop_search_charset_body
+      add_msg("Content-Type: text/plain\r\n" +
+              "\r\n" +
+              "foo")
+      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+              "\r\n" +
+              "foo")
+      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+              "\r\n" +
+              "foo")
+      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+              "\r\n" +
+              "\u3053\u3093\u306B\u3061\u306F\r\n" +
+              "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+              "\u3042\u3044\u3046\u3048\u304A\r\n")
+      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+              "\r\n" +
+              "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+
+      assert_msg_uid(1, 2, 3, 4, 5)
+
+      cmd_txt = <<-"EOF".b
+SEARCH CHARSET "utf-8" ALL
+LOGIN foo open_sesame
+SEARCH CHARSET "utf-8" ALL
+SELECT INBOX
+SEARCH CHARSET "utf-8" ALL
+SEARCH CHARSET "utf-8" BODY foo
+SEARCH CHARSET "utf-8" BODY bar
+SEARCH CHARSET "utf-8" BODY "\u306F\u306B\u307B"
+LOGOUT
+      EOF
+
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal('* SEARCH 1 2 3 4 5')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 1 2 3')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 4 5')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
+      }
+    end
+
+    def test_command_loop_search_charset_text
+      add_msg("Content-Type: text/plain\r\n" +
+              "foo")
+      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+              "X-foo: dummy\r\n" +
+              "\r\n" +
+              "bar")
+      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+              "X-dummy: foo\r\n" +
+              "\r\n" +
+              "bar")
+      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+              "\r\n" +
+              "\u3053\u3093\u306B\u3061\u306F\r\n" +
+              "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+              "\u3042\u3044\u3046\u3048\u304A\r\n")
+      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+              "\r\n" +
+              "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+
+      assert_msg_uid(1, 2, 3, 4, 5)
+
+      cmd_txt = <<-"EOF".b
+SEARCH CHARSET "utf-8" ALL
+LOGIN foo open_sesame
+SEARCH CHARSET "utf-8" ALL
+SELECT INBOX
+SEARCH CHARSET "utf-8" ALL
+SEARCH CHARSET "utf-8" TEXT foo
+SEARCH CHARSET "utf-8" TEXT bar
+SEARCH CHARSET "utf-8" TEXT baz
+SEARCH CHARSET "utf-8" TEXT "\u306F\u306B\u307B"
+LOGOUT
+      EOF
+
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO /)
+        assert.skip_while{|line| line =~ /^\* / }
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal('* SEARCH 1 2 3 4 5')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 1 2 3')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 2 3')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 4 5')
         assert.equal("#{tag!} OK SEARCH completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
