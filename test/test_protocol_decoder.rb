@@ -156,8 +156,8 @@ module RIMS::Test
     end
     private :assert_imap_command
 
-    def assert_imap_command_loop(client_command_list_text, notag: false)
-      if (! notag) then
+    def assert_imap_command_loop(client_command_list_text, autotag: true)
+      if (autotag) then
         tag = 'T000'
         tag_command_list = []
         client_command_list_text.each_line do |line|
@@ -3157,11 +3157,11 @@ module RIMS::Test
     end
 
     def test_command_loop_empty
-      assert_imap_command_loop(''.b, notag: true) {|assert|
+      assert_imap_command_loop(''.b, autotag: false) {|assert|
 	assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
       }
 
-      assert_imap_command_loop("\n\t\n \r\n ".b, notag: true) {|assert|
+      assert_imap_command_loop("\n\t\n \r\n ".b, autotag: false) {|assert|
 	assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
       }
     end
@@ -3611,7 +3611,7 @@ T011 APPEND nobox x
 T012 LOGOUT
       EOF
 
-      assert_imap_command_loop(cmd_txt, notag: true) {|assert|
+      assert_imap_command_loop(cmd_txt, autotag: false) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         assert.match(/^#{tag!} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         assert.equal("#{tag!} OK LOGIN completed")
@@ -4693,7 +4693,7 @@ T003 UID
 T004 NOOP DETARAME
       EOF
 
-      assert_imap_command_loop(cmd_txt, notag: true) {|assert|
+      assert_imap_command_loop(cmd_txt, autotag: false) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         assert.equal('* BAD client command syntax error')
         assert.equal("#{tag!} BAD unknown command")
