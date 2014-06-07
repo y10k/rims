@@ -156,8 +156,8 @@ module RIMS::Test
     end
     private :assert_imap_command
 
-    def assert_imap_command_loop(client_command_list_text, notag: false)
-      if (! notag) then
+    def assert_imap_command_loop(client_command_list_text, autotag: true)
+      if (autotag) then
         tag = 'T000'
         tag_command_list = []
         client_command_list_text.each_line do |line|
@@ -530,7 +530,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command(:create, 'foo') {|assert|
-        assert.match(/^T001 NO /)
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
@@ -1480,7 +1480,7 @@ module RIMS::Test
 
       assert_imap_command(:search, 'ALL', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal("\r\n")
-        assert.equal("T005 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       add_msg("Content-Type: text/plain\r\n" +
@@ -1503,22 +1503,22 @@ module RIMS::Test
 
       assert_imap_command(:search, 'ALL', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
-        assert.equal("T006 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       assert_imap_command(:search, 'ALL', uid: true, crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 3').equal(' 5').equal("\r\n")
-        assert.equal("T007 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       assert_imap_command(:search, 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 3').equal("\r\n")
-        assert.equal("T008 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       assert_imap_command(:search, 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', uid: true, crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 5').equal("\r\n")
-        assert.equal("T009 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       assert_imap_command(:logout) {|assert|
@@ -3315,11 +3315,11 @@ module RIMS::Test
     end
 
     def test_command_loop_empty
-      assert_imap_command_loop(''.b, notag: true) {|assert|
+      assert_imap_command_loop(''.b, autotag: false) {|assert|
 	assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
       }
 
-      assert_imap_command_loop("\n\t\n \r\n ".b, notag: true) {|assert|
+      assert_imap_command_loop("\n\t\n \r\n ".b, autotag: false) {|assert|
 	assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
       }
     end
@@ -3769,7 +3769,7 @@ T011 APPEND nobox x
 T012 LOGOUT
       EOF
 
-      assert_imap_command_loop(cmd_txt, notag: true) {|assert|
+      assert_imap_command_loop(cmd_txt, autotag: false) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         assert.match(/^#{tag!} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         assert.equal("#{tag!} OK LOGIN completed")
@@ -4961,7 +4961,7 @@ T003 UID
 T004 NOOP DETARAME
       EOF
 
-      assert_imap_command_loop(cmd_txt, notag: true) {|assert|
+      assert_imap_command_loop(cmd_txt, autotag: false) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         assert.equal('* BAD client command syntax error')
         assert.equal("#{tag!} BAD unknown command")
