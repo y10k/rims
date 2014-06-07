@@ -530,7 +530,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command(:create, 'foo') {|assert|
-        assert.match(/^T001 NO /)
+        assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
@@ -1480,7 +1480,7 @@ module RIMS::Test
 
       assert_imap_command(:search, 'ALL', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal("\r\n")
-        assert.equal("T005 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       add_msg("Content-Type: text/plain\r\n" +
@@ -1503,22 +1503,22 @@ module RIMS::Test
 
       assert_imap_command(:search, 'ALL', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
-        assert.equal("T006 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       assert_imap_command(:search, 'ALL', uid: true, crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 3').equal(' 5').equal("\r\n")
-        assert.equal("T007 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       assert_imap_command(:search, 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 3').equal("\r\n")
-        assert.equal("T008 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       assert_imap_command(:search, 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', uid: true, crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 5').equal("\r\n")
-        assert.equal("T009 OK SEARCH completed\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       assert_imap_command(:logout) {|assert|
