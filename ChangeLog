@@ -1,3 +1,9 @@
+2014-06-06  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb, test/test_protocol_search.rb,
+	test/test_protocol_decoder.rb: charset parameter can be used on
+	search command.
+
 2014-06-05  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/test.rb, test/test_protocol_decoder.rb,
