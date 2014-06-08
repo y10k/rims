@@ -1,3 +1,7 @@
+2014-06-08  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* RIMS version 0.0.4 is released.
+
 2014-06-06  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol.rb, test/test_protocol_search.rb,
