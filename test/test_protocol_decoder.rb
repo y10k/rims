@@ -340,6 +340,10 @@ module RIMS::Test
 
       assert_equal(true, @decoder.auth?)
 
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.match(/^#{tag} NO/)
+      }
+
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
         assert.equal("#{tag} OK LOGOUT completed")
@@ -3343,6 +3347,7 @@ LOGOUT
       cmd_txt = <<-'EOF'.b
 LOGIN foo detarame
 LOGIN foo open_sesame
+LOGIN foo open_sesame
 LOGOUT
       EOF
 
@@ -3350,6 +3355,7 @@ LOGOUT
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         assert.match(/^#{tag!} NO /)
         assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^#{tag!} NO/)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
       }
