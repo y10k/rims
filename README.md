@@ -53,8 +53,10 @@ To append messages to IMAP mailbox, type following and read usage.
 
 * v0.0.5
     - Login authentication mechanisms.
-* v0.0.6
     - Corresponding to multi-user mailbox. Incompatible mailbox data!
+* v0.0.6
+    - Fixed some connection errors at windows mail client.
+    - Autologout timer.
 
 ## Contributing
 
