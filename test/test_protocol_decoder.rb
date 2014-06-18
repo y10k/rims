@@ -110,7 +110,7 @@ module RIMS::Test
     end
 
     def reload_mail_store
-      @mail_store_pool.put(@mail_store_holder)
+      @mail_store_holder.return_pool
       assert(@mail_store_pool.empty?)
 
       @mail_store_holder = nil
@@ -127,7 +127,7 @@ module RIMS::Test
 
     def teardown
       @decoder.cleanup
-      @mail_store_pool.put(@mail_store_holder)
+      @mail_store_holder.return_pool
       assert(@mail_store_pool.empty?)
       pp @kvs if $DEBUG
     end

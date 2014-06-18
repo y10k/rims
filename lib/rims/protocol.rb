@@ -1057,9 +1057,8 @@ module RIMS
 
       def cleanup
         if (auth?) then
-          tmp_mail_store = @mail_store_holder
+          @mail_store_holder.return_pool
           @mail_store_holder = nil
-          @mail_store_pool.put(tmp_mail_store)
         end
 
         nil
