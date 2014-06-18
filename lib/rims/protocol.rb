@@ -1182,6 +1182,18 @@ module RIMS
         }
       end
 
+      def accept_authentication(username)
+        cleanup
+        @mail_store_holder = @mail_store_pool.get(username)
+        if (get_mail_store.abort_transaction?) then
+          get_mail_store.recovery_data(logger: @logger).sync
+          yield("* OK [ALERT] recovery user data.\r\n")
+        end
+
+        nil
+      end
+      private :accept_authentication
+
       def authenticate(tag, auth_name)
         [ "#{tag} NO no support mechanism" ]
       end
@@ -1191,12 +1203,7 @@ module RIMS
           res = []
           unless (auth?) then
             if (@passwd.call(username, password)) then
-              cleanup
-              @mail_store_holder = @mail_store_pool.get(username)
-              if (get_mail_store.abort_transaction?) then
-                get_mail_store.recovery_data(logger: @logger).sync
-                res << "* OK [ALERT] recovery user data.\r\n"
-              end
+              accept_authentication(username) {|msg| res << msg }
               res << "#{tag} OK LOGIN completed\r\n"
             else
               res << "#{tag} NO failed to login\r\n"
