@@ -156,6 +156,101 @@ module RIMS
       end
     end
 
+    class AuthenticationReader
+      class << self
+        def encode_base64(plain_txt)
+          [ plain_txt ].pack('m').each_line.map{|line| line.strip }.join('')
+        end
+
+        def decode_base64(base64_txt)
+          base64_txt.unpack('m')[0]
+        end
+      end
+
+      def encode_base64(plain_txt)
+        self.class.encode_base64(plain_txt)
+      end
+      private :encode_base64
+
+      def decode_base64(base64_txt)
+        self.class.decode_base64(base64_txt)
+      end
+      private :decode_base64
+
+      def initialize(auth, input, output, logger)
+        @auth = auth
+        @input = input
+        @output = output
+        @logger = logger
+      end
+
+      def authenticate_client(auth_type, inline_client_response_data_base64=nil)
+        username = case (auth_type.downcase)
+                   when 'plain'
+                     @logger.debug("authentication mechanism: plain") if @logger.debug?
+                     authenticate_client_plain(inline_client_response_data_base64)
+                   else
+                     nil
+                   end
+
+        case (username)
+        when String
+          @logger.debug("authenticated #{username}.") if @logger.debug?
+          username
+        when Symbol
+          @logger.debug('no authentication.') if @logger.debug?
+          username
+        else
+          @logger.debug('unauthenticated.') if @logger.debug?
+          nil
+        end
+      end
+
+      def read_client_response_data(server_challenge_data=nil)
+        if (server_challenge_data) then
+          server_challenge_data_base64 = encode_base64(server_challenge_data)
+          @logger.debug("authenticate command: server challenge data: <#{server_challenge_data_base64.encoding}#{server_challenge_data_base64.ascii_only? ? ':ascii-only' : ''}> #{server_challenge_data_base64}") if @logger.debug?
+          @output.write("+ #{server_challenge_data_base64}\r\n")
+        else
+          @logger.debug("authenticate command: server challenge data is nil.") if @logger.debug?
+          @output.write("+\r\n")
+        end
+
+        if (client_response_data_base64 = @input.gets) then
+          client_response_data_base64.strip!
+          @logger.debug("authenticate command: client response data: <#{client_response_data_base64.encoding}#{client_response_data_base64.ascii_only? ? ':ascii-only' : ''}> #{client_response_data_base64}") if @logger.debug?
+          if (client_response_data_base64 == '*') then
+            @logger.debug("authenticate command: no authentication from client.") if @logger.debug?
+            return :*
+          end
+          decode_base64(client_response_data_base64)
+        end
+      end
+      private :read_client_response_data
+
+      def read_client_response_data_plain(inline_client_response_data_base64)
+        if (inline_client_response_data_base64) then
+          @logger.debug("authenticate command: inline client response data: #{inline_client_response_data_base64}") if @logger.debug?
+          decode_base64(inline_client_response_data_base64)
+        else
+          read_client_response_data
+        end
+      end
+      private :read_client_response_data_plain
+
+      def authenticate_client_plain(inline_client_response_data_base64)
+        case (client_response_data = read_client_response_data_plain(inline_client_response_data_base64))
+        when String
+          @auth.authenticate_plain(client_response_data)
+        when Symbol
+          client_response_data
+        else
+          nil
+        end
+      end
+      private :authenticate_client_plain
+    end
+
     class SearchParser
       def initialize(mail_store, folder)
         @mail_store = mail_store
@@ -1194,7 +1289,7 @@ module RIMS
       end
       private :accept_authentication
 
-      def authenticate(tag, auth_name)
+      def authenticate(tag, auth_type)
         [ "#{tag} NO no support mechanism" ]
       end
 
