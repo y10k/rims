@@ -99,7 +99,7 @@ module RIMS
         }
         if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /\A{\d+}\z/)) then
           next_size = $&[1..-2].to_i
-          @logger.debug("found literal: #{next_size} octets.")
+          @logger.debug("found literal: #{next_size} octets.") if @logger.debug?
           @output.write("+ continue\r\n")
           @logger.debug('continue literal.') if @logger.debug?
           literal_string = @input.read(next_size) or raise 'unexpected client close.'
