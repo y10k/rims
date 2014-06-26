@@ -1289,8 +1289,28 @@ module RIMS
       end
       private :accept_authentication
 
-      def authenticate(tag, auth_type)
-        [ "#{tag} NO no support mechanism" ]
+      def authenticate(client_response_input_stream, server_challenge_output_stream,
+                       tag, auth_type, inline_client_response_data_base64=nil)
+        protect_error(tag) {
+          res = []
+          unless (auth?) then
+            auth_reader = AuthenticationReader.new(@auth, client_response_input_stream, server_challenge_output_stream, @logger)
+            if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
+              if (username != :*) then
+                @logger.info("authentication OK: #{username}")
+                accept_authentication(username) {|msg| res << msg }
+                res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
+              else
+                @logger.info('bad authentication.')
+                res << "#{tag} BAD AUTHENTICATE failed\r\n"
+              end
+            else
+              res << "#{tag} NO authentication failed\r\n"
+            end
+          else
+            res << "#{tag} NO duplicated authentication\r\n"
+          end
+        }
       end
 
       def login(tag, username, password)
@@ -1884,7 +1904,7 @@ module RIMS
             when 'LOGOUT'
               res = decoder.logout(tag, *opt_args)
             when 'AUTHENTICATE'
-              res = decoder.authenticate(tag, *opt_args)
+              res = decoder.authenticate(input, output, tag, *opt_args)
             when 'LOGIN'
               res = decoder.login(tag, *opt_args)
             when 'SELECT'
