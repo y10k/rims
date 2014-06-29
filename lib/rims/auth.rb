@@ -1,8 +1,36 @@
 # -*- coding: utf-8 -*-
 
+require 'openssl'
+require 'securerandom'
+
 module RIMS
   class Authentication
-    def initialize
+    class << self
+      def make_time_source
+        proc{ Time.now }
+      end
+
+      def make_random_string_source
+        proc{ SecureRandom.uuid }
+      end
+
+      def cram_md5_server_challenge_data(hostname, time_source, random_string_source)
+        s = random_string_source.call
+        t = time_source.call
+        "#{s}.#{t.to_i}@#{hostname}"
+      end
+
+      def hmac_md5_hexdigest(key, data)
+        OpenSSL::HMAC.hexdigest('md5', key, data)
+      end
+    end
+
+    def initialize(hostname: 'rims',
+                   time_source: Authentication.make_time_source,
+                   random_string_source: Authentication.make_random_string_source)
+      @hostname = hostname
+      @time_source = time_source
+      @random_string_source = random_string_source
       @passwd = {}
     end
 
@@ -30,6 +58,20 @@ module RIMS
           if (@passwd[authc_id] == password) then
             authc_id
           end
+        end
+      end
+    end
+
+    def cram_md5_server_challenge_data
+      self.class.cram_md5_server_challenge_data(@hostname, @time_source, @random_string_source)
+    end
+
+    def authenticate_cram_md5(server_challenge_data, client_response_data)
+      username, client_hmac_result_data = client_response_data.split(' ', 2)
+      if (key = @passwd[username]) then
+        server_hmac_result_data = Authentication.hmac_md5_hexdigest(key, server_challenge_data)
+        if (client_hmac_result_data == server_hmac_result_data) then
+          username
         end
       end
     end
