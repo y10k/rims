@@ -1242,7 +1242,11 @@ module RIMS
       end
 
       def capability(tag)
-        [ "* CAPABILITY IMAP4rev1\r\n",
+        capability_list = %w[ IMAP4rev1 ]
+        for auth_capability in @auth.capability
+          capability_list << "AUTH=#{auth_capability}"
+        end
+        [ "* CAPABILITY #{capability_list.join(' ')}\r\n",
           "#{tag} OK CAPABILITY completed\r\n"
         ]
       end

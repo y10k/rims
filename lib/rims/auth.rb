@@ -11,6 +11,10 @@ module RIMS
       self
     end
 
+    def capability
+      %w[ PLAIN ]
+    end
+
     def authenticate_login(username, password)
       if (@passwd.key? username) then
         if (@passwd[username] == password) then
