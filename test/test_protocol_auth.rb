@@ -6,15 +6,28 @@ require 'test/unit'
 
 module RIMS::Test
   class ProtocolAuthenticationReaderTest < Test::Unit::TestCase
+    include RIMS::Test::PseudoAuthenticationUtility
+
     def setup
-      @input = StringIO.new('', 'r')
-      @output = StringIO.new('', 'w')
-      @logger = Logger.new(STDOUT)
-      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
+      src_time = Time.at(1404360345)
+      random_seed = 212687380986801693724170864620978811477
+
+      @time_source = make_pseudo_time_source(src_time)
+      @random_string_source = make_pseudo_random_string_source(random_seed)
+
       @username = 'foo'
       @password = 'open_sesame'
-      @auth = RIMS::Authentication.new
+
+      @auth = RIMS::Authentication.new(time_source: make_pseudo_time_source(src_time),
+                                       random_string_source: make_pseudo_random_string_source(random_seed))
       @auth.entry(@username, @password)
+
+      @input = StringIO.new('', 'r')
+      @output = StringIO.new('', 'w')
+
+      @logger = Logger.new(STDOUT)
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
+
       @reader = RIMS::Protocol::AuthenticationReader.new(@auth, @input, @output, @logger)
     end
 
@@ -62,6 +75,41 @@ module RIMS::Test
     def test_authenticate_client_plain_stream_no_client_authentication
       assert_input_output_stream("*\r\n", "+\r\n") {
         assert_equal(:*, @reader.authenticate_client('plain'))
+      }
+    end
+
+    def make_cram_md5_server_client_data_base64(username, password)
+      server_challenge_data = RIMS::Authentication.cram_md5_server_challenge_data('rims', @time_source, @random_string_source)
+      client_response_data = username + ' ' + RIMS::Authentication.hmac_md5_hexdigest(password, server_challenge_data)
+
+      server_challenge_data_base64 = RIMS::Protocol::AuthenticationReader.encode_base64(server_challenge_data)
+      client_response_data_base64 = RIMS::Protocol::AuthenticationReader.encode_base64(client_response_data)
+
+      return server_challenge_data_base64, client_response_data_base64
+    end
+    private :make_cram_md5_server_client_data_base64
+
+    def test_authenticate_client_cram_md5_stream
+      server_challenge_data_base64, client_response_data_base64 = make_cram_md5_server_client_data_base64(@username, @password)
+      assert_input_output_stream(client_response_data_base64 + "\r\n", "+ #{server_challenge_data_base64}\r\n") {
+        assert_equal(@username, @reader.authenticate_client('cram-md5'))
+      }
+
+      server_challenge_data_base64, client_response_data_base64 = make_cram_md5_server_client_data_base64(@username.succ, @password)
+      assert_input_output_stream(client_response_data_base64 + "\r\n", "+ #{server_challenge_data_base64}\r\n") {
+        assert_nil(@reader.authenticate_client('cram-md5'), 'authenticate_client(cram-md5)')
+      }
+
+      server_challenge_data_base64, client_response_data_base64 = make_cram_md5_server_client_data_base64(@username, @password.succ)
+      assert_input_output_stream(client_response_data_base64 + "\r\n", "+ #{server_challenge_data_base64}\r\n") {
+        assert_nil(@reader.authenticate_client('cram-md5'), 'authenticate_client(cram-md5)')
+      }
+    end
+
+    def test_authenticate_client_cram_md5_stream_no_client_authentication
+      server_challenge_data_base64, client_response_data_base64 = make_cram_md5_server_client_data_base64(@username, @password)
+      assert_input_output_stream("*\r\n", "+ #{server_challenge_data_base64}\r\n") {
+        assert_equal(:*, @reader.authenticate_client('cram-md5'))
       }
     end
   end

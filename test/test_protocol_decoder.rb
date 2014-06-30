@@ -11,6 +11,7 @@ module RIMS::Test
   class ProtocolDecoderTest < Test::Unit::TestCase
     include RIMS::Test::AssertUtility
     include RIMS::Test::ProtocolFetchMailSample
+    include RIMS::Test::PseudoAuthenticationUtility
 
     UTF8_MBOX_NAME = '~peter/mail/日本語/台北'.freeze
     UTF7_MBOX_NAME = '~peter/mail/&ZeVnLIqe-/&U,BTFw-'.b.freeze
@@ -98,14 +99,25 @@ module RIMS::Test
     def setup
       @kvs = Hash.new{|h, k| h[k] = {} }
       @kvs_open = proc{|prefix, name| RIMS::Hash_KeyValueStore.new(@kvs["#{prefix}/#{name}"]) }
+
       @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open, proc{|name| 'test' })
       @mail_store_holder = @mail_store_pool.get('foo')
       @mail_store = @mail_store_holder.mail_store
       @inbox_id = @mail_store.mbox_id('INBOX')
+
+      src_time = Time.at(1404369876)
+      random_seed = 8091822677904057789202046265537518639
+
+      @time_source = make_pseudo_time_source(src_time)
+      @random_string_source = make_pseudo_random_string_source(random_seed)
+
+      @auth = RIMS::Authentication.new(time_source: make_pseudo_time_source(src_time),
+                                       random_string_source: make_pseudo_random_string_source(random_seed))
+      @auth.entry('foo', 'open_sesame')
+
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
-      @auth = RIMS::Authentication.new
-      @auth.entry('foo', 'open_sesame')
+
       @decoder = RIMS::Protocol::Decoder.new(@mail_store_pool, @auth, @logger)
       @tag = 'T000'
     end
@@ -222,6 +234,17 @@ module RIMS::Test
       RIMS::Protocol::AuthenticationReader.encode_base64(response_txt)
     end
     private :client_plain_response_base64
+
+    def make_cram_md5_server_client_data_base64(username, password)
+      server_challenge_data = RIMS::Authentication.cram_md5_server_challenge_data('rims', @time_source, @random_string_source)
+      client_response_data = username + ' ' + RIMS::Authentication.hmac_md5_hexdigest(password, server_challenge_data)
+
+      server_challenge_data_base64 = RIMS::Protocol::AuthenticationReader.encode_base64(server_challenge_data)
+      client_response_data_base64 = RIMS::Protocol::AuthenticationReader.encode_base64(client_response_data)
+
+      return server_challenge_data_base64, client_response_data_base64
+    end
+    private :make_cram_md5_server_client_data_base64
 
     def add_msg(msg_txt, *optional_args, mbox_id: @inbox_id)
       @mail_store.add_msg(mbox_id, msg_txt, *optional_args)
@@ -431,6 +454,45 @@ module RIMS::Test
       }
 
       assert_equal(true, @decoder.auth?)
+
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
+      }
+
+      assert_equal(false, @decoder.auth?)
+    end
+
+    def test_authenticate_cram_md5_stream
+      server_client_data_base64_pair_list = [
+        make_cram_md5_server_client_data_base64('foo', 'open_sesame'),
+        make_cram_md5_server_client_data_base64('foo', 'detarame'),
+        make_cram_md5_server_client_data_base64('foo', 'open_sesame')
+      ]
+
+      assert_equal(false, @decoder.auth?)
+
+      assert_imap_command(:authenticate, 'cram-md5', client_response_input_text: "*\r\n") {|assert|
+        assert.match(/^#{tag} BAD /)
+      }
+
+      assert_imap_command(:authenticate, 'cram-md5',
+                          client_response_input_text: server_client_data_base64_pair_list[1][1] + "\r\n") {|assert|
+        assert.match(/^#{tag} NO /)
+      }
+
+      assert_equal(false, @decoder.auth?)
+
+      assert_imap_command(:authenticate, 'cram-md5',
+                          client_response_input_text: server_client_data_base64_pair_list[2][1] + "\r\n") {|assert|
+        assert.equal("#{tag} OK AUTHENTICATE cram-md5 success")
+      }
+
+      assert_equal(true, @decoder.auth?)
+
+      assert_imap_command(:authenticate, 'cram-md5', client_response_input_text: '') {|assert|
+        assert.match(/^#{tag} NO /)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -3498,6 +3560,38 @@ T005 LOGOUT
         assert.match(/^#{tag!} NO /)
         assert.equal('+')
         assert.equal("#{tag!} OK AUTHENTICATE plain success")
+        assert.match(/^#{tag!} NO /)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
+      }
+    end
+
+    def test_command_loop_authenticate_cram_md5_stream
+      server_client_data_base64_pair_list = [
+        make_cram_md5_server_client_data_base64('foo', 'open_sesame'),
+        make_cram_md5_server_client_data_base64('foo', 'detarame'),
+        make_cram_md5_server_client_data_base64('foo', 'open_sesame')
+      ]
+
+      cmd_txt = <<-"EOF".b
+T001 AUTHENTICATE cram-md5
+*
+T002 AUTHENTICATE cram-md5
+#{server_client_data_base64_pair_list[1][1]}
+T003 AUTHENTICATE cram-md5
+#{server_client_data_base64_pair_list[2][1]}
+T004 AUTHENTICATE cram-md5
+T005 LOGOUT
+      EOF
+
+      assert_imap_command_loop(cmd_txt, autotag: false) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("+ #{server_client_data_base64_pair_list[0][0]}")
+        assert.match(/^#{tag!} BAD /)
+        assert.equal("+ #{server_client_data_base64_pair_list[1][0]}")
+        assert.match(/^#{tag!} NO /)
+        assert.equal("+ #{server_client_data_base64_pair_list[2][0]}")
+        assert.equal("#{tag!} OK AUTHENTICATE cram-md5 success")
         assert.match(/^#{tag!} NO /)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")

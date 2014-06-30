@@ -189,6 +189,9 @@ module RIMS
                    when 'plain'
                      @logger.debug("authentication mechanism: plain") if @logger.debug?
                      authenticate_client_plain(inline_client_response_data_base64)
+                   when 'cram-md5'
+                     @logger.debug("authentication mechanism: cram-md5") if @logger.debug?
+                     authenticate_client_cram_md5
                    else
                      nil
                    end
@@ -249,6 +252,19 @@ module RIMS
         end
       end
       private :authenticate_client_plain
+
+      def authenticate_client_cram_md5
+        server_challenge_data = @auth.cram_md5_server_challenge_data
+        case (client_response_data = read_client_response_data(server_challenge_data))
+        when String
+          @auth.authenticate_cram_md5(server_challenge_data, client_response_data)
+        when Symbol
+          client_response_data
+        else
+          nil
+        end
+      end
+      private :authenticate_client_cram_md5
     end
 
     class SearchParser
