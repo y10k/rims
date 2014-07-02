@@ -40,7 +40,7 @@ module RIMS
     end
 
     def capability
-      %w[ PLAIN ]
+      %w[ PLAIN CRAM-MD5 ]
     end
 
     def authenticate_login(username, password)
