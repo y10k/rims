@@ -1039,12 +1039,12 @@ module RIMS
     end
 
     class Decoder
-      def initialize(mail_store_pool, passwd, logger)
+      def initialize(mail_store_pool, auth, logger)
         @mail_store_pool = mail_store_pool
         @mail_store_holder = nil
         @folder = nil
+        @auth = auth
         @logger = logger
-        @passwd = passwd
       end
 
       def auth?
@@ -1202,7 +1202,8 @@ module RIMS
         protect_error(tag) {
           res = []
           unless (auth?) then
-            if (@passwd.call(username, password)) then
+            if (@auth.authenticate_login(username, password)) then
+              @logger.info("login authentication OK: #{username}")
               accept_authentication(username) {|msg| res << msg }
               res << "#{tag} OK LOGIN completed\r\n"
             else

@@ -78,9 +78,9 @@ module RIMS
 
       username = @config.delete(:username) or raise 'not defined configuration entry: username'
       password = @config.delete(:password) or raise 'not defined configuration entry: password '
-      @config[:authentication] = proc{|name, pass|
-        name == username && pass == password
-      }
+      auth = Authentication.new
+      auth.entry(username, password)
+      @config[:authentication] = auth
 
       self
     end

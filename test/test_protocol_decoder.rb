@@ -104,8 +104,9 @@ module RIMS::Test
       @inbox_id = @mail_store.mbox_id('INBOX')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
-      @passwd = proc{|username, password|username == 'foo' && password == 'open_sesame'}
-      @decoder = RIMS::Protocol::Decoder.new(@mail_store_pool, @passwd, @logger)
+      @auth = RIMS::Authentication.new
+      @auth.entry('foo', 'open_sesame')
+      @decoder = RIMS::Protocol::Decoder.new(@mail_store_pool, @auth, @logger)
       @tag = 'T000'
     end
 
