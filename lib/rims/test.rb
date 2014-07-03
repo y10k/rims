@@ -48,6 +48,23 @@ module RIMS
       module_function :assert_strenc_equal
     end
 
+    module PseudoAuthenticationUtility
+      def make_pseudo_time_source(src_time)
+        t = src_time
+        proc{
+          t = t + 1
+          t.dup
+        }
+      end
+      module_function :make_pseudo_time_source
+
+      def make_pseudo_random_string_source(random_seed)
+        r = Random.new(random_seed)
+        proc{ r.bytes(16).each_byte.map{|c| format('%02x', c ) }.join('') }
+      end
+      module_function :make_pseudo_random_string_source
+    end
+
     module ProtocolFetchMailSample
       def make_mail_simple
         @simple_mail = RIMS::RFC822::Message.new(<<-'EOF')
