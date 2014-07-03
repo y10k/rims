@@ -76,11 +76,12 @@ module RIMS
         kvs_factory.call(kvs_path)
       }
 
+      hostname = @config.delete(:hostname) || Socket.gethostname
       username = @config.delete(:username) or raise 'not defined configuration entry: username'
       password = @config.delete(:password) or raise 'not defined configuration entry: password'
-      @config[:authentication] = proc{|name, pass|
-        name == username && pass == password
-      }
+      auth = Authentication.new(hostname: hostname)
+      auth.entry(username, password)
+      @config[:authentication] = auth
 
       self
     end

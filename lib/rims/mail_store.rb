@@ -445,8 +445,25 @@ module RIMS
   end
 
   class MailStorePool
-    Holder = Struct.new(:mail_store, :user_name, :user_lock)
     RefCountEntry = Struct.new(:count, :mail_store_holder)
+
+    class Holder
+      def initialize(parent_pool, mail_store, user_name, user_lock)
+        @parent_pool = parent_pool
+        @mail_store = mail_store
+        @user_name = user_name
+        @user_lock = user_lock
+      end
+
+      attr_reader :mail_store
+      attr_reader :user_name
+      attr_reader :user_lock
+
+      def return_pool
+        @parent_pool.put(self)
+        nil
+      end
+    end
 
     def initialize(kvs_open_attr, kvs_open_text, make_user_prefix)
       @kvs_open_attr = kvs_open_attr
@@ -481,7 +498,7 @@ module RIMS
           ref_count_entry = @pool_map[user_name]
         else
           mail_store = new_mail_store(user_name)
-          holder = Holder.new(mail_store, user_name, user_lock)
+          holder = Holder.new(self, mail_store, user_name, user_lock)
           ref_count_entry = RefCountEntry.new(0, holder)
           @pool_map[user_name] = ref_count_entry
         end

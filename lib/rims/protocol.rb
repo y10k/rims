@@ -99,7 +99,7 @@ module RIMS
         }
         if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /\A{\d+}\z/)) then
           next_size = $&[1..-2].to_i
-          @logger.debug("found literal: #{next_size} octets.")
+          @logger.debug("found literal: #{next_size} octets.") if @logger.debug?
           @output.write("+ continue\r\n")
           @logger.debug('continue literal.') if @logger.debug?
           literal_string = @input.read(next_size) or raise 'unexpected client close.'
@@ -154,6 +154,117 @@ module RIMS
 
         nil
       end
+    end
+
+    class AuthenticationReader
+      class << self
+        def encode_base64(plain_txt)
+          [ plain_txt ].pack('m').each_line.map{|line| line.strip }.join('')
+        end
+
+        def decode_base64(base64_txt)
+          base64_txt.unpack('m')[0]
+        end
+      end
+
+      def encode_base64(plain_txt)
+        self.class.encode_base64(plain_txt)
+      end
+      private :encode_base64
+
+      def decode_base64(base64_txt)
+        self.class.decode_base64(base64_txt)
+      end
+      private :decode_base64
+
+      def initialize(auth, input, output, logger)
+        @auth = auth
+        @input = input
+        @output = output
+        @logger = logger
+      end
+
+      def authenticate_client(auth_type, inline_client_response_data_base64=nil)
+        username = case (auth_type.downcase)
+                   when 'plain'
+                     @logger.debug("authentication mechanism: plain") if @logger.debug?
+                     authenticate_client_plain(inline_client_response_data_base64)
+                   when 'cram-md5'
+                     @logger.debug("authentication mechanism: cram-md5") if @logger.debug?
+                     authenticate_client_cram_md5
+                   else
+                     nil
+                   end
+
+        case (username)
+        when String
+          @logger.debug("authenticated #{username}.") if @logger.debug?
+          username
+        when Symbol
+          @logger.debug('no authentication.') if @logger.debug?
+          username
+        else
+          @logger.debug('unauthenticated.') if @logger.debug?
+          nil
+        end
+      end
+
+      def read_client_response_data(server_challenge_data=nil)
+        if (server_challenge_data) then
+          server_challenge_data_base64 = encode_base64(server_challenge_data)
+          @logger.debug("authenticate command: server challenge data: <#{server_challenge_data_base64.encoding}#{server_challenge_data_base64.ascii_only? ? ':ascii-only' : ''}> #{server_challenge_data_base64}") if @logger.debug?
+          @output.write("+ #{server_challenge_data_base64}\r\n")
+        else
+          @logger.debug("authenticate command: server challenge data is nil.") if @logger.debug?
+          @output.write("+\r\n")
+        end
+
+        if (client_response_data_base64 = @input.gets) then
+          client_response_data_base64.strip!
+          @logger.debug("authenticate command: client response data: <#{client_response_data_base64.encoding}#{client_response_data_base64.ascii_only? ? ':ascii-only' : ''}> #{client_response_data_base64}") if @logger.debug?
+          if (client_response_data_base64 == '*') then
+            @logger.debug("authenticate command: no authentication from client.") if @logger.debug?
+            return :*
+          end
+          decode_base64(client_response_data_base64)
+        end
+      end
+      private :read_client_response_data
+
+      def read_client_response_data_plain(inline_client_response_data_base64)
+        if (inline_client_response_data_base64) then
+          @logger.debug("authenticate command: inline client response data: #{inline_client_response_data_base64}") if @logger.debug?
+          decode_base64(inline_client_response_data_base64)
+        else
+          read_client_response_data
+        end
+      end
+      private :read_client_response_data_plain
+
+      def authenticate_client_plain(inline_client_response_data_base64)
+        case (client_response_data = read_client_response_data_plain(inline_client_response_data_base64))
+        when String
+          @auth.authenticate_plain(client_response_data)
+        when Symbol
+          client_response_data
+        else
+          nil
+        end
+      end
+      private :authenticate_client_plain
+
+      def authenticate_client_cram_md5
+        server_challenge_data = @auth.cram_md5_server_challenge_data
+        case (client_response_data = read_client_response_data(server_challenge_data))
+        when String
+          @auth.authenticate_cram_md5(server_challenge_data, client_response_data)
+        when Symbol
+          client_response_data
+        else
+          nil
+        end
+      end
+      private :authenticate_client_cram_md5
     end
 
     class SearchParser
@@ -1039,12 +1150,12 @@ module RIMS
     end
 
     class Decoder
-      def initialize(mail_store_pool, passwd, logger)
+      def initialize(mail_store_pool, auth, logger)
         @mail_store_pool = mail_store_pool
         @mail_store_holder = nil
         @folder = nil
+        @auth = auth
         @logger = logger
-        @passwd = passwd
       end
 
       def auth?
@@ -1057,9 +1168,8 @@ module RIMS
 
       def cleanup
         if (auth?) then
-          tmp_mail_store = @mail_store_holder
+          @mail_store_holder.return_pool
           @mail_store_holder = nil
-          @mail_store_pool.put(tmp_mail_store)
         end
 
         nil
@@ -1148,7 +1258,11 @@ module RIMS
       end
 
       def capability(tag)
-        [ "* CAPABILITY IMAP4rev1\r\n",
+        capability_list = %w[ IMAP4rev1 ]
+        for auth_capability in @auth.capability
+          capability_list << "AUTH=#{auth_capability}"
+        end
+        [ "* CAPABILITY #{capability_list.join(' ')}\r\n",
           "#{tag} OK CAPABILITY completed\r\n"
         ]
       end
@@ -1183,23 +1297,55 @@ module RIMS
         }
       end
 
-      def authenticate(tag, auth_name)
-        [ "#{tag} NO no support mechanism" ]
+      def accept_authentication(username)
+        cleanup
+        @mail_store_holder = @mail_store_pool.get(username)
+        if (get_mail_store.abort_transaction?) then
+          get_mail_store.recovery_data(logger: @logger).sync
+          yield("* OK [ALERT] recovery user data.\r\n")
+        end
+
+        nil
+      end
+      private :accept_authentication
+
+      def authenticate(client_response_input_stream, server_challenge_output_stream,
+                       tag, auth_type, inline_client_response_data_base64=nil)
+        protect_error(tag) {
+          res = []
+          unless (auth?) then
+            auth_reader = AuthenticationReader.new(@auth, client_response_input_stream, server_challenge_output_stream, @logger)
+            if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
+              if (username != :*) then
+                @logger.info("authentication OK: #{username}")
+                accept_authentication(username) {|msg| res << msg }
+                res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
+              else
+                @logger.info('bad authentication.')
+                res << "#{tag} BAD AUTHENTICATE failed\r\n"
+              end
+            else
+              res << "#{tag} NO authentication failed\r\n"
+            end
+          else
+            res << "#{tag} NO duplicated authentication\r\n"
+          end
+        }
       end
 
       def login(tag, username, password)
         protect_error(tag) {
           res = []
-          if (@passwd.call(username, password)) then
-            cleanup
-            @mail_store_holder = @mail_store_pool.get(username)
-            if (get_mail_store.abort_transaction?) then
-              get_mail_store.recovery_data(logger: @logger).sync
-              res << "* OK [ALERT] recovery user data.\r\n"
+          unless (auth?) then
+            if (@auth.authenticate_login(username, password)) then
+              @logger.info("login authentication OK: #{username}")
+              accept_authentication(username) {|msg| res << msg }
+              res << "#{tag} OK LOGIN completed\r\n"
+            else
+              res << "#{tag} NO failed to login\r\n"
             end
-            res << "#{tag} OK LOGIN completed\r\n"
           else
-            res << "#{tag} NO failed to login\r\n"
+            res << "#{tag} NO duplicated login\r\n"
           end
         }
       end
@@ -1778,7 +1924,7 @@ module RIMS
             when 'LOGOUT'
               res = decoder.logout(tag, *opt_args)
             when 'AUTHENTICATE'
-              res = decoder.authenticate(tag, *opt_args)
+              res = decoder.authenticate(input, output, tag, *opt_args)
             when 'LOGIN'
               res = decoder.login(tag, *opt_args)
             when 'SELECT'

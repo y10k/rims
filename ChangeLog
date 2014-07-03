@@ -1,3 +1,10 @@
+2014-07-03  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/auth.rb, lib/rims/protocol.rb, lib/rims/server.rb,
+	test/test_auth.rb, test/test_protocol_auth.rb, test/test_protocol_decoder.rb:
+	implemented user authentication mechanism and added IMAP authenticate command.
+	capable authentication types are `plain' and `cram-md5'.
+
 2014-06-08  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.0.4 is released.
