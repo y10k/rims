@@ -147,6 +147,7 @@ module RIMS
 
     def cmd_imap_append(options, args)
       date_place_list = [ :servertime, :localtime, :filetime, :mailheader ]
+      auth_type_list = %w[ login plain cram-md5 ]
       option_list = [
         [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ],
         [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `localhost'." ],
@@ -154,6 +155,8 @@ module RIMS
         [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
         [ :username, nil, '-u', '--username=NAME', "Username to login IMAP server. required parameter to connect server." ],
         [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
+        [ :auth_type, 'login', '--auth-type=METHOD', auth_type_list,
+          "Choose authentication method type (#{auth_type_list.join(' ')}). default is `login'." ],
         [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ],
         [ :store_flag_answered, false, '--[no-]store-flag-answered', "Store answered flag on appending messages to mailbox. default is no flag." ],
         [ :store_flag_flagged, false, '--[no-]store-flag-flagged', "Store flagged flag on appending messages to mailbox. default is no flag." ],
@@ -216,8 +219,17 @@ module RIMS
           puts "server capability: #{imap.capability.join(' ')}"
         end
 
-        res = imap.login(conf[:username], conf[:password])
-        puts "login: #{imap_res2str(res)}" if conf[:verbose]
+        case (conf[:auth_type])
+        when 'login'
+          res = imap.login(conf[:username], conf[:password])
+          puts "login: #{imap_res2str(res)}" if conf[:verbose]
+        when 'plain', 'cram-md5'
+          res = imap.authenticate(conf[:auth_type], conf[:username], conf[:password])
+          puts "authenticate: #{imap_res2str(res)}" if conf[:verbose]
+        else
+          raise "unknown authentication type: #{conf[:auth_type]}"
+        end
+
         if (args.empty?) then
           msg = STDIN.read
           t = look_for_date(conf[:look_for_date], msg)
