@@ -130,10 +130,26 @@ module RIMS
             begin
               Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
             ensure
-              decoder.cleanup
+              if ($!) then
+                begin
+                  decoder.cleanup
+                rescue
+                  # not mask the first error.
+                end
+              else
+                decoder.cleanup
+              end
             end
           ensure
-            cl_sock.close
+            if ($!) then
+              begin
+                cl_sock.close
+              rescue
+                # not mask the first error.
+              end
+            else
+              cl_sock.close
+            end
           end
         }
       end

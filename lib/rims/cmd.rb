@@ -247,7 +247,15 @@ module RIMS
           end
         end
       ensure
-        imap.logout
+        if ($!) then
+          begin
+            imap.logout
+          rescue
+            # not mask the first error.
+          end
+        else
+          imap.logout
+        end
       end
 
       0
@@ -364,7 +372,15 @@ module RIMS
           0
         end
       ensure
-        meta_db.close
+        if ($!) then
+          begin
+            meta_db.close
+          rescue
+            # not mask the first error.
+          end
+        else
+          meta_db.close
+        end
       end
     end
     command_function :cmd_mbox_dirty_flag, 'Show/enable/disable dirty flag of mailbox database.'
@@ -446,7 +462,15 @@ module RIMS
           puts entry
         end
       ensure
-        db.close
+        if ($!) then
+          begin
+            db.close
+          rescue
+            # not mask the first error.
+          end
+        else
+          db.close
+        end
       end
 
       0
