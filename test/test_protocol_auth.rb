@@ -57,23 +57,23 @@ module RIMS::Test
     end
 
     def test_authenticate_client_plain_stream
-      assert_input_output_stream(client_plain_response_base64(@username, @username, @password) + "\r\n", "+\r\n") {
+      assert_input_output_stream(client_plain_response_base64(@username, @username, @password) + "\r\n", "+ \r\n") {
         assert_equal(@username, @reader.authenticate_client('plain'), 'call of authentication reader.')
       }
-      assert_input_output_stream(client_plain_response_base64('', @username, @password) + "\r\n", "+\r\n") {
+      assert_input_output_stream(client_plain_response_base64('', @username, @password) + "\r\n", "+ \r\n") {
         assert_equal(@username, @reader.authenticate_client('plain'), 'call of authentication reader.')
       }
 
-      assert_input_output_stream(client_plain_response_base64(@username, @username, @password.succ) + "\r\n", "+\r\n") {
+      assert_input_output_stream(client_plain_response_base64(@username, @username, @password.succ) + "\r\n", "+ \r\n") {
         assert_nil(@reader.authenticate_client('plain'), 'authenticate_client(plain)')
       }
-      assert_input_output_stream(client_plain_response_base64(@username.succ, @username.succ, @password) + "\r\n", "+\r\n") {
+      assert_input_output_stream(client_plain_response_base64(@username.succ, @username.succ, @password) + "\r\n", "+ \r\n") {
         assert_nil(@reader.authenticate_client('plain'), 'authenticate_client(plain)')
       }
     end
 
     def test_authenticate_client_plain_stream_no_client_authentication
-      assert_input_output_stream("*\r\n", "+\r\n") {
+      assert_input_output_stream("*\r\n", "+ \r\n") {
         assert_equal(:*, @reader.authenticate_client('plain'))
       }
     end

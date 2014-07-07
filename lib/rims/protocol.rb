@@ -216,7 +216,7 @@ module RIMS
           @output.write("+ #{server_challenge_data_base64}\r\n")
         else
           @logger.debug("authenticate command: server challenge data is nil.") if @logger.debug?
-          @output.write("+\r\n")
+          @output.write("+ \r\n")
         end
 
         if (client_response_data_base64 = @input.gets) then

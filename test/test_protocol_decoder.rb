@@ -3554,11 +3554,11 @@ T005 LOGOUT
 
       assert_imap_command_loop(cmd_txt, autotag: false) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        assert.equal('+')
+        assert.equal('+ ')
         assert.match(/^#{tag!} BAD /)
-        assert.equal('+')
+        assert.equal('+ ')
         assert.match(/^#{tag!} NO /)
-        assert.equal('+')
+        assert.equal('+ ')
         assert.equal("#{tag!} OK AUTHENTICATE plain success")
         assert.match(/^#{tag!} NO /)
         assert.match(/^\* BYE /)
