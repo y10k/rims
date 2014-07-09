@@ -1,5 +1,7 @@
 2014-07-09  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/protocol.rb: logging message for user data recovery.
+
 	* lib/rims/cmd.rb: new `--auth-type' option is defiend to choose a
 	method of IMAP user authentication at imap-append command utility.
 
