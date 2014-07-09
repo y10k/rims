@@ -57,6 +57,7 @@ To append messages to IMAP mailbox, type following and read usage.
 * v0.0.6
     - Fixed some connection errors at windows mail client.
     - Autologout timer.
+    - Command utility to deliver mail to mailbox.
 
 ## Contributing
 
