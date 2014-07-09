@@ -1301,8 +1301,10 @@ module RIMS
         cleanup
         @mail_store_holder = @mail_store_pool.get(username)
         if (get_mail_store.abort_transaction?) then
+          @logger.warn("user data recovery start: #{username}")
           get_mail_store.recovery_data(logger: @logger).sync
           yield("* OK [ALERT] recovery user data.\r\n")
+          @logger.warn("user data recovery end: #{username}")
         end
 
         nil
