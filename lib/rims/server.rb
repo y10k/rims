@@ -23,6 +23,20 @@ module RIMS
       self
     end
 
+    # configuration entries.
+    # * <tt>:base_dir</tt>
+    #
+    def base_dir
+      @config[:base_dir] or raise 'not defined configuration entry: base_dir'
+    end
+    private :base_dir
+
+    def through_server_params
+      params = @config.dup
+      params.delete(:base_dir)
+      params
+    end
+
     # configuration entries of following are defined at this method.
     # * <tt>:base_dir</tt>
     # * <tt>:log_file</tt>
