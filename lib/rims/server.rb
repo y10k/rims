@@ -37,6 +37,42 @@ module RIMS
       params
     end
 
+    # configuration entries.
+    # * <tt>:log_file</tt>
+    # * <tt>:log_level</tt>
+    # * <tt>:log_shift_age</tt>
+    # * <tt>:log_shift_size</tt>
+    #
+    def logging_params
+      log_file = @config.delete(:log_file) || 'imap.log'
+      log_file = File.join(base_dir, File.basename(log_file))
+
+      log_level = @config.delete(:log_level) || 'INFO'
+      log_level = log_level.upcase
+      %w[ DEBUG INFO WARN ERROR FATAL ].include? log_level or raise "unknown log level: #{log_level}"
+      log_level = Logger.const_get(log_level)
+
+      log_opt_args = []
+      if (@config.key? :log_shift_age) then
+        log_opt_args << @config.delete(:log_shift_age)
+        log_opt_args << @config.delete(:log_shift_size) if (@config.key? :log_shift_size)
+      else
+        log_opt_args << 1 <<  @config.delete(:log_shift_size) if (@config.key? :log_shift_size)
+      end
+
+      { log_file: log_file,
+        log_level: log_level,
+        log_opt_args: log_opt_args
+      }
+    end
+
+    def build_logger
+      c = logging_params
+      logger = Logger.new(c[:log_file], *c[:log_opt_args])
+      logger.level = c[:log_level]
+      logger
+    end
+
     # configuration entries of following are defined at this method.
     # * <tt>:base_dir</tt>
     # * <tt>:log_file</tt>
