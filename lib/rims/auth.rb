@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 
+require 'digest'
 require 'openssl'
 require 'securerandom'
 
 module RIMS
   class Authentication
     class << self
+      def unique_user_id(username)
+        Digest::SHA256.hexdigest(username)
+      end
+
       def make_time_source
         proc{ Time.now }
       end
