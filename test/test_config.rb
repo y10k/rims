@@ -4,6 +4,7 @@ require 'fileutils'
 require 'logger'
 require 'pp' if $DEBUG
 require 'rims'
+require 'socket'
 require 'test/unit'
 
 module RIMS::Test
@@ -34,6 +35,13 @@ module RIMS::Test
       }
     end
     private :assert_key_value_store_params
+
+    def assert_build_authentication(conf_params)
+      assert_config(conf_params) {|conf|
+        yield(conf.build_authentication)
+      }
+    end
+    private :assert_build_authentication
 
     def test_logging_params
       assert_logging_params({}, {
@@ -89,6 +97,25 @@ module RIMS::Test
                                       origin_key_value_store: RIMS::GDBM_KeyValueStore,
                                       middleware_key_value_store_list: []
                                     })
+    end
+
+    def test_build_authentication
+      username = 'foo'
+      password = 'open_sesame'
+
+      assert_build_authentication({ username: username, password: password }) {|auth|
+        assert_equal(Socket.gethostname, auth.hostname, 'hostname')
+        assert(auth.authenticate_login(username, password), 'user')
+        refute(auth.authenticate_login(username.succ, password), 'mismatch username')
+        refute(auth.authenticate_login(username, password.succ), 'mismatch password')
+      }
+
+      assert_build_authentication({ username: username, password: password, hostname: 'rims-test' }) {|auth|
+        assert_equal('rims-test', auth.hostname, 'hostname')
+        assert(auth.authenticate_login(username, password), 'user')
+        refute(auth.authenticate_login(username.succ, password), 'mismatch username')
+        refute(auth.authenticate_login(username, password.succ), 'mismatch password')
+      }
     end
   end
 

@@ -34,6 +34,8 @@ module RIMS
       @passwd = {}
     end
 
+    attr_reader :hostname
+
     def entry(username, password)
       @passwd[username] = password
       self

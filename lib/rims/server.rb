@@ -137,6 +137,22 @@ module RIMS
       self.class.build_key_value_store_path(base_dir, prefix_path_name_list, db_name: db_name)
     end
 
+    # configuration entries.
+    # * <tt>:hostname</tt>
+    # * <tt>:username</tt>
+    # * <tt>:password</tt>
+    #
+    def build_authentication
+      hostname = @config.delete(:hostname) || Socket.gethostname
+      auth = Authentication.new(hostname: hostname)
+
+      username = @config.delete(:username) or raise 'not defined configuration entry: username'
+      password = @config.delete(:password) or raise 'not defined configuration entry: password'
+      auth.entry(username, password)
+
+      auth
+    end
+
     # configuration entries of following are defined at this method.
     # * <tt>:base_dir</tt>
     # * <tt>:log_file</tt>
