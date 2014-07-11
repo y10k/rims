@@ -51,21 +51,24 @@ module RIMS::Test
       t1 = time_source.call
       assert_instance_of(Time, t1)
 
-      t2 = time_source.call
-      assert_instance_of(Time, t2)
+      begin
+        t2 = time_source.call
+        assert_instance_of(Time, t2)
+      end until (t2 != t1)
 
-      assert(t1 != t2)
+      assert(t1 < t2)
     end
 
     def test_pseudo_make_time_source
       t1 = @time_source.call
       assert_instance_of(Time, t1)
 
-      t2 = @time_source.call
-      assert_instance_of(Time, t2)
+      begin
+        t2 = @time_source.call
+        assert_instance_of(Time, t2)
+      end until (t2 != t1)
 
-      assert(t1 != t2)
-      assert(t1 + 1 == t2)
+      assert(t1 < t2)
     end
 
     def test_make_random_string_source
