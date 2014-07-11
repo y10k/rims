@@ -181,7 +181,11 @@ module RIMS
                    logger.debug("message data key-value store path: #{kvs_path}") if logger.debug?
                    kvs_factory.call(kvs_path)
                  },
-                 make_user_prefix: proc{|username| %w[ mailbox.1 ] },
+                 make_user_prefix: proc{|username|
+                   unique_user_id = Authentication.unique_user_id(username)
+                   logger.debug("unique user ID: #{username} -> #{unique_user_id}") if logger.debug?
+                   self.class.make_user_prefix_path_name_list('mailbox.2', unique_user_id)
+                 },
                  authentication: auth,
                  logger: logger,
                  **through_server_params)
