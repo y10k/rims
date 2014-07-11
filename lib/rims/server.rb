@@ -129,6 +129,20 @@ module RIMS
         path_name_list_from_base_dir += [ db_name ] if db_name
         File.join(*path_name_list_from_base_dir)
       end
+
+      def make_user_prefix_path_name_list(mailbox_data_structure_version, unique_user_id)
+        if (mailbox_data_structure_version.empty?) then
+          raise ArgumentError, 'too short mailbox data structure version.'
+        end
+        if (unique_user_id.length <= 2) then
+          raise ArgumentError, 'too short unique user ID.'
+        end
+
+        bucket_dir_name = unique_user_id[0..1]
+        store_dir_name = unique_user_id[2..-1]
+
+        [ mailbox_data_structure_version, bucket_dir_name, store_dir_name ]
+      end
     end
 
     def build_key_value_store_path_and_make_parent_dir(prefix_path_name_list, db_name)
