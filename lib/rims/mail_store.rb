@@ -481,8 +481,8 @@ module RIMS
     def new_mail_store(user_name)
       user_prefix = @make_user_prefix.call(user_name)
       mail_store = MailStore.new(DB::Meta.new(@kvs_open_attr.call(user_prefix, 'meta')),
-                                 DB::Message.new(@kvs_open_text.call(user_prefix, 'msg'))) {|mbox_id|
-        DB::Mailbox.new(@kvs_open_attr.call(user_prefix, "mbox_#{mbox_id}"))
+                                 DB::Message.new(@kvs_open_text.call(user_prefix, 'message'))) {|mbox_id|
+        DB::Mailbox.new(@kvs_open_attr.call(user_prefix, "mailbox_#{mbox_id}"))
       }
       unless (mail_store.mbox_id('INBOX')) then
         mail_store.add_mbox('INBOX')
