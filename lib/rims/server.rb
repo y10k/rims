@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'fileutils'
 require 'logger'
 require 'socket'
 require 'yaml'
@@ -23,25 +22,35 @@ module RIMS
       self
     end
 
-    # configuration entries of following are defined at this method.
+    # configuration entries.
     # * <tt>:base_dir</tt>
+    #
+    def base_dir
+      @config[:base_dir] or raise 'not defined configuration entry: base_dir'
+    end
+    private :base_dir
+
+    def through_server_params
+      params = @config.dup
+      params.delete(:base_dir)
+      params
+    end
+
+    # configuration entries.
     # * <tt>:log_file</tt>
     # * <tt>:log_level</tt>
-    # * <tt>:key_value_store_type</tt>
-    # * <tt>:username</tt>
-    # * <tt>:password</tt>
+    # * <tt>:log_shift_age</tt>
+    # * <tt>:log_shift_size</tt>
     #
-    # other configuration entries are defined as named parameter at RIMS::Server.new.
-    #
-    def setup
-      base_dir = @config.delete(:base_dir) or raise 'not defined configuration entry: base_dir'
-
+    def logging_params
       log_file = @config.delete(:log_file) || 'imap.log'
-      log_file = File.basename(log_file)
+      log_file = File.join(base_dir, File.basename(log_file))
+
       log_level = @config.delete(:log_level) || 'INFO'
       log_level = log_level.upcase
       %w[ DEBUG INFO WARN ERROR FATAL ].include? log_level or raise "unknown log level: #{log_level}"
       log_level = Logger.const_get(log_level)
+
       log_opt_args = []
       if (@config.key? :log_shift_age) then
         log_opt_args << @config.delete(:log_shift_age)
@@ -49,69 +58,141 @@ module RIMS
       else
         log_opt_args << 1 <<  @config.delete(:log_shift_size) if (@config.key? :log_shift_size)
       end
-      @config[:logger] = Logger.new(File.join(base_dir, log_file), *log_opt_args)
-      @config[:logger].level = log_level
 
-      builder = KeyValueStore::FactoryBuilder.new
+      { log_file: log_file,
+        log_level: log_level,
+        log_opt_args: log_opt_args
+      }
+    end
+
+    def build_logger
+      c = logging_params
+      logger = Logger.new(c[:log_file], *c[:log_opt_args])
+      logger.level = c[:log_level]
+      logger
+    end
+
+    # configuration entries.
+    # * <tt>:key_value_store_type</tt>
+    # * <tt>:use_key_value_store_checksum</tt>
+    #
+    def key_value_store_params
       kvs_type = (@config.delete(:key_value_store_type) || 'GDBM').upcase
       case (kvs_type)
       when 'GDBM'
-        builder.open{|name| GDBM_KeyValueStore.open(name) }
+        origin_key_value_store = GDBM_KeyValueStore
       else
         raise "unknown key-value store type: #{kvs_type}"
       end
+
+      middleware_key_value_store_list = []
       if ((@config.key? :use_key_value_store_checksum) ? @config.delete(:use_key_value_store_checksum) : true) then
-        builder.use(Checksum_KeyValueStore)
+        middleware_key_value_store_list << Checksum_KeyValueStore
       end
-      kvs_factory = builder.factory
 
-      @config[:kvs_meta_open] = proc{|user_prefix, name|
-        kvs_path = make_kvs_path(base_dir, user_prefix, name)
-        @config[:logger].debug("meta key-value store path: #{kvs_path}") if @config[:logger].debug?
-        kvs_factory.call(kvs_path)
+      { origin_key_value_store: origin_key_value_store,
+        middleware_key_value_store_list: middleware_key_value_store_list
       }
-      @config[:kvs_text_open] = proc{|user_prefix, name|
-        kvs_path = make_kvs_path(base_dir, user_prefix, name)
-        @config[:logger].debug("text key-value store path: #{kvs_path}") if @config[:logger].debug?
-        kvs_factory.call(kvs_path)
-      }
+    end
 
+    def build_key_value_store_factory
+      c = key_value_store_params
+      builder = KeyValueStore::FactoryBuilder.new
+      builder.open{|name| c[:origin_key_value_store].open(name) }
+      for middleware_key_value_store in c[:middleware_key_value_store_list]
+        builder.use(middleware_key_value_store)
+      end
+      builder.factory
+    end
+
+    class << self
+      def mkdir_from_base_dir(base_dir, path_name_list)
+        unless (File.directory? base_dir) then
+          raise "not found a base directory: #{base_dir}"
+        end
+
+        make_path_list = [ base_dir ]
+        for path_name in path_name_list
+          make_path_list << path_name
+          make_path = File.join(*make_path_list)
+          unless (File.directory? make_path) then
+            Dir.mkdir(make_path)
+          end
+        end
+
+        nil
+      end
+
+      def build_key_value_store_path(base_dir, path_name_list, db_name: nil)
+        path_name_list_from_base_dir = [ base_dir ]
+        path_name_list_from_base_dir += path_name_list
+        path_name_list_from_base_dir += [ db_name ] if db_name
+        File.join(*path_name_list_from_base_dir)
+      end
+    end
+
+    def build_key_value_store_path_and_make_parent_dir(prefix_path_name_list, db_name)
+      self.class.mkdir_from_base_dir(base_dir, prefix_path_name_list)
+      self.class.build_key_value_store_path(base_dir, prefix_path_name_list, db_name: db_name)
+    end
+
+    # configuration entries.
+    # * <tt>:hostname</tt>
+    # * <tt>:username</tt>
+    # * <tt>:password</tt>
+    #
+    def build_authentication
       hostname = @config.delete(:hostname) || Socket.gethostname
+      auth = Authentication.new(hostname: hostname)
+
       username = @config.delete(:username) or raise 'not defined configuration entry: username'
       password = @config.delete(:password) or raise 'not defined configuration entry: password'
-      auth = Authentication.new(hostname: hostname)
       auth.entry(username, password)
-      @config[:authentication] = auth
 
-      self
+      auth
     end
 
-    def make_kvs_path(base_dir, user_prefix, name)
-      parent_dir = File.join(base_dir, user_prefix)
-      FileUtils.mkdir(parent_dir) unless (File.directory? parent_dir)
-      File.join(parent_dir, name)
-    end
-    private :make_kvs_path
+    def build_server
+      logger = build_logger
+      kvs_factory = build_key_value_store_factory
+      auth = build_authentication
 
-    attr_reader :config
+      Server.new(kvs_meta_open: proc{|prefix_path_name_list, db_name|
+                   kvs_path = build_key_value_store_path_and_make_parent_dir(prefix_path_name_list, db_name)
+                   logger.debug("meta data key-value store path: #{kvs_path}") if logger.debug?
+                   kvs_factory.call(kvs_path)
+                 },
+                 kvs_text_open: proc{|prefix_path_name_list, db_name|
+                   kvs_path = build_key_value_store_path_and_make_parent_dir(prefix_path_name_list, db_name)
+                   logger.debug("message data key-value store path: #{kvs_path}") if logger.debug?
+                   kvs_factory.call(kvs_path)
+                 },
+                 make_user_prefix: proc{|username| %w[ mailbox.1 ] },
+                 authentication: auth,
+                 logger: logger,
+                 **through_server_params)
+    end
   end
 
   class Server
     def initialize(kvs_meta_open: nil,
                    kvs_text_open: nil,
+                   make_user_prefix: nil,
                    authentication: nil,
                    ip_addr: '0.0.0.0',
                    ip_port: 1430,
                    logger: Logger.new(STDOUT))
       begin
-        @kvs_meta_open = kvs_meta_open
-        @kvs_text_open = kvs_text_open
-        @authentication = authentication
+        kvs_meta_open or raise ArgumentError, 'need for a keyword argument: kvs_meta_open'
+        kvs_text_open or raise ArgumentError, 'need for a keyword argument: kvs_text_open'
+        make_user_prefix or raise ArgumentError, 'need for a keyword argument: make_user_prefix'
+        @authentication = authentication or raise ArgumentError, 'need for a keyword argument: authentication'
+
         @ip_addr = ip_addr
         @ip_port = ip_port
         @logger = logger
 
-        @mail_store_pool = MailStorePool.new(@kvs_meta_open, @kvs_text_open, proc{|name| 'mailbox.1' })
+        @mail_store_pool = MailStorePool.new(kvs_meta_open, kvs_text_open, make_user_prefix)
       rescue
         logger.fatal($!) rescue StandardError
         raise

@@ -134,11 +134,7 @@ module RIMS
       end
       options.parse!(args)
 
-      pp conf.config if $DEBUG
-      conf.setup
-      pp conf.config if $DEBUG
-
-      server = RIMS::Server.new(**conf.config)
+      server = conf.build_server
       server.start
 
       0
