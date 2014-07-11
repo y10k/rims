@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'fileutils'
 require 'logger'
 require 'pp' if $DEBUG
 require 'rims'
@@ -88,6 +89,49 @@ module RIMS::Test
                                       origin_key_value_store: RIMS::GDBM_KeyValueStore,
                                       middleware_key_value_store_list: []
                                     })
+    end
+  end
+
+  class ConfigPathUtilTest < Test::Unit::TestCase
+    def setup
+      @base_dir = "dummy_test_base_dir.#{$$}"
+      FileUtils.rm_rf(@base_dir) if (File.directory? @base_dir)
+    end
+
+    def teardown
+      FileUtils.rm_rf(@base_dir) unless $DEBUG
+    end
+
+    def test_mkdir_from_base_dir
+      Dir.mkdir(@base_dir)
+
+      refute(File.directory? File.join(@base_dir, 'foo', 'bar'))
+      RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ])
+      assert(File.directory? File.join(@base_dir, 'foo', 'bar'))
+    end
+
+    def test_mkdir_from_base_dir_already_exist
+      FileUtils.mkdir_p(File.join(@base_dir, 'foo', 'bar'))
+
+      assert(File.directory? File.join(@base_dir, 'foo', 'bar'))
+      RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ])
+      assert(File.directory? File.join(@base_dir, 'foo', 'bar'))
+    end
+
+    def test_mkdir_from_base_dir_not_exist_base_dir
+      refute(File.directory? @base_dir)
+      assert_raise(RuntimeError) {
+        RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ])
+      }
+    end
+
+    def test_build_key_value_store_path
+      assert_equal(File.join(@base_dir, 'foo'),
+                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo ]))
+      assert_equal(File.join(@base_dir, 'foo', 'bar'),
+                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo bar ]))
+      assert_equal(File.join(@base_dir, 'foo', 'bar', 'meta.db'),
+                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo bar ], db_name: 'meta.db'))
     end
   end
 end

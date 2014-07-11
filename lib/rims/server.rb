@@ -106,6 +106,37 @@ module RIMS
       builder.factory
     end
 
+    class << self
+      def mkdir_from_base_dir(base_dir, path_name_list)
+        unless (File.directory? base_dir) then
+          raise "not found a base directory: #{base_dir}"
+        end
+
+        make_path_list = [ base_dir ]
+        for path_name in path_name_list
+          make_path_list << path_name
+          make_path = File.join(*make_path_list)
+          unless (File.directory? make_path) then
+            Dir.mkdir(make_path)
+          end
+        end
+
+        nil
+      end
+
+      def build_key_value_store_path(base_dir, path_name_list, db_name: nil)
+        path_name_list_from_base_dir = [ base_dir ]
+        path_name_list_from_base_dir += path_name_list
+        path_name_list_from_base_dir += [ db_name ] if db_name
+        File.join(*path_name_list_from_base_dir)
+      end
+    end
+
+    def build_key_value_store_path_and_make_parent_dir(prefix_path_name_list, db_name)
+      self.class.mkdir_from_base_dir(base_dir, prefix_path_name_list)
+      self.class.build_key_value_store_path(base_dir, prefix_path_name_list, db_name: db_name)
+    end
+
     # configuration entries of following are defined at this method.
     # * <tt>:base_dir</tt>
     # * <tt>:log_file</tt>
