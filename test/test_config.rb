@@ -27,6 +27,13 @@ module RIMS::Test
     end
     private :assert_logging_params
 
+    def assert_key_value_store_params(conf_params, expected_params)
+      assert_config(conf_params) {|conf|
+        assert_equal(expected_params, conf.key_value_store_params, 'key_value_store_params')
+      }
+    end
+    private :assert_key_value_store_params
+
     def test_logging_params
       assert_logging_params({}, {
                               log_file: File.join(@base_dir, 'imap.log'),
@@ -59,6 +66,28 @@ module RIMS::Test
                               log_level: Logger::INFO,
                               log_opt_args: [ 10, 1024**2 ]
                             })
+    end
+
+    def test_key_value_store_params
+      assert_key_value_store_params({}, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
+                                    })
+
+      assert_key_value_store_params({ key_value_store_type: 'GDBM' }, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
+                                    })
+
+      assert_key_value_store_params({ use_key_value_store_checksum: true }, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
+                                    })
+
+      assert_key_value_store_params({ use_key_value_store_checksum: false }, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      middleware_key_value_store_list: []
+                                    })
     end
   end
 end

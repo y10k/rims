@@ -73,6 +73,39 @@ module RIMS
       logger
     end
 
+    # configuration entries.
+    # * <tt>:key_value_store_type</tt>
+    # * <tt>:use_key_value_store_checksum</tt>
+    #
+    def key_value_store_params
+      kvs_type = (@config.delete(:key_value_store_type) || 'GDBM').upcase
+      case (kvs_type)
+      when 'GDBM'
+        origin_key_value_store = GDBM_KeyValueStore
+      else
+        raise "unknown key-value store type: #{kvs_type}"
+      end
+
+      middleware_key_value_store_list = []
+      if ((@config.key? :use_key_value_store_checksum) ? @config.delete(:use_key_value_store_checksum) : true) then
+        middleware_key_value_store_list << Checksum_KeyValueStore
+      end
+
+      { origin_key_value_store: origin_key_value_store,
+        middleware_key_value_store_list: middleware_key_value_store_list
+      }
+    end
+
+    def build_key_value_store_factory
+      c = key_value_store_params
+      builder = KeyValueStore::FactoryBuilder.new
+      builder.open{|name| c[:origin_key_value_store].open(name) }
+      for middleware_key_value_store in c[:middleware_key_value_store_list]
+        builder.use(middleware_key_value_store)
+      end
+      builder.factory
+    end
+
     # configuration entries of following are defined at this method.
     # * <tt>:base_dir</tt>
     # * <tt>:log_file</tt>
