@@ -186,14 +186,20 @@ module RIMS
       kvs_factory = build_key_value_store_factory
       auth = build_authentication
 
+      make_parent_dir_and_logging = proc{|mailbox_data_structure_version, unique_user_id|
+        if (make_dir_path = make_key_value_store_parent_dir_from_base_dir(mailbox_data_structure_version, unique_user_id)) then
+          logger.debug("make a directory: #{make_dir_path}") if logger.debug?
+        end
+      }
+
       Server.new(kvs_meta_open: proc{|mailbox_data_structure_version, unique_user_id, db_name|
-                   make_key_value_store_parent_dir_from_base_dir(mailbox_data_structure_version, unique_user_id)
+                   make_parent_dir_and_logging.call(mailbox_data_structure_version, unique_user_id)
                    kvs_path = make_key_value_store_path_from_base_dir(mailbox_data_structure_version, unique_user_id, db_name: db_name)
                    logger.debug("meta data key-value store path: #{kvs_path}") if logger.debug?
                    kvs_factory.call(kvs_path)
                  },
                  kvs_text_open: proc{|mailbox_data_structure_version, unique_user_id, db_name|
-                   make_key_value_store_parent_dir_from_base_dir(mailbox_data_structure_version, unique_user_id)
+                   make_parent_dir_and_logging.call(mailbox_data_structure_version, unique_user_id)
                    kvs_path = make_key_value_store_path_from_base_dir(mailbox_data_structure_version, unique_user_id, db_name: db_name)
                    logger.debug("message data key-value store path: #{kvs_path}") if logger.debug?
                    kvs_factory.call(kvs_path)
