@@ -111,16 +111,23 @@ module RIMS
           raise "not found a base directory: #{base_dir}"
         end
 
+        mkdir_count = 0
         make_path_list = [ base_dir ]
+
         for path_name in path_name_list
           make_path_list << path_name
           make_path = File.join(*make_path_list)
-          unless (File.directory? make_path) then
+          begin
             Dir.mkdir(make_path)
+            mkdir_count += 1
+          rescue Errno::EEXIST
+            unless (File.directory? make_path) then
+              raise "not a directory: #{make_path}"
+            end
           end
         end
 
-        nil
+        make_path if (mkdir_count > 0)
       end
 
       def make_key_value_store_path_name_list(mailbox_data_structure_version, unique_user_id, db_name: nil)
