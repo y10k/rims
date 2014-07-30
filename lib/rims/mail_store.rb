@@ -448,15 +448,15 @@ module RIMS
     RefCountEntry = Struct.new(:count, :mail_store_holder)
 
     class Holder
-      def initialize(parent_pool, mail_store, user_name, user_lock)
+      def initialize(parent_pool, mail_store, unique_user_id, user_lock)
         @parent_pool = parent_pool
         @mail_store = mail_store
-        @user_name = user_name
+        @unique_user_id = unique_user_id
         @user_lock = user_lock
       end
 
       attr_reader :mail_store
-      attr_reader :user_name
+      attr_reader :unique_user_id
       attr_reader :user_lock
 
       def return_pool
@@ -478,8 +478,8 @@ module RIMS
       @pool_map.empty?
     end
 
-    def new_mail_store(user_name)
-      user_prefix = @make_user_prefix.call(user_name)
+    def new_mail_store(unique_user_id)
+      user_prefix = @make_user_prefix.call(unique_user_id)
       mail_store = MailStore.new(DB::Meta.new(@kvs_open_attr.call(user_prefix, 'meta')),
                                  DB::Message.new(@kvs_open_text.call(user_prefix, 'message'))) {|mbox_id|
         DB::Mailbox.new(@kvs_open_attr.call(user_prefix, "mailbox_#{mbox_id}"))
@@ -491,16 +491,16 @@ module RIMS
     end
     private :new_mail_store
 
-    def get(user_name)
-      user_lock = @pool_lock.synchronize{ @user_lock_map[user_name] }
+    def get(unique_user_id)
+      user_lock = @pool_lock.synchronize{ @user_lock_map[unique_user_id] }
       user_lock.synchronize{
-        if (@pool_map.key? user_name) then
-          ref_count_entry = @pool_map[user_name]
+        if (@pool_map.key? unique_user_id) then
+          ref_count_entry = @pool_map[unique_user_id]
         else
-          mail_store = new_mail_store(user_name)
-          holder = Holder.new(self, mail_store, user_name, user_lock)
+          mail_store = new_mail_store(unique_user_id)
+          holder = Holder.new(self, mail_store, unique_user_id, user_lock)
           ref_count_entry = RefCountEntry.new(0, holder)
-          @pool_map[user_name] = ref_count_entry
+          @pool_map[unique_user_id] = ref_count_entry
         end
         if (ref_count_entry.count < 0) then
           raise 'internal error.'
@@ -511,15 +511,15 @@ module RIMS
     end
 
     def put(mail_store_holder)
-      user_lock = @pool_lock.synchronize{ @user_lock_map[mail_store_holder.user_name] }
+      user_lock = @pool_lock.synchronize{ @user_lock_map[mail_store_holder.unique_user_id] }
       user_lock.synchronize{
-        ref_count_entry = @pool_map[mail_store_holder.user_name] or raise 'internal error.'
+        ref_count_entry = @pool_map[mail_store_holder.unique_user_id] or raise 'internal error.'
         if (ref_count_entry.count < 1) then
           raise 'internal error.'
         end
         ref_count_entry.count -= 1
         if (ref_count_entry.count == 0) then
-          @pool_map.delete(mail_store_holder.user_name)
+          @pool_map.delete(mail_store_holder.unique_user_id)
           ref_count_entry.mail_store_holder.mail_store.close
         end
       }

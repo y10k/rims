@@ -99,9 +99,10 @@ module RIMS::Test
     def setup
       @kvs = Hash.new{|h, k| h[k] = {} }
       @kvs_open = proc{|prefix, name| RIMS::Hash_KeyValueStore.new(@kvs["#{prefix}/#{name}"]) }
+      @unique_user_id = RIMS::Authentication.unique_user_id('foo')
 
       @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open, proc{|name| 'test' })
-      @mail_store_holder = @mail_store_pool.get('foo')
+      @mail_store_holder = @mail_store_pool.get(@unique_user_id)
       @mail_store = @mail_store_holder.mail_store
       @inbox_id = @mail_store.mbox_id('INBOX')
 
@@ -132,7 +133,7 @@ module RIMS::Test
       begin
         yield
       ensure
-        @mail_store_holder = @mail_store_pool.get('foo')
+        @mail_store_holder = @mail_store_pool.get(@unique_user_id)
         @mail_store = @mail_store_holder.mail_store
       end
     end
