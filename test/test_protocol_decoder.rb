@@ -98,10 +98,12 @@ module RIMS::Test
 
     def setup
       @kvs = Hash.new{|h, k| h[k] = {} }
-      @kvs_open = proc{|prefix, name| RIMS::Hash_KeyValueStore.new(@kvs["#{prefix}/#{name}"]) }
+      @kvs_open = proc{|mbox_version, unique_user_id, db_name|
+        RIMS::Hash_KeyValueStore.new(@kvs["#{mbox_version}/#{unique_user_id[0, 7]}/#{db_name}"])
+      }
       @unique_user_id = RIMS::Authentication.unique_user_id('foo')
 
-      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open, proc{|name| 'test' })
+      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
       @mail_store_holder = @mail_store_pool.get(@unique_user_id)
       @mail_store = @mail_store_holder.mail_store
       @inbox_id = @mail_store.mbox_id('INBOX')
@@ -3476,7 +3478,7 @@ module RIMS::Test
 
     def test_db_recovery
       reload_mail_store{
-        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs['test/meta']))
+        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
         meta_db.dirty = true
         meta_db.close
       }
@@ -5235,7 +5237,7 @@ T004 NOOP DETARAME
 
     def test_command_loop_db_recovery
       reload_mail_store{
-        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs['test/meta']))
+        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
         meta_db.dirty = true
         meta_db.close
       }

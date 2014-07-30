@@ -152,22 +152,16 @@ module RIMS::Test
       }
     end
 
-    def test_build_key_value_store_path
-      assert_equal(File.join(@base_dir, 'foo'),
-                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo ]))
-      assert_equal(File.join(@base_dir, 'foo', 'bar'),
-                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo bar ]))
-      assert_equal(File.join(@base_dir, 'foo', 'bar', 'meta.db'),
-                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo bar ], db_name: 'meta.db'))
-    end
-
-    def test_make_user_prefix_path_name_list
+    def test_make_key_value_store_path_name_list
       assert_equal([ 'v1', 'ab', 'c' ],
-                   RIMS::Config.make_user_prefix_path_name_list('v1', 'abc'))
+                   RIMS::Config.make_key_value_store_path_name_list('v1', 'abc'))
       assert_equal([ 'v1', 'e3', 'b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
-                   RIMS::Config.make_user_prefix_path_name_list('v1', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'))
-      assert_raise(ArgumentError) { RIMS::Config.make_user_prefix_path_name_list('v1', '') }
-      assert_raise(ArgumentError) { RIMS::Config.make_user_prefix_path_name_list('v1', 'ab') }
+                   RIMS::Config.make_key_value_store_path_name_list('v1', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'))
+      assert_equal([ 'v1', 'e3', 'b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'meta_db' ],
+                   RIMS::Config.make_key_value_store_path_name_list('v1', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', db_name: 'meta_db'))
+
+      assert_raise(ArgumentError) { RIMS::Config.make_key_value_store_path_name_list('v1', '') }
+      assert_raise(ArgumentError) { RIMS::Config.make_key_value_store_path_name_list('v1', 'ab') }
     end
   end
 end

@@ -465,10 +465,9 @@ module RIMS
       end
     end
 
-    def initialize(kvs_open_attr, kvs_open_text, make_user_prefix)
+    def initialize(kvs_open_attr, kvs_open_text)
       @kvs_open_attr = kvs_open_attr
       @kvs_open_text = kvs_open_text
-      @make_user_prefix = make_user_prefix
       @pool_map = {}
       @pool_lock = Mutex.new
       @user_lock_map = Hash.new{|hash, key| hash[key] = Mutex.new }
@@ -479,14 +478,18 @@ module RIMS
     end
 
     def new_mail_store(unique_user_id)
-      user_prefix = @make_user_prefix.call(unique_user_id)
-      mail_store = MailStore.new(DB::Meta.new(@kvs_open_attr.call(user_prefix, 'meta')),
-                                 DB::Message.new(@kvs_open_text.call(user_prefix, 'message'))) {|mbox_id|
-        DB::Mailbox.new(@kvs_open_attr.call(user_prefix, "mailbox_#{mbox_id}"))
+      kvs_build = proc{|kvs_open, db_name|
+        kvs_open.call(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id, db_name)
+      }
+
+      mail_store = MailStore.new(DB::Meta.new(kvs_build.call(@kvs_open_attr, 'meta')),
+                                 DB::Message.new(kvs_build.call(@kvs_open_text, 'message'))) {|mbox_id|
+        DB::Mailbox.new(kvs_build.call(@kvs_open_attr, "mailbox_#{mbox_id}"))
       }
       unless (mail_store.mbox_id('INBOX')) then
         mail_store.add_mbox('INBOX')
       end
+
       mail_store
     end
     private :new_mail_store
