@@ -1299,7 +1299,9 @@ module RIMS
 
       def accept_authentication(username)
         cleanup
-        @mail_store_holder = @mail_store_pool.get(username)
+        unique_user_id = Authentication.unique_user_id(username)
+        @logger.debug("unique user ID: #{username} -> #{unique_user_id}") if @logger.debug?
+        @mail_store_holder = @mail_store_pool.get(unique_user_id)
         if (get_mail_store.abort_transaction?) then
           @logger.warn("user data recovery start: #{username}")
           get_mail_store.recovery_data(logger: @logger).sync

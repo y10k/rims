@@ -130,19 +130,33 @@ module RIMS::Test
     end
 
     def test_mkdir_from_base_dir
+      target_dir = File.join(@base_dir, 'foo', 'bar')
       Dir.mkdir(@base_dir)
 
-      refute(File.directory? File.join(@base_dir, 'foo', 'bar'))
-      RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ])
-      assert(File.directory? File.join(@base_dir, 'foo', 'bar'))
+      refute(File.directory? target_dir)
+      assert_equal(target_dir, RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ]))
+      assert(File.directory? target_dir)
     end
 
-    def test_mkdir_from_base_dir_already_exist
-      FileUtils.mkdir_p(File.join(@base_dir, 'foo', 'bar'))
+    def test_mkdir_from_base_dir_already_exist_dir
+      target_dir = File.join(@base_dir, 'foo', 'bar')
+      FileUtils.mkdir_p(target_dir)
 
-      assert(File.directory? File.join(@base_dir, 'foo', 'bar'))
-      RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ])
-      assert(File.directory? File.join(@base_dir, 'foo', 'bar'))
+      assert(File.directory? target_dir)
+      assert_nil(RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ]))
+      assert(File.directory? target_dir)
+    end
+
+    def test_mkdir_from_base_dir_already_exist_file
+      target_dir = File.join(@base_dir, 'foo', 'bar')
+      FileUtils.mkdir_p(File.dirname(target_dir))
+      FileUtils.touch(target_dir)
+
+      assert(File.file? target_dir)
+      assert_raise(RuntimeError) {
+        RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ])
+      }
+      assert(File.file? target_dir)
     end
 
     def test_mkdir_from_base_dir_not_exist_base_dir
@@ -150,15 +164,19 @@ module RIMS::Test
       assert_raise(RuntimeError) {
         RIMS::Config.mkdir_from_base_dir(@base_dir, %w[ foo bar ])
       }
+      refute(File.directory? @base_dir)
     end
 
-    def test_build_key_value_store_path
-      assert_equal(File.join(@base_dir, 'foo'),
-                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo ]))
-      assert_equal(File.join(@base_dir, 'foo', 'bar'),
-                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo bar ]))
-      assert_equal(File.join(@base_dir, 'foo', 'bar', 'meta.db'),
-                   RIMS::Config.build_key_value_store_path(@base_dir, %w[ foo bar ], db_name: 'meta.db'))
+    def test_make_key_value_store_path_name_list
+      assert_equal([ 'v1', 'ab', 'c' ],
+                   RIMS::Config.make_key_value_store_path_name_list('v1', 'abc'))
+      assert_equal([ 'v1', 'e3', 'b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' ],
+                   RIMS::Config.make_key_value_store_path_name_list('v1', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'))
+      assert_equal([ 'v1', 'e3', 'b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'meta_db' ],
+                   RIMS::Config.make_key_value_store_path_name_list('v1', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', db_name: 'meta_db'))
+
+      assert_raise(ArgumentError) { RIMS::Config.make_key_value_store_path_name_list('v1', '') }
+      assert_raise(ArgumentError) { RIMS::Config.make_key_value_store_path_name_list('v1', 'ab') }
     end
   end
 end

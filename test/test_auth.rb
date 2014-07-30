@@ -23,6 +23,28 @@ module RIMS::Test
       @auth.entry(@username, @password)
     end
 
+    def test_unique_user_id
+      id1 = RIMS::Authentication.unique_user_id(@username)
+      assert_instance_of(String, id1)
+      refute(id1.empty?)
+
+      id2 = RIMS::Authentication.unique_user_id(@username)
+      assert_instance_of(String, id2)
+      refute(id2.empty?)
+
+      id3 = RIMS::Authentication.unique_user_id(@username.succ)
+      assert_instance_of(String, id3)
+      refute(id3.empty?)
+
+      assert(id2.bytesize == id1.bytesize)
+      assert(id3.bytesize == id3.bytesize)
+
+      assert(id2 == id1)
+      assert(id3 != id1)
+
+      pp [ id1, id2, id3 ] if $DEBUG
+    end
+
     def test_authenticate_login
       assert_equal(@username, @auth.authenticate_login(@username, @password))
       assert_nil(@auth.authenticate_login(@username, @password.succ))

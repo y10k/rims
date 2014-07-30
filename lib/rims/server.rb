@@ -111,29 +111,58 @@ module RIMS
           raise "not found a base directory: #{base_dir}"
         end
 
+        mkdir_count = 0
         make_path_list = [ base_dir ]
+
         for path_name in path_name_list
           make_path_list << path_name
           make_path = File.join(*make_path_list)
-          unless (File.directory? make_path) then
+          begin
             Dir.mkdir(make_path)
+            mkdir_count += 1
+          rescue Errno::EEXIST
+            unless (File.directory? make_path) then
+              raise "not a directory: #{make_path}"
+            end
           end
         end
 
-        nil
+        make_path if (mkdir_count > 0)
       end
 
-      def build_key_value_store_path(base_dir, path_name_list, db_name: nil)
-        path_name_list_from_base_dir = [ base_dir ]
-        path_name_list_from_base_dir += path_name_list
-        path_name_list_from_base_dir += [ db_name ] if db_name
-        File.join(*path_name_list_from_base_dir)
+      def make_key_value_store_path_name_list(mailbox_data_structure_version, unique_user_id, db_name: nil)
+        if (mailbox_data_structure_version.empty?) then
+          raise ArgumentError, 'too short mailbox data structure version.'
+        end
+        if (unique_user_id.length <= 2) then
+          raise ArgumentError, 'too short unique user ID.'
+        end
+
+        bucket_dir_name = unique_user_id[0..1]
+        store_dir_name = unique_user_id[2..-1]
+        path_name_list = [ mailbox_data_structure_version, bucket_dir_name, store_dir_name ]
+        path_name_list << db_name if db_name
+
+        path_name_list
+      end
+
+      def make_key_value_store_path_from_base_dir(base_dir, mailbox_data_structure_version, unique_user_id, db_name: nil)
+        path_name_list = [ base_dir ]
+        path_name_list += make_key_value_store_path_name_list(mailbox_data_structure_version, unique_user_id, db_name: db_name)
+        File.join(*path_name_list)
+      end
+
+      def make_key_value_store_parent_dir_from_base_dir(base_dir, mailbox_data_structure_version, unique_user_id)
+        mkdir_from_base_dir(base_dir, make_key_value_store_path_name_list(mailbox_data_structure_version, unique_user_id))
       end
     end
 
-    def build_key_value_store_path_and_make_parent_dir(prefix_path_name_list, db_name)
-      self.class.mkdir_from_base_dir(base_dir, prefix_path_name_list)
-      self.class.build_key_value_store_path(base_dir, prefix_path_name_list, db_name: db_name)
+    def make_key_value_store_path_from_base_dir(mailbox_data_structure_version, unique_user_id, db_name: nil)
+      self.class.make_key_value_store_path_from_base_dir(base_dir, mailbox_data_structure_version, unique_user_id, db_name: db_name)
+    end
+
+    def make_key_value_store_parent_dir_from_base_dir(mailbox_data_structure_version, unique_user_id)
+      self.class.make_key_value_store_parent_dir_from_base_dir(base_dir, mailbox_data_structure_version, unique_user_id)
     end
 
     # configuration entries.
@@ -157,17 +186,24 @@ module RIMS
       kvs_factory = build_key_value_store_factory
       auth = build_authentication
 
-      Server.new(kvs_meta_open: proc{|prefix_path_name_list, db_name|
-                   kvs_path = build_key_value_store_path_and_make_parent_dir(prefix_path_name_list, db_name)
+      make_parent_dir_and_logging = proc{|mailbox_data_structure_version, unique_user_id|
+        if (make_dir_path = make_key_value_store_parent_dir_from_base_dir(mailbox_data_structure_version, unique_user_id)) then
+          logger.debug("make a directory: #{make_dir_path}") if logger.debug?
+        end
+      }
+
+      Server.new(kvs_meta_open: proc{|mailbox_data_structure_version, unique_user_id, db_name|
+                   make_parent_dir_and_logging.call(mailbox_data_structure_version, unique_user_id)
+                   kvs_path = make_key_value_store_path_from_base_dir(mailbox_data_structure_version, unique_user_id, db_name: db_name)
                    logger.debug("meta data key-value store path: #{kvs_path}") if logger.debug?
                    kvs_factory.call(kvs_path)
                  },
-                 kvs_text_open: proc{|prefix_path_name_list, db_name|
-                   kvs_path = build_key_value_store_path_and_make_parent_dir(prefix_path_name_list, db_name)
+                 kvs_text_open: proc{|mailbox_data_structure_version, unique_user_id, db_name|
+                   make_parent_dir_and_logging.call(mailbox_data_structure_version, unique_user_id)
+                   kvs_path = make_key_value_store_path_from_base_dir(mailbox_data_structure_version, unique_user_id, db_name: db_name)
                    logger.debug("message data key-value store path: #{kvs_path}") if logger.debug?
                    kvs_factory.call(kvs_path)
                  },
-                 make_user_prefix: proc{|username| %w[ mailbox.1 ] },
                  authentication: auth,
                  logger: logger,
                  **through_server_params)
@@ -177,7 +213,6 @@ module RIMS
   class Server
     def initialize(kvs_meta_open: nil,
                    kvs_text_open: nil,
-                   make_user_prefix: nil,
                    authentication: nil,
                    ip_addr: '0.0.0.0',
                    ip_port: 1430,
@@ -185,14 +220,13 @@ module RIMS
       begin
         kvs_meta_open or raise ArgumentError, 'need for a keyword argument: kvs_meta_open'
         kvs_text_open or raise ArgumentError, 'need for a keyword argument: kvs_text_open'
-        make_user_prefix or raise ArgumentError, 'need for a keyword argument: make_user_prefix'
         @authentication = authentication or raise ArgumentError, 'need for a keyword argument: authentication'
 
         @ip_addr = ip_addr
         @ip_port = ip_port
         @logger = logger
 
-        @mail_store_pool = MailStorePool.new(kvs_meta_open, kvs_text_open, make_user_prefix)
+        @mail_store_pool = MailStorePool.new(kvs_meta_open, kvs_text_open)
       rescue
         logger.fatal($!) rescue StandardError
         raise
