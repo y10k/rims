@@ -1,3 +1,10 @@
+2014-07-30  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/mail_store.rb, lib/rims/protocol.rb,
+	lib/rims/server.rb, lib/rims/version.rb:
+	multi-user mailbox. layout of parent directory of mailbox
+	key-value store is changed from single user layout.
+
 2014-07-11  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/auth.rb, lib/rims/cmd.rb, lib/rims/server.rb:
