@@ -169,7 +169,7 @@ module RIMS
       end
 
       options.banner += ' [MESSAGE_FILEs]'
-      options.on('-h', '--help', 'Show this message.')do
+      options.on('-h', '--help', 'Show this message.') do
         puts options
         exit
       end
@@ -304,7 +304,7 @@ module RIMS
       }
 
       options.banner += ' [mailbox directory]'
-      options.on('-h', '--help', 'Show this message.')do
+      options.on('-h', '--help', 'Show this message.') do
         puts options
         exit
       end
@@ -388,7 +388,7 @@ module RIMS
       }
 
       options.banner += ' [DB_NAME]'
-      options.on('-h', '--help', 'Show this message.')do
+      options.on('-h', '--help', 'Show this message.') do
         puts options
         exit
       end
