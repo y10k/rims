@@ -377,6 +377,21 @@ module RIMS
     end
     command_function :cmd_mbox_dirty_flag, 'Show/enable/disable dirty flag of mailbox database.'
 
+    def cmd_unique_user_id(options, args)
+      options.banner += ' [username]'
+      options.parse!(args)
+
+      if (args.length != 1) then
+        raise 'need for a username.'
+      end
+      username = args.shift
+
+      puts Authentication.unique_user_id(username)
+
+      0
+    end
+    command_function :cmd_unique_user_id, 'Show unique user ID from username.'
+
     def cmd_debug_dump_kvs(options, args)
       conf = {
         key_value_store_type: 'GDBM',
