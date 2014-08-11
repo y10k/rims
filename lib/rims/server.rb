@@ -28,7 +28,6 @@ module RIMS
     def base_dir
       @config[:base_dir] or raise 'not defined configuration entry: base_dir'
     end
-    private :base_dir
 
     def through_server_params
       params = @config.dup
