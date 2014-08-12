@@ -28,7 +28,6 @@ module RIMS
     def base_dir
       @config[:base_dir] or raise 'not defined configuration entry: base_dir'
     end
-    private :base_dir
 
     def through_server_params
       params = @config.dup
@@ -169,14 +168,30 @@ module RIMS
     # * <tt>:hostname</tt>
     # * <tt>:username</tt>
     # * <tt>:password</tt>
+    # * <tt>:user_list => [ { 'user' => 'username 1', 'pass' => 'password 1'}, { 'user' => 'username 2', 'pass' => 'password 2' } ]</tt>
     #
     def build_authentication
       hostname = @config.delete(:hostname) || Socket.gethostname
       auth = Authentication.new(hostname: hostname)
 
-      username = @config.delete(:username) or raise 'not defined configuration entry: username'
-      password = @config.delete(:password) or raise 'not defined configuration entry: password'
-      auth.entry(username, password)
+      user_list = []
+
+      if (username = @config.delete(:username)) then
+        password = @config.delete(:password) or raise 'not defined configuration entry: password'
+        user_list << { 'user' => username, 'pass' => password }
+      end
+
+      if (@config.key? :user_list) then
+        user_list += @config.delete(:user_list)
+      end
+
+      if (user_list.empty?) then
+        raise 'empty user list.'
+      end
+
+      for user_entry in user_list
+        auth.entry(user_entry['user'], user_entry['pass'])
+      end
 
       auth
     end

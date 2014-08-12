@@ -116,6 +116,26 @@ module RIMS::Test
         refute(auth.authenticate_login(username.succ, password), 'mismatch username')
         refute(auth.authenticate_login(username, password.succ), 'mismatch password')
       }
+
+      assert_build_authentication({ user_list: [
+                                      { 'user' => username, 'pass' => password },
+                                      { 'user' => username.succ, 'pass' => password.succ }
+                                    ]
+                                  }) {|auth|
+        assert(auth.authenticate_login(username, password), 'user 1')
+        assert(auth.authenticate_login(username.succ, password.succ), 'user 2')
+        refute(auth.authenticate_login(username.succ.succ, password.succ.succ), 'user 3')
+      }
+
+      assert_build_authentication({ username: username, password: password,
+                                    user_list: [
+                                      { 'user' => username.succ, 'pass' => password.succ }
+                                    ]
+                                  }) {|auth|
+        assert(auth.authenticate_login(username, password), 'user 1')
+        assert(auth.authenticate_login(username.succ, password.succ), 'user 2')
+        refute(auth.authenticate_login(username.succ.succ, password.succ.succ), 'user 3')
+      }
     end
   end
 

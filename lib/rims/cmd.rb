@@ -377,6 +377,46 @@ module RIMS
     end
     command_function :cmd_mbox_dirty_flag, 'Show/enable/disable dirty flag of mailbox database.'
 
+    def cmd_unique_user_id(options, args)
+      options.banner += ' [username]'
+      options.parse!(args)
+
+      if (args.length != 1) then
+        raise 'need for a username.'
+      end
+      username = args.shift
+
+      puts Authentication.unique_user_id(username)
+
+      0
+    end
+    command_function :cmd_unique_user_id, 'Show unique user ID from username.'
+
+    def cmd_show_user_mbox(options, args)
+      conf = Config.new
+      defined_config_yml = false
+
+      options.banner += ' [base directory] [username] OR -f [config.yml path] [username]'
+      options.on('-f', '--config-yaml=CONFIG_FILE',
+                 'Load optional parameters from CONFIG_FILE.') do |path|
+        conf.load_config_yaml(path)
+        defined_config_yml = true
+      end
+      options.parse!(args)
+
+      unless (defined_config_yml) then
+        base_dir = args.shift or raise 'need for base directory.'
+        conf.load(base_dir: base_dir)
+      end
+
+      username = args.shift or raise 'need for a username.'
+      unique_user_id = Authentication.unique_user_id(username)
+      puts conf.make_key_value_store_path_from_base_dir(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id)
+
+      0
+    end
+    command_function :cmd_show_user_mbox, "Show the path in which user's mailbox data is stored."
+
     def cmd_debug_dump_kvs(options, args)
       conf = {
         key_value_store_type: 'GDBM',
