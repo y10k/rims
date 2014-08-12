@@ -1,3 +1,9 @@
+2014-08-12  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb, lib/rims/server.rb: user list entry for
+	multi-user account is defined at server configuration file. some
+	maintenance commands of multi-user mailbox is defined.
+
 2014-07-30  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/mail_store.rb, lib/rims/protocol.rb,
