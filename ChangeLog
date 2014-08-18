@@ -1,3 +1,7 @@
+2014-08-18  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb: I/O string debug log utility function.
+
 2014-08-12  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb, lib/rims/server.rb: user list entry for
