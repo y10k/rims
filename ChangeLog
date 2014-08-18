@@ -1,5 +1,7 @@
 2014-08-18  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/server.rb: stop server message.
+
 	* lib/rims/protocol.rb: I/O string debug log utility function.
 
 2014-08-12  TOKI Yoshinori  <toki@freedom.ne.jp>
