@@ -26,6 +26,16 @@ module RIMS
     end
     module_function :compile_wildcard
 
+    def io_data_log(str)
+      s = '<'
+      s << str.encoding.to_s
+      if (str.ascii_only?) then
+        s << ':ascii_only'
+      end
+      s << '> ' << str.inspect
+    end
+    module_function :io_data_log
+
     FetchBody = Struct.new(:symbol, :option, :section, :section_list, :partial_origin, :partial_size)
 
     class FetchBody
@@ -67,7 +77,7 @@ module RIMS
 
       def read_line
         line = @input.gets or return
-        @logger.debug("read line: <#{line.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{line.inspect}") if @logger.debug?
+        @logger.debug("read line: #{Protocol.io_data_log(line)}") if @logger.debug?
         line.chomp!("\n")
         line.chomp!("\r")
         scan_line(line)
@@ -103,7 +113,7 @@ module RIMS
           @output.write("+ continue\r\n")
           @logger.debug('continue literal.') if @logger.debug?
           literal_string = @input.read(next_size) or raise 'unexpected client close.'
-          @logger.debug("read literal: <#{literal_string.encoding}#{line.ascii_only? ? ':ascii-only' : ''}> #{literal_string.inspect}") if @logger.debug?
+          @logger.debug("read literal: #{Protocol.io_data_log(literal_string)}") if @logger.debug?
           atom_list[-1] = literal_string
           next_atom_list = read_line or raise 'unexpected client close.'
           atom_list += next_atom_list
@@ -212,7 +222,7 @@ module RIMS
       def read_client_response_data(server_challenge_data=nil)
         if (server_challenge_data) then
           server_challenge_data_base64 = encode_base64(server_challenge_data)
-          @logger.debug("authenticate command: server challenge data: <#{server_challenge_data_base64.encoding}#{server_challenge_data_base64.ascii_only? ? ':ascii-only' : ''}> #{server_challenge_data_base64}") if @logger.debug?
+          @logger.debug("authenticate command: server challenge data: #{Protocol.io_data_log(server_challenge_data_base64)}") if @logger.debug?
           @output.write("+ #{server_challenge_data_base64}\r\n")
         else
           @logger.debug("authenticate command: server challenge data is nil.") if @logger.debug?
@@ -221,7 +231,7 @@ module RIMS
 
         if (client_response_data_base64 = @input.gets) then
           client_response_data_base64.strip!
-          @logger.debug("authenticate command: client response data: <#{client_response_data_base64.encoding}#{client_response_data_base64.ascii_only? ? ':ascii-only' : ''}> #{client_response_data_base64}") if @logger.debug?
+          @logger.debug("authenticate command: client response data: #{Protocol.io_data_log(client_response_data_base64)}") if @logger.debug?
           if (client_response_data_base64 == '*') then
             @logger.debug("authenticate command: no authentication from client.") if @logger.debug?
             return :*
@@ -1887,7 +1897,7 @@ module RIMS
           begin
             last_line = nil
             for data in res
-              logger.debug("response data: <#{data.encoding}#{data.ascii_only? ? ':ascii-only' : ''}> #{data.inspect}") if logger.debug?
+              logger.debug("response data: #{Protocol.io_data_log(data)}") if logger.debug?
               output << data
               last_line = data
             end
