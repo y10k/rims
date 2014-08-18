@@ -272,6 +272,8 @@ module RIMS
     rescue
       @logger.error($!)
       raise
+    ensure
+      @logger.info('stop sever.')
     end
   end
 end
