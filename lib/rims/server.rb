@@ -27,8 +27,22 @@ module RIMS
     end
 
     def load_config_yaml(path)
-      for name, value in YAML.load_file(path)
-        @config[name.to_sym] = value
+      load_config_from_base_dir(YAML.load_file(path), File.dirname(path))
+    end
+
+    def load_config_from_base_dir(config, base_dir)
+      @config[:base_dir] = base_dir
+      for name, value in config
+        case (key_sym = name.to_sym)
+        when :base_dir
+          if (relative_path? value) then
+            @config[:base_dir] = File.join(base_dir, value)
+          else
+            @config[:base_dir] = value
+          end
+        else
+          @config[key_sym] = value
+        end
       end
       self
     end

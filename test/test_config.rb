@@ -13,6 +13,13 @@ module RIMS::Test
       @base_dir = 'dummy_test_base_dir'
     end
 
+    def assert_load_from_base_dir(conf_params)
+      conf = RIMS::Config.new
+      conf.load_config_from_base_dir(conf_params, @base_dir)
+      yield(conf)
+    end
+    private :assert_load_from_base_dir
+
     def assert_config(conf_params)
       conf = RIMS::Config.new
       conf.load(base_dir: @base_dir)
@@ -43,11 +50,36 @@ module RIMS::Test
     end
     private :assert_build_authentication
 
-    def test_relative_path?
-      assert_equal(true, (RIMS::Config.relative_path? 'imap.log'))
-      assert_equal(true, (RIMS::Config.relative_path? './imap.log'))
-      assert_equal(true, (RIMS::Config.relative_path? 'foo/bar/imap.log'))
-      assert_equal(false, (RIMS::Config.relative_path? '/var/rims/imap.log'))
+    def test_load_from_base_dir
+      assert_load_from_base_dir({}) {|conf|
+        assert_equal(@base_dir, conf.base_dir)
+        assert_equal({}, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ ip_addr: '192.168.0.1' }) {|conf|
+        assert_equal(@base_dir, conf.base_dir)
+        assert_equal({ ip_addr: '192.168.0.1' }, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ base_dir: 'foo' }) {|conf|
+        assert_equal(File.join(@base_dir, 'foo'), conf.base_dir)
+        assert_equal({}, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ base_dir: 'foo', ip_addr: '192.168.0.1' }) {|conf|
+        assert_equal(File.join(@base_dir, 'foo'), conf.base_dir)
+        assert_equal({ ip_addr: '192.168.0.1' }, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ base_dir: '/foo' }) {|conf|
+        assert_equal('/foo', conf.base_dir)
+        assert_equal({}, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ base_dir: '/foo', ip_addr: '192.168.0.1' }) {|conf|
+        assert_equal('/foo', conf.base_dir)
+        assert_equal({ ip_addr: '192.168.0.1' }, conf.through_server_params)
+      }
     end
 
     def test_logging_params
