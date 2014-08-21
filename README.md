@@ -83,6 +83,10 @@ To start server with config.yml file, type following.
   is saved with its checksum to an entry of key-value store, and a
   checksum is checked on loading a mailbox data from an entry of
   key-value store. Default is true.</dd>
+
+  <dt>hostname</dt>
+  <dd>This parameter describes a hostname of server. Default is the
+  name displayed by hostname(1) command.</dd>
 </dl>
 
 ## Mailbox Data
