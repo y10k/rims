@@ -87,6 +87,18 @@ To start server with config.yml file, type following.
   <dt>hostname</dt>
   <dd>This parameter describes a hostname of server. Default is the
   name displayed by hostname(1) command.</dd>
+
+  <dt>username</dt>
+  <dd>This parameter describes a name of mailbox user. This parameter
+  and the next password parameter are the pair. If there are two or
+  many users, user_list parameter should be used instead of this
+  parameter. At least one user is need to start a server.</dd>
+
+  <dt>password</dt>
+  <dd>This parameter describes a password of mailbox user. This
+  parameter and the previous username parameter are the pair. If there
+  are two or many users, user_list parameter should be used instead of
+  this parameter. At least one user is need to start a server.</dd>
 </dl>
 
 ## Mailbox Data
