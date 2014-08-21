@@ -99,6 +99,13 @@ To start server with config.yml file, type following.
   parameter and the previous username parameter are the pair. If there
   are two or many users, user_list parameter should be used instead of
   this parameter. At least one user is need to start a server.</dd>
+
+  <dt>user_list</dt>
+  <dd>This parameter describes many users of mailbox. The value of
+  this parameter is a sequence of maps. A map in the sequence should
+  have two entries, the two entries are user and pass. user entry
+  describes name of a user. pass entry describes password of a
+  user. At least one user is need to start a server.</dd>
 </dl>
 
 ## Mailbox Data
