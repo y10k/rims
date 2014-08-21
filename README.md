@@ -71,6 +71,18 @@ To start server with config.yml file, type following.
   <dd>This parameter describes a maximum log file size on log file
   rotation. Default is none. See description of Logger.new class
   method for more detail of log rotation.</dd>
+
+  <dt>key_value_store_type</dt>
+  <dd>This parameter describes a type of key-value store. Key-value
+  store is used to save a mailbox data. This parameter is only one
+  value of GDBM, and it is default value.</dd>
+
+  <dt>use_key_value_store_checksum</dt>
+  <dd>This parameter decides whether to use checksum. This parameter
+  is boolean, true or false. If this parameter is true, a mailbox data
+  is saved with its checksum to an entry of key-value store, and a
+  checksum is checked on loading a mailbox data from an entry of
+  key-value store. Default is true.</dd>
 </dl>
 
 ## Mailbox Data
