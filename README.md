@@ -36,6 +36,17 @@ To start server with config.yml file, type following.
 
     $ rims server -f a_server_directory/config.yml
 
+### Config.yml Parameters
+
+<dl>
+  <dt>base_dir</dt>
+  <dd>This parameter describes a base directory of server. Mailbox
+  data is located at inside of base directory. Default is a parent
+  directory of config.yml file. Explicit description of this parameter
+  is interpreted as a relative path from a parent directory of
+  config.yml file.</dd>
+</dl>
+
 ## Mailbox Data
 
 ## History
