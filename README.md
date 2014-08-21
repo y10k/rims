@@ -28,6 +28,14 @@ To append messages to IMAP mailbox, type following and read usage.
 
 ## Server Configuration
 
+Server options on start may be described at config.yml file.
+Config.yml is a YAML format file and its contents are explained
+at later.
+
+To start server with config.yml file, type following.
+
+    $ rims server -f a_server_directory/config.yml
+
 ## Mailbox Data
 
 ## History
