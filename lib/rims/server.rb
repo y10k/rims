@@ -68,7 +68,7 @@ module RIMS
     #
     def logging_params
       log_file = @config.delete(:log_file) || 'imap.log'
-      log_file = File.join(base_dir, File.basename(log_file))
+      log_file_path = File.join(base_dir, File.basename(log_file))
 
       log_level = @config.delete(:log_level) || 'INFO'
       log_level = log_level.upcase
@@ -83,7 +83,7 @@ module RIMS
         log_opt_args << 1 <<  @config.delete(:log_shift_size) if (@config.key? :log_shift_size)
       end
 
-      { log_file: log_file,
+      { log_file: log_file_path,
         log_level: log_level,
         log_opt_args: log_opt_args
       }
