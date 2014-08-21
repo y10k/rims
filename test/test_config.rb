@@ -43,6 +43,13 @@ module RIMS::Test
     end
     private :assert_build_authentication
 
+    def test_relative_path?
+      assert_equal(true, (RIMS::Config.relative_path? 'imap.log'))
+      assert_equal(true, (RIMS::Config.relative_path? './imap.log'))
+      assert_equal(true, (RIMS::Config.relative_path? 'foo/bar/imap.log'))
+      assert_equal(false, (RIMS::Config.relative_path? '/var/rims/imap.log'))
+    end
+
     def test_logging_params
       assert_logging_params({}, {
                               log_file: File.join(@base_dir, 'imap.log'),

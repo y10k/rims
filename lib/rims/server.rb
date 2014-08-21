@@ -1,11 +1,22 @@
 # -*- coding: utf-8 -*-
 
+require 'forwardable'
 require 'logger'
+require 'pathname'
 require 'socket'
 require 'yaml'
 
 module RIMS
   class Config
+    extend Forwardable
+
+    def self.relative_path?(path)
+      Pathname.new(path).relative?
+    end
+
+    def_delegator 'self.class', :relative_path?
+    private :relative_path?
+
     def initialize
       @config = {}
     end
