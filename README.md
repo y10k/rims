@@ -45,6 +45,32 @@ To start server with config.yml file, type following.
   directory of config.yml file. Explicit description of this parameter
   is interpreted as a relative path from a parent directory of
   config.yml file.</dd>
+
+  <dt>log_file</dt>
+  <dd>This parameter describes a path of log file. Default is
+  "imap.log" under the base_dir. Explicit description of this
+  parameter is interpreted as a relative path from a base_dir.</dd>
+
+  <dt>log_level</dt>
+  <dd>This parameter describes a severity level of logging
+  messages. See description of Logger class for more detail of
+  logging. This parameter is one value selected from DEBUG, INFO,
+  WARN, ERROR or FATAL. Default is INFO. The danger is that password
+  may be embedded in message on user authentication in DEBUG logging
+  level.</dd>
+
+  <dt>log_shift_age</dt>
+  <dd>This parameter describes a number of old rotated log files to
+  keep or periodical log rotation. Decimal number is interpreted as a
+  number of files to keep. Periodical log rotation is one value
+  selected from daily, weekly or monthly. Default is none. See
+  description of Logger.new class method for more detail of log
+  rotation.</dd>
+
+  <dt>log_shift_size</dt>
+  <dd>This parameter describes a maximum log file size on log file
+  rotation. Default is none. See description of Logger.new class
+  method for more detail of log rotation.</dd>
 </dl>
 
 ## Mailbox Data
