@@ -15,6 +15,16 @@ Rake::RDocTask.new do |rd|
   rd.rdoc_files.include('lib/**/*.rb')
 end
 
+desc 'Build README.html from markdown source.'
+task :readme do
+  sh "markdown README.md >README.html"
+end
+
+desc 'Remove README.html.'
+task :clobber_readme do
+  rm_f 'README.html'
+end
+
 # Local Variables:
 # mode: Ruby
 # indent-tabs-mode: nil
