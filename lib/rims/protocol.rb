@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'forwardable'
 require 'net/imap'
 require 'set'
 require 'time'
@@ -167,6 +168,8 @@ module RIMS
     end
 
     class AuthenticationReader
+      extend Forwardable
+
       class << self
         def encode_base64(plain_txt)
           [ plain_txt ].pack('m').each_line.map{|line| line.strip }.join('')
@@ -177,15 +180,8 @@ module RIMS
         end
       end
 
-      def encode_base64(plain_txt)
-        self.class.encode_base64(plain_txt)
-      end
-      private :encode_base64
-
-      def decode_base64(base64_txt)
-        self.class.decode_base64(base64_txt)
-      end
-      private :decode_base64
+      def_delegators 'self.class', :encode_base64, :decode_base64
+      private :encode_base64, :decode_base64
 
       def initialize(auth, input, output, logger)
         @auth = auth
