@@ -12,7 +12,7 @@ And then execute:
 
     $ bundle
 
-## Usage
+## Simple Usage
 
 Type following to show usage.
 
@@ -25,6 +25,10 @@ To start IMAP server, type following and read usage.
 To append messages to IMAP mailbox, type following and read usage.
 
     $ rims imap-append --help
+
+## Server Configuration
+
+## Mailbox Data
 
 ## History
 
