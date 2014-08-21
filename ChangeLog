@@ -1,3 +1,10 @@
+2014-08-21  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/server.rb: path location described at config.yml is changed.
+	on loading config.yml, base_dir is a relative path from a parent
+	directory of config.yml file. log file path is a relative path
+	from a base_dir.
+
 2014-08-18  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/server.rb: stop server message.

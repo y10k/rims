@@ -1,11 +1,22 @@
 # -*- coding: utf-8 -*-
 
+require 'forwardable'
 require 'logger'
+require 'pathname'
 require 'socket'
 require 'yaml'
 
 module RIMS
   class Config
+    extend Forwardable
+
+    def self.relative_path?(path)
+      Pathname.new(path).relative?
+    end
+
+    def_delegator 'self.class', :relative_path?
+    private :relative_path?
+
     def initialize
       @config = {}
     end
@@ -16,8 +27,22 @@ module RIMS
     end
 
     def load_config_yaml(path)
-      for name, value in YAML.load_file(path)
-        @config[name.to_sym] = value
+      load_config_from_base_dir(YAML.load_file(path), File.dirname(path))
+    end
+
+    def load_config_from_base_dir(config, base_dir)
+      @config[:base_dir] = base_dir
+      for name, value in config
+        case (key_sym = name.to_sym)
+        when :base_dir
+          if (relative_path? value) then
+            @config[:base_dir] = File.join(base_dir, value)
+          else
+            @config[:base_dir] = value
+          end
+        else
+          @config[key_sym] = value
+        end
       end
       self
     end
@@ -43,7 +68,11 @@ module RIMS
     #
     def logging_params
       log_file = @config.delete(:log_file) || 'imap.log'
-      log_file = File.join(base_dir, File.basename(log_file))
+      if (relative_path? log_file) then
+        log_file_path = File.join(base_dir, log_file)
+      else
+        log_file_path = log_file
+      end
 
       log_level = @config.delete(:log_level) || 'INFO'
       log_level = log_level.upcase
@@ -58,7 +87,7 @@ module RIMS
         log_opt_args << 1 <<  @config.delete(:log_shift_size) if (@config.key? :log_shift_size)
       end
 
-      { log_file: log_file,
+      { log_file: log_file_path,
         log_level: log_level,
         log_opt_args: log_opt_args
       }

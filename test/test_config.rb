@@ -13,6 +13,13 @@ module RIMS::Test
       @base_dir = 'dummy_test_base_dir'
     end
 
+    def assert_load_from_base_dir(conf_params)
+      conf = RIMS::Config.new
+      conf.load_config_from_base_dir(conf_params, @base_dir)
+      yield(conf)
+    end
+    private :assert_load_from_base_dir
+
     def assert_config(conf_params)
       conf = RIMS::Config.new
       conf.load(base_dir: @base_dir)
@@ -43,6 +50,38 @@ module RIMS::Test
     end
     private :assert_build_authentication
 
+    def test_load_from_base_dir
+      assert_load_from_base_dir({}) {|conf|
+        assert_equal(@base_dir, conf.base_dir)
+        assert_equal({}, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ ip_addr: '192.168.0.1' }) {|conf|
+        assert_equal(@base_dir, conf.base_dir)
+        assert_equal({ ip_addr: '192.168.0.1' }, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ base_dir: 'foo' }) {|conf|
+        assert_equal(File.join(@base_dir, 'foo'), conf.base_dir)
+        assert_equal({}, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ base_dir: 'foo', ip_addr: '192.168.0.1' }) {|conf|
+        assert_equal(File.join(@base_dir, 'foo'), conf.base_dir)
+        assert_equal({ ip_addr: '192.168.0.1' }, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ base_dir: '/foo' }) {|conf|
+        assert_equal('/foo', conf.base_dir)
+        assert_equal({}, conf.through_server_params)
+      }
+
+      assert_load_from_base_dir({ base_dir: '/foo', ip_addr: '192.168.0.1' }) {|conf|
+        assert_equal('/foo', conf.base_dir)
+        assert_equal({ ip_addr: '192.168.0.1' }, conf.through_server_params)
+      }
+    end
+
     def test_logging_params
       assert_logging_params({}, {
                               log_file: File.join(@base_dir, 'imap.log'),
@@ -52,6 +91,18 @@ module RIMS::Test
 
       assert_logging_params({ log_file: 'server.log' }, {
                               log_file: File.join(@base_dir, 'server.log'),
+                              log_level: Logger::INFO,
+                              log_opt_args: []
+                            })
+
+      assert_logging_params({ log_file: 'foo/bar/server.log' }, {
+                              log_file: File.join(@base_dir, 'foo/bar/server.log'),
+                              log_level: Logger::INFO,
+                              log_opt_args: []
+                            })
+
+      assert_logging_params({ log_file: '/var/rims/server.log' }, {
+                              log_file: '/var/rims/server.log',
                               log_level: Logger::INFO,
                               log_opt_args: []
                             })
