@@ -95,6 +95,18 @@ module RIMS::Test
                               log_opt_args: []
                             })
 
+      assert_logging_params({ log_file: 'foo/bar/server.log' }, {
+                              log_file: File.join(@base_dir, 'foo/bar/server.log'),
+                              log_level: Logger::INFO,
+                              log_opt_args: []
+                            })
+
+      assert_logging_params({ log_file: '/var/rims/server.log' }, {
+                              log_file: '/var/rims/server.log',
+                              log_level: Logger::INFO,
+                              log_opt_args: []
+                            })
+
       assert_logging_params({ log_shift_age: 'daily' }, {
                               log_file: File.join(@base_dir, 'imap.log'),
                               log_level: Logger::INFO,

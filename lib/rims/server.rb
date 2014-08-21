@@ -68,7 +68,11 @@ module RIMS
     #
     def logging_params
       log_file = @config.delete(:log_file) || 'imap.log'
-      log_file_path = File.join(base_dir, File.basename(log_file))
+      if (relative_path? log_file) then
+        log_file_path = File.join(base_dir, log_file)
+      else
+        log_file_path = log_file
+      end
 
       log_level = @config.delete(:log_level) || 'INFO'
       log_level = log_level.upcase
