@@ -167,6 +167,22 @@ one type of key-value store is available now, it is GDBM.  A GDBM
 key-value store file has a filename suffix, the suffix is ".gdbm".
 Mailbox data does not depend on a specific type of key-value store.
 
+### Message key-value store
+
+Message key-value store file preserves all messages of a user.  Per
+one user, only one file exists about this file type.  Contents of
+message key-value store is simple.  A key is a message ID, and a value
+is message text.  A message ID is a unique number of a message in RIMS
+internal.  For example, type following to see overview of contents at
+a message key-value store.
+
+    $ rims debug-dump-kvs --dump-size --no-dump-value a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/message
+    "2": 21938 bytes
+    "1": 126014 bytes
+    "4": 22928 bytes
+    "0": 6326 bytes
+    "3": 65168 bytes
+
 ## History
 
 * v0.0.4 (Latest version)
