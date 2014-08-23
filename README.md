@@ -118,6 +118,55 @@ To start server with config.yml file, type following.
 
 ## Mailbox Data
 
+Mailbox data exists under the base directory. Next picture is a
+overview of mailbox data filesystem under the base directory.
+
+    a_base_directory
+    |
+    +-- mailbox.2/
+        |
+        +-- 2c/
+            |
+            +-- 26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/
+                |
+                +-- message
+                |
+                +-- meta
+                |
+                +-- mailbox_1
+                |
+                +-- mailbox_2
+                |
+				...
+
+There is a MAILBOX\_DATA\_STRUCTURE\_VERSION directory under first
+inside of the base directory.  When mailbox data structure will be
+changed in future, MAILBOX\_DATA\_STRUCTURE\_VERSION directory will be
+changed too.  Now latest version is "mailbox.2".
+
+There are user directories under the MAILBOX\_DATA\_STRUCTURE\_VERSION
+directory.  A user is identified by unique user ID.  Unique user ID is
+a SHA256 HEX digest of a username.  For example, type following to
+display a "foo" user's unique user ID.
+
+    $ rims unique-user-id foo
+    2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae 
+
+First two characters of unique user ID is used as a bucket directory.
+Unique user ID substring from 3rd character to last exists as a user
+directory under the bucket directory.  Shortcut tool to search a two
+level directory of a user under a base directory exists.  For example,
+type following to display a "foo" user's directory.
+
+    $ rims show-user-mbox a_base_directory foo
+    a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
+
+There are three types of files under the user directory.  Three types
+are message, meta and mailbox.  Each file is key-value store.  Only
+one type of key-value store is available now, it is GDBM.  A GDBM
+key-value store file has a filename suffix, the suffix is ".gdbm".
+Mailbox data does not depend on a specific type of key-value store.
+
 ## History
 
 * v0.0.4 (Latest version)
