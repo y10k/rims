@@ -183,6 +183,89 @@ a message key-value store.
     "0": 6326 bytes
     "3": 65168 bytes
 
+### Meta key-value store
+
+Meta key-value store file preserves all meta data of message and
+folders.  Per one user, only one file exists about this file type.
+Contents of meta key-value store is complex, and only outline of
+content is described here.
+
+<dl>
+  <dt>dirty</dt>
+  <dd>Dirty flag. If enabled, this flag exists. If disabled, this flag
+  doesn't exists. This flag will be enabled on updating mailbox
+  data.</dd>
+
+  <dt>cnum</dt>
+  <dd>A change number of mailbox data. If mailbox data is modified,
+  this number is increased.</dd>
+
+  <dt>msg_id</dt>
+  <dd>The next number of message ID. Message ID is unique number of
+  message in RIMS internal.</dd>
+
+  <dt>uidvalidity</dt>
+  <dd>The next number of uidvalidity. Uidvalidity is unique number of
+  mailbox in IMAP.</dd>
+
+  <dt>mbox_set</dt>
+  <dd>Mailbox set of a user.</dd>
+
+  <dt>mbox_id2name-#</dt>
+  <dd>Mapping from mailbox ID to mailbox name.</dd>
+
+  <dt>mbox_name2id-#</dt>
+  <dd>Mapping from mailbox name to mailbox ID.</dd>
+
+  <dt>mbox_id2uid-#</dt>
+  <dd>The next uid at a mailbox. Uid is unique number of message at a
+  mailbox in IMAP.</dd>
+
+  <dt>mbox_id2msgnum-#</dt>
+  <dd>Number of messages at a mailbox.</dd>
+
+  <dt>mbox_id2flagnum-#-#</dt>
+  <dd>Number of flags at a mailbox.</dd>
+
+  <dt>msg_id2date-#</dt>
+  <dd>Mapping from message ID to internal date of a message. Internal
+  date is a message attribute in IMAP.</dd>
+
+  <dt>msg_id2flag-#</dt>
+  <dd>Set of flags at a message.</dd>
+
+  <dt>msg_id2mbox-#</dt>
+  <dd>Mapping from message ID to mailbox's uid.</dd>
+</dl>
+
+For example, type following to see overview of contents at a meta key-value store.
+
+    $ rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/meta
+    "msg_id2mbox-3": 25 bytes: {1=>#<Set: {4}>}
+    "msg_id2date-2": 49 bytes: 2013-11-08 13:34:10 +0900
+    "mbox_id2uid-1": 1 bytes: "6"
+    "msg_id2mbox-1": 25 bytes: {1=>#<Set: {2}>}
+    "msg_id2flag-2": 6 bytes: "recent"
+    "mbox_id2msgnum-1": 1 bytes: "5"
+    "uidvalidity": 1 bytes: "2"
+    "mbox_id2flagnum-1-recent": 1 bytes: "5"
+    "msg_id2date-0": 49 bytes: 2013-11-08 06:47:50 +0900
+    "cnum": 1 bytes: "6"
+    "msg_id2date-4": 49 bytes: 2013-11-08 11:57:28 +0900
+    "msg_id2mbox-2": 25 bytes: {1=>#<Set: {3}>}
+    "mbox_set": 1 bytes: "1"
+    "msg_id2flag-0": 6 bytes: "recent"
+    "msg_id2flag-4": 6 bytes: "recent"
+    "msg_id2date-1": 49 bytes: 2013-11-08 19:31:03 +0900
+    "msg_id": 1 bytes: "5"
+    "mbox_id2name-1": 5 bytes: "INBOX"
+    "msg_id2mbox-0": 25 bytes: {1=>#<Set: {1}>}
+    "mbox_name2id-INBOX": 1 bytes: "1"
+    "msg_id2mbox-4": 25 bytes: {1=>#<Set: {5}>}
+    "msg_id2flag-1": 6 bytes: "recent"
+    "msg_id2date-3": 49 bytes: 2013-11-08 12:47:17 +0900
+    "msg_id2flag-3": 6 bytes: "recent"
+
 ## History
 
 * v0.0.4 (Latest version)
