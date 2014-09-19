@@ -1334,6 +1334,8 @@ module RIMS
           else
             res << "#{tag} NO duplicated authentication\r\n"
           end
+
+          return res, self
         }
       end
 
@@ -1351,6 +1353,8 @@ module RIMS
           else
             res << "#{tag} NO duplicated login\r\n"
           end
+
+          return res, self
         }
       end
 
@@ -1928,9 +1932,9 @@ module RIMS
             when 'LOGOUT'
               res = decoder.logout(tag, *opt_args)
             when 'AUTHENTICATE'
-              res = decoder.authenticate(input, output, tag, *opt_args)
+              res, decoder = decoder.authenticate(input, output, tag, *opt_args)
             when 'LOGIN'
-              res = decoder.login(tag, *opt_args)
+              res, decoder = decoder.login(tag, *opt_args)
             when 'SELECT'
               res = decoder.select(tag, *opt_args)
             when 'EXAMINE'
