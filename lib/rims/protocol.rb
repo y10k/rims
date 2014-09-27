@@ -1285,7 +1285,8 @@ module RIMS
         nil
       end
 
-      def initialize(logger)
+      def initialize(auth, logger)
+        @auth = auth
         @logger = logger
       end
 
@@ -1320,11 +1321,23 @@ module RIMS
         }
       end
       private :response_stream
+
+      def ok_greeting
+        [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ]
+      end
+
+      def capability(tag)
+        capability_list = %w[ IMAP4rev1 ] + @auth.capability.map{|auth_capability| "AUTH=#{auth_capability}" }
+
+        res = []
+        res << "* CAPABILITY #{capability_list.join(' ')}\r\n"
+        res << "#{tag} OK CAPABILITY completed\r\n"
+      end
     end
 
     class InitialDecoder < Decoder
       def initialize(mail_store_pool, auth, logger)
-        super(logger)
+        super(auth, logger)
         @mail_store_pool = mail_store_pool
         @folder = nil
         @auth = auth
@@ -1347,24 +1360,9 @@ module RIMS
       end
       private :not_authenticated_response
 
-      def ok_greeting
-        [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ]
-      end
-
-      def capability(tag)
-        capability_list = %w[ IMAP4rev1 ]
-        for auth_capability in @auth.capability
-          capability_list << "AUTH=#{auth_capability}"
-        end
-        [ "* CAPABILITY #{capability_list.join(' ')}\r\n",
-          "#{tag} OK CAPABILITY completed\r\n"
-        ]
-      end
-
       def noop(tag)
         protect_error(tag) {
-          res = []
-          res << "#{tag} OK NOOP completed\r\n"
+          [ "#{tag} OK NOOP completed\r\n" ]
         }
       end
 
@@ -1509,11 +1507,10 @@ module RIMS
 
     class AuthenticatedDecoder < Decoder
       def initialize(parent_decoder, mail_store_holder, auth, logger)
-        super(logger)
+        super(auth, logger)
         @parent_decoder = parent_decoder
         @mail_store_holder = mail_store_holder
         @folder = nil
-        @auth = auth
       end
 
       def auth?
@@ -1583,20 +1580,6 @@ module RIMS
         }
       end
       private :lock_folder
-
-      def ok_greeting
-        [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ]
-      end
-
-      def capability(tag)
-        capability_list = %w[ IMAP4rev1 ]
-        for auth_capability in @auth.capability
-          capability_list << "AUTH=#{auth_capability}"
-        end
-        [ "* CAPABILITY #{capability_list.join(' ')}\r\n",
-          "#{tag} OK CAPABILITY completed\r\n"
-        ]
-      end
 
       def noop(tag)
         protect_error(tag) {
