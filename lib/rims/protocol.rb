@@ -1284,15 +1284,51 @@ module RIMS
 
         nil
       end
+
+      def initialize(logger)
+        @logger = logger
+      end
+
+      def protect_error(tag)
+        begin
+          yield
+        rescue SyntaxError
+          @logger.error('client command syntax error.')
+          @logger.error($!)
+          [ "#{tag} BAD client command syntax error\r\n" ]
+        rescue
+          @logger.error('internal server error.')
+          @logger.error($!)
+          [ "#{tag} BAD internal server error\r\n" ]
+        end
+      end
+      private :protect_error
+
+      def response_stream(tag)
+        Enumerator.new{|res|
+          begin
+            yield(res)
+          rescue SyntaxError
+            @logger.error('client command syntax error.')
+            @logger.error($!)
+            res << "#{tag} BAD client command syntax error\r\n"
+          rescue
+            @logger.error('internal server error.')
+            @logger.error($!)
+            res << "#{tag} BAD internal server error\r\n"
+          end
+        }
+      end
+      private :response_stream
     end
 
     class InitialDecoder < Decoder
       def initialize(mail_store_pool, auth, logger)
+        super(logger)
         @mail_store_pool = mail_store_pool
         @mail_store_holder = nil
         @folder = nil
         @auth = auth
-        @logger = logger
       end
 
       def auth?
@@ -1316,21 +1352,6 @@ module RIMS
         @mail_store_holder.mail_store
       end
       private :get_mail_store
-
-      def protect_error(tag)
-        begin
-          yield
-        rescue SyntaxError
-          @logger.error('client command syntax error.')
-          @logger.error($!)
-          [ "#{tag} BAD client command syntax error\r\n" ]
-        rescue
-          @logger.error('internal server error.')
-          @logger.error($!)
-          [ "#{tag} BAD internal server error\r\n" ]
-        end
-      end
-      private :protect_error
 
       def protect_auth(tag, lock: true)
         protect_error(tag) {
@@ -1357,23 +1378,6 @@ module RIMS
         }
       end
       private :protect_select
-
-      def response_stream(tag)
-        Enumerator.new{|res|
-          begin
-            yield(res)
-          rescue SyntaxError
-            @logger.error('client command syntax error.')
-            @logger.error($!)
-            res << "#{tag} BAD client command syntax error\r\n"
-          rescue
-            @logger.error('internal server error.')
-            @logger.error($!)
-            res << "#{tag} BAD internal server error\r\n"
-          end
-        }
-      end
-      private :response_stream
 
       def lock_folder
         @mail_store_holder.user_lock.synchronize{
@@ -2033,11 +2037,11 @@ module RIMS
 
     class AuthenticatedDecoder < Decoder
       def initialize(parent_decoder, mail_store_holder, auth, logger)
+        super(logger)
         @parent_decoder = parent_decoder
         @mail_store_holder = mail_store_holder
         @folder = nil
         @auth = auth
-        @logger = logger
       end
 
       def auth?
@@ -2067,21 +2071,6 @@ module RIMS
       end
       private :get_mail_store
 
-      def protect_error(tag)
-        begin
-          yield
-        rescue SyntaxError
-          @logger.error('client command syntax error.')
-          @logger.error($!)
-          [ "#{tag} BAD client command syntax error\r\n" ]
-        rescue
-          @logger.error('internal server error.')
-          @logger.error($!)
-          [ "#{tag} BAD internal server error\r\n" ]
-        end
-      end
-      private :protect_error
-
       def protect_auth(tag, lock: true)
         protect_error(tag) {
           if (auth?) then
@@ -2107,23 +2096,6 @@ module RIMS
         }
       end
       private :protect_select
-
-      def response_stream(tag)
-        Enumerator.new{|res|
-          begin
-            yield(res)
-          rescue SyntaxError
-            @logger.error('client command syntax error.')
-            @logger.error($!)
-            res << "#{tag} BAD client command syntax error\r\n"
-          rescue
-            @logger.error('internal server error.')
-            @logger.error($!)
-            res << "#{tag} BAD internal server error\r\n"
-          end
-        }
-      end
-      private :response_stream
 
       def lock_folder
         @mail_store_holder.user_lock.synchronize{
