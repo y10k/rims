@@ -122,7 +122,7 @@ module RIMS::Test
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
 
-      @decoder = RIMS::Protocol::Decoder.new(@mail_store_pool, @auth, @logger)
+      @decoder = RIMS::Protocol::Decoder.new_decoder(@mail_store_pool, @auth, @logger)
       @tag = 'T000'
     end
 

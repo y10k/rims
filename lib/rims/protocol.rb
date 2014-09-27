@@ -1150,6 +1150,143 @@ module RIMS
     end
 
     class Decoder
+      def self.new_decoder(*args)
+        InitialDecoder.new(*args)
+      end
+
+      def self.repl(decoder, input, output, logger)
+        response_write = proc{|res|
+          begin
+            last_line = nil
+            for data in res
+              logger.debug("response data: #{Protocol.io_data_log(data)}") if logger.debug?
+              output << data
+              last_line = data
+            end
+            output.flush
+            logger.info("server response: #{last_line.strip}")
+          rescue
+            logger.error('response write error.')
+            logger.error($!)
+            raise
+          end
+        }
+
+        response_write.call(decoder.ok_greeting)
+
+        request_reader = Protocol::RequestReader.new(input, output, logger)
+        loop do
+          begin
+            atom_list = request_reader.read_command
+          rescue
+            logger.error('invalid client command.')
+            logger.error($!)
+            response_write.call([ "* BAD client command syntax error\r\n" ])
+            next
+          end
+
+          break unless atom_list
+
+          tag, command, *opt_args = atom_list
+          logger.info("client command: #{tag} #{command}")
+          logger.debug("client command parameter: #{opt_args.inspect}") if logger.debug?
+
+          begin
+            case (command.upcase)
+            when 'CAPABILITY'
+              res = decoder.capability(tag, *opt_args)
+            when 'NOOP'
+              res = decoder.noop(tag, *opt_args)
+            when 'LOGOUT'
+              res = decoder.logout(tag, *opt_args)
+            when 'AUTHENTICATE'
+              res, decoder = decoder.authenticate(input, output, tag, *opt_args)
+            when 'LOGIN'
+              res, decoder = decoder.login(tag, *opt_args)
+            when 'SELECT'
+              res = decoder.select(tag, *opt_args)
+            when 'EXAMINE'
+              res = decoder.examine(tag, *opt_args)
+            when 'CREATE'
+              res = decoder.create(tag, *opt_args)
+            when 'DELETE'
+              res = decoder.delete(tag, *opt_args)
+            when 'RENAME'
+              res = decoder.rename(tag, *opt_args)
+            when 'SUBSCRIBE'
+              res = decoder.subscribe(tag, *opt_args)
+            when 'UNSUBSCRIBE'
+              res = decoder.unsubscribe(tag, *opt_args)
+            when 'LIST'
+              res = decoder.list(tag, *opt_args)
+            when 'LSUB'
+              res = decoder.lsub(tag, *opt_args)
+            when 'STATUS'
+              res = decoder.status(tag, *opt_args)
+            when 'APPEND'
+              res = decoder.append(tag, *opt_args)
+            when 'CHECK'
+              res = decoder.check(tag, *opt_args)
+            when 'CLOSE'
+              res = decoder.close(tag, *opt_args)
+            when 'EXPUNGE'
+              res = decoder.expunge(tag, *opt_args)
+            when 'SEARCH'
+              res = decoder.search(tag, *opt_args)
+            when 'FETCH'
+              res = decoder.fetch(tag, *opt_args)
+            when 'STORE'
+              res = decoder.store(tag, *opt_args)
+            when 'COPY'
+              res = decoder.copy(tag, *opt_args)
+            when 'UID'
+              unless (opt_args.empty?) then
+                uid_command, *uid_args = opt_args
+                logger.info("uid command: #{uid_command}")
+                logger.debug("uid parameter: #{uid_args}") if logger.debug?
+                case (uid_command.upcase)
+                when 'SEARCH'
+                  res = decoder.search(tag, *uid_args, uid: true)
+                when 'FETCH'
+                  res = decoder.fetch(tag, *uid_args, uid: true)
+                when 'STORE'
+                  res = decoder.store(tag, *uid_args, uid: true)
+                when 'COPY'
+                  res = decoder.copy(tag, *uid_args, uid: true)
+                else
+                  logger.error("unknown uid command: #{uid_command}")
+                  res = [ "#{tag} BAD unknown uid command\r\n" ]
+                end
+              else
+                logger.error('empty uid parameter.')
+                res = [ "#{tag} BAD empty uid parameter\r\n" ]
+              end
+            else
+              logger.error("unknown command: #{command}")
+              res = [ "#{tag} BAD unknown command\r\n" ]
+            end
+          rescue ArgumentError
+            logger.error('invalid command parameter.')
+            logger.error($!)
+            res = [ "#{tag} BAD invalid command parameter\r\n" ]
+          rescue
+            logger.error('internal server error.')
+            logger.error($!)
+            res = [ "#{tag} BAD internal server error\r\n" ]
+          end
+
+          response_write.call(res)
+
+          if (command.upcase == 'LOGOUT') then
+            break
+          end
+        end
+
+        nil
+      end
+    end
+
+    class InitialDecoder < Decoder
       def initialize(mail_store_pool, auth, logger)
         @mail_store_pool = mail_store_pool
         @mail_store_holder = nil
@@ -1885,137 +2022,9 @@ module RIMS
           end
         }
       end
+    end
 
-      def self.repl(decoder, input, output, logger)
-        response_write = proc{|res|
-          begin
-            last_line = nil
-            for data in res
-              logger.debug("response data: #{Protocol.io_data_log(data)}") if logger.debug?
-              output << data
-              last_line = data
-            end
-            output.flush
-            logger.info("server response: #{last_line.strip}")
-          rescue
-            logger.error('response write error.')
-            logger.error($!)
-            raise
-          end
-        }
-
-        response_write.call(decoder.ok_greeting)
-
-        request_reader = Protocol::RequestReader.new(input, output, logger)
-        loop do
-          begin
-            atom_list = request_reader.read_command
-          rescue
-            logger.error('invalid client command.')
-            logger.error($!)
-            response_write.call([ "* BAD client command syntax error\r\n" ])
-            next
-          end
-
-          break unless atom_list
-
-          tag, command, *opt_args = atom_list
-          logger.info("client command: #{tag} #{command}")
-          logger.debug("client command parameter: #{opt_args.inspect}") if logger.debug?
-
-          begin
-            case (command.upcase)
-            when 'CAPABILITY'
-              res = decoder.capability(tag, *opt_args)
-            when 'NOOP'
-              res = decoder.noop(tag, *opt_args)
-            when 'LOGOUT'
-              res = decoder.logout(tag, *opt_args)
-            when 'AUTHENTICATE'
-              res, decoder = decoder.authenticate(input, output, tag, *opt_args)
-            when 'LOGIN'
-              res, decoder = decoder.login(tag, *opt_args)
-            when 'SELECT'
-              res = decoder.select(tag, *opt_args)
-            when 'EXAMINE'
-              res = decoder.examine(tag, *opt_args)
-            when 'CREATE'
-              res = decoder.create(tag, *opt_args)
-            when 'DELETE'
-              res = decoder.delete(tag, *opt_args)
-            when 'RENAME'
-              res = decoder.rename(tag, *opt_args)
-            when 'SUBSCRIBE'
-              res = decoder.subscribe(tag, *opt_args)
-            when 'UNSUBSCRIBE'
-              res = decoder.unsubscribe(tag, *opt_args)
-            when 'LIST'
-              res = decoder.list(tag, *opt_args)
-            when 'LSUB'
-              res = decoder.lsub(tag, *opt_args)
-            when 'STATUS'
-              res = decoder.status(tag, *opt_args)
-            when 'APPEND'
-              res = decoder.append(tag, *opt_args)
-            when 'CHECK'
-              res = decoder.check(tag, *opt_args)
-            when 'CLOSE'
-              res = decoder.close(tag, *opt_args)
-            when 'EXPUNGE'
-              res = decoder.expunge(tag, *opt_args)
-            when 'SEARCH'
-              res = decoder.search(tag, *opt_args)
-            when 'FETCH'
-              res = decoder.fetch(tag, *opt_args)
-            when 'STORE'
-              res = decoder.store(tag, *opt_args)
-            when 'COPY'
-              res = decoder.copy(tag, *opt_args)
-            when 'UID'
-              unless (opt_args.empty?) then
-                uid_command, *uid_args = opt_args
-                logger.info("uid command: #{uid_command}")
-                logger.debug("uid parameter: #{uid_args}") if logger.debug?
-                case (uid_command.upcase)
-                when 'SEARCH'
-                  res = decoder.search(tag, *uid_args, uid: true)
-                when 'FETCH'
-                  res = decoder.fetch(tag, *uid_args, uid: true)
-                when 'STORE'
-                  res = decoder.store(tag, *uid_args, uid: true)
-                when 'COPY'
-                  res = decoder.copy(tag, *uid_args, uid: true)
-                else
-                  logger.error("unknown uid command: #{uid_command}")
-                  res = [ "#{tag} BAD unknown uid command\r\n" ]
-                end
-              else
-                logger.error('empty uid parameter.')
-                res = [ "#{tag} BAD empty uid parameter\r\n" ]
-              end
-            else
-              logger.error("unknown command: #{command}")
-              res = [ "#{tag} BAD unknown command\r\n" ]
-            end
-          rescue ArgumentError
-            logger.error('invalid command parameter.')
-            logger.error($!)
-            res = [ "#{tag} BAD invalid command parameter\r\n" ]
-          rescue
-            logger.error('internal server error.')
-            logger.error($!)
-            res = [ "#{tag} BAD internal server error\r\n" ]
-          end
-
-          response_write.call(res)
-
-          if (command.upcase == 'LOGOUT') then
-            break
-          end
-        end
-
-        nil
-      end
+    class AuthenticatedDecoder < Decoder
     end
   end
 end
