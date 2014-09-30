@@ -1387,7 +1387,7 @@ module RIMS
           @logger.warn("user data recovery end: #{username}")
         end
 
-        AuthenticatedDecoder.new(self, mail_store_holder, @auth, @logger)
+        UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
       end
       private :accept_authentication
 
@@ -1506,6 +1506,21 @@ module RIMS
     end
 
     class AuthenticatedDecoder < Decoder
+      def authenticate(client_response_input_stream, server_challenge_output_stream,
+                       tag, auth_type, inline_client_response_data_base64=nil)
+        protect_error(tag) {
+          return [ "#{tag} NO duplicated authentication\r\n" ], self
+        }
+      end
+
+      def login(tag, username, password)
+        protect_error(tag) {
+          return [ "#{tag} NO duplicated login\r\n" ], self
+        }
+      end
+    end
+
+    class UserMailboxDecoder < AuthenticatedDecoder
       def initialize(parent_decoder, mail_store_holder, auth, logger)
         super(auth, logger)
         @parent_decoder = parent_decoder
@@ -1608,19 +1623,6 @@ module RIMS
           res = []
           res << "* BYE server logout\r\n"
           res << "#{tag} OK LOGOUT completed\r\n"
-        }
-      end
-
-      def authenticate(client_response_input_stream, server_challenge_output_stream,
-                       tag, auth_type, inline_client_response_data_base64=nil)
-        protect_error(tag) {
-          return [ "#{tag} NO duplicated authentication\r\n" ], self
-        }
-      end
-
-      def login(tag, username, password)
-        protect_error(tag) {
-          return [ "#{tag} NO duplicated login\r\n" ], self
         }
       end
 
