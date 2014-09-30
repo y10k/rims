@@ -2154,6 +2154,91 @@ module RIMS
         }
       end
     end
+
+    class MailDeliveryDecoder < AuthenticatedDecoder
+      def initialize(mail_store_pool, auth, logger)
+        super(auth, logger)
+        @mail_store_pool = mail_store_pool
+        @auth = auth
+      end
+
+      def auth?
+        @mail_store_pool != nil
+      end
+
+      def selected?
+        false
+      end
+
+      def cleanup
+        @mail_store_pool = nil unless @mail_store_pool.nil?
+        @auth = nil unless @auth.nil?
+        nil
+      end
+
+      def logout(tag)
+        protect_error(tag) {
+          cleanup
+          res = []
+          res << "* BYE server logout\r\n"
+          res << "#{tag} OK LOGOUT completed\r\n"
+        }
+      end
+
+      def select(tag, mbox_name)
+      end
+
+      def examine(tag, mbox_name)
+      end
+
+      def create(tag, mbox_name)
+      end
+
+      def delete(tag, mbox_name)
+      end
+
+      def rename(tag, src_name, dst_name)
+      end
+
+      def subscribe(tag, mbox_name)
+      end
+
+      def unsubscribe(tag, mbox_name)
+      end
+
+      def list(tag, ref_name, mbox_name)
+      end
+
+      def lsub(tag, ref_name, mbox_name)
+      end
+
+      def status(tag, mbox_name, data_item_group)
+      end
+
+      def append(tag, mbox_name, *opt_args, msg_text)
+      end
+
+      def check(tag)
+      end
+
+      def close(tag)
+      end
+
+      def expunge(tag)
+      end
+
+      def search(tag, *cond_args, uid: false)
+      end
+
+      def fetch(tag, msg_set, data_item_group, uid: false)
+      end
+
+      def store(tag, msg_set, data_item_name, data_item_value, uid: false)
+      end
+
+      def copy(tag, msg_set, mbox_name, uid: false)
+      end
+    end
   end
 end
 
