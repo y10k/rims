@@ -46,6 +46,10 @@ module RIMS
       self
     end
 
+    def user?(username)
+      @passwd.key? username
+    end
+
     def capability
       %w[ PLAIN CRAM-MD5 ]
     end

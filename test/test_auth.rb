@@ -45,6 +45,11 @@ module RIMS::Test
       pp [ id1, id2, id3 ] if $DEBUG
     end
 
+    def test_user?
+      assert_equal(true, (@auth.user? @username))
+      assert_equal(false, (@auth.user? @username.succ))
+    end
+
     def test_authenticate_login
       assert_equal(@username, @auth.authenticate_login(@username, @password))
       assert_nil(@auth.authenticate_login(@username, @password.succ))
