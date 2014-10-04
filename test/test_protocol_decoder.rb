@@ -3600,6 +3600,39 @@ module RIMS::Test
         assert.match(/#{tag} NO not allowed command/)
       }
 
+      base64_foo = RIMS::Protocol.encode_base64('foo')
+      base64_nouser = RIMS::Protocol.encode_base64('nouser')
+
+      assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", 'a') {|assert|
+        assert.equal("#{tag} OK APPEND completed")
+      }
+      assert_msg_uid(1)
+      assert_equal('a', get_msg_text(1))
+      assert_msg_flags(1, recent: true)
+
+      assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'b') {|assert|
+        assert.equal("#{tag} OK APPEND completed")
+      }
+      assert_msg_uid(1, 2)
+      assert_equal('b', get_msg_text(2))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(2))
+      assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+
+      assert_imap_command(:append, "b64user-mbox #{base64_foo} nobox", 'x') {|assert|
+        assert.match(/^#{tag} NO \[TRYCREATE\]/)
+      }
+      assert_msg_uid(1, 2)
+
+      assert_imap_command(:append, "b64user-mbox #{base64_nouser} INBOX", 'x') {|assert|
+        assert.match(/^#{tag} NO \[TRYCREATE\]/)
+      }
+      assert_msg_uid(1, 2)
+
+      assert_imap_command(:append, "unknown-encode-type #{base64_foo} INBOX", 'x') {|assert|
+        assert.match(/^#{tag} BAD /)
+      }
+      assert_msg_uid(1, 2)
+
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
         assert.equal("#{tag} OK LOGOUT completed")

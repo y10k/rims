@@ -2261,7 +2261,28 @@ module RIMS
         not_allowed_command_response(tag)
       end
 
-      def append(tag, mbox_name, *opt_args, msg_text)
+      def append(tag, encoded_mbox_name, *opt_args, msg_text)
+        protect_error(tag) {
+          username, mbox_name = self.class.decode_user_mailbox(encoded_mbox_name)
+
+          res = []
+          if (@auth.user? username) then
+            mail_store_holder = fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
+            begin
+              user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
+              res.concat(user_decoder.append(tag, mbox_name, *opt_args, msg_text))
+              if (res.last.split(' ', 3)[1] == 'OK') then
+                @logger.info("message delivery: user #{username}, mailbox #{mbox_name}, #{msg_text.bytesize} octets message")
+              end
+            ensure
+              mail_store_holder.return_pool
+            end
+          else
+            res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
+          end
+
+          res
+        }
       end
 
       def check(tag)
