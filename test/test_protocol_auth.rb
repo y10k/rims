@@ -42,7 +42,7 @@ module RIMS::Test
 
     def client_plain_response_base64(authorization_id, authentication_id, plain_password)
       response_txt = [ authorization_id, authentication_id, plain_password ].join("\0")
-      RIMS::Protocol::AuthenticationReader.encode_base64(response_txt)
+      RIMS::Protocol.encode_base64(response_txt)
     end
     private :client_plain_response_base64
 
@@ -82,8 +82,8 @@ module RIMS::Test
       server_challenge_data = RIMS::Authentication.cram_md5_server_challenge_data('rims', @time_source, @random_string_source)
       client_response_data = username + ' ' + RIMS::Authentication.hmac_md5_hexdigest(password, server_challenge_data)
 
-      server_challenge_data_base64 = RIMS::Protocol::AuthenticationReader.encode_base64(server_challenge_data)
-      client_response_data_base64 = RIMS::Protocol::AuthenticationReader.encode_base64(client_response_data)
+      server_challenge_data_base64 = RIMS::Protocol.encode_base64(server_challenge_data)
+      client_response_data_base64 = RIMS::Protocol.encode_base64(client_response_data)
 
       return server_challenge_data_base64, client_response_data_base64
     end

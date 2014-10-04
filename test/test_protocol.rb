@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'pp' if $DEBUG
 require 'rims'
 require 'test/unit'
 require 'time'
@@ -59,6 +60,27 @@ module RIMS::Test
       assert(RIMS::Protocol.compile_wildcard('%x%') =~ 'yxy')
       assert(RIMS::Protocol.compile_wildcard('%x%') =~ 'yyx')
       assert(RIMS::Protocol.compile_wildcard('%x%') !~ 'yyy')
+    end
+
+    def assert_base64(plain_str)
+      base64_str = RIMS::Protocol.encode_base64(plain_str)
+      pp [ plain_str, base64_str ] if $DEBUG
+      assert(base64_str != plain_str, 'not equal')
+      assert(base64_str.length > plain_str.length, 'longer')
+      assert(base64_str !~ /\s/, 'no white space')
+      assert_equal(1, base64_str.each_line.count, 'single line')
+      assert_equal(plain_str, RIMS::Protocol.decode_base64(base64_str), 'decode')
+    end
+    private :assert_base64
+
+    def test_encode_decode_base64
+      assert_equal('', RIMS::Protocol.encode_base64(''))
+      assert_equal('', RIMS::Protocol.decode_base64(''))
+
+      assert_base64('foo')
+      assert_base64(" \t\r\n")
+      assert_base64((0x80..0xFF).map{|i| i.chr }.join(''))
+      assert_base64('x' * 1024)
     end
   end
 end

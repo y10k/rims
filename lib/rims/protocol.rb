@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'forwardable'
 require 'net/imap'
 require 'set'
 require 'time'
@@ -36,6 +35,16 @@ module RIMS
       s << '> ' << str.inspect
     end
     module_function :io_data_log
+
+    def encode_base64(plain_txt)
+      [ plain_txt ].pack('m').each_line.map{|line| line.strip }.join('')
+    end
+    module_function :encode_base64
+
+    def decode_base64(base64_txt)
+      base64_txt.unpack('m')[0]
+    end
+    module_function :decode_base64
 
     FetchBody = Struct.new(:symbol, :option, :section, :section_list, :partial_origin, :partial_size)
 
@@ -168,21 +177,6 @@ module RIMS
     end
 
     class AuthenticationReader
-      extend Forwardable
-
-      class << self
-        def encode_base64(plain_txt)
-          [ plain_txt ].pack('m').each_line.map{|line| line.strip }.join('')
-        end
-
-        def decode_base64(base64_txt)
-          base64_txt.unpack('m')[0]
-        end
-      end
-
-      def_delegators 'self.class', :encode_base64, :decode_base64
-      private :encode_base64, :decode_base64
-
       def initialize(auth, input, output, logger)
         @auth = auth
         @input = input
@@ -217,7 +211,7 @@ module RIMS
 
       def read_client_response_data(server_challenge_data=nil)
         if (server_challenge_data) then
-          server_challenge_data_base64 = encode_base64(server_challenge_data)
+          server_challenge_data_base64 = Protocol.encode_base64(server_challenge_data)
           @logger.debug("authenticate command: server challenge data: #{Protocol.io_data_log(server_challenge_data_base64)}") if @logger.debug?
           @output.write("+ #{server_challenge_data_base64}\r\n")
         else
@@ -232,7 +226,7 @@ module RIMS
             @logger.debug("authenticate command: no authentication from client.") if @logger.debug?
             return :*
           end
-          decode_base64(client_response_data_base64)
+          Protocol.decode_base64(client_response_data_base64)
         end
       end
       private :read_client_response_data
@@ -240,7 +234,7 @@ module RIMS
       def read_client_response_data_plain(inline_client_response_data_base64)
         if (inline_client_response_data_base64) then
           @logger.debug("authenticate command: inline client response data: #{inline_client_response_data_base64}") if @logger.debug?
-          decode_base64(inline_client_response_data_base64)
+          Protocol.decode_base64(inline_client_response_data_base64)
         else
           read_client_response_data
         end
