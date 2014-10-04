@@ -2,6 +2,7 @@
 
 require 'logger'
 require 'net/imap'
+require 'pp' if $DEBUG
 require 'rims'
 require 'stringio'
 require 'test/unit'
