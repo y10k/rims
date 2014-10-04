@@ -5364,6 +5364,21 @@ LOGOUT
       }
     end
   end
+
+  class ProtocolMailDeliveryDecoderTest < Test::Unit::TestCase
+    def test_decode_user_mailbox
+      base64_username = RIMS::Protocol.encode_base64('foo')
+
+      assert_equal([ 'foo', 'INBOX' ],
+                   RIMS::Protocol::MailDeliveryDecoder.decode_user_mailbox("b64user-mbox #{base64_username} INBOX"))
+      assert_equal([ 'foo', 'a mailbox ' ],
+                   RIMS::Protocol::MailDeliveryDecoder.decode_user_mailbox("b64user-mbox #{base64_username} a mailbox "))
+
+      assert_raise(RIMS::SyntaxError) {
+        RIMS::Protocol::MailDeliveryDecoder.decode_user_mailbox("unknown-encode-type #{base64_username} INBOX")
+      }
+    end
+  end
 end
 
 # Local Variables:

@@ -2189,6 +2189,14 @@ module RIMS
         nil
       end
 
+      def self.decode_user_mailbox(encoded_mbox_name)
+        encode_type, base64_username, mbox_name = encoded_mbox_name.split(' ', 3)
+        if (encode_type != 'b64user-mbox') then
+          raise SyntaxError, "unknown mailbox encode type: #{encode_type}"
+        end
+        return Protocol.decode_base64(base64_username), mbox_name
+      end
+
       def logout(tag)
         protect_error(tag) {
           cleanup
