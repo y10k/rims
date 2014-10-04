@@ -2208,58 +2208,80 @@ module RIMS
         }
       end
 
+      def not_allowed_command_response(tag)
+        [ "#{tag} NO not allowed command on mail delivery user\r\n" ]
+      end
+      private :not_allowed_command_response
+
       def select(tag, mbox_name)
+        not_allowed_command_response(tag)
       end
 
       def examine(tag, mbox_name)
+        not_allowed_command_response(tag)
       end
 
       def create(tag, mbox_name)
+        not_allowed_command_response(tag)
       end
 
       def delete(tag, mbox_name)
+        not_allowed_command_response(tag)
       end
 
       def rename(tag, src_name, dst_name)
+        not_allowed_command_response(tag)
       end
 
       def subscribe(tag, mbox_name)
+        not_allowed_command_response(tag)
       end
 
       def unsubscribe(tag, mbox_name)
+        not_allowed_command_response(tag)
       end
 
       def list(tag, ref_name, mbox_name)
+        not_allowed_command_response(tag)
       end
 
       def lsub(tag, ref_name, mbox_name)
+        not_allowed_command_response(tag)
       end
 
       def status(tag, mbox_name, data_item_group)
+        not_allowed_command_response(tag)
       end
 
       def append(tag, mbox_name, *opt_args, msg_text)
       end
 
       def check(tag)
+        not_allowed_command_response(tag)
       end
 
       def close(tag)
+        not_allowed_command_response(tag)
       end
 
       def expunge(tag)
+        not_allowed_command_response(tag)
       end
 
       def search(tag, *cond_args, uid: false)
+        not_allowed_command_response(tag)
       end
 
       def fetch(tag, msg_set, data_item_group, uid: false)
+        not_allowed_command_response(tag)
       end
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
+        not_allowed_command_response(tag)
       end
 
       def copy(tag, msg_set, mbox_name, uid: false)
+        not_allowed_command_response(tag)
       end
     end
   end

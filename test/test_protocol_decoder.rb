@@ -3532,6 +3532,74 @@ module RIMS::Test
         assert.equal("#{tag} OK CAPABILITY completed")
       }
 
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:examine, 'INBOX') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:create, 'foo') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:delete, 'foo') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:rename, 'foo', 'bar') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:subscribe, 'foo') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:unsubscribe, 'foo') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:list, '', '*') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:lsub, '', '*') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:check) {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:close) {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:expunge) {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:search, '*') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:fetch, '*', 'RFC822') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
+      assert_imap_command(:copy, '*', 'foo') {|assert|
+        assert.match(/#{tag} NO not allowed command/)
+      }
+
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
         assert.equal("#{tag} OK LOGOUT completed")
