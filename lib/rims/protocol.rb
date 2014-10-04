@@ -1150,8 +1150,8 @@ module RIMS
     end
 
     class Decoder
-      def self.new_decoder(*args)
-        InitialDecoder.new(*args)
+      def self.new_decoder(*args, **opts)
+        InitialDecoder.new(*args, **opts)
       end
 
       def self.repl(decoder, input, output, logger)
@@ -1336,11 +1336,12 @@ module RIMS
     end
 
     class InitialDecoder < Decoder
-      def initialize(mail_store_pool, auth, logger)
+      def initialize(mail_store_pool, auth, logger, mail_delivery_user: '#postman')
         super(auth, logger)
         @mail_store_pool = mail_store_pool
         @folder = nil
         @auth = auth
+        @mail_delivery_user = mail_delivery_user
       end
 
       def auth?
@@ -1377,17 +1378,23 @@ module RIMS
 
       def accept_authentication(username)
         cleanup
-        unique_user_id = Authentication.unique_user_id(username)
-        @logger.debug("unique user ID: #{username} -> #{unique_user_id}") if @logger.debug?
-        mail_store_holder = @mail_store_pool.get(unique_user_id)
-        if (mail_store_holder.mail_store.abort_transaction?) then
-          @logger.warn("user data recovery start: #{username}")
-          mail_store_holder.mail_store.recovery_data(logger: @logger).sync
-          yield("* OK [ALERT] recovery user data.\r\n")
-          @logger.warn("user data recovery end: #{username}")
-        end
 
-        UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
+        case (username)
+        when @mail_delivery_user
+          @logger.info("mail delivery user: #{username}")
+          MailDeliveryDecoder.new(@mail_store_pool, @auth, @logger)
+        else
+          unique_user_id = Authentication.unique_user_id(username)
+          @logger.debug("unique user ID: #{username} -> #{unique_user_id}") if @logger.debug?
+          mail_store_holder = @mail_store_pool.get(unique_user_id)
+          if (mail_store_holder.mail_store.abort_transaction?) then
+            @logger.warn("user data recovery start: #{username}")
+            mail_store_holder.mail_store.recovery_data(logger: @logger).sync
+            yield("* OK [ALERT] recovery user data.\r\n")
+            @logger.warn("user data recovery end: #{username}")
+          end
+          UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
+        end
       end
       private :accept_authentication
 

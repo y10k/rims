@@ -118,6 +118,7 @@ module RIMS::Test
       @auth = RIMS::Authentication.new(time_source: make_pseudo_time_source(src_time),
                                        random_string_source: make_pseudo_random_string_source(random_seed))
       @auth.entry('foo', 'open_sesame')
+      @auth.entry('#postman', 'password_of_mail_delivery_user')
 
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
@@ -3499,6 +3500,23 @@ module RIMS::Test
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.match(/^\* OK \[ALERT\] recovery/)
+        assert.equal("#{tag} OK LOGIN completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
+      }
+
+      assert_equal(false, @decoder.auth?)
+    end
+
+    def test_mail_delivery_user
+      assert_equal(false, @decoder.auth?)
+
+      assert_imap_command(:login, '#postman', 'password_of_mail_delivery_user') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
