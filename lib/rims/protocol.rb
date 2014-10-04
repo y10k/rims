@@ -2198,6 +2198,16 @@ module RIMS
         }
       end
 
+      def capability(tag)
+        super.map{|line|
+          if (line.start_with? '* CAPABILITY ') then
+            line.strip + " X-RIMS-MAIL-DELIVERY-USER\r\n"
+          else
+            line
+          end
+        }
+      end
+
       def select(tag, mbox_name)
       end
 

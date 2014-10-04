@@ -3514,6 +3514,11 @@ module RIMS::Test
     end
 
     def test_mail_delivery_user
+      assert_imap_command(:capability) {|assert|
+        assert.match(/^\* CAPABILITY /, peek_next_line: true).no_match(/ X-RIMS-MAIL-DELIVERY-USER/)
+        assert.equal("#{tag} OK CAPABILITY completed")
+      }
+
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command(:login, '#postman', 'password_of_mail_delivery_user') {|assert|
@@ -3521,6 +3526,11 @@ module RIMS::Test
       }
 
       assert_equal(true, @decoder.auth?)
+
+      assert_imap_command(:capability) {|assert|
+        assert.match(/^\* CAPABILITY /, peek_next_line: true).match(/ X-RIMS-MAIL-DELIVERY-USER/)
+        assert.equal("#{tag} OK CAPABILITY completed")
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
