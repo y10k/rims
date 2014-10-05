@@ -260,6 +260,7 @@ module RIMS
                    authentication: nil,
                    ip_addr: '0.0.0.0',
                    ip_port: 1430,
+                   mail_delivery_user: '#postman',
                    logger: Logger.new(STDOUT))
       begin
         kvs_meta_open or raise ArgumentError, 'need for a keyword argument: kvs_meta_open'
@@ -269,6 +270,7 @@ module RIMS
         @ip_addr = ip_addr
         @ip_port = ip_port
         @logger = logger
+        @mail_delivery_user = mail_delivery_user
 
         @mail_store_pool = MailStorePool.new(kvs_meta_open, kvs_text_open)
       rescue
@@ -285,7 +287,7 @@ module RIMS
         Thread.start(sv_sock.accept) {|cl_sock|
           begin
             @logger.info("accept client: #{cl_sock.peeraddr[1..2].reverse.join(':')}")
-            decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger)
+            decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger, mail_delivery_user: @mail_delivery_user)
             begin
               Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
             ensure
