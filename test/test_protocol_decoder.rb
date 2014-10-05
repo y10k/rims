@@ -5396,6 +5396,76 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
     end
+
+    def test_command_loop_mail_delivery_user
+      cmd_txt = <<-'EOF'.b
+CAPABILITY
+LOGIN "#postman" password_of_mail_delivery_user
+CAPABILITY
+SELECT INBOX
+EXAMINE INBOX
+CREATE foo
+DELETE foo
+RENAME foo bar
+SUBSCRIBE foo
+UNSUBSCRIBE foo
+LIST "" *
+LSUB "" *
+STATUS INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)
+CHECK
+CLOSE
+EXPUNGE
+SEARCH *
+FETCH * RFC822
+STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
+COPY * foo
+APPEND "b64user-mbox Zm9v INBOX" a
+APPEND "b64user-mbox Zm9v INBOX" (\Answered \Flagged \Deleted \Seen \Draft) "19-Nov-1975 12:34:56 +0900" b
+APPEND "b64user-mbox Zm9v nobox" x
+APPEND "b64user-mbox bm91c2Vy INBOX" x
+APPEND "unknown-encode-type Zm9v INBOX" x
+LOGOUT
+      EOF
+
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^\* CAPABILITY /, peek_next_line: true).no_match(/ X-RIMS-MAIL-DELIVERY-USER/)
+        assert.equal("#{tag!} OK CAPABILITY completed")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^\* CAPABILITY /, peek_next_line: true).match(/ X-RIMS-MAIL-DELIVERY-USER/)
+        assert.equal("#{tag!} OK CAPABILITY completed")
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.match(/#{tag!} NO not allowed command/)
+        assert.equal("#{tag!} OK APPEND completed")
+        assert.equal("#{tag!} OK APPEND completed")
+        assert.match(/^#{tag!} NO \[TRYCREATE\]/)
+        assert.match(/^#{tag!} NO \[TRYCREATE\]/)
+        assert.match(/^#{tag!} BAD /)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
+      }
+
+      assert_msg_uid(1, 2)
+      assert_equal('a', get_msg_text(1))
+      assert_equal('b', get_msg_text(2))
+      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(2))
+      assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+    end
   end
 
   class ProtocolMailDeliveryDecoderTest < Test::Unit::TestCase
