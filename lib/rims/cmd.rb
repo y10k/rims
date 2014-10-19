@@ -69,7 +69,7 @@ module RIMS
     command_function :cmd_version, 'Show software version.'
 
     def cmd_server(options, args)
-      conf = Config.new
+      conf = RIMS::Config.new
       conf.load(base_dir: Dir.getwd)
 
       options.on('-h', '--help', 'Show this message.') do
@@ -141,149 +141,211 @@ module RIMS
     end
     command_function :cmd_server, "Run IMAP server."
 
-    def cmd_imap_append(options, args)
-      date_place_list = [ :servertime, :localtime, :filetime, :mailheader ]
-      auth_type_list = %w[ login plain cram-md5 ]
-      option_list = [
-        [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ],
-        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `localhost'." ],
-        [ :imap_port, 143, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is 143." ],
-        [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
-        [ :username, nil, '-u', '--username=NAME', "Username to login IMAP server. required parameter to connect server." ],
-        [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
-        [ :auth_type, 'login', '--auth-type=METHOD', auth_type_list,
-          "Choose authentication method type (#{auth_type_list.join(' ')}). default is `login'." ],
-        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ],
-        [ :store_flag_answered, false, '--[no-]store-flag-answered', "Store answered flag on appending messages to mailbox. default is no flag." ],
-        [ :store_flag_flagged, false, '--[no-]store-flag-flagged', "Store flagged flag on appending messages to mailbox. default is no flag." ],
-        [ :store_flag_deleted, false, '--[no-]store-flag-deleted', "Store deleted flag on appending messages to mailbox. default is no flag." ],
-        [ :store_flag_seen, false, '--[no-]store-flag-seen', "Store seen flag on appending messages to mailbox. default is no flag." ],
-        [ :store_flag_draft, false, '--[no-]store-flag-draft', "Store draft flag on appending messages to mailbox. default is no flag." ],
-        [ :look_for_date, :servertime, '--look-for-date=PLACE', date_place_list,
-          "Choose the place (#{date_place_list.join(' ')}) to look for the date that as internaldate is appended with message. default is `servertime'." ]
-      ]
-
-      conf = {}
-      for key, value, *option_description in option_list
-        conf[key] = value
-      end
-
-      options.banner += ' [MESSAGE_FILEs]'
-      options.on('-h', '--help', 'Show this message.') do
-        puts options
-        exit
-      end
-      options.on('-f', '--config-yaml=CONFIG_FILE',
-                 "Load optional parameters from CONFIG_FILE.") do |path|
-        for name, value in YAML.load_file(path)
-          conf[name.to_sym] = value
-        end
-      end
-      option_list.each do |key, value, *option_description|
-        options.on(*option_description) do |v|
-          conf[key] = v
-        end
-      end
-      options.on('--[no-]imap-debug',
-                 "Set the debug flag of Net::IMAP class. default is false.") do |v|
-        Net::IMAP.debug = v
-      end
-      options.parse!(args)
-      pp conf if $DEBUG
-
-      unless (conf[:username] && conf[:password]) then
-        raise 'need for username and password.'
-      end
-
-      store_flags = []
-      [ [ :store_flag_answered, :Answered ],
-        [ :store_flag_flagged, :Flagged ],
-        [ :store_flag_deleted, :Deleted ],
-        [ :store_flag_seen, :Seen ],
-        [ :store_flag_draft, :Draft ]
-      ].each do |key, flag|
-        if (conf[key]) then
-          store_flags << flag
-        end
-      end
-      puts "store flags: (#{store_flags.join(' ')})" if conf[:verbose]
-
-      imap = Net::IMAP.new(conf[:imap_host], port: conf[:imap_port], ssl: conf[:imap_ssl])
-      begin
-        if (conf[:verbose]) then
-          puts "server greeting: #{imap_res2str(imap.greeting)}"
-          puts "server capability: #{imap.capability.join(' ')}"
-        end
-
-        case (conf[:auth_type])
-        when 'login'
-          res = imap.login(conf[:username], conf[:password])
-          puts "login: #{imap_res2str(res)}" if conf[:verbose]
-        when 'plain', 'cram-md5'
-          res = imap.authenticate(conf[:auth_type], conf[:username], conf[:password])
-          puts "authenticate: #{imap_res2str(res)}" if conf[:verbose]
-        else
-          raise "unknown authentication type: #{conf[:auth_type]}"
-        end
-
-        if (args.empty?) then
-          msg = STDIN.read
-          t = look_for_date(conf[:look_for_date], msg)
-          imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
-        else
-          error_count = 0
-          args.each_with_index do |filename, i|
-            puts "progress: #{i + 1}/#{args.length}" if conf[:verbose]
-            begin
-              msg = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
-              t = look_for_date(conf[:look_for_date], msg, filename)
-              imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
-            rescue
-              error_count += 1
-              puts "failed to append message: #{filename}"
-              puts "error: #{$!}"
-              if ($DEBUG) then
-                for frame in $!.backtrace
-                  puts frame
-                end
-              end
-            end
-          end
-          if (error_count > 0) then
-            puts "#{error_count} errors!"
-            return 1
-          end
-        end
-      ensure
-        Error.suppress_2nd_error_at_resource_closing{ imap.logout }
-      end
-
-      0
-    end
-    command_function :cmd_imap_append, "Append message to IMAP mailbox."
-
     def imap_res2str(imap_response)
       "#{imap_response.name} #{imap_response.data.text}"
     end
     module_function :imap_res2str
 
-    def look_for_date(place, messg, path=nil)
-      case (place)
-      when :servertime
-        nil
-      when :localtime
-        Time.now
-      when :filetime
-        if (path) then
-          File.stat(path).mtime
+    class Config
+      def imap_res2str(imap_response)
+        Cmd.imap_res2str(imap_response)
+      end
+      private :imap_res2str
+
+      IMAP_AUTH_TYPE_LIST = %w[ login plain cram-md5 ]
+      MAIL_DATE_PLACE_LIST = [ :servertime, :localtime, :filetime, :mailheader ]
+
+      VERBOSE_OPTION_LIST = [
+        [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ]
+      ]
+
+      IMAP_CONNECT_OPTION_LIST = [
+        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `localhost'." ],
+        [ :imap_port, 143, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is 143." ],
+        [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
+        [ :username, nil, '-u', '--username=NAME', "Username to login IMAP server. required parameter to connect server." ],
+        [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
+        [ :auth_type, 'login', '--auth-type=METHOD', IMAP_AUTH_TYPE_LIST,
+          "Choose authentication method type (#{IMAP_AUTH_TYPE_LIST.join(' ')}). default is `login'." ]
+      ]
+
+      IMAP_MAILBOX_OPTION_LIST = [
+        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ]
+      ]
+
+      IMAP_STORE_FLAG_OPTION_LIST = [
+        [ :store_flag_answered, false, '--[no-]store-flag-answered', "Store answered flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_flagged, false, '--[no-]store-flag-flagged', "Store flagged flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_deleted, false, '--[no-]store-flag-deleted', "Store deleted flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_seen, false, '--[no-]store-flag-seen', "Store seen flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_draft, false, '--[no-]store-flag-draft', "Store draft flag on appending messages to mailbox. default is no flag." ]
+      ]
+
+      MAIL_DATE_OPTION_LIST = [
+        [ :look_for_date, :servertime, '--look-for-date=PLACE', MAIL_DATE_PLACE_LIST,
+          "Choose the place (#{MAIL_DATE_PLACE_LIST.join(' ')}) to look for the date that as internaldate is appended with message. default is `servertime'."
+        ]
+      ]
+
+      KVS_STORE_OPTION_LIST = [
+        [ :key_value_store_type, 'gdbm', '--kvs-type=TYPE', %w[ gdbm ], "Choose the key-value store type. only gdbm can be chosen now." ],
+        [ :use_key_value_store_checksum, true, '--[no-]use-kvs-cksum', "Enable/disable data checksum at key-value store. default is enabled." ]
+      ]
+
+      def initialize(options, option_list)
+        @options = options
+        @option_list = option_list
+        @conf = {}
+        for key, value, *option_description in option_list
+          @conf[key] = value
         end
-      when :mailheader
-        RFC822::Message.new(messg).date
-      else
-        raise "failed to look for date: #{place}"
+      end
+
+      def [](key)
+        @conf[key]
+      end
+
+      def setup_option_list
+        @option_list.each do |key, value, *option_description|
+          @options.on(*option_description) do |v|
+            @conf[key] = v
+          end
+        end
+
+        self
+      end
+
+      def help_option(add_banner: nil)
+        @options.banner += add_banner if add_banner
+        @options.on('-h', '--help', 'Show this message.') do
+          puts @options
+          exit
+        end
+
+        self
+      end
+
+      def quiet_option(default_verbose: true)
+        @conf[:verbose] = default_verbose
+        @options.on('-v', '--[no-]verbose', 'Enable verbose messages. default is verbose.') do |verbose|
+          @conf[:verbose] = verbose
+        end
+        @options.on('-q', '--[no-]quiet', 'Disable verbose messages. default is verbose.') do |quiet|
+          @conf[:verbose] = ! quiet
+        end
+
+        self
+      end
+
+      def load_config_option
+        @options.on('-f', '--config-yaml=CONFIG_FILE',
+                    "Load optional parameters from CONFIG_FILE.") do |path|
+          for name, value in YAML.load_file(path)
+            @conf[name.to_sym] = value
+          end
+        end
+
+        self
+      end
+
+      def parse_options!(args)
+        @options.parse!(args)
+        pp @conf if $DEBUG
+
+        self
+      end
+
+      def imap_debug_option
+        @options.on('--[no-]imap-debug',
+                    "Set the debug flag of Net::IMAP class. default is false.") do |v|
+          Net::IMAP.debug = v
+        end
+
+        self
+      end
+
+      def imap_connect
+        unless (@conf[:username] && @conf[:password]) then
+          raise 'need for username and password.'
+        end
+
+        imap = Net::IMAP.new(@conf[:imap_host], port: @conf[:imap_port], ssl: @conf[:imap_ssl])
+        begin
+          if (@conf[:verbose]) then
+            puts "server greeting: #{imap_res2str(imap.greeting)}"
+            puts "server capability: #{imap.capability.join(' ')}"
+          end
+
+          case (@conf[:auth_type])
+          when 'login'
+            res = imap.login(@conf[:username], @conf[:password])
+            puts "login: #{imap_res2str(res)}" if @conf[:verbose]
+          when 'plain', 'cram-md5'
+            res = imap.authenticate(@conf[:auth_type], @conf[:username], @conf[:password])
+            puts "authenticate: #{imap_res2str(res)}" if @conf[:verbose]
+          else
+            raise "unknown authentication type: #{@conf[:auth_type]}"
+          end
+
+          yield(imap)
+        ensure
+          Error.suppress_2nd_error_at_resource_closing{ imap.logout }
+        end
+      end
+
+      def make_imap_store_flags
+        store_flags = []
+        [ [ :store_flag_answered, :Answered ],
+          [ :store_flag_flagged, :Flagged ],
+          [ :store_flag_deleted, :Deleted ],
+          [ :store_flag_seen, :Seen ],
+          [ :store_flag_draft, :Draft ]
+        ].each do |key, flag|
+          if (@conf[key]) then
+            store_flags << flag
+          end
+        end
+        puts "store flags: (#{store_flags.join(' ')})" if @conf[:verbose]
+
+        store_flags
+      end
+
+      def look_for_date(message_text, path=nil)
+        case (@conf[:look_for_date])
+        when :servertime
+          nil
+        when :localtime
+          Time.now
+        when :filetime
+          if (path) then
+            File.stat(path).mtime
+          end
+        when :mailheader
+          RFC822::Message.new(message_text).date
+        else
+          raise "failed to look for date: #{place}"
+        end
+      end
+
+      def make_kvs_factory(read_only: false)
+        builder = KeyValueStore::FactoryBuilder.new
+        case (@conf[:key_value_store_type].upcase)
+        when 'GDBM'
+          if (read_only) then
+            builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
+          else
+            builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::WRITER) }
+          end
+        else
+          raise "unknown key-value store type: #{@conf[:key_value_store_type]}"
+        end
+        if (@conf[:use_key_value_store_checksum]) then
+          builder.use(Checksum_KeyValueStore)
+        end
+
+        builder.factory
       end
     end
-    module_function :look_for_date
 
     def imap_append(imap, mailbox, message, store_flags: [], date_time: nil, verbose: false)
       puts "message date: #{date_time}" if (verbose && date_time)
@@ -294,68 +356,88 @@ module RIMS
     end
     module_function :imap_append
 
-    def cmd_mbox_dirty_flag(options, args)
-      conf = {
-        key_value_store_type: 'GDBM',
-        use_key_value_store_checksum: true,
-        verbose: true,
-        return_flag_exit_code: true,
-        write_dirty_flag: nil
-      }
-
-      options.banner += ' [mailbox directory]'
-      options.on('-h', '--help', 'Show this message.') do
-        puts options
-        exit
-      end
-      options.on('--kvs-type=TYPE', %w[ gdbm ],
-                 "Choose the key-value store type. only GDBM can be chosen now.") do |type|
-        conf[:key_value_store_type] = type
-      end
-      options.on('--[no-]use-kvs-cksum',
-                 "Enable/disable data checksum at key-value store. default is enabled.") do |use|
-        conf[:use_key_value_store_checksum] = use
-      end
-      options.on('-v', '--[no-]verbose', 'Enable verbose messages. default is verbose.') do |verbose|
-        conf[:verbose] = verbose
-      end
-      options.on('-q', '--[no-]quiet', 'Disable verbose messages. default is verbose.') do |quiet|
-        conf[:verbose] = ! quiet
-      end
-      options.on('--[no-]return-flag-exit-code',
-                 'Dirty flag value is returned to exit code. default is true.') do |return_exit_code|
-        conf[:return_flag_exit_code] = return_exit_code
-      end
-      options.on('--enable-dirty-flag', 'Enable mailbox dirty flag.') do
-        conf[:write_dirty_flag] = true
-      end
-      options.on('--disable-dirty-flag', 'Disable mailbox dirty flag.') do
-        conf[:write_dirty_flag] = false
-      end
-      options.parse!(args)
-      pp conf if $DEBUG
-
-      builder = KeyValueStore::FactoryBuilder.new
-      case (conf[:key_value_store_type].upcase)
-      when 'GDBM'
-        if (conf[:write_dirty_flag].nil?) then
-          builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
-        else
-          builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::WRITER) }
-        end
+    def each_message(args, verbose: false)
+      if (args.empty?) then
+        msg_txt = STDIN.read
+        yield(msg_txt)
+        return 0
       else
-        raise "unknown key-value store type: #{conf[:key_value_store_type]}"
+        error_count = 0
+        args.each_with_index do |filename, i|
+          puts "progress: #{i + 1}/#{args.length}" if verbose
+          begin
+            msg_txt = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
+            yield(msg_txt)
+          rescue
+            error_count += 1
+            puts "failed to append message: #{filename}"
+            puts "error: #{$!}"
+            if ($DEBUG) then
+              for frame in $!.backtrace
+                puts frame
+              end
+            end
+          end
+        end
+
+        if (error_count > 0) then
+          puts "#{error_count} errors!"
+          return 1
+        else
+          return 0
+        end
       end
-      if (conf[:use_key_value_store_checksum]) then
-        builder.use(Checksum_KeyValueStore)
-      end
+    end
+    module_function :each_message
+
+    def cmd_imap_append(options, args)
+      option_list =
+        Config::VERBOSE_OPTION_LIST +
+        Config::IMAP_CONNECT_OPTION_LIST +
+        Config::IMAP_MAILBOX_OPTION_LIST +
+        Config::IMAP_STORE_FLAG_OPTION_LIST +
+        Config::MAIL_DATE_OPTION_LIST
+
+      conf = Config.new(options, option_list)
+      conf.help_option(add_banner: ' [MESSAGE_FILEs]')
+      conf.load_config_option
+      conf.setup_option_list
+      conf.imap_debug_option
+      conf.parse_options!(args)
+
+      store_flags = conf.make_imap_store_flags
+      conf.imap_connect{|imap|
+        each_message(args) do |msg_txt|
+          t = conf.look_for_date(msg_txt)
+          imap_append(imap, conf[:mailbox], msg_txt, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
+        end
+      }
+    end
+    command_function :cmd_imap_append, "Append message to IMAP mailbox."
+
+    def cmd_mbox_dirty_flag(options, args)
+      option_list = Config::KVS_STORE_OPTION_LIST
+      option_list += [
+        [ :return_flag_exit_code, true, '--[no-]return-flag-exit-code', 'Dirty flag value is returned to exit code. default is true.' ]
+      ]
+
+      conf = Config.new(options, option_list)
+      write_dirty_flag = nil
+
+      conf.help_option(add_banner: ' [mailbox directory]')
+      conf.quiet_option
+      conf.setup_option_list
+      options.on('--enable-dirty-flag', 'Enable mailbox dirty flag.') { write_dirty_flag = true }
+      options.on('--disable-dirty-flag', 'Disable mailbox dirty flag.') { write_dirty_flag = false }
+      conf.parse_options!(args)
+      pp conf, write_dirty_flag if $DEBUG
 
       mbox_dir = args.shift or raise 'need for mailbox directory.'
-      kvs = builder.factory.call(File.join(mbox_dir, 'meta'))
-      meta_db = DB::Meta.new(kvs)
+      kvs_factory = conf.make_kvs_factory(read_only: write_dirty_flag.nil?)
+      meta_db = DB::Meta.new(kvs_factory.call(File.join(mbox_dir, 'meta')))
       begin
-        unless (conf[:write_dirty_flag].nil?) then
-          meta_db.dirty = conf[:write_dirty_flag]
+        unless (write_dirty_flag.nil?) then
+          meta_db.dirty = write_dirty_flag
         end
 
         if (conf[:verbose]) then
@@ -393,18 +475,18 @@ module RIMS
     command_function :cmd_unique_user_id, 'Show unique user ID from username.'
 
     def cmd_show_user_mbox(options, args)
-      conf = Config.new
-      defined_config_yml = false
+      conf = RIMS::Config.new
+      load_server_config = false
 
       options.banner += ' [base directory] [username] OR -f [config.yml path] [username]'
       options.on('-f', '--config-yaml=CONFIG_FILE',
                  'Load optional parameters from CONFIG_FILE.') do |path|
         conf.load_config_yaml(path)
-        defined_config_yml = true
+        load_server_config = true
       end
       options.parse!(args)
 
-      unless (defined_config_yml) then
+      unless (load_server_config) then
         base_dir = args.shift or raise 'need for base directory.'
         conf.load(base_dir: base_dir)
       end
@@ -418,56 +500,23 @@ module RIMS
     command_function :cmd_show_user_mbox, "Show the path in which user's mailbox data is stored."
 
     def cmd_debug_dump_kvs(options, args)
-      conf = {
-        key_value_store_type: 'GDBM',
-        use_key_value_store_checksum: true,
-        match_key: nil,
-        dump_size: true,
-        dump_value: true,
-        marshal_restore: true,
-      }
+      option_list = Config::KVS_STORE_OPTION_LIST
+      option_list += [
+        [ :match_key, nil, '--match-key=REGEXP', Regexp, 'Show keys matching regular expression.' ],
+        [ :dump_size, true, '--[no-]dump-size', 'Dump size of value with key.' ],
+        [ :dump_value, true, '--[no-]dump-value', 'Dump value with key.' ],
+        [ :marshal_restore, true, '--[no-]marshal-restore', 'Restore serialized object.' ]
+      ]
 
-      options.banner += ' [DB_NAME]'
-      options.on('-h', '--help', 'Show this message.') do
-        puts options
-        exit
-      end
-      options.on('--kvs-type=TYPE', %w[ gdbm ],
-                 "Choose the key-value store type. only GDBM can be chosen now.") do |type|
-        conf[:key_value_store_type] = type
-      end
-      options.on('--[no-]use-kvs-cksum',
-                 "Enable/disable data checksum at key-value store. default is enabled.") do |use|
-        conf[:use_key_value_store_checksum] = use
-      end
-      options.on('--match-key=REGEXP', Regexp, 'Show keys matching regular expression.') do |regexp|
-        conf[:match_key] = regexp
-      end
-      options.on('--[no-]dump-size', 'Dump size of value with key.') do |v|
-        conf[:dump_size] = v
-      end
-      options.on('--[no-]dump-value', 'Dump value with key.') do |v|
-        conf[:dump_value] = v
-      end
-      options.on('--[no-]marshal-restore', 'Restore serialized object.') do |v|
-        conf[:marshal_restore] = v
-      end
-      options.parse!(args)
+      conf = Config.new(options, option_list)
+      conf.help_option(add_banner: ' [DB_NAME]')
+      conf.setup_option_list
+      conf.parse_options!(args)
       pp conf if $DEBUG
 
-      builder = KeyValueStore::FactoryBuilder.new
-      case (conf[:key_value_store_type].upcase)
-      when 'GDBM'
-        builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
-      else
-        raise "unknown key-value store type: #{conf[:key_value_store_type]}"
-      end
-      if (conf[:use_key_value_store_checksum]) then
-        builder.use(Checksum_KeyValueStore)
-      end
-
-      name = args.shift or raise 'need for GDBM DB name.'
-      db = builder.factory.call(name)
+      name = args.shift or raise 'need for DB name.'
+      factory = conf.make_kvs_factory(read_only: true)
+      db = factory.call(name)
       begin
         db.each_key do |key|
           if (conf[:match_key] && (key !~ conf[:match_key])) then
