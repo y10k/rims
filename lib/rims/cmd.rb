@@ -141,6 +141,38 @@ module RIMS
     end
     command_function :cmd_server, "Run IMAP server."
 
+    def imap_res2str(imap_response)
+      "#{imap_response.name} #{imap_response.data.text}"
+    end
+    module_function :imap_res2str
+
+    def look_for_date(place, messg, path=nil)
+      case (place)
+      when :servertime
+        nil
+      when :localtime
+        Time.now
+      when :filetime
+        if (path) then
+          File.stat(path).mtime
+        end
+      when :mailheader
+        RFC822::Message.new(messg).date
+      else
+        raise "failed to look for date: #{place}"
+      end
+    end
+    module_function :look_for_date
+
+    def imap_append(imap, mailbox, message, store_flags: [], date_time: nil, verbose: false)
+      puts "message date: #{date_time}" if (verbose && date_time)
+      store_flags = nil if store_flags.empty?
+      res = imap.append(mailbox, message, store_flags, date_time)
+      puts "append: #{imap_res2str(res)}" if verbose
+      nil
+    end
+    module_function :imap_append
+
     def cmd_imap_append(options, args)
       date_place_list = [ :servertime, :localtime, :filetime, :mailheader ]
       auth_type_list = %w[ login plain cram-md5 ]
@@ -261,38 +293,6 @@ module RIMS
       0
     end
     command_function :cmd_imap_append, "Append message to IMAP mailbox."
-
-    def imap_res2str(imap_response)
-      "#{imap_response.name} #{imap_response.data.text}"
-    end
-    module_function :imap_res2str
-
-    def look_for_date(place, messg, path=nil)
-      case (place)
-      when :servertime
-        nil
-      when :localtime
-        Time.now
-      when :filetime
-        if (path) then
-          File.stat(path).mtime
-        end
-      when :mailheader
-        RFC822::Message.new(messg).date
-      else
-        raise "failed to look for date: #{place}"
-      end
-    end
-    module_function :look_for_date
-
-    def imap_append(imap, mailbox, message, store_flags: [], date_time: nil, verbose: false)
-      puts "message date: #{date_time}" if (verbose && date_time)
-      store_flags = nil if store_flags.empty?
-      res = imap.append(mailbox, message, store_flags, date_time)
-      puts "append: #{imap_res2str(res)}" if verbose
-      nil
-    end
-    module_function :imap_append
 
     def cmd_mbox_dirty_flag(options, args)
       conf = {
