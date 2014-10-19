@@ -187,6 +187,11 @@ module RIMS
         ]
       ]
 
+      KVS_STORE_OPTION_LIST = [
+        [ :key_value_store_type, 'gdbm', '--kvs-type=TYPE', %w[ gdbm ], "Choose the key-value store type. only gdbm can be chosen now." ],
+        [ :use_key_value_store_checksum, true, '--[no-]use-kvs-cksum', "Enable/disable data checksum at key-value store. default is enabled." ]
+      ]
+
       def initialize(options, option_list)
         @options = options
         @option_list = option_list
@@ -215,6 +220,18 @@ module RIMS
         @options.on('-h', '--help', 'Show this message.') do
           puts @options
           exit
+        end
+
+        self
+      end
+
+      def quiet_option(default_verbose: true)
+        @conf[:verbose] = default_verbose
+        @options.on('-v', '--[no-]verbose', 'Enable verbose messages. default is verbose.') do |verbose|
+          @conf[:verbose] = verbose
+        end
+        @options.on('-q', '--[no-]quiet', 'Disable verbose messages. default is verbose.') do |quiet|
+          @conf[:verbose] = ! quiet
         end
 
         self
@@ -309,6 +326,25 @@ module RIMS
           raise "failed to look for date: #{place}"
         end
       end
+
+      def make_kvs_factory(read_only: false)
+        builder = KeyValueStore::FactoryBuilder.new
+        case (@conf[:key_value_store_type].upcase)
+        when 'GDBM'
+          if (read_only) then
+            builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
+          else
+            builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::WRITER) }
+          end
+        else
+          raise "unknown key-value store type: #{@conf[:key_value_store_type]}"
+        end
+        if (@conf[:use_key_value_store_checksum]) then
+          builder.use(Checksum_KeyValueStore)
+        end
+
+        builder.factory
+      end
     end
 
     def imap_append(imap, mailbox, message, store_flags: [], date_time: nil, verbose: false)
@@ -380,67 +416,28 @@ module RIMS
     command_function :cmd_imap_append, "Append message to IMAP mailbox."
 
     def cmd_mbox_dirty_flag(options, args)
-      conf = {
-        key_value_store_type: 'GDBM',
-        use_key_value_store_checksum: true,
-        verbose: true,
-        return_flag_exit_code: true,
-        write_dirty_flag: nil
-      }
+      option_list = Config::KVS_STORE_OPTION_LIST
+      option_list += [
+        [ :return_flag_exit_code, true, '--[no-]return-flag-exit-code', 'Dirty flag value is returned to exit code. default is true.' ]
+      ]
 
-      options.banner += ' [mailbox directory]'
-      options.on('-h', '--help', 'Show this message.') do
-        puts options
-        exit
-      end
-      options.on('--kvs-type=TYPE', %w[ gdbm ],
-                 "Choose the key-value store type. only GDBM can be chosen now.") do |type|
-        conf[:key_value_store_type] = type
-      end
-      options.on('--[no-]use-kvs-cksum',
-                 "Enable/disable data checksum at key-value store. default is enabled.") do |use|
-        conf[:use_key_value_store_checksum] = use
-      end
-      options.on('-v', '--[no-]verbose', 'Enable verbose messages. default is verbose.') do |verbose|
-        conf[:verbose] = verbose
-      end
-      options.on('-q', '--[no-]quiet', 'Disable verbose messages. default is verbose.') do |quiet|
-        conf[:verbose] = ! quiet
-      end
-      options.on('--[no-]return-flag-exit-code',
-                 'Dirty flag value is returned to exit code. default is true.') do |return_exit_code|
-        conf[:return_flag_exit_code] = return_exit_code
-      end
-      options.on('--enable-dirty-flag', 'Enable mailbox dirty flag.') do
-        conf[:write_dirty_flag] = true
-      end
-      options.on('--disable-dirty-flag', 'Disable mailbox dirty flag.') do
-        conf[:write_dirty_flag] = false
-      end
-      options.parse!(args)
-      pp conf if $DEBUG
+      conf = Config.new(options, option_list)
+      write_dirty_flag = nil
 
-      builder = KeyValueStore::FactoryBuilder.new
-      case (conf[:key_value_store_type].upcase)
-      when 'GDBM'
-        if (conf[:write_dirty_flag].nil?) then
-          builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
-        else
-          builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::WRITER) }
-        end
-      else
-        raise "unknown key-value store type: #{conf[:key_value_store_type]}"
-      end
-      if (conf[:use_key_value_store_checksum]) then
-        builder.use(Checksum_KeyValueStore)
-      end
+      conf.help_option(add_banner: ' [mailbox directory]')
+      conf.quiet_option
+      conf.setup_option_list
+      options.on('--enable-dirty-flag', 'Enable mailbox dirty flag.') { write_dirty_flag = true }
+      options.on('--disable-dirty-flag', 'Disable mailbox dirty flag.') { write_dirty_flag = false }
+      conf.parse_options!(args)
+      pp conf, write_dirty_flag if $DEBUG
 
       mbox_dir = args.shift or raise 'need for mailbox directory.'
-      kvs = builder.factory.call(File.join(mbox_dir, 'meta'))
-      meta_db = DB::Meta.new(kvs)
+      kvs_factory = conf.make_kvs_factory(read_only: write_dirty_flag.nil?)
+      meta_db = DB::Meta.new(kvs_factory.call(File.join(mbox_dir, 'meta')))
       begin
-        unless (conf[:write_dirty_flag].nil?) then
-          meta_db.dirty = conf[:write_dirty_flag]
+        unless (write_dirty_flag.nil?) then
+          meta_db.dirty = write_dirty_flag
         end
 
         if (conf[:verbose]) then
