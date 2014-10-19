@@ -69,7 +69,7 @@ module RIMS
     command_function :cmd_version, 'Show software version.'
 
     def cmd_server(options, args)
-      conf = Config.new
+      conf = RIMS::Config.new
       conf.load(base_dir: Dir.getwd)
 
       options.on('-h', '--help', 'Show this message.') do
@@ -146,23 +146,170 @@ module RIMS
     end
     module_function :imap_res2str
 
-    def look_for_date(place, messg, path=nil)
-      case (place)
-      when :servertime
-        nil
-      when :localtime
-        Time.now
-      when :filetime
-        if (path) then
-          File.stat(path).mtime
+    class Config
+      def imap_res2str(imap_response)
+        Cmd.imap_res2str(imap_response)
+      end
+      private :imap_res2str
+
+      IMAP_AUTH_TYPE_LIST = %w[ login plain cram-md5 ]
+      MAIL_DATE_PLACE_LIST = [ :servertime, :localtime, :filetime, :mailheader ]
+
+      VERBOSE_OPTION_LIST = [
+        [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ]
+      ]
+
+      IMAP_CONNECT_OPTION_LIST = [
+        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `localhost'." ],
+        [ :imap_port, 143, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is 143." ],
+        [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
+        [ :username, nil, '-u', '--username=NAME', "Username to login IMAP server. required parameter to connect server." ],
+        [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
+        [ :auth_type, 'login', '--auth-type=METHOD', IMAP_AUTH_TYPE_LIST,
+          "Choose authentication method type (#{IMAP_AUTH_TYPE_LIST.join(' ')}). default is `login'." ]
+      ]
+
+      IMAP_MAILBOX_OPTION_LIST = [
+        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ]
+      ]
+
+      IMAP_STORE_FLAG_OPTION_LIST = [
+        [ :store_flag_answered, false, '--[no-]store-flag-answered', "Store answered flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_flagged, false, '--[no-]store-flag-flagged', "Store flagged flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_deleted, false, '--[no-]store-flag-deleted', "Store deleted flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_seen, false, '--[no-]store-flag-seen', "Store seen flag on appending messages to mailbox. default is no flag." ],
+        [ :store_flag_draft, false, '--[no-]store-flag-draft', "Store draft flag on appending messages to mailbox. default is no flag." ]
+      ]
+
+      MAIL_DATE_OPTION_LIST = [
+        [ :look_for_date, :servertime, '--look-for-date=PLACE', MAIL_DATE_PLACE_LIST,
+          "Choose the place (#{MAIL_DATE_PLACE_LIST.join(' ')}) to look for the date that as internaldate is appended with message. default is `servertime'."
+        ]
+      ]
+
+      def initialize(options, option_list)
+        @options = options
+        @option_list = option_list
+        @conf = {}
+        for key, value, *option_description in option_list
+          @conf[key] = value
         end
-      when :mailheader
-        RFC822::Message.new(messg).date
-      else
-        raise "failed to look for date: #{place}"
+      end
+
+      def [](key)
+        @conf[key]
+      end
+
+      def setup_option_list
+        @option_list.each do |key, value, *option_description|
+          @options.on(*option_description) do |v|
+            @conf[key] = v
+          end
+        end
+
+        self
+      end
+
+      def help_option(add_banner: nil)
+        @options.banner += add_banner if add_banner
+        @options.on('-h', '--help', 'Show this message.') do
+          puts @options
+          exit
+        end
+
+        self
+      end
+
+      def load_config_option
+        @options.on('-f', '--config-yaml=CONFIG_FILE',
+                    "Load optional parameters from CONFIG_FILE.") do |path|
+          for name, value in YAML.load_file(path)
+            @conf[name.to_sym] = value
+          end
+        end
+
+        self
+      end
+
+      def parse_options!(args)
+        @options.parse!(args)
+        pp @conf if $DEBUG
+
+        self
+      end
+
+      def imap_debug_option
+        @options.on('--[no-]imap-debug',
+                    "Set the debug flag of Net::IMAP class. default is false.") do |v|
+          Net::IMAP.debug = v
+        end
+
+        self
+      end
+
+      def imap_connect
+        unless (@conf[:username] && @conf[:password]) then
+          raise 'need for username and password.'
+        end
+
+        imap = Net::IMAP.new(@conf[:imap_host], port: @conf[:imap_port], ssl: @conf[:imap_ssl])
+        begin
+          if (@conf[:verbose]) then
+            puts "server greeting: #{imap_res2str(imap.greeting)}"
+            puts "server capability: #{imap.capability.join(' ')}"
+          end
+
+          case (@conf[:auth_type])
+          when 'login'
+            res = imap.login(@conf[:username], @conf[:password])
+            puts "login: #{imap_res2str(res)}" if @conf[:verbose]
+          when 'plain', 'cram-md5'
+            res = imap.authenticate(@conf[:auth_type], @conf[:username], @conf[:password])
+            puts "authenticate: #{imap_res2str(res)}" if @conf[:verbose]
+          else
+            raise "unknown authentication type: #{@conf[:auth_type]}"
+          end
+
+          yield(imap)
+        ensure
+          Error.suppress_2nd_error_at_resource_closing{ imap.logout }
+        end
+      end
+
+      def make_imap_store_flags
+        store_flags = []
+        [ [ :store_flag_answered, :Answered ],
+          [ :store_flag_flagged, :Flagged ],
+          [ :store_flag_deleted, :Deleted ],
+          [ :store_flag_seen, :Seen ],
+          [ :store_flag_draft, :Draft ]
+        ].each do |key, flag|
+          if (@conf[key]) then
+            store_flags << flag
+          end
+        end
+        puts "store flags: (#{store_flags.join(' ')})" if @conf[:verbose]
+
+        store_flags
+      end
+
+      def look_for_date(message_text, path=nil)
+        case (@conf[:look_for_date])
+        when :servertime
+          nil
+        when :localtime
+          Time.now
+        when :filetime
+          if (path) then
+            File.stat(path).mtime
+          end
+        when :mailheader
+          RFC822::Message.new(message_text).date
+        else
+          raise "failed to look for date: #{place}"
+        end
       end
     end
-    module_function :look_for_date
 
     def imap_append(imap, mailbox, message, store_flags: [], date_time: nil, verbose: false)
       puts "message date: #{date_time}" if (verbose && date_time)
@@ -173,124 +320,62 @@ module RIMS
     end
     module_function :imap_append
 
-    def cmd_imap_append(options, args)
-      date_place_list = [ :servertime, :localtime, :filetime, :mailheader ]
-      auth_type_list = %w[ login plain cram-md5 ]
-      option_list = [
-        [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ],
-        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `localhost'." ],
-        [ :imap_port, 143, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is 143." ],
-        [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
-        [ :username, nil, '-u', '--username=NAME', "Username to login IMAP server. required parameter to connect server." ],
-        [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
-        [ :auth_type, 'login', '--auth-type=METHOD', auth_type_list,
-          "Choose authentication method type (#{auth_type_list.join(' ')}). default is `login'." ],
-        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ],
-        [ :store_flag_answered, false, '--[no-]store-flag-answered', "Store answered flag on appending messages to mailbox. default is no flag." ],
-        [ :store_flag_flagged, false, '--[no-]store-flag-flagged', "Store flagged flag on appending messages to mailbox. default is no flag." ],
-        [ :store_flag_deleted, false, '--[no-]store-flag-deleted', "Store deleted flag on appending messages to mailbox. default is no flag." ],
-        [ :store_flag_seen, false, '--[no-]store-flag-seen', "Store seen flag on appending messages to mailbox. default is no flag." ],
-        [ :store_flag_draft, false, '--[no-]store-flag-draft', "Store draft flag on appending messages to mailbox. default is no flag." ],
-        [ :look_for_date, :servertime, '--look-for-date=PLACE', date_place_list,
-          "Choose the place (#{date_place_list.join(' ')}) to look for the date that as internaldate is appended with message. default is `servertime'." ]
-      ]
-
-      conf = {}
-      for key, value, *option_description in option_list
-        conf[key] = value
-      end
-
-      options.banner += ' [MESSAGE_FILEs]'
-      options.on('-h', '--help', 'Show this message.') do
-        puts options
-        exit
-      end
-      options.on('-f', '--config-yaml=CONFIG_FILE',
-                 "Load optional parameters from CONFIG_FILE.") do |path|
-        for name, value in YAML.load_file(path)
-          conf[name.to_sym] = value
-        end
-      end
-      option_list.each do |key, value, *option_description|
-        options.on(*option_description) do |v|
-          conf[key] = v
-        end
-      end
-      options.on('--[no-]imap-debug',
-                 "Set the debug flag of Net::IMAP class. default is false.") do |v|
-        Net::IMAP.debug = v
-      end
-      options.parse!(args)
-      pp conf if $DEBUG
-
-      unless (conf[:username] && conf[:password]) then
-        raise 'need for username and password.'
-      end
-
-      store_flags = []
-      [ [ :store_flag_answered, :Answered ],
-        [ :store_flag_flagged, :Flagged ],
-        [ :store_flag_deleted, :Deleted ],
-        [ :store_flag_seen, :Seen ],
-        [ :store_flag_draft, :Draft ]
-      ].each do |key, flag|
-        if (conf[key]) then
-          store_flags << flag
-        end
-      end
-      puts "store flags: (#{store_flags.join(' ')})" if conf[:verbose]
-
-      imap = Net::IMAP.new(conf[:imap_host], port: conf[:imap_port], ssl: conf[:imap_ssl])
-      begin
-        if (conf[:verbose]) then
-          puts "server greeting: #{imap_res2str(imap.greeting)}"
-          puts "server capability: #{imap.capability.join(' ')}"
-        end
-
-        case (conf[:auth_type])
-        when 'login'
-          res = imap.login(conf[:username], conf[:password])
-          puts "login: #{imap_res2str(res)}" if conf[:verbose]
-        when 'plain', 'cram-md5'
-          res = imap.authenticate(conf[:auth_type], conf[:username], conf[:password])
-          puts "authenticate: #{imap_res2str(res)}" if conf[:verbose]
-        else
-          raise "unknown authentication type: #{conf[:auth_type]}"
-        end
-
-        if (args.empty?) then
-          msg = STDIN.read
-          t = look_for_date(conf[:look_for_date], msg)
-          imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
-        else
-          error_count = 0
-          args.each_with_index do |filename, i|
-            puts "progress: #{i + 1}/#{args.length}" if conf[:verbose]
-            begin
-              msg = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
-              t = look_for_date(conf[:look_for_date], msg, filename)
-              imap_append(imap, conf[:mailbox], msg, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
-            rescue
-              error_count += 1
-              puts "failed to append message: #{filename}"
-              puts "error: #{$!}"
-              if ($DEBUG) then
-                for frame in $!.backtrace
-                  puts frame
-                end
+    def each_message(args, verbose: false)
+      if (args.empty?) then
+        msg_txt = STDIN.read
+        yield(msg_txt)
+        return 0
+      else
+        error_count = 0
+        args.each_with_index do |filename, i|
+          puts "progress: #{i + 1}/#{args.length}" if verbose
+          begin
+            msg_txt = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
+            yield(msg_txt)
+          rescue
+            error_count += 1
+            puts "failed to append message: #{filename}"
+            puts "error: #{$!}"
+            if ($DEBUG) then
+              for frame in $!.backtrace
+                puts frame
               end
             end
           end
-          if (error_count > 0) then
-            puts "#{error_count} errors!"
-            return 1
-          end
         end
-      ensure
-        Error.suppress_2nd_error_at_resource_closing{ imap.logout }
-      end
 
-      0
+        if (error_count > 0) then
+          puts "#{error_count} errors!"
+          return 1
+        else
+          return 0
+        end
+      end
+    end
+    module_function :each_message
+
+    def cmd_imap_append(options, args)
+      option_list =
+        Config::VERBOSE_OPTION_LIST +
+        Config::IMAP_CONNECT_OPTION_LIST +
+        Config::IMAP_MAILBOX_OPTION_LIST +
+        Config::IMAP_STORE_FLAG_OPTION_LIST +
+        Config::MAIL_DATE_OPTION_LIST
+
+      conf = Config.new(options, option_list)
+      conf.help_option(add_banner: ' [MESSAGE_FILEs]')
+      conf.load_config_option
+      conf.setup_option_list
+      conf.imap_debug_option
+      conf.parse_options!(args)
+
+      store_flags = conf.make_imap_store_flags
+      conf.imap_connect{|imap|
+        each_message(args) do |msg_txt|
+          t = conf.look_for_date(msg_txt)
+          imap_append(imap, conf[:mailbox], msg_txt, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
+        end
+      }
     end
     command_function :cmd_imap_append, "Append message to IMAP mailbox."
 
@@ -393,7 +478,7 @@ module RIMS
     command_function :cmd_unique_user_id, 'Show unique user ID from username.'
 
     def cmd_show_user_mbox(options, args)
-      conf = Config.new
+      conf = RIMS::Config.new
       defined_config_yml = false
 
       options.banner += ' [base directory] [username] OR -f [config.yml path] [username]'
