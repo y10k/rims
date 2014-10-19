@@ -266,6 +266,25 @@ For example, type following to see overview of contents at a meta key-value stor
     "msg_id2date-3": 49 bytes: 2013-11-08 12:47:17 +0900
     "msg_id2flag-3": 6 bytes: "recent"
 
+### Mailbox key-value store
+
+Mailbox key-value store file preserves key-value pairs of uid and
+message ID.  Per one user, plural files exist about this type of file
+because plural mailboxes are allowed at one user.  Mailbox key-value
+store filenames are "mailbox\_1", "mailbox\_2", ...  And 1,2,... are
+mailbox ID.  Contents of mailbox key-value store is simple.  A key is
+a uid, and a value is message ID.  A uid is a unique number of a
+message in a mailbox in IMAP.  A message ID is a unique number of a
+message in RIMS internal.  For example, type following to see overview
+of contents at a mailbox key-value store.
+
+    $ rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/mailbox_1
+    "2": 1 bytes: "1"
+    "5": 1 bytes: "4"
+    "1": 1 bytes: "0"
+    "4": 1 bytes: "3"
+    "3": 1 bytes: "2"
+
 ## History
 
 * v0.0.4 (Latest version)
