@@ -500,56 +500,23 @@ module RIMS
     command_function :cmd_show_user_mbox, "Show the path in which user's mailbox data is stored."
 
     def cmd_debug_dump_kvs(options, args)
-      conf = {
-        key_value_store_type: 'GDBM',
-        use_key_value_store_checksum: true,
-        match_key: nil,
-        dump_size: true,
-        dump_value: true,
-        marshal_restore: true,
-      }
+      option_list = Config::KVS_STORE_OPTION_LIST
+      option_list += [
+        [ :match_key, nil, '--match-key=REGEXP', Regexp, 'Show keys matching regular expression.' ],
+        [ :dump_size, true, '--[no-]dump-size', 'Dump size of value with key.' ],
+        [ :dump_value, true, '--[no-]dump-value', 'Dump value with key.' ],
+        [ :marshal_restore, true, '--[no-]marshal-restore', 'Restore serialized object.' ]
+      ]
 
-      options.banner += ' [DB_NAME]'
-      options.on('-h', '--help', 'Show this message.') do
-        puts options
-        exit
-      end
-      options.on('--kvs-type=TYPE', %w[ gdbm ],
-                 "Choose the key-value store type. only GDBM can be chosen now.") do |type|
-        conf[:key_value_store_type] = type
-      end
-      options.on('--[no-]use-kvs-cksum',
-                 "Enable/disable data checksum at key-value store. default is enabled.") do |use|
-        conf[:use_key_value_store_checksum] = use
-      end
-      options.on('--match-key=REGEXP', Regexp, 'Show keys matching regular expression.') do |regexp|
-        conf[:match_key] = regexp
-      end
-      options.on('--[no-]dump-size', 'Dump size of value with key.') do |v|
-        conf[:dump_size] = v
-      end
-      options.on('--[no-]dump-value', 'Dump value with key.') do |v|
-        conf[:dump_value] = v
-      end
-      options.on('--[no-]marshal-restore', 'Restore serialized object.') do |v|
-        conf[:marshal_restore] = v
-      end
-      options.parse!(args)
+      conf = Config.new(options, option_list)
+      conf.help_option(add_banner: ' [DB_NAME]')
+      conf.setup_option_list
+      conf.parse_options!(args)
       pp conf if $DEBUG
 
-      builder = KeyValueStore::FactoryBuilder.new
-      case (conf[:key_value_store_type].upcase)
-      when 'GDBM'
-        builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
-      else
-        raise "unknown key-value store type: #{conf[:key_value_store_type]}"
-      end
-      if (conf[:use_key_value_store_checksum]) then
-        builder.use(Checksum_KeyValueStore)
-      end
-
-      name = args.shift or raise 'need for GDBM DB name.'
-      db = builder.factory.call(name)
+      name = args.shift or raise 'need for DB name.'
+      factory = conf.make_kvs_factory(read_only: true)
+      db = factory.call(name)
       begin
         db.each_key do |key|
           if (conf[:match_key] && (key !~ conf[:match_key])) then
