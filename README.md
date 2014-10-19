@@ -114,6 +114,11 @@ To start server with config.yml file, type following.
   <dt>ip_port</dt>
   <dd>This parameter describes IP port of a server socket to listen(2)
   and accept(2). Default is 1430.</dd>
+
+  <dt>mail_delivery_user</dt>
+  <dd>This parameter describes a special user to deliver mail to any
+  user. Password definition of this special user is same to a normal
+  user.</dd>
 </dl>
 
 ## Mailbox Data
