@@ -476,17 +476,17 @@ module RIMS
 
     def cmd_show_user_mbox(options, args)
       conf = RIMS::Config.new
-      defined_config_yml = false
+      load_server_config = false
 
       options.banner += ' [base directory] [username] OR -f [config.yml path] [username]'
       options.on('-f', '--config-yaml=CONFIG_FILE',
                  'Load optional parameters from CONFIG_FILE.') do |path|
         conf.load_config_yaml(path)
-        defined_config_yml = true
+        load_server_config = true
       end
       options.parse!(args)
 
-      unless (defined_config_yml) then
+      unless (load_server_config) then
         base_dir = args.shift or raise 'need for base directory.'
         conf.load(base_dir: base_dir)
       end
