@@ -159,15 +159,23 @@ module RIMS
         [ :verbose, false, '-v', '--[no-]verbose', "Enable verbose messages. default is no verbose." ]
       ]
 
-      IMAP_CONNECT_OPTION_LIST = [
-        [ :imap_host, 'localhost', '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `localhost'." ],
-        [ :imap_port, 143, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is 143." ],
-        [ :imap_ssl, false, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is disabled." ],
-        [ :username, nil, '-u', '--username=NAME', "Username to login IMAP server. required parameter to connect server." ],
-        [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
-        [ :auth_type, 'login', '--auth-type=METHOD', IMAP_AUTH_TYPE_LIST,
-          "Choose authentication method type (#{IMAP_AUTH_TYPE_LIST.join(' ')}). default is `login'." ]
-      ]
+      def self.make_imap_connect_option_list(imap_host: 'localhost', imap_port: 143, imap_ssl: false, auth_type: 'login', username: nil)
+        [ [ :imap_host, imap_host, '-n', '--host=HOSTNAME', "Hostname or IP address to connect IMAP server. default is `#{imap_host}'." ],
+          [ :imap_port, imap_port, '-o', '--port=PORT', Integer, "Server port number or service name to connect IMAP server. default is #{imap_port}." ],
+          [ :imap_ssl, imap_ssl, '-s', '--[no-]use-ssl', "Enable SSL/TLS connection. default is #{imap_ssl ? 'enabled' : 'disabled'}." ],
+          [ :username, username, '-u', '--username=NAME',
+            "Username to login IMAP server. " + if (username) then
+                                                  "default is `#{username}'."
+                                                else
+                                                  "required parameter to connect server."
+                                                end ],
+          [ :password, nil, '-w', '--password=PASS', "Password to login IMAP server. required parameter to connect server." ],
+          [ :auth_type, auth_type, '--auth-type=METHOD', IMAP_AUTH_TYPE_LIST,
+            "Choose authentication method type (#{IMAP_AUTH_TYPE_LIST.join(' ')}). default is `#{auth_type}'." ]
+        ]
+      end
+
+      IMAP_CONNECT_OPTION_LIST = self.make_imap_connect_option_list
 
       IMAP_MAILBOX_OPTION_LIST = [
         [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ]
