@@ -67,14 +67,14 @@ module RIMS
     # * <tt>:log_shift_size</tt>
     #
     def logging_params
-      log_file = @config.delete(:log_file) || 'imap.log'
+      log_file = @config.delete(:log_file) || Server::DEFAULT[:log_file]
       if (relative_path? log_file) then
         log_file_path = File.join(base_dir, log_file)
       else
         log_file_path = log_file
       end
 
-      log_level = @config.delete(:log_level) || 'INFO'
+      log_level = @config.delete(:log_level) || Server::DEFAULT[:log_level]
       log_level = log_level.upcase
       %w[ DEBUG INFO WARN ERROR FATAL ].include? log_level or raise "unknown log level: #{log_level}"
       log_level = Logger.const_get(log_level)
@@ -105,7 +105,7 @@ module RIMS
     # * <tt>:use_key_value_store_checksum</tt>
     #
     def key_value_store_params
-      kvs_type = (@config.delete(:key_value_store_type) || 'GDBM').upcase
+      kvs_type = (@config.delete(:key_value_store_type) || Server::DEFAULT[:key_value_store_type]).upcase
       case (kvs_type)
       when 'GDBM'
         origin_key_value_store = GDBM_KeyValueStore
@@ -114,7 +114,7 @@ module RIMS
       end
 
       middleware_key_value_store_list = []
-      if ((@config.key? :use_key_value_store_checksum) ? @config.delete(:use_key_value_store_checksum) : true) then
+      if ((@config.key? :use_key_value_store_checksum) ? @config.delete(:use_key_value_store_checksum) : Server::DEFAULT[:use_key_value_store_checksum]) then
         middleware_key_value_store_list << Checksum_KeyValueStore
       end
 
@@ -255,12 +255,22 @@ module RIMS
   end
 
   class Server
+    DEFAULT = {
+      key_value_store_type: 'GDBM'.freeze,
+      use_key_value_store_checksum: true,
+      ip_addr: '0.0.0.0'.freeze,
+      ip_port: 1430,
+      mail_delivery_user: '#postman'.freeze,
+      log_file: 'imap.log'.freeze,
+      log_level: 'INFO'
+    }.freeze
+
     def initialize(kvs_meta_open: nil,
                    kvs_text_open: nil,
                    authentication: nil,
-                   ip_addr: '0.0.0.0',
-                   ip_port: 1430,
-                   mail_delivery_user: '#postman',
+                   ip_addr: DEFAULT[:ip_addr],
+                   ip_port: DEFAULT[:ip_port],
+                   mail_delivery_user: DEFAULT[:mail_delivery_user],
                    logger: Logger.new(STDOUT))
       begin
         kvs_meta_open or raise ArgumentError, 'need for a keyword argument: kvs_meta_open'

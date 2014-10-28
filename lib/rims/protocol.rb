@@ -1350,7 +1350,7 @@ module RIMS
     end
 
     class InitialDecoder < Decoder
-      def initialize(mail_store_pool, auth, logger, mail_delivery_user: '#postman')
+      def initialize(mail_store_pool, auth, logger, mail_delivery_user: Server::DEFAULT[:mail_delivery_user])
         super(auth, logger)
         @mail_store_pool = mail_store_pool
         @folder = nil
