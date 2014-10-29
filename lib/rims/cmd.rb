@@ -176,6 +176,8 @@ module RIMS
       end
 
       IMAP_CONNECT_OPTION_LIST = self.make_imap_connect_option_list
+      POST_MAIL_CONNECT_OPTION_LIST = self.make_imap_connect_option_list(imap_port: Server::DEFAULT[:ip_port],
+                                                                         username: Server::DEFAULT[:mail_delivery_user])
 
       IMAP_MAILBOX_OPTION_LIST = [
         [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ]
@@ -397,6 +399,34 @@ module RIMS
       end
     end
     module_function :each_message
+
+    def cmd_post_mail(options, args)
+      option_list =
+        Config::VERBOSE_OPTION_LIST +
+        Config::POST_MAIL_CONNECT_OPTION_LIST +
+        Config::IMAP_MAILBOX_OPTION_LIST +
+        Config::IMAP_STORE_FLAG_OPTION_LIST +
+        Config::MAIL_DATE_OPTION_LIST
+
+      conf = Config.new(options, option_list)
+      conf.help_option(add_banner: ' [POST USER] [MESSAGE_FILEs]')
+      conf.load_config_option
+      conf.setup_option_list
+      conf.imap_debug_option
+      conf.parse_options!(args)
+
+      post_user = args.shift or raise 'need for post user.'
+
+      store_flags = conf.make_imap_store_flags
+      conf.imap_connect{|imap|
+        each_message(args) do |msg_txt|
+          t = conf.look_for_date(msg_txt)
+          encoded_mbox_name = Protocol::MailDeliveryDecoder.encode_user_mailbox(post_user, conf[:mailbox])
+          imap_append(imap, encoded_mbox_name, msg_txt, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
+        end
+      }
+    end
+    command_function :cmd_post_mail, "Post mail to any user."
 
     def cmd_imap_append(options, args)
       option_list =
