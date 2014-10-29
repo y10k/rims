@@ -5481,6 +5481,11 @@ LOGOUT
         RIMS::Protocol::MailDeliveryDecoder.decode_user_mailbox("unknown-encode-type #{base64_username} INBOX")
       }
     end
+
+    def test_encode_user_mailbox
+      encoded_mbox_name = RIMS::Protocol::MailDeliveryDecoder.encode_user_mailbox('foo', 'INBOX')
+      assert_equal(%w[ foo INBOX ], RIMS::Protocol::MailDeliveryDecoder.decode_user_mailbox(encoded_mbox_name))
+    end
   end
 end
 

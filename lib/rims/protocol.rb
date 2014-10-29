@@ -2189,6 +2189,10 @@ module RIMS
         nil
       end
 
+      def self.encode_user_mailbox(username, mbox_name)
+        "b64user-mbox #{Protocol.encode_base64(username)} #{mbox_name}"
+      end
+
       def self.decode_user_mailbox(encoded_mbox_name)
         encode_type, base64_username, mbox_name = encoded_mbox_name.split(' ', 3)
         if (encode_type != 'b64user-mbox') then
