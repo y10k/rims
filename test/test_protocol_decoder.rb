@@ -3624,7 +3624,7 @@ module RIMS::Test
       assert_msg_uid(1, 2)
 
       assert_imap_command(:append, "b64user-mbox #{base64_nouser} INBOX", 'x') {|assert|
-        assert.match(/^#{tag} NO \[TRYCREATE\]/)
+        assert.match(/^#{tag} NO not found a user/)
       }
       assert_msg_uid(1, 2)
 
@@ -5454,7 +5454,7 @@ LOGOUT
         assert.equal("#{tag!} OK APPEND completed")
         assert.equal("#{tag!} OK APPEND completed")
         assert.match(/^#{tag!} NO \[TRYCREATE\]/)
-        assert.match(/^#{tag!} NO \[TRYCREATE\]/)
+        assert.match(/^#{tag!} NO not found a user/)
         assert.match(/^#{tag!} BAD /)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")

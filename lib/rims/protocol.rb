@@ -2268,6 +2268,7 @@ module RIMS
       def append(tag, encoded_mbox_name, *opt_args, msg_text)
         protect_error(tag) {
           username, mbox_name = self.class.decode_user_mailbox(encoded_mbox_name)
+          @logger.info("message delivery: user #{username}, mailbox #{mbox_name}")
 
           res = []
           if (@auth.user? username) then
@@ -2276,13 +2277,16 @@ module RIMS
               user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
               res.concat(user_decoder.append(tag, mbox_name, *opt_args, msg_text))
               if (res.last.split(' ', 3)[1] == 'OK') then
-                @logger.info("message delivery: user #{username}, mailbox #{mbox_name}, #{msg_text.bytesize} octets message")
+                @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
+              else
+                @logger.info("message delivery: failed to deliver message.")
               end
             ensure
               mail_store_holder.return_pool
             end
           else
-            res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
+            @logger.info('message delivery: not found a user.')
+            res << "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n"
           end
 
           res
