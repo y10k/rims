@@ -2265,31 +2265,38 @@ module RIMS
         not_allowed_command_response(tag)
       end
 
+      def deliver_to_user(tag, encoded_mbox_name)
+        username, mbox_name = self.class.decode_user_mailbox(encoded_mbox_name)
+        @logger.info("message delivery: user #{username}, mailbox #{mbox_name}")
+
+        res = []
+        if (@auth.user? username) then
+          mail_store_holder = fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
+          begin
+            yield(username, mbox_name, mail_store_holder, res)
+          ensure
+            mail_store_holder.return_pool
+          end
+        else
+          @logger.info('message delivery: not found a user.')
+          res << "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n"
+        end
+
+        res
+      end
+      private :deliver_to_user
+
       def append(tag, encoded_mbox_name, *opt_args, msg_text)
         protect_error(tag) {
-          username, mbox_name = self.class.decode_user_mailbox(encoded_mbox_name)
-          @logger.info("message delivery: user #{username}, mailbox #{mbox_name}")
-
-          res = []
-          if (@auth.user? username) then
-            mail_store_holder = fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
-            begin
-              user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
-              res.concat(user_decoder.append(tag, mbox_name, *opt_args, msg_text))
-              if (res.last.split(' ', 3)[1] == 'OK') then
-                @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
-              else
-                @logger.info("message delivery: failed to deliver message.")
-              end
-            ensure
-              mail_store_holder.return_pool
+          deliver_to_user(tag, encoded_mbox_name) {|username, mbox_name, mail_store_holder, res|
+            user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
+            res.concat(user_decoder.append(tag, mbox_name, *opt_args, msg_text))
+            if (res.last.split(' ', 3)[1] == 'OK') then
+              @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
+            else
+              @logger.info("message delivery: failed to deliver message.")
             end
-          else
-            @logger.info('message delivery: not found a user.')
-            res << "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n"
-          end
-
-          res
+          }
         }
       end
 
