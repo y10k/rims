@@ -419,6 +419,9 @@ module RIMS
 
       store_flags = conf.make_imap_store_flags
       conf.imap_connect{|imap|
+        unless (imap.capability.find{|c| c == 'X-RIMS-MAIL-DELIVERY-USER' }) then
+          warn('warning: This IMAP server might not support RIMS mail delivery protocol.')
+        end
         each_message(args) do |msg_txt|
           t = conf.look_for_date(msg_txt)
           encoded_mbox_name = Protocol::MailDeliveryDecoder.encode_user_mailbox(post_user, conf[:mailbox])
