@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'rake/clean'
 require 'yaml'
 
 def start_pgrp(*cmds)
@@ -34,17 +35,39 @@ def run_server_conf(path, conf, *options)
   end
 end
 
-task :server do
-  conf = {
-    'user_list' => [
-      { 'user' => 'foo', 'pass' => 'foo' },
-      { 'user' => '#postman', 'pass' => '#postman' }
-    ]
-  }
-  run_server_conf('imap_append', conf, *%w[ -l debug --ip-addr=localhost --ip-port=14300 ]) do
-    sleep(10)
+def get_mail_file_list
+  FileUtils.mkdir 'mails' unless (File.directory? 'mails')
+  mail_file_list = Dir.entries('mails').map{|name| File.join('mails', name) }.select{|path| File.file? path }
+  if (mail_file_list.empty?) then
+    warn('WARNING: not found mail file(s) at a directory: mails/')
+  end
+  mail_file_list
+end
+
+def time_shell(*cmds)
+  sh 'time', '-p', '--', *cmds
+end
+
+PASSWD = {
+  'foo' => 'foo',
+  '#postman' => '#postman'
+}
+
+USER_CONF = { 'user_list' => [] }
+for user, pass in PASSWD
+  USER_CONF['user_list'].push({ 'user' => user, 'pass' => pass })
+end
+
+desc 'load test: rims imap-append'
+task :imap_append do
+  mail_file_list = get_mail_file_list
+  puts "#{mail_file_list.length} mails."
+  run_server_conf('imap_append', USER_CONF, *%w[ -l info --ip-addr=localhost --ip-port=14300 ]) do
+    time_shell 'rims', 'imap-append', '--no-verbose', '--host', 'localhost', '--port', '14300', '--username', 'foo', '--password', PASSWD['foo'], *mail_file_list
   end
 end
+
+CLOBBER.include('imap_append')
 
 # Local Variables:
 # mode: Ruby
