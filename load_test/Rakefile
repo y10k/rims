@@ -58,6 +58,17 @@ for user, pass in PASSWD
   USER_CONF['user_list'].push({ 'user' => user, 'pass' => pass })
 end
 
+desc 'load test: rims post-mail'
+task :post_mail do
+  mail_file_list = get_mail_file_list
+  puts "#{mail_file_list.length} mails."
+  run_server_conf('post_mail', USER_CONF, *%w[ -l info --ip-addr=localhost --ip-port=14300 ]) do
+    time_shell 'rims', 'post-mail', '--no-verbose', '--host=localhost', '--port=14300', '--username=#postman', "--password=#{PASSWD['#postman']}", 'foo', *mail_file_list
+  end
+end
+
+CLOBBER.include('post_mail')
+
 desc 'load test: rims imap-append'
 task :imap_append do
   mail_file_list = get_mail_file_list
