@@ -2173,7 +2173,29 @@ module RIMS
         super(auth, logger)
         @mail_store_pool = mail_store_pool
         @auth = auth
+        @last_user_cache_key_username = nil
+        @last_user_cache_value_mail_store_holder = nil
       end
+
+      def fetch_user_mail_store_holder(username)
+        if (@last_user_cache_key_username != username) then
+          release_user_mail_store_holder
+          @last_user_cache_value_mail_store_holder = yield
+          @last_user_cache_key_username = username
+        end
+        @last_user_cache_value_mail_store_holder
+      end
+      private :fetch_user_mail_store_holder
+
+      def release_user_mail_store_holder
+        if (@last_user_cache_value_mail_store_holder) then
+          mail_store_holder = @last_user_cache_value_mail_store_holder
+          @last_user_cache_key_username = nil
+          @last_user_cache_value_mail_store_holder = nil
+          mail_store_holder.return_pool
+        end
+      end
+      private :release_user_mail_store_holder
 
       def auth?
         @mail_store_pool != nil
@@ -2184,6 +2206,7 @@ module RIMS
       end
 
       def cleanup
+        release_user_mail_store_holder
         @mail_store_pool = nil unless @mail_store_pool.nil?
         @auth = nil unless @auth.nil?
         nil
@@ -2271,12 +2294,10 @@ module RIMS
 
         res = []
         if (@auth.user? username) then
-          mail_store_holder = fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
-          begin
-            yield(username, mbox_name, mail_store_holder, res)
-          ensure
-            mail_store_holder.return_pool
-          end
+          mail_store_holder = fetch_user_mail_store_holder(username) {
+            fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
+          }
+          yield(username, mbox_name, mail_store_holder, res)
         else
           @logger.info('message delivery: not found a user.')
           res << "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n"
