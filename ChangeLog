@@ -1,3 +1,12 @@
+2014-12-01  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/auth.rb, lib/rims/cmd.rb, lib/rims/protocol.rb:
+	post-mail mechanism is defined. `post-mail user' and `post-mail
+	command' are defined for this mechanism. authenticated special
+	user is able to post message to any user.
+
+	* load_test/Rakefile: load test of post-mail command.
+
 2014-11-19  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* load_test/Rakefile: load test of imap-append command.
