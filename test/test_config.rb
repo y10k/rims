@@ -86,37 +86,99 @@ module RIMS::Test
       assert_logging_params({}, {
                               log_file: File.join(@base_dir, 'imap.log'),
                               log_level: Logger::INFO,
-                              log_opt_args: []
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
+                            })
+
+      assert_logging_params({ log_level: 'debug' }, {
+                              log_file: File.join(@base_dir, 'imap.log'),
+                              log_level: Logger::DEBUG,
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
+                            })
+
+      assert_logging_params({ log_level: 'info' }, {
+                              log_file: File.join(@base_dir, 'imap.log'),
+                              log_level: Logger::INFO,
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
+                            })
+
+      assert_logging_params({ log_level: 'warn' }, {
+                              log_file: File.join(@base_dir, 'imap.log'),
+                              log_level: Logger::WARN,
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
+                            })
+
+      assert_logging_params({ log_level: 'error' }, {
+                              log_file: File.join(@base_dir, 'imap.log'),
+                              log_level: Logger::ERROR,
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
+                            })
+
+      assert_logging_params({ log_stdout: 'debug' }, {
+                              log_file: File.join(@base_dir, 'imap.log'),
+                              log_level: Logger::INFO,
+                              log_opt_args: [],
+                              log_stdout: Logger::DEBUG
+                            })
+
+      assert_logging_params({ log_stdout: 'info' }, {
+                              log_file: File.join(@base_dir, 'imap.log'),
+                              log_level: Logger::INFO,
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
+                            })
+
+      assert_logging_params({ log_stdout: 'warn' }, {
+                              log_file: File.join(@base_dir, 'imap.log'),
+                              log_level: Logger::INFO,
+                              log_opt_args: [],
+                              log_stdout: Logger::WARN
+                            })
+
+      assert_logging_params({ log_stdout: 'error' }, {
+                              log_file: File.join(@base_dir, 'imap.log'),
+                              log_level: Logger::INFO,
+                              log_opt_args: [],
+                              log_stdout: Logger::ERROR
                             })
 
       assert_logging_params({ log_file: 'server.log' }, {
                               log_file: File.join(@base_dir, 'server.log'),
                               log_level: Logger::INFO,
-                              log_opt_args: []
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
                             })
 
       assert_logging_params({ log_file: 'foo/bar/server.log' }, {
                               log_file: File.join(@base_dir, 'foo/bar/server.log'),
                               log_level: Logger::INFO,
-                              log_opt_args: []
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
                             })
 
       assert_logging_params({ log_file: '/var/rims/server.log' }, {
                               log_file: '/var/rims/server.log',
                               log_level: Logger::INFO,
-                              log_opt_args: []
+                              log_opt_args: [],
+                              log_stdout: Logger::INFO
                             })
 
       assert_logging_params({ log_shift_age: 'daily' }, {
                               log_file: File.join(@base_dir, 'imap.log'),
                               log_level: Logger::INFO,
-                              log_opt_args: [ 'daily' ]
+                              log_opt_args: [ 'daily' ],
+                              log_stdout: Logger::INFO
                             })
 
       assert_logging_params({ log_shift_size: 1024**2 }, {
                               log_file: File.join(@base_dir, 'imap.log'),
                               log_level: Logger::INFO,
-                              log_opt_args: [ 1, 1024**2 ]
+                              log_opt_args: [ 1, 1024**2 ],
+                              log_stdout: Logger::INFO
                             })
 
       assert_logging_params({ log_shift_age: 10,
@@ -124,7 +186,8 @@ module RIMS::Test
                             }, {
                               log_file: File.join(@base_dir, 'imap.log'),
                               log_level: Logger::INFO,
-                              log_opt_args: [ 10, 1024**2 ]
+                              log_opt_args: [ 10, 1024**2 ],
+                              log_stdout: Logger::INFO
                             })
     end
 

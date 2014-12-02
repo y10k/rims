@@ -65,6 +65,7 @@ module RIMS
     # * <tt>:log_level</tt>
     # * <tt>:log_shift_age</tt>
     # * <tt>:log_shift_size</tt>
+    # * <tt>:log_stdout</tt>
     #
     def logging_params
       log_file = @config.delete(:log_file) || Server::DEFAULT[:log_file]
@@ -76,8 +77,23 @@ module RIMS
 
       log_level = @config.delete(:log_level) || Server::DEFAULT[:log_level]
       log_level = log_level.upcase
-      %w[ DEBUG INFO WARN ERROR FATAL ].include? log_level or raise "unknown log level: #{log_level}"
-      log_level = Logger.const_get(log_level)
+      case (log_level)
+      when 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'
+        log_level = Logger.const_get(log_level)
+      else
+        raise "unknown log level of logfile: #{log_level}"
+      end
+
+      log_stdout = @config.delete(:log_stdout) || Server::DEFAULT[:log_stdout]
+      log_stdout = log_stdout.upcase
+      case (log_stdout)
+      when 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'
+        log_stdout = Logger.const_get(log_stdout)
+      when 'QUIET'
+        log_stdout = nil
+      else
+        raise "unknown log level of stdout: #{log_stdout}"
+      end
 
       log_opt_args = []
       if (@config.key? :log_shift_age) then
@@ -89,7 +105,8 @@ module RIMS
 
       { log_file: log_file_path,
         log_level: log_level,
-        log_opt_args: log_opt_args
+        log_opt_args: log_opt_args,
+        log_stdout: log_stdout
       }
     end
 
@@ -262,7 +279,8 @@ module RIMS
       ip_port: 1430,
       mail_delivery_user: '#postman'.freeze,
       log_file: 'imap.log'.freeze,
-      log_level: 'INFO'
+      log_level: 'INFO',
+      log_stdout: 'INFO'
     }.freeze
 
     def initialize(kvs_meta_open: nil,
