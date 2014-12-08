@@ -7,6 +7,24 @@ require 'socket'
 require 'yaml'
 
 module RIMS
+  class Multiplexor
+    def initialize
+      @obj_list = []
+    end
+
+    def add(object)
+      @obj_list << object
+      self
+    end
+
+    def method_missing(id, *args)
+      for object in @obj_list
+        r = object.__send__(id, *args)
+      end
+      r
+    end
+  end
+
   class Config
     extend Forwardable
 
@@ -112,8 +130,18 @@ module RIMS
 
     def build_logger
       c = logging_params
-      logger = Logger.new(c[:log_file], *c[:log_opt_args])
-      logger.level = c[:log_level]
+      logger = Multiplexor.new
+
+      if (c[:log_stdout]) then
+        stdout_logger = Logger.new(STDOUT)
+        stdout_logger.level = c[:log_stdout]
+        logger.add(stdout_logger)
+      end
+
+      file_logger = Logger.new(c[:log_file], *c[:log_opt_args])
+      file_logger.level = c[:log_level]
+      logger.add(file_logger)
+
       logger
     end
 
