@@ -89,6 +89,11 @@ module RIMS
         conf.load(log_file: path)
       end
       level_list = %w[ debug info warn error fatal ]
+      stdout_list = level_list + %w[ quiet ]
+      options.on('-v', '--log-stdout=LEVEL', stdout_list,
+                 "Stdout logging level (#{stdout_list.join(' ')}). default is `info'.") do |level|
+        conf.load(log_stdout: level)
+      end
       options.on('-l', '--log-level=LEVEL', level_list,
                  "Logging level (#{level_list.join(' ')}). default is `info'.") do |level|
         conf.load(log_level: level)
