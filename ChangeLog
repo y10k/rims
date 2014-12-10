@@ -1,3 +1,7 @@
+2014-12-10  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb, lib/rims/server.rb: stdout logging.
+
 2014-12-01  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/auth.rb, lib/rims/cmd.rb, lib/rims/protocol.rb:
