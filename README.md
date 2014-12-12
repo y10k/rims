@@ -12,6 +12,13 @@ And then execute:
 
     $ bundle
 
+## Dependencies
+
+You'll need to install the development libraries of the [GNU Database Library][gdbm]
+to use RIMS.
+
+[gdbm]: http://www.gnu.org.ua/software/gdbm/
+
 ## Simple Usage
 
 Type following to show usage.
