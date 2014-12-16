@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'etc'
 require 'forwardable'
 require 'logger'
 require 'pathname'
@@ -306,6 +307,8 @@ module RIMS
       ip_addr: '0.0.0.0'.freeze,
       ip_port: 1430,
       mail_delivery_user: '#postman'.freeze,
+      process_privilege_uid: 65534,
+      process_privilege_gid: 65534,
       log_file: 'imap.log'.freeze,
       log_level: 'INFO',
       log_stdout: 'INFO'
@@ -317,6 +320,8 @@ module RIMS
                    ip_addr: DEFAULT[:ip_addr],
                    ip_port: DEFAULT[:ip_port],
                    mail_delivery_user: DEFAULT[:mail_delivery_user],
+                   process_privilege_uid: DEFAULT[:process_privilege_uid],
+                   process_privilege_gid: DEFAULT[:process_privilege_gid],
                    logger: Logger.new(STDOUT))
       begin
         kvs_meta_open or raise ArgumentError, 'need for a keyword argument: kvs_meta_open'
@@ -328,6 +333,9 @@ module RIMS
         @logger = logger
         @mail_delivery_user = mail_delivery_user
 
+        @process_privilege_uid = process_privilege_uid
+        @process_privilege_gid = process_privilege_gid
+
         @mail_store_pool = MailStorePool.new(kvs_meta_open, kvs_text_open)
       rescue
         logger.fatal($!) rescue StandardError
@@ -336,23 +344,40 @@ module RIMS
     end
 
     def start
-      @logger.info("open server: #{@ip_addr}:#{@ip_port}")
+      @logger.info('start server.')
+      @logger.info("open socket: #{@ip_addr}:#{@ip_port}")
       sv_sock = TCPServer.new(@ip_addr, @ip_port)
 
-      loop do
-        Thread.start(sv_sock.accept) {|cl_sock|
-          begin
-            @logger.info("accept client: #{cl_sock.peeraddr[1..2].reverse.join(':')}")
-            decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger, mail_delivery_user: @mail_delivery_user)
+      begin
+        if (Process.euid == 0) then
+          Process::Sys.setgid(@process_privilege_gid)
+          Process::Sys.setuid(@process_privilege_uid)
+        end
+
+        @logger.info("process ID: #{$$}")
+        process_user = Etc.getpwuid(Process.euid).name rescue ''
+        @logger.info("process privilege user: #{process_user}(#{Process.euid})")
+        process_group = Etc.getgrgid(Process.egid).name rescue ''
+        @logger.info("process privilege group: #{process_group}(#{Process.egid})")
+
+        loop do
+          Thread.start(sv_sock.accept) {|cl_sock|
             begin
-              Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
+              @logger.info("accept client: #{cl_sock.peeraddr[1..2].reverse.join(':')}")
+              decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger, mail_delivery_user: @mail_delivery_user)
+              begin
+                Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
+              ensure
+                Error.suppress_2nd_error_at_resource_closing(logger: @logger) { decoder.cleanup }
+              end
             ensure
-              Error.suppress_2nd_error_at_resource_closing(logger: @logger) { decoder.cleanup }
+              Error.suppress_2nd_error_at_resource_closing(logger: @logger) { cl_sock.close }
             end
-          ensure
-            Error.suppress_2nd_error_at_resource_closing(logger: @logger) { cl_sock.close }
-          end
-        }
+          }
+        end
+      ensure
+        @logger.info('close socket.')
+        sv_sock.close
       end
 
       self
