@@ -343,12 +343,19 @@ module RIMS
       end
     end
 
+    def ipaddr_log(addr_list)
+      addr_list.map{|i| "[#{i}]" }.join('')
+    end
+    private :ipaddr_log
+
     def start
       @logger.info('start server.')
       @logger.info("open socket: #{@ip_addr}:#{@ip_port}")
       sv_sock = TCPServer.new(@ip_addr, @ip_port)
 
       begin
+        @logger.info("opened: #{ipaddr_log(sv_sock.addr)}")
+
         if (Process.euid == 0) then
           Process::Sys.setgid(@process_privilege_gid)
           Process::Sys.setuid(@process_privilege_uid)
@@ -363,7 +370,7 @@ module RIMS
         loop do
           Thread.start(sv_sock.accept) {|cl_sock|
             begin
-              @logger.info("accept client: #{cl_sock.peeraddr[1..2].reverse.join(':')}")
+              @logger.info("accept client: #{ipaddr_log(cl_sock.peeraddr(false))}")
               decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger, mail_delivery_user: @mail_delivery_user)
               begin
                 Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
@@ -376,7 +383,7 @@ module RIMS
           }
         end
       ensure
-        @logger.info('close socket.')
+        @logger.info("close socket: #{ipaddr_log(sv_sock.addr)}")
         sv_sock.close
       end
 
