@@ -25,13 +25,13 @@ module RIMS::Test
       conf.load(base_dir: @base_dir)
       conf.load(conf_params)
       yield(conf)
-      assert_equal({}, conf.through_server_params, 'throuth_server_params')
     end
     private :assert_config
 
     def assert_logging_params(conf_params, expected_params)
       assert_config(conf_params) {|conf|
         assert_equal(expected_params, conf.logging_params, 'logging_params')
+        assert_equal({}, conf.through_server_params, 'throuth_server_params')
       }
     end
     private :assert_logging_params
@@ -39,6 +39,7 @@ module RIMS::Test
     def assert_key_value_store_params(conf_params, expected_params)
       assert_config(conf_params) {|conf|
         assert_equal(expected_params, conf.key_value_store_params, 'key_value_store_params')
+        assert_equal({}, conf.through_server_params, 'throuth_server_params')
       }
     end
     private :assert_key_value_store_params
@@ -46,9 +47,22 @@ module RIMS::Test
     def assert_build_authentication(conf_params)
       assert_config(conf_params) {|conf|
         yield(conf.build_authentication)
+        assert_equal({}, conf.through_server_params, 'throuth_server_params')
       }
     end
     private :assert_build_authentication
+
+    def assert_privilege_params(conf_params, expected_params)
+      assert_config(conf_params) {|conf|
+        if ((expected_params.is_a? Class) && (expected_params <= Exception)) then
+          assert_raise(expected_params) { conf.setup_privilege_params }
+        else
+          conf.setup_privilege_params
+          assert_equal(expected_params, conf.through_server_params)
+        end
+      }
+    end
+    private :assert_privilege_params
 
     def test_load_from_base_dir
       assert_load_from_base_dir({}) {|conf|
@@ -250,6 +264,37 @@ module RIMS::Test
         assert(auth.authenticate_login(username.succ, password.succ), 'user 2')
         refute(auth.authenticate_login(username.succ.succ, password.succ.succ), 'user 3')
       }
+    end
+
+    def test_setup_privilege_params
+      assert_privilege_params({}, {
+                                process_privilege_uid: 65534,
+                                process_privilege_gid: 65534
+                              })
+
+      assert_privilege_params({ process_privilege_user: 'root',
+                                process_privilege_group: '0'
+                              }, {
+                                process_privilege_uid: 0,
+                                process_privilege_gid: 0
+                              })
+
+      assert_privilege_params({ process_privilege_user: 0,
+                                process_privilege_group: 0
+                              }, {
+                                process_privilege_uid: 0,
+                                process_privilege_gid: 0
+                              })
+
+      assert_privilege_params({ process_privilege_user: 'detarame',
+                                process_privilege_group: 0
+                              },
+                              ArgumentError)
+
+      assert_privilege_params({ process_privilege_user: 0,
+                                process_privilege_group: :detarame
+                              },
+                              TypeError)
     end
   end
 

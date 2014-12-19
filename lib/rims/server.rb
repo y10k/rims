@@ -271,10 +271,41 @@ module RIMS
       auth
     end
 
+    def privilege_name2id(name)
+      case (name)
+      when Integer
+        name
+      when String
+        begin
+          yield(name)
+        rescue
+          if (name =~ /\A\d+\z/) then
+            name.to_i
+          else
+            raise
+          end
+        end
+      else
+        raise TypeError, "not a process privilege name: #{name}"
+      end
+    end
+    private :privilege_name2id
+
+    def setup_privilege_params
+      user = @config.delete(:process_privilege_user) || Server::DEFAULT[:process_privilege_uid]
+      group = @config.delete(:process_privilege_group) || Server::DEFAULT[:process_privilege_gid]
+
+      @config[:process_privilege_uid] = privilege_name2id(user) {|name| Etc.getpwnam(name).uid }
+      @config[:process_privilege_gid] = privilege_name2id(group) {|name| Etc.getgrnam(name).gid }
+
+      self
+    end
+
     def build_server
       logger = build_logger
       kvs_factory = build_key_value_store_factory
       auth = build_authentication
+      setup_privilege_params
 
       make_parent_dir_and_logging = proc{|mailbox_data_structure_version, unique_user_id|
         if (make_dir_path = make_key_value_store_parent_dir_from_base_dir(mailbox_data_structure_version, unique_user_id)) then
