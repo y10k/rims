@@ -93,7 +93,8 @@ module RIMS::Test
       assert_equal(0, @mail_store.mbox_msg_num(copy_mbox_id))
       assert_equal([], @mail_store.each_msg_uid(copy_mbox_id).to_a)
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
-      @mail_store.copy_msg(uid, mbox_id, copy_mbox_id)
+      copy_uid = @mail_store.copy_msg(uid, mbox_id, copy_mbox_id)
+      assert_equal(1, copy_uid)
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
       assert_equal(1, @mail_store.mbox_msg_num(copy_mbox_id))
       assert_equal([ uid ], @mail_store.each_msg_uid(copy_mbox_id).to_a)
@@ -116,7 +117,8 @@ module RIMS::Test
       assert_equal(true, @mail_store.msg_flag(copy_mbox_id, uid, 'recent'))
 
       # duplicated message copy
-      @mail_store.copy_msg(uid, mbox_id, copy_mbox_id)
+      copy2_uid = @mail_store.copy_msg(uid, mbox_id, copy_mbox_id)
+      assert_equal(2, copy2_uid)
       assert(@mail_store.cnum > cnum); cnum = @mail_store.cnum
       assert_equal(2, @mail_store.mbox_msg_num(copy_mbox_id))
       assert_equal([ uid, uid + 1 ], @mail_store.each_msg_uid(copy_mbox_id).to_a)
