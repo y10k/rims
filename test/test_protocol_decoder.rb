@@ -397,7 +397,7 @@ module RIMS::Test
 
     def test_capability
       assert_imap_command(:capability) {|assert|
-        assert.equal('* CAPABILITY IMAP4rev1 AUTH=PLAIN AUTH=CRAM-MD5')
+        assert.equal('* CAPABILITY IMAP4rev1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5')
         assert.equal("#{tag} OK CAPABILITY completed")
       }
     end
@@ -1205,21 +1205,21 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
 
       assert_imap_command(:append, 'INBOX', 'a') {|assert|
-        assert.equal("#{tag} OK APPEND completed")
+        assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
       assert_msg_uid(1)
       assert_equal('a', get_msg_text(1))
       assert_msg_flags(1, recent: true)
 
       assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'b') {|assert|
-        assert.equal("#{tag} OK APPEND completed")
+        assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
       assert_msg_uid(1, 2)
       assert_equal('b', get_msg_text(2))
       assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
 
       assert_imap_command(:append, 'INBOX', '19-Nov-1975 12:34:56 +0900', 'c') {|assert|
-        assert.equal("#{tag} OK APPEND completed")
+        assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
       assert_msg_uid(1, 2, 3)
       assert_equal('c', get_msg_text(3))
@@ -1227,7 +1227,7 @@ module RIMS::Test
       assert_msg_flags(3, recent: true)
 
       assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'd') {|assert|
-        assert.equal("#{tag} OK APPEND completed")
+        assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
       assert_msg_uid(1, 2, 3, 4)
       assert_equal('d', get_msg_text(4))
@@ -1274,7 +1274,7 @@ module RIMS::Test
 
       assert_msg_uid(mbox_id: utf8_name_mbox_id)
       assert_imap_command(:append, UTF7_MBOX_NAME, 'Hello world.') {|assert|
-        assert.equal("#{tag} OK APPEND completed")
+        assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
       assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
       assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
@@ -3126,7 +3126,7 @@ module RIMS::Test
       assert_msg_text(                      mbox_id: work_id)
 
       assert_imap_command(:copy, '2:4', 'WORK') {|assert|
-        assert.equal("#{tag} OK COPY completed")
+        assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
       # INBOX mailbox messages (copy source)
@@ -3153,7 +3153,7 @@ module RIMS::Test
 
       # duplicted message copy
       assert_imap_command(:copy, '2:4', 'WORK') {|assert|
-        assert.equal("#{tag} OK COPY completed")
+        assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
       # INBOX mailbox messages (copy source)
@@ -3180,7 +3180,7 @@ module RIMS::Test
 
       # copy of empty messge set
       assert_imap_command(:copy, '100', 'WORK') {|assert|
-        assert.equal("#{tag} OK COPY completed")
+        assert.match(/#{tag} OK \[COPYUID \d+  \] COPY completed/)
       }
 
       # INBOX mailbox messages (copy source)
@@ -3298,7 +3298,7 @@ module RIMS::Test
       assert_msg_text(                      mbox_id: work_id)
 
       assert_imap_command(:copy, '3,5,7', 'WORK', uid: true) {|assert|
-        assert.equal("#{tag} OK COPY completed")
+        assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
       # INBOX mailbox messages (copy source)
@@ -3325,7 +3325,7 @@ module RIMS::Test
 
       # duplicted message copy
       assert_imap_command(:copy, '3,5,7', 'WORK', uid: true) {|assert|
-        assert.equal("#{tag} OK COPY completed")
+        assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
       # INBOX mailbox messages (copy source)
@@ -3352,7 +3352,7 @@ module RIMS::Test
 
       # copy of empty messge set
       assert_imap_command(:copy, '100', 'WORK', uid: true) {|assert|
-        assert.equal("#{tag} OK COPY completed")
+        assert.match(/#{tag} OK \[COPYUID \d+  \] COPY completed/)
       }
 
       # INBOX mailbox messages (copy source)
@@ -3407,7 +3407,7 @@ module RIMS::Test
       assert_msg_uid(mbox_id: utf8_name_mbox_id)
 
       assert_imap_command(:copy, '1', UTF7_MBOX_NAME) {|assert|
-        assert.equal("#{tag} OK COPY completed")
+        assert.match(/#{tag} OK \[COPYUID \d+ \d+ \d+\] COPY completed/)
       }
 
       assert_msg_uid(1)
@@ -3604,14 +3604,14 @@ module RIMS::Test
       base64_nouser = RIMS::Protocol.encode_base64('nouser')
 
       assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", 'a') {|assert|
-        assert.equal("#{tag} OK APPEND completed")
+        assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
       assert_msg_uid(1)
       assert_equal('a', get_msg_text(1))
       assert_msg_flags(1, recent: true)
 
       assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'b') {|assert|
-        assert.equal("#{tag} OK APPEND completed")
+        assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
       assert_msg_uid(1, 2)
       assert_equal('b', get_msg_text(2))
@@ -3659,7 +3659,7 @@ LOGOUT
 
       assert_imap_command_loop(cmd_txt) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        assert.equal('* CAPABILITY IMAP4rev1 AUTH=PLAIN AUTH=CRAM-MD5')
+        assert.equal('* CAPABILITY IMAP4rev1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5')
         assert.equal("#{tag!} OK CAPABILITY completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
@@ -4178,11 +4178,11 @@ T012 LOGOUT
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         assert.match(/^#{tag!} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         assert.equal("#{tag!} OK LOGIN completed")
-        assert.equal("#{tag!} OK APPEND completed")
-        assert.equal("#{tag!} OK APPEND completed")
+        assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
+        assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
         assert.match(/^\+ /)
-        assert.equal("#{tag!} OK APPEND completed")
-        assert.equal("#{tag!} OK APPEND completed")
+        assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
+        assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
         assert.match(/^#{tag!} BAD /)
         assert.match(/^#{tag!} BAD /)
         assert.match(/^#{tag!} BAD /)
@@ -4217,7 +4217,7 @@ LOGOUT
       assert_imap_command_loop(cmd_txt) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
         assert.equal("#{tag!} OK LOGIN completed")
-        assert.equal("#{tag!} OK APPEND completed")
+        assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
       }
@@ -5176,9 +5176,9 @@ LOGOUT
         assert.match(/^#{tag!} NO /)
         assert.skip_while{|line| line =~ /^\* / }
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
-        assert.equal("#{tag!} OK COPY completed")
-        assert.equal("#{tag!} OK COPY completed")
-        assert.equal("#{tag!} OK COPY completed")
+        assert.match(/#{tag!} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
+        assert.match(/#{tag!} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
+        assert.match(/#{tag!} OK \[COPYUID \d+  \] COPY completed/)
         assert.match(/^#{tag!} NO \[TRYCREATE\]/)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
@@ -5257,9 +5257,9 @@ LOGOUT
         assert.match(/^#{tag!} NO /)
         assert.skip_while{|line| line =~ /^\* / }
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
-        assert.equal("#{tag!} OK COPY completed")
-        assert.equal("#{tag!} OK COPY completed")
-        assert.equal("#{tag!} OK COPY completed")
+        assert.match(/#{tag!} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
+        assert.match(/#{tag!} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
+        assert.match(/#{tag!} OK \[COPYUID \d+  \] COPY completed/)
         assert.match(/^#{tag!} NO \[TRYCREATE\]/)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
@@ -5307,7 +5307,7 @@ LOGOUT
         assert.equal("#{tag!} OK LOGIN completed")
         assert.skip_while{|line| line =~ /^\* / }
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
-        assert.equal("#{tag!} OK COPY completed")
+        assert.match(/#{tag!} OK \[COPYUID \d+ \d+ \d+\] COPY completed/)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
       }
@@ -5451,8 +5451,8 @@ LOGOUT
         assert.match(/#{tag!} NO not allowed command/)
         assert.match(/#{tag!} NO not allowed command/)
         assert.match(/#{tag!} NO not allowed command/)
-        assert.equal("#{tag!} OK APPEND completed")
-        assert.equal("#{tag!} OK APPEND completed")
+        assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
+        assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
         assert.match(/^#{tag!} NO \[TRYCREATE\]/)
         assert.match(/^#{tag!} NO not found a user/)
         assert.match(/^#{tag!} BAD /)
