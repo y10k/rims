@@ -2163,7 +2163,11 @@ module RIMS
               dst_uids << get_mail_store.copy_msg(msg.uid, @folder.mbox_id, mbox_id)
             end
 
-            res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
+            if msg_list.size > 0
+              res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
+            else
+              res << "#{tag} OK COPY completed\r\n"
+            end
           else
             res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end

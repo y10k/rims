@@ -3180,7 +3180,7 @@ module RIMS::Test
 
       # copy of empty messge set
       assert_imap_command(:copy, '100', 'WORK') {|assert|
-        assert.match(/#{tag} OK \[COPYUID \d+  \] COPY completed/)
+        assert.match(/#{tag} OK COPY completed/)
       }
 
       # INBOX mailbox messages (copy source)
@@ -3352,7 +3352,7 @@ module RIMS::Test
 
       # copy of empty messge set
       assert_imap_command(:copy, '100', 'WORK', uid: true) {|assert|
-        assert.match(/#{tag} OK \[COPYUID \d+  \] COPY completed/)
+        assert.match(/#{tag} OK COPY completed/)
       }
 
       # INBOX mailbox messages (copy source)
@@ -5178,7 +5178,7 @@ LOGOUT
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
         assert.match(/#{tag!} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
         assert.match(/#{tag!} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
-        assert.match(/#{tag!} OK \[COPYUID \d+  \] COPY completed/)
+        assert.match(/#{tag!} OK COPY completed/)
         assert.match(/^#{tag!} NO \[TRYCREATE\]/)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
@@ -5259,7 +5259,7 @@ LOGOUT
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
         assert.match(/#{tag!} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
         assert.match(/#{tag!} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
-        assert.match(/#{tag!} OK \[COPYUID \d+  \] COPY completed/)
+        assert.match(/#{tag!} OK COPY completed/)
         assert.match(/^#{tag!} NO \[TRYCREATE\]/)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
