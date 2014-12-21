@@ -1,3 +1,7 @@
+2014-12-21  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb, lib/rims/server.rb: server process privilege separated from root user.
+
 2014-12-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb, lib/rims/server.rb: stdout logging.
