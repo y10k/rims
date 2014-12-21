@@ -137,6 +137,14 @@ module RIMS
                  "Local port number or service name for the server to listen. default is 1430.") do |port|
         conf.load(ip_port: port)
       end
+      options.on('--privilege-user=NAME',
+                 "Privilege user name or ID for server process. default is #{Server::DEFAULT[:process_privilege_uid]}.") do |name|
+        conf.load(process_privilege_user: name)
+      end
+      options.on('--privilege-group=NAME',
+                 "Privilege group name or ID for server process. default is #{Server::DEFAULT[:process_privilege_gid]}.") do |name|
+        conf.load(process_privilege_user: name)
+      end
       options.parse!(args)
 
       server = conf.build_server
