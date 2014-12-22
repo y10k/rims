@@ -1891,7 +1891,7 @@ module RIMS
               get_mail_store.set_msg_flag(mbox_id, uid, flag_name, true)
             end
 
-            res << "#{tag} OK [APPENDUID #{uid} #{mbox_id}] APPEND completed\r\n"
+            res << "#{tag} OK [APPENDUID #{mbox_id} #{uid}] APPEND completed\r\n"
           else
             res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end
