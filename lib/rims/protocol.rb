@@ -1341,7 +1341,7 @@ module RIMS
       end
 
       def capability(tag)
-        capability_list = %w[ IMAP4rev1 ] + @auth.capability.map{|auth_capability| "AUTH=#{auth_capability}" }
+        capability_list = %w[ IMAP4rev1 UIDPLUS ] + @auth.capability.map{|auth_capability| "AUTH=#{auth_capability}" }
 
         res = []
         res << "* CAPABILITY #{capability_list.join(' ')}\r\n"
@@ -1891,7 +1891,7 @@ module RIMS
               get_mail_store.set_msg_flag(mbox_id, uid, flag_name, true)
             end
 
-            res << "#{tag} OK APPEND completed\r\n"
+            res << "#{tag} OK [APPENDUID #{mbox_id} #{uid}] APPEND completed\r\n"
           else
             res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end
@@ -2156,11 +2156,18 @@ module RIMS
               end
             }
 
+            src_uids = []
+            dst_uids = []
             for msg in msg_list
-              get_mail_store.copy_msg(msg.uid, @folder.mbox_id, mbox_id)
+              src_uids << msg.uid
+              dst_uids << get_mail_store.copy_msg(msg.uid, @folder.mbox_id, mbox_id)
             end
 
-            res << "#{tag} OK COPY completed\r\n"
+            if msg_list.size > 0
+              res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
+            else
+              res << "#{tag} OK COPY completed\r\n"
+            end
           else
             res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end

@@ -235,7 +235,7 @@ module RIMS
 
         @meta_db.cnum_succ!
 
-        self
+        dst_uid
       }
     end
 
