@@ -73,19 +73,19 @@ module RIMS::Test
 
     def add_mail_simple
       make_mail_simple
-      @mail_store.add_msg(@inbox_id, @simple_mail.raw_source, Time.parse('2013-11-08 06:47:50 +0900'))
+      @mail_store.add_msg(@inbox_id, @simple_mail.raw_source, Time.new(2013, 11, 8, 6, 47, 50, '+09:00'))
     end
     private :add_mail_simple
 
     def add_mail_multipart
       make_mail_multipart
-      @mail_store.add_msg(@inbox_id, @mpart_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+      @mail_store.add_msg(@inbox_id, @mpart_mail.raw_source, Time.new(2013, 11, 8, 19, 31, 03, '+09:00'))
     end
     private :add_mail_multipart
 
     def add_mail_mime_subject
       make_mail_mime_subject
-      @mail_store.add_msg(@inbox_id, @mime_subject_mail.raw_source, Time.parse('2013-11-08 19:31:03 +0900'))
+      @mail_store.add_msg(@inbox_id, @mime_subject_mail.raw_source, Time.new(2013, 11, 8, 19, 31, 03, '+09:00'))
     end
     private :add_mail_mime_subject
 
