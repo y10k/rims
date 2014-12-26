@@ -1,5 +1,7 @@
 2014-12-26  Joe Yates <joe.g.yates@gmail.com>
 
+	* lib/rims/mail_store.rb, lib/rims/protocol.rb: Implement the UIDPLUS extension
+
 	* test/test_protocol_decoder.rb, test/test_protocol_fetch.rb:
 	Ensure Time objects have the correct timezone
 
