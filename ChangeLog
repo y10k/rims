@@ -1,3 +1,8 @@
+2014-12-26  Joe Yates <joe.g.yates@gmail.com>
+
+	* test/test_protocol_decoder.rb, test/test_protocol_fetch.rb:
+	Ensure Time objects have the correct timezone
+
 2014-12-21  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb, lib/rims/server.rb: server process privilege separated from root user.
