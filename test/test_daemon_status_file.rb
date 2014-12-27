@@ -10,6 +10,7 @@ module RIMS::Test
     def setup
       @stat_path = "status.#{$$}"
       @stat_file = RIMS::Daemon.new_status_file(@stat_path, exclusive: true)
+      @read_file = RIMS::Daemon.new_status_file(@stat_path, exclusive: false)
       @ready_spin_lock = "ready_spin_lock.#{$$}"
       @final_spin_lock = "final_spin_lock.#{$$}"
     end
@@ -72,7 +73,7 @@ module RIMS::Test
       }
     end
 
-    def another_process_exclusive_lock
+    def another_process_exclusive_lock(write_text: nil)
       FileUtils.touch(@ready_spin_lock)
       FileUtils.touch(@final_spin_lock)
 
@@ -80,6 +81,7 @@ module RIMS::Test
         lock_file = RIMS::Daemon.new_status_file(@stat_path, exclusive: true)
         lock_file.open{
           lock_file.synchronize{
+            lock_file.write(write_text) if write_text
             FileUtils.rm_f(@ready_spin_lock)
             while (File.exist? @final_spin_lock)
               # nothing to do.
@@ -110,6 +112,51 @@ module RIMS::Test
               flunk("don't reach here.")
             }
           }
+        }
+      }
+    end
+
+    def test_readable_lock_status
+      assert_raise(Errno::ENOENT) {
+        @read_file.open
+      }
+
+      another_process_exclusive_lock{
+        @read_file.open{
+          assert_equal(true, @read_file.locked?)
+        }
+      }
+
+      @read_file.open{
+        assert_equal(false, @read_file.locked?)
+      }
+    end
+
+    def test_readable_should_be_locked
+      another_process_exclusive_lock{
+        @read_file.open{
+          @read_file.should_be_locked
+        }
+      }
+
+      @read_file.open{
+        assert_raise(RuntimeError) {
+          @read_file.should_be_locked
+        }
+      }
+    end
+
+    def test_write_read
+      another_process_exclusive_lock(write_text: "pid: #{$$}") {
+        @read_file.open{
+          assert_equal("pid: #{$$}", @read_file.read)
+          assert_equal("pid: #{$$}", @read_file.read, 'rewind')
+        }
+      }
+
+      @read_file.open{
+        assert_raise(RuntimeError) {
+          @read_file.read
         }
       }
     end

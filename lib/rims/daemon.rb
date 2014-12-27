@@ -87,6 +87,56 @@ module RIMS
       end
     end
 
+    class ReadableStatusFile
+      def initialize(filename)
+        @filename = filename
+        @file = nil
+      end
+
+      def open
+        if (block_given?) then
+          open
+          begin
+            r = yield
+          ensure
+            close
+          end
+          return r
+        end
+
+        @file = File.open(@filename, File::RDONLY)
+
+        self
+      end
+
+      def close
+        @file.close
+        self
+      end
+
+      def locked?
+        if (@file.flock(File::LOCK_EX | File::LOCK_NB)) then
+          @file.flock(File::LOCK_UN)
+          false
+        else
+          true
+        end
+      end
+
+      def should_be_locked
+        unless (locked?) then
+          raise "not locked: #{@filename}"
+        end
+        self
+      end
+
+      def read
+        should_be_locked
+        @file.seek(0)
+        @file.read
+      end
+    end
+
     def self.new_status_file(filename, exclusive: false)
       if (exclusive) then
         ExclusiveStatusFile.new(filename)
