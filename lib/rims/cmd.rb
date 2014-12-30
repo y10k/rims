@@ -68,7 +68,7 @@ module RIMS
     end
     command_function :cmd_version, 'Show software version.'
 
-    def cmd_server(options, args)
+    def make_server_config(options)
       conf = RIMS::Config.new
       conf.load(base_dir: Dir.getwd)
 
@@ -145,6 +145,13 @@ module RIMS
                  "Privilege group name or ID for server process. default is #{Server::DEFAULT[:process_privilege_gid]}.") do |name|
         conf.load(process_privilege_user: name)
       end
+
+      conf
+    end
+    module_function :make_server_config
+
+    def cmd_server(options, args)
+      conf = make_server_config(options)
       options.parse!(args)
 
       server = conf.build_server
