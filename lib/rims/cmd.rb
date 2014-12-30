@@ -278,8 +278,12 @@ module RIMS
         self
       end
 
-      def parse_options!(args)
-        @options.parse!(args)
+      def parse_options!(args, order: false)
+        if (order) then
+          @options.order!(args)
+        else
+          @options.parse!(args)
+        end
         pp @conf if $DEBUG
 
         self
