@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+require 'yaml'
+
 module RIMS
   class Daemon
     class ExclusiveStatusFile
@@ -145,6 +147,10 @@ module RIMS
       end
     end
 
+    def self.make_stat_file_path(base_dir)
+      File.join(base_dir, 'status')
+    end
+
     RELOAD_SIGNAL_LIST = %w[ HUP ]
     RESTART_SIGNAL_LIST = %w[ USR1 ]
     STOP_SIGNAL_LIST = %w[ TERM INT ]
@@ -183,6 +189,7 @@ module RIMS
         pipe_out.close
 
         s = pipe_in.gets
+        # problem: if signal(2) interruption occurs at this point, child process may be an orphaned process.
         puts "[child process message] #{s}" if $DEBUG
         pipe_in.close
 
@@ -267,6 +274,72 @@ module RIMS
       def event_push(continue: true)
         throw(:rims_daemon_signal_event_loop, continue)
         nil
+      end
+    end
+
+    def initialize(stat_file_path, server_options: [])
+      @stat_file = self.class.new_status_file(stat_file_path, exclusive: true)
+      @server_options = server_options
+      @server_process = nil
+      @signal_event_handler = SignalEventHandler.new
+    end
+
+    def new_server_process
+      ChildProcess.new{ Cmd.run_cmd(%w[ server ] + @server_options) }
+    end
+    private :new_server_process
+
+    def run
+      @stat_file.open{
+        @stat_file.synchronize{
+          @stat_file.write({ 'pid' => $$ }.to_yaml)
+          begin
+            @signal_event_handler.event_loop do
+              loop do
+                unless (@server_process && @server_process.alive?) then
+                  @server_process.wait if @server_process
+                  @server_process = new_server_process
+                end
+                sleep(5)
+              end
+            end
+          ensure
+            if (@server_process && @server_process.alive?) then
+              @server_process.terminate
+            end
+          end
+        }
+      }
+
+      self
+    end
+
+    # signal trap hook.
+    # this method is not true reload.
+    def reload_server
+      restart_server
+    end
+
+    # signal trap hook.
+    def restart_server
+      if (@signal_event_handler.run?) then
+        @stat_file.should_be_locked
+        if (@server_process && @server_process.alive?) then
+          @server_process.terminate
+          @signal_event_handler.event_push(continue: true)
+        end
+
+        self
+      end
+    end
+
+    # signal trap hook.
+    def stop_server
+      if (@signal_event_handler.run?) then
+        @stat_file.should_be_locked
+        @signal_event_handler.event_push(continue: false)
+
+        self
       end
     end
   end
