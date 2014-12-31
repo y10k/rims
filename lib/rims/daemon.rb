@@ -144,6 +144,91 @@ module RIMS
         ReadableStatusFile.new(filename)
       end
     end
+
+    RELOAD_SIGNAL_LIST = %w[ HUP ]
+    RESTART_SIGNAL_LIST = %w[ USR1 ]
+    STOP_SIGNAL_LIST = %w[ TERM INT ]
+
+    RELOAD_SIGNAL = RELOAD_SIGNAL_LIST[0]
+    RESTART_SIGNAL = RESTART_SIGNAL_LIST[0]
+    STOP_SIGNAL = STOP_SIGNAL_LIST[0]
+
+    class ChildProcess
+      def initialize
+        @stat = nil
+        @pid = run{ yield }
+      end
+
+      def run
+        pipe_in, pipe_out = IO.pipe
+
+        pid = Process.fork{
+          pipe_in.close
+
+          status_code = catch(:rims_daemon_child_process_stop) {
+            for sig_name in RELOAD_SIGNAL_LIST + RESTART_SIGNAL_LIST
+              Signal.trap(sig_name, :DEFAULT)
+            end
+            for sig_name in STOP_SIGNAL_LIST
+              Signal.trap(sig_name) { throw(:rims_daemon_child_process_stop, 0) }
+            end
+
+            pipe_out.puts("child process (pid: #{$$}) is ready to go.")
+            pipe_out.close
+
+            yield
+          }
+          exit!(status_code)
+        }
+        pipe_out.close
+
+        s = pipe_in.gets
+        puts "[child process message] #{s}" if $DEBUG
+        pipe_in.close
+
+        pid
+      end
+      private :run
+
+      # return nil if child process is alive.
+      # return self if child process is dead.
+      def wait(nohang: false)
+        return self if @stat
+
+        wait_flags = 0
+        wait_flags |= Process::WNOHANG if nohang
+
+        if (Process.waitpid(@pid, wait_flags)) then
+          @stat = $?
+          if (@stat.exitstatus != 0) then
+            warn("warning: aborted child process: #{@pid} (#{$?.exitstatus})")
+          end
+
+          self
+        end
+      end
+
+      def alive?
+        if (@pid) then
+          if (wait(nohang: true)) then
+            false
+          else
+            true
+          end
+        end
+      end
+
+      def terminate
+        begin
+          Process.kill(STOP_SIGNAL, @pid)
+          wait
+        rescue SystemCallError
+          warn("warning: failed to terminate child process: #{@pid}")
+        end
+
+        nil
+      end
+    end
   end
 end
 
