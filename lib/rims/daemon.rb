@@ -229,6 +229,46 @@ module RIMS
         nil
       end
     end
+
+    class SignalEventHandler
+      def initialize
+        @state = :init
+      end
+
+      def run?
+        @state == :run
+      end
+
+      # call from main thread
+      def event_loop
+        continue = true
+
+        begin
+          while (continue)
+            continue = catch(:rims_daemon_signal_event_loop) {
+              begin
+                @state = :run
+                yield
+              ensure
+                @state = :wait
+              end
+
+              false
+            }
+          end
+        ensure
+          @state = :stop
+        end
+
+        nil
+      end
+
+      # call from Signal.trap handler
+      def event_push(continue: true)
+        throw(:rims_daemon_signal_event_loop, continue)
+        nil
+      end
+    end
   end
 end
 
