@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'net/imap'
 require 'optparse'
 require 'pp'if $DEBUG
+require 'syslog'
+require 'syslog/logger'
 require 'yaml'
 
 module RIMS
@@ -387,6 +390,11 @@ module RIMS
                             true,
                             '--[no-]daemon',
                             'Start daemon process. default is enabled.'
+                          ],
+                          [ :is_syslog,
+                            true,
+                            '--[no-]syslog',
+                            'Syslog daemon messages. default is enabled.'
                           ]
                         ])
       conf.help_option(add_banner: ' start/stop/restart/status [server options]')
@@ -410,7 +418,23 @@ module RIMS
           Process.daemon(true)
         end
 
-        daemon = Daemon.new(stat_file_path, server_options: args)
+        logger = Multiplexor.new
+        unless (conf[:is_daemon]) then
+          stdout_logger = Logger.new(STDOUT)
+          def stdout_logger.close # should not be closed at child process.
+            nil
+          end
+          logger.add(stdout_logger)
+        end
+        if (conf[:is_syslog]) then
+          syslog_logger = Syslog::Logger.new('rims-daemon')
+          def syslog_logger.close # should be closed at child process.
+            Syslog.close
+          end
+          logger.add(syslog_logger)
+        end
+
+        daemon = Daemon.new(stat_file_path, logger, server_options: args)
 
         [ [ Daemon::RELOAD_SIGNAL_LIST, proc{ daemon.reload_server } ],
           [ Daemon::RESTART_SIGNAL_LIST, proc{ daemon.restart_server } ],
