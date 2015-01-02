@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'net/imap'
 require 'optparse'
 require 'pp'if $DEBUG
+require 'syslog'
+require 'syslog/logger'
 require 'yaml'
 
 module RIMS
@@ -68,7 +71,7 @@ module RIMS
     end
     command_function :cmd_version, 'Show software version.'
 
-    def cmd_server(options, args)
+    def make_server_config(options)
       conf = RIMS::Config.new
       conf.load(base_dir: Dir.getwd)
 
@@ -145,6 +148,13 @@ module RIMS
                  "Privilege group name or ID for server process. default is #{Server::DEFAULT[:process_privilege_gid]}.") do |name|
         conf.load(process_privilege_user: name)
       end
+
+      conf
+    end
+    module_function :make_server_config
+
+    def cmd_server(options, args)
+      conf = make_server_config(options)
       options.parse!(args)
 
       server = conf.build_server
@@ -271,8 +281,12 @@ module RIMS
         self
       end
 
-      def parse_options!(args)
-        @options.parse!(args)
+      def parse_options!(args, order: false)
+        if (order) then
+          @options.order!(args)
+        else
+          @options.parse!(args)
+        end
         pp @conf if $DEBUG
 
         self
@@ -369,6 +383,101 @@ module RIMS
         builder.factory
       end
     end
+
+    def cmd_daemon(options, args)
+      conf = Config.new(options,
+                        [ [ :is_daemon,
+                            true,
+                            '--[no-]daemon',
+                            'Start daemon process. default is enabled.'
+                          ],
+                          [ :is_syslog,
+                            true,
+                            '--[no-]syslog',
+                            'Syslog daemon messages. default is enabled.'
+                          ]
+                        ])
+      conf.help_option(add_banner: ' start/stop/restart/status [server options]')
+      conf.quiet_option
+      conf.setup_option_list
+      conf.parse_options!(args, order: true)
+      pp args if $DEBUG
+
+      operation = args.shift or raise 'need for daemon operation.'
+      server_args = args.dup
+      server_options = OptionParser.new
+      server_conf = make_server_config(server_options)
+      server_options.parse!(server_args)
+      stat_file_path = Daemon.make_stat_file_path(server_conf.base_dir)
+      pp server_conf if $DEBUG
+
+      case (operation)
+      when 'start'
+        if (conf[:is_daemon]) then
+          args += %w[ --log-stdout=quiet ]
+          Process.daemon(true)
+        end
+
+        logger = Multiplexor.new
+        unless (conf[:is_daemon]) then
+          stdout_logger = Logger.new(STDOUT)
+          def stdout_logger.close # should not be closed at child process.
+            nil
+          end
+          logger.add(stdout_logger)
+        end
+        if (conf[:is_syslog]) then
+          syslog_logger = Syslog::Logger.new('rims-daemon')
+          def syslog_logger.close # should be closed at child process.
+            Syslog.close
+          end
+          logger.add(syslog_logger)
+        end
+
+        daemon = Daemon.new(stat_file_path, logger, server_options: args)
+
+        [ [ Daemon::RELOAD_SIGNAL_LIST, proc{ daemon.reload_server } ],
+          [ Daemon::RESTART_SIGNAL_LIST, proc{ daemon.restart_server } ],
+          [ Daemon::STOP_SIGNAL_LIST, proc{ daemon.stop_server } ]
+        ].each do |signal_list, signal_command|
+          for sig_name in signal_list
+            Signal.trap(sig_name, signal_command)
+          end
+        end
+
+        daemon.run
+      when 'stop'
+        stat_file = Daemon.new_status_file(stat_file_path)
+        stat_file.open{
+          stat_file.should_be_locked
+          pid = YAML.load(stat_file.read)['pid']
+          Process.kill(Daemon::STOP_SIGNAL, pid)
+        }
+      when 'restart'
+        stat_file = Daemon.new_status_file(stat_file_path)
+        stat_file.open{
+          stat_file.should_be_locked
+          pid = YAML.load(stat_file.read)['pid']
+          Process.kill(Daemon::RESTART_SIGNAL, pid)
+        }
+      when 'status'
+        stat_file = Daemon.new_status_file(stat_file_path)
+        stat_file.open{
+          if (stat_file.locked?) then
+            puts 'daemon is running.' if conf[:verbose]
+            return 0
+          else
+            puts 'daemon is stopped.' if conf[:verbose]
+            return 1
+          end
+        }
+      else
+        raise "unknown daemon operation: #{operation}"
+      end
+
+      0
+    end
+    command_function :cmd_daemon, "Daemon start/stop/status tool."
 
     def imap_append(imap, mailbox, message, store_flags: [], date_time: nil, verbose: false)
       puts "message date: #{date_time}" if (verbose && date_time)
