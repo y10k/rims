@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'yaml'
 
 module RIMS
@@ -160,15 +161,19 @@ module RIMS
     STOP_SIGNAL = STOP_SIGNAL_LIST[0]
 
     class ChildProcess
-      def initialize
+      def initialize(logger=Logger.new(STDOUT))
+        @logger = logger
         @stat = nil
         @pid = run{ yield }
       end
+
+      attr_reader :pid
 
       def run
         pipe_in, pipe_out = IO.pipe
 
         pid = Process.fork{
+          @logger.close
           pipe_in.close
 
           status_code = catch(:rims_daemon_child_process_stop) {
@@ -190,7 +195,7 @@ module RIMS
 
         s = pipe_in.gets
         # problem: if signal(2) interruption occurs at this point, child process may be an orphaned process.
-        puts "[child process message] #{s}" if $DEBUG
+        @logger.info("[child process message] #{s}") if $DEBUG
         pipe_in.close
 
         pid
@@ -208,7 +213,7 @@ module RIMS
         if (Process.waitpid(@pid, wait_flags)) then
           @stat = $?
           if (@stat.exitstatus != 0) then
-            warn("warning: aborted child process: #{@pid} (#{$?.exitstatus})")
+            @logger.warn("aborted child process: #{@pid} (#{$?.exitstatus})")
           end
 
           self
@@ -230,7 +235,7 @@ module RIMS
           Process.kill(STOP_SIGNAL, @pid)
           wait
         rescue SystemCallError
-          warn("warning: failed to terminate child process: #{@pid}")
+          @logger.warn("failed to terminate child process: #{@pid}")
         end
 
         nil
@@ -277,15 +282,16 @@ module RIMS
       end
     end
 
-    def initialize(stat_file_path, server_options: [])
+    def initialize(stat_file_path, logger=Logger.new(STDOUT), server_options: [])
       @stat_file = self.class.new_status_file(stat_file_path, exclusive: true)
+      @logger = logger
       @server_options = server_options
       @server_process = nil
       @signal_event_handler = SignalEventHandler.new
     end
 
     def new_server_process
-      ChildProcess.new{ Cmd.run_cmd(%w[ server ] + @server_options) }
+      ChildProcess.new(@logger) { Cmd.run_cmd(%w[ server ] + @server_options) }
     end
     private :new_server_process
 
@@ -294,11 +300,13 @@ module RIMS
         @stat_file.synchronize{
           @stat_file.write({ 'pid' => $$ }.to_yaml)
           begin
+            @logger.info('start daemon.')
             @signal_event_handler.event_loop do
               loop do
                 unless (@server_process && @server_process.alive?) then
                   @server_process.wait if @server_process
                   @server_process = new_server_process
+                  @logger.info("run server process: #{@server_process.pid}")
                 end
                 sleep(5)
               end
@@ -307,6 +315,7 @@ module RIMS
             if (@server_process && @server_process.alive?) then
               @server_process.terminate
             end
+            @logger.info('stop daemon.')
           end
         }
       }
