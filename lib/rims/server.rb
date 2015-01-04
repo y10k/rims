@@ -79,6 +79,21 @@ module RIMS
       params
     end
 
+    def setup_backward_compatibility
+      [ [ :imap_host, :ip_addr ],
+        [ :imap_port, :ip_port ]
+      ].each do |new_namme, old_name|
+        unless (@config.key? new_namme) then
+          if (@config.key? old_name) then
+            warn("warning: `#{old_name}' is obsoleted server configuration parameter and should be replaced to new parameter of `#{new_namme}'.")
+            @config[new_namme] = @config.delete(old_name)
+          end
+        end
+      end
+
+      self
+    end
+
     # configuration entries.
     # * <tt>:log_file</tt>
     # * <tt>:log_level</tt>
@@ -302,6 +317,8 @@ module RIMS
     end
 
     def build_server
+      setup_backward_compatibility
+
       logger = build_logger
       kvs_factory = build_key_value_store_factory
       auth = build_authentication
@@ -335,8 +352,8 @@ module RIMS
     DEFAULT = {
       key_value_store_type: 'GDBM'.freeze,
       use_key_value_store_checksum: true,
-      ip_addr: '0.0.0.0'.freeze,
-      ip_port: 1430,
+      imap_host: '0.0.0.0'.freeze,
+      imap_port: 1430,
       mail_delivery_user: '#postman'.freeze,
       process_privilege_uid: 65534,
       process_privilege_gid: 65534,
@@ -348,8 +365,8 @@ module RIMS
     def initialize(kvs_meta_open: nil,
                    kvs_text_open: nil,
                    authentication: nil,
-                   ip_addr: DEFAULT[:ip_addr],
-                   ip_port: DEFAULT[:ip_port],
+                   imap_host: DEFAULT[:imap_host],
+                   imap_port: DEFAULT[:imap_port],
                    mail_delivery_user: DEFAULT[:mail_delivery_user],
                    process_privilege_uid: DEFAULT[:process_privilege_uid],
                    process_privilege_gid: DEFAULT[:process_privilege_gid],
@@ -359,8 +376,8 @@ module RIMS
         kvs_text_open or raise ArgumentError, 'need for a keyword argument: kvs_text_open'
         @authentication = authentication or raise ArgumentError, 'need for a keyword argument: authentication'
 
-        @ip_addr = ip_addr
-        @ip_port = ip_port
+        @imap_host = imap_host
+        @imap_port = imap_port
         @logger = logger
         @mail_delivery_user = mail_delivery_user
 
@@ -381,8 +398,8 @@ module RIMS
 
     def start
       @logger.info('start server.')
-      @logger.info("open socket: #{@ip_addr}:#{@ip_port}")
-      sv_sock = TCPServer.new(@ip_addr, @ip_port)
+      @logger.info("open socket: #{@imap_host}:#{@imap_port}")
+      sv_sock = TCPServer.new(@imap_host, @imap_port)
 
       begin
         @logger.info("opened: #{ipaddr_log(sv_sock.addr)}")
