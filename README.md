@@ -118,7 +118,7 @@ To start server with config.yml file, type following.
   <dt>mail_delivery_user</dt>
   <dd>This parameter describes a special user to deliver mail to any
   user. Password definition of this special user is same to a normal
-  user.</dd>
+  user. Default is "#postman".</dd>
 </dl>
 
 ## Mailbox Data
