@@ -1,3 +1,9 @@
+2015-01-04  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb, lib/rims/server.rb: unsuitable named server
+	configuration parameters and command line options are renamed to
+	suitable names.
+
 2015-01-02  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb, lib/rims/daemon.rb: daemon process is

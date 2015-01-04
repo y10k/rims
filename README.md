@@ -107,13 +107,13 @@ To start server with config.yml file, type following.
   describes name of a user. pass entry describes password of a
   user. At least one user is need to start a server.</dd>
 
-  <dt>ip_addr</dt>
-  <dd>This parameter describes IP address of a server socket to
-  listen(2) and accept(2). Default is 0.0.0.0.</dd>
+  <dt>imap_host</dt>
+  <dd>This parameter describes hostname or IP address of a server
+  socket to listen(2) and accept(2). Default is 0.0.0.0.</dd>
 
-  <dt>ip_port</dt>
-  <dd>This parameter describes IP port of a server socket to listen(2)
-  and accept(2). Default is 1430.</dd>
+  <dt>imap_port</dt>
+  <dd>This parameter describes IP port number of service name of a
+  server socket to listen(2) and accept(2). Default is 1430.</dd>
 
   <dt>mail_delivery_user</dt>
   <dd>This parameter describes a special user to deliver mail to any
