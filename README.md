@@ -119,6 +119,20 @@ To start server with config.yml file, type following.
   <dd>This parameter describes a special user to deliver mail to any
   user. Password definition of this special user is same to a normal
   user.</dd>
+
+  <dt>process_privilege_user</dt>
+  <dd>This parameter describes a privilege user name or ID for server
+  process.  When server process starts on root user, setuid(2) is
+  called and server process privilege user is changed from root user
+  to this parameter user.  Default is 65534 (typical user ID of
+  nobody) and should be changed.</dd>
+
+  <dt>process_privilege_group</dt>
+  <dd>This parameter describes a privilege group name or ID for server
+  process.  When server process starts on root user, setgid(2) is
+  called and server process privilege group is changed from root group
+  to this parameter group.  Default is 65534 (typical group ID of
+  nogroup) and should be changed.</dd>
 </dl>
 
 ## Mailbox Data
