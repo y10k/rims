@@ -291,6 +291,10 @@ module RIMS
     end
     private :privilege_name2id
 
+    # configuration entries.
+    # * <tt>:process_privilege_user</tt>
+    # * <tt>:process_privilege_group</tt>
+    #
     def setup_privilege_params
       user = @config.delete(:process_privilege_user) || Server::DEFAULT[:process_privilege_uid]
       group = @config.delete(:process_privilege_group) || Server::DEFAULT[:process_privilege_gid]
