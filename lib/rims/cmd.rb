@@ -132,13 +132,19 @@ module RIMS
                  "Password to login IMAP server. required parameter to start server.") do |pass|
         conf.load(password: pass)
       end
-      options.on('--ip-addr=IP_ADDR',
-                 "Local IP address or hostname for the server to bind. default is `0.0.0.0'.") do |ip_addr|
-        conf.load(ip_addr: ip_addr)
+      options.on('--imap-host=HOSTNAME',
+                 "IMAP server hostname or IP address for the server to bind. default is `#{Server::DEFAULT[:imap_host]}'.") do |host|
+        conf.load(imap_host: host)
       end
-      options.on('--ip-port=PORT', Integer,
-                 "Local port number or service name for the server to listen. default is 1430.") do |port|
-        conf.load(ip_port: port)
+      options.on('--imap-port=PORT',
+                 "IMAP server port number or service name for the server to bind. default is `#{Server::DEFAULT[:imap_port]}'.") do |value|
+        if (value =~ /\A\d+\z/) then
+          port_number = value.to_i
+          conf.load(imap_port: port_number)
+        else
+          service_name = value
+          conf.load(imap_port: service_name)
+        end
       end
       options.on('--privilege-user=NAME',
                  "Privilege user name or ID for server process. default is #{Server::DEFAULT[:process_privilege_uid]}.") do |name|
@@ -147,6 +153,15 @@ module RIMS
       options.on('--privilege-group=NAME',
                  "Privilege group name or ID for server process. default is #{Server::DEFAULT[:process_privilege_gid]}.") do |name|
         conf.load(process_privilege_user: name)
+      end
+
+      options.on('--ip-addr=IP_ADDR', 'obsoleted.') do |ip_addr|
+        warn("warning: `--ip-addr=IP_ADDR' is obsoleted option and should use `--imap-host=HOSTNAME'.")
+        conf.load(ip_addr: ip_addr)
+      end
+      options.on('--ip-port=PORT', Integer, 'obsoleted.') do |port|
+        warn("warning: `--ip-port=PORT' is obsoleted option and should use `--imap-port=PORT'.")
+        conf.load(ip_port: port)
       end
 
       conf
@@ -199,7 +214,7 @@ module RIMS
       end
 
       IMAP_CONNECT_OPTION_LIST = self.make_imap_connect_option_list
-      POST_MAIL_CONNECT_OPTION_LIST = self.make_imap_connect_option_list(imap_port: Server::DEFAULT[:ip_port],
+      POST_MAIL_CONNECT_OPTION_LIST = self.make_imap_connect_option_list(imap_port: Server::DEFAULT[:imap_port],
                                                                          username: Server::DEFAULT[:mail_delivery_user])
 
       IMAP_MAILBOX_OPTION_LIST = [
