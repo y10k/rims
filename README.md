@@ -46,6 +46,15 @@ To start server with config.yml file, type following.
   is interpreted as a relative path from a parent directory of
   config.yml file.</dd>
 
+  <dt>log_stdout</dt>
+  <dd>This parameter describes a severity level of logging messages
+  that is written to standard output.  See description of Logger class
+  for more detail of logging. This parameter is one value selected
+  from DEBUG, INFO, WARN, ERROR or FATAL. If QUIET value is chosen,
+  standard output logging is disabled. Default is INFO. The danger is
+  that password may be embedded in message on user authentication in
+  DEBUG logging level.</dd>
+
   <dt>log_file</dt>
   <dd>This parameter describes a path of log file. Default is
   "imap.log" under the base_dir. Explicit description of this
