@@ -87,15 +87,15 @@ module RIMS
                  "Directory that places log file, mailbox database, etc. default is current directory.") do |path|
         conf.load(base_dir: path)
       end
-      options.on('--log-file=FILE',
-                 "Name of log file. the directory part preceding file name is ignored. default is `imap.log'.") do |path|
-        conf.load(log_file: path)
-      end
       level_list = %w[ debug info warn error fatal ]
       stdout_list = level_list + %w[ quiet ]
       options.on('-v', '--log-stdout=LEVEL', stdout_list,
                  "Stdout logging level (#{stdout_list.join(' ')}). default is `info'.") do |level|
         conf.load(log_stdout: level)
+      end
+      options.on('--log-file=FILE',
+                 "Name of log file. the directory part preceding file name is ignored. default is `imap.log'.") do |path|
+        conf.load(log_file: path)
       end
       options.on('-l', '--log-level=LEVEL', level_list,
                  "Logging level (#{level_list.join(' ')}). default is `info'.") do |level|
