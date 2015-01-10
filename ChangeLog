@@ -1,3 +1,8 @@
+2015-01-10  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/daemon.rb: signal(2) interruption robust event loop for
+	daemon process.
+
 2015-01-02  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb, lib/rims/daemon.rb: daemon process is
