@@ -160,80 +160,86 @@ module RIMS
     RESTART_SIGNAL = RESTART_SIGNAL_LIST[0]
     STOP_SIGNAL = STOP_SIGNAL_LIST[0]
 
+    SERVER_RESTART_INTERVAL_SECONDS = 5
+
     class ChildProcess
+      # return self if child process has been existed.
+      # return nil if no child process.
+      def self.cleanup_terminated_process(logger)
+        begin
+          while (pid = Process.waitpid(-1))
+            if ($?.exitstatus != 0) then
+              logger.warn("aborted child process: #{pid} (#{$?.exitstatus})")
+            end
+            yield(pid) if block_given?
+          end
+        rescue Errno::ECHILD
+          return
+        end
+
+        self
+      end
+
       def initialize(logger=Logger.new(STDOUT))
         @logger = logger
-        @stat = nil
         @pid = run{ yield }
       end
 
       attr_reader :pid
 
       def run
-        pipe_in, pipe_out = IO.pipe
+        begin
+          pipe_in, pipe_out = IO.pipe
+          pid = Process.fork{
+            @logger.close
+            pipe_in.close
 
-        pid = Process.fork{
-          @logger.close
-          pipe_in.close
+            status_code = catch(:rims_daemon_child_process_stop) {
+              for sig_name in RELOAD_SIGNAL_LIST + RESTART_SIGNAL_LIST
+                Signal.trap(sig_name, :DEFAULT)
+              end
+              for sig_name in STOP_SIGNAL_LIST
+                Signal.trap(sig_name) { throw(:rims_daemon_child_process_stop, 0) }
+              end
 
-          status_code = catch(:rims_daemon_child_process_stop) {
-            for sig_name in RELOAD_SIGNAL_LIST + RESTART_SIGNAL_LIST
-              Signal.trap(sig_name, :DEFAULT)
-            end
-            for sig_name in STOP_SIGNAL_LIST
-              Signal.trap(sig_name) { throw(:rims_daemon_child_process_stop, 0) }
-            end
+              pipe_out.puts("child process (pid: #{$$}) is ready to go.")
+              pipe_out.close
 
-            pipe_out.puts("child process (pid: #{$$}) is ready to go.")
-            pipe_out.close
-
-            yield
+              yield
+            }
+            exit!(status_code)
           }
-          exit!(status_code)
-        }
-        pipe_out.close
+        rescue
+          @logger.error("failed to fork new child process: #{$!}")
+          return
+        end
 
-        s = pipe_in.gets
-        # problem: if signal(2) interruption occurs at this point, child process may be an orphaned process.
-        @logger.info("[child process message] #{s}") if $DEBUG
-        pipe_in.close
+        begin
+          pipe_out.close
+          s = pipe_in.gets
+          @logger.info("[child process message] #{s}") if $DEBUG
+          pipe_in.close
+        rescue
+          @logger.error("failed to start new child process: #{$!}")
+          begin
+            Process.kill(STOP_SIGNAL, pid)
+          rescue SystemCallError
+            @logger.warn("failed to kill abnormal child process: #{$!}")
+          end
+          return
+        end
 
         pid
       end
       private :run
 
-      # return nil if child process is alive.
-      # return self if child process is dead.
-      def wait(nohang: false)
-        return self if @stat
-
-        wait_flags = 0
-        wait_flags |= Process::WNOHANG if nohang
-
-        if (Process.waitpid(@pid, wait_flags)) then
-          @stat = $?
-          if (@stat.exitstatus != 0) then
-            @logger.warn("aborted child process: #{@pid} (#{$?.exitstatus})")
-          end
-
-          self
-        end
-      end
-
-      def alive?
-        if (@pid) then
-          if (wait(nohang: true)) then
-            false
-          else
-            true
-          end
-        end
+      def forked?
+        @pid != nil
       end
 
       def terminate
         begin
           Process.kill(STOP_SIGNAL, @pid)
-          wait
         rescue SystemCallError
           @logger.warn("failed to terminate child process: #{@pid}")
         end
@@ -242,52 +248,12 @@ module RIMS
       end
     end
 
-    class SignalEventHandler
-      def initialize
-        @state = :init
-      end
-
-      def run?
-        @state == :run
-      end
-
-      # call from main thread
-      def event_loop
-        continue = true
-
-        begin
-          while (continue)
-            continue = catch(:rims_daemon_signal_event_loop) {
-              begin
-                @state = :run
-                yield
-              ensure
-                @state = :wait
-              end
-
-              false
-            }
-          end
-        ensure
-          @state = :stop
-        end
-
-        nil
-      end
-
-      # call from Signal.trap handler
-      def event_push(continue: true)
-        throw(:rims_daemon_signal_event_loop, continue)
-        nil
-      end
-    end
-
     def initialize(stat_file_path, logger=Logger.new(STDOUT), server_options: [])
       @stat_file = self.class.new_status_file(stat_file_path, exclusive: true)
       @logger = logger
       @server_options = server_options
+      @server_running = true
       @server_process = nil
-      @signal_event_handler = SignalEventHandler.new
     end
 
     def new_server_process
@@ -301,19 +267,33 @@ module RIMS
           @stat_file.write({ 'pid' => $$ }.to_yaml)
           begin
             @logger.info('start daemon.')
-            @signal_event_handler.event_loop do
-              loop do
-                unless (@server_process && @server_process.alive?) then
-                  @server_process.wait if @server_process
-                  @server_process = new_server_process
-                  @logger.info("run server process: #{@server_process.pid}")
-                end
-                sleep(5)
+            loop do
+              break unless @server_running
+
+              unless (@server_process && @server_process.forked?) then
+                start_time = Time.now
+                @server_process = new_server_process
+                @logger.info("run server process: #{@server_process.pid}")
               end
+
+              break unless @server_running
+
+              ChildProcess.cleanup_terminated_process(@logger) do |pid|
+                if (@server_process.pid == pid) then
+                  @server_process = nil
+                end
+              end
+
+              break unless @server_running
+
+              elapsed_seconds = Time.now - start_time
+              the_rest_in_interval_seconds = SERVER_RESTART_INTERVAL_SECONDS - elapsed_seconds
+              sleep(the_rest_in_interval_seconds) if (the_rest_in_interval_seconds > 0)
             end
           ensure
-            if (@server_process && @server_process.alive?) then
+            if (@server_process && @server_process.forked?) then
               @server_process.terminate
+              ChildProcess.cleanup_terminated_process(@logger)
             end
             @logger.info('stop daemon.')
           end
@@ -331,25 +311,23 @@ module RIMS
 
     # signal trap hook.
     def restart_server
-      if (@signal_event_handler.run?) then
-        @stat_file.should_be_locked
-        if (@server_process && @server_process.alive?) then
-          @server_process.terminate
-          @signal_event_handler.event_push(continue: true)
-        end
-
-        self
+      @stat_file.should_be_locked
+      if (@server_process && @server_process.forked?) then
+        @server_process.terminate
       end
+
+      self
     end
 
     # signal trap hook.
     def stop_server
-      if (@signal_event_handler.run?) then
-        @stat_file.should_be_locked
-        @signal_event_handler.event_push(continue: false)
-
-        self
+      @stat_file.should_be_locked
+      @server_running = false
+      if (@server_process && @server_process.forked?) then
+        @server_process.terminate
       end
+
+      self
     end
   end
 end
