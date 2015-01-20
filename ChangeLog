@@ -1,3 +1,8 @@
+2015-01-20  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* rims.gemspec: explicit dependency for test-unit is defined.
+	changed for ruby-2.2.0.
+
 2015-01-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/daemon.rb: signal(2) interruption robust event loop for
