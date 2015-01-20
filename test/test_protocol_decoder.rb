@@ -2557,7 +2557,7 @@ module RIMS::Test
       assert_mbox_flag_num(recent: 5)
 
       assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Answered \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2571,8 +2571,8 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 1, recent: 5)
 
       assert_imap_command(:store, '1,3', '+FLAGS', [ :group, '\Flagged' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Flagged \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2586,9 +2586,9 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
 
       assert_imap_command(:store, '1,3,5', '+FLAGS', [ :group, '\Deleted' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Deleted \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2602,10 +2602,10 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
 
       assert_imap_command(:store, '1,3,5,7', '+FLAGS', [ :group, '\Seen' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Seen \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Seen \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Seen \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Seen \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2619,11 +2619,11 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
 
       assert_imap_command(:store, '1,3,5,7,9', '+FLAGS', [ :group, '\Draft' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)')
-        assert.equal('* 5 FETCH FLAGS (\Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Seen \Draft \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Seen \Draft \Recent))')
+        assert.equal('* 5 FETCH (UID 9 FLAGS (\Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2637,11 +2637,11 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
 
       assert_imap_command(:store, '1:*', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 5 FETCH (UID 9 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2655,7 +2655,7 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
 
       assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2669,8 +2669,8 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
 
       assert_imap_command(:store, '1,3', '-FLAGS', [ :group, '\Flagged' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Deleted \Seen \Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2684,9 +2684,9 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
 
       assert_imap_command(:store, '1,3,5', '-FLAGS', [ :group, '\Deleted' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Seen \Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Seen \Draft \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2700,10 +2700,10 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
 
       assert_imap_command(:store, '1,3,5,7', '-FLAGS', [ :group, '\Seen' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Draft \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Draft \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Answered \Flagged \Deleted \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2717,11 +2717,11 @@ module RIMS::Test
       assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
 
       assert_imap_command(:store, '1,3,5,7,9', '-FLAGS', [ :group, '\Draft' ], uid: true) {|assert|
-        assert.equal('* 1 FETCH FLAGS (\Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
-        assert.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Answered \Flagged \Deleted \Recent))')
+        assert.equal('* 5 FETCH (UID 9 FLAGS (\Answered \Flagged \Deleted \Seen \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -4944,51 +4944,51 @@ LOGOUT
         assert.match(/^#{tag!} NO /)
         assert.skip_while{|line| line =~ /^\* / }
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
-        assert.equal('* 1 FETCH FLAGS (\Answered \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Flagged \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Deleted \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Deleted \Seen \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Seen \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Seen \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Seen \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Seen \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Seen \Draft \Recent)')
-        assert.equal('* 5 FETCH FLAGS (\Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Seen \Draft \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Seen \Draft \Recent))')
+        assert.equal('* 5 FETCH (UID 9 FLAGS (\Draft \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
-        assert.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
+        assert.equal('* 5 FETCH (UID 9 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Flagged \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Deleted \Seen \Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Deleted \Seen \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Deleted \Seen \Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Seen \Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Seen \Draft \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Seen \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Seen \Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Seen \Draft \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Seen \Draft \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Draft \Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Draft \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Draft \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Draft \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Draft \Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Draft \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Draft \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Answered \Flagged \Deleted \Draft \Recent))')
         assert.equal("#{tag!} OK STORE completed")
-        assert.equal('* 1 FETCH FLAGS (\Recent)')
-        assert.equal('* 2 FETCH FLAGS (\Answered \Recent)')
-        assert.equal('* 3 FETCH FLAGS (\Answered \Flagged \Recent)')
-        assert.equal('* 4 FETCH FLAGS (\Answered \Flagged \Deleted \Recent)')
-        assert.equal('* 5 FETCH FLAGS (\Answered \Flagged \Deleted \Seen \Recent)')
+        assert.equal('* 1 FETCH (UID 1 FLAGS (\Recent))')
+        assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Recent))')
+        assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Recent))')
+        assert.equal('* 4 FETCH (UID 7 FLAGS (\Answered \Flagged \Deleted \Recent))')
+        assert.equal('* 5 FETCH (UID 9 FLAGS (\Answered \Flagged \Deleted \Seen \Recent))')
         assert.equal("#{tag!} OK STORE completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
