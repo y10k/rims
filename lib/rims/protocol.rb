@@ -2133,7 +2133,7 @@ module RIMS
                   if (uid) then
                     res << "* #{msg.num} FETCH (UID #{msg.uid} FLAGS (#{flag_atom_list.join(' ')}))\r\n"
                   else
-                    res << "* #{msg.num} FETCH FLAGS (#{flag_atom_list.join(' ')})\r\n"
+                    res << "* #{msg.num} FETCH (FLAGS (#{flag_atom_list.join(' ')}))\r\n"
                   end
                 else
                   @logger.warn("not found a message and skipped: uidvalidity(#{@folder.mbox_id}) uid(#{msg.uid})")
