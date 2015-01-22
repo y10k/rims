@@ -1,3 +1,7 @@
+2015-01-22  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb: fixed a bug of store command response.
+
 2015-01-20  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* rims.gemspec: explicit dependency for test-unit is defined.
