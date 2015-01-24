@@ -6,25 +6,36 @@ RIMS is Ruby IMap Server.
 
 Add this line to your application's Gemfile:
 
-    gem 'rims', git: 'git://github.com/y10k/rims.git', tag: 'v0.0.4'
+    gem 'rims', git: 'git://github.com/y10k/rims.git', branch: 'master'
 
-And then execute:
+Execute to install your local directory:
 
-    $ bundle
+    $ bundle install --path=vendor
+
+Execute to install your gem home:
+
+    $ bundle install
 
 ## Simple Usage
 
 Type following to show usage.
 
-    $ rims
-
-To start IMAP server, type following and read usage.
-
-    $ rims server --help
-
-To append messages to IMAP mailbox, type following and read usage.
-
-    $ rims imap-append --help
+    $ bundle exec rims help
+    usage: rims command options
+    
+    commands:
+        help               Show this message.
+        version            Show software version.
+        server             Run IMAP server.
+        daemon             Daemon start/stop/status tool.
+        post-mail          Post mail to any user.
+        imap-append        Append message to IMAP mailbox.
+        mbox-dirty-flag    Show/enable/disable dirty flag of mailbox database.
+        unique-user-id     Show unique user ID from username.
+        show-user-mbox     Show the path in which user's mailbox data is stored.
+    
+    command help options:
+        -h, --help
 
 ## Server Configuration
 
