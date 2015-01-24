@@ -393,13 +393,13 @@ module RIMS::Test
       assert_equal([], @mail_store.each_msg_uid(mbox_id).to_a)
       folder = @mail_store.select_mbox(mbox_id)
 
-      assert_equal([].to_set, folder.parse_msg_set('1'))
-      assert_equal([].to_set, folder.parse_msg_set('1', uid: false))
-      assert_equal([].to_set, folder.parse_msg_set('1', uid: true))
+      assert_equal([ 1 ].to_set, folder.parse_msg_set('1'))
+      assert_equal([ 1 ].to_set, folder.parse_msg_set('1', uid: false))
+      assert_equal([ 1 ].to_set, folder.parse_msg_set('1', uid: true))
 
-      assert_equal([].to_set, folder.parse_msg_set('*'))
-      assert_equal([].to_set, folder.parse_msg_set('*', uid: false))
-      assert_equal([].to_set, folder.parse_msg_set('*', uid: true))
+      assert_equal([ 0 ].to_set, folder.parse_msg_set('*'))
+      assert_equal([ 0 ].to_set, folder.parse_msg_set('*', uid: false))
+      assert_equal([ 0 ].to_set, folder.parse_msg_set('*', uid: true))
 
       assert_equal([].to_set, folder.parse_msg_set('1:*'))
       assert_equal([].to_set, folder.parse_msg_set('1:*', uid: false))
