@@ -1,3 +1,11 @@
+2015-01-24  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb: search command optimization.
+
+	* lib/rims/mail_store.rb: message list attribute of mailbox folder
+	is encapsulated. and small message sequence set access on mailbox
+	folder may be fast.
+
 2015-01-22  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol.rb: fixed a bug of store command response.
