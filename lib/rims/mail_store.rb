@@ -344,9 +344,20 @@ module RIMS
 
     def reload
       @cnum = @mail_store.cnum
+
       msg_id_list = @mail_store.each_msg_uid(@mbox_id).to_a
       msg_id_list.sort!
-      @msg_list = msg_id_list.zip(1..(msg_id_list.length)).map{|id, num| MessageStruct.new(id, num) }
+
+      @msg_list = Array.new(msg_id_list.length)
+      @uid_map = {}
+
+      msg_id_list.each_with_index do |id, i|
+        num = i.succ
+        msg = MessageStruct.new(id, num)
+        @msg_list[i] = msg
+        @uid_map[id] = msg
+      end
+
       self
     end
 
@@ -369,13 +380,33 @@ module RIMS
     end
 
     def msg_find_all(msg_set, uid: false)
-      @msg_list.find_all{|msg|
+      if (msg_set.size < @msg_list.length) then
         if (uid) then
-          msg_set.include? msg.uid
+          msg_set.inject([]) {|msg_list, id|
+            if (msg = @uid_map[id]) then
+              msg_list << msg
+            end
+            msg_list
+          }
         else
-          msg_set.include? msg.num
+          msg_set.inject([]) {|msg_list, num|
+            if (1 <= num && num <= @msg_list.length) then
+              msg_list << @msg_list[num - 1]
+            end
+            msg_list
+          }
         end
-      }
+      else
+        if (uid) then
+          @msg_list.find_all{|msg|
+            msg_set.include? msg.uid
+          }
+        else
+          @msg_list.find_all{|msg|
+            msg_set.include? msg.num
+          }
+        end
+      end
     end
 
     attr_reader :read_only
