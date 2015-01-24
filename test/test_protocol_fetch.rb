@@ -56,17 +56,17 @@ module RIMS::Test
     def assert_fetch(msg_idx, expected_message_data_array, encoding: 'ascii-8bit')
       assert_strenc_equal(encoding,
                           message_data_list(expected_message_data_array),
-                          @fetch.call(@folder.msg_list[msg_idx]))
+                          @fetch.call(@folder[msg_idx]))
     end
     private :assert_fetch
 
     def get_msg_flag(msg_idx, flag_name)
-      @mail_store.msg_flag(@inbox_id, @folder.msg_list[msg_idx].uid, flag_name)
+      @mail_store.msg_flag(@inbox_id, @folder[msg_idx].uid, flag_name)
     end
     private :get_msg_flag
 
     def set_msg_flag(msg_idx, flag_name, flag_value)
-      @mail_store.set_msg_flag(@inbox_id, @folder.msg_list[msg_idx].uid, flag_name, flag_value)
+      @mail_store.set_msg_flag(@inbox_id, @folder[msg_idx].uid, flag_name, flag_value)
       nil
     end
     private :set_msg_flag

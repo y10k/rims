@@ -1957,7 +1957,7 @@ module RIMS
 
           response_stream(tag) {|res|
             res << '* SEARCH'
-            for msg in @folder.msg_list
+            @folder.each_msg do |msg|
               begin
                 if (lock_folder{ cond.call(msg) }) then
                   if (uid) then

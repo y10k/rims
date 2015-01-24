@@ -355,7 +355,18 @@ module RIMS
     end
 
     attr_reader :mbox_id
-    attr_reader :msg_list
+
+    def [](msg_idx)
+      @msg_list[msg_idx]
+    end
+
+    def each_msg
+      return enum_for(:each_msg) unless block_given?
+      for msg in @msg_list
+        yield(msg)
+      end
+      self
+    end
 
     def msg_find_all(msg_set, uid: false)
       @msg_list.find_all{|msg|

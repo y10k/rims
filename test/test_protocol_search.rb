@@ -72,7 +72,7 @@ module RIMS::Test
     private :parse_search_key
 
     def assert_search_cond(msg_idx, expected_found_flag)
-      assert_equal(expected_found_flag, @cond.call(@folder.msg_list[msg_idx]))
+      assert_equal(expected_found_flag, @cond.call(@folder[msg_idx]))
     end
     private :assert_search_cond
 

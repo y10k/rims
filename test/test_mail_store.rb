@@ -332,13 +332,15 @@ module RIMS::Test
       folder = @mail_store.select_mbox(mbox_id)
       assert_equal(mbox_id, folder.mbox_id)
       assert_equal(false, folder.updated?)
-      assert_equal([], folder.msg_list)
+      assert_equal([], folder.each_msg.to_a)
 
       @mail_store.add_msg(mbox_id, 'foo')
       assert_equal(true, folder.updated?)
       folder.reload
       assert_equal(false, folder.updated?)
-      assert_equal([ [ 1, 1 ] ], folder.msg_list.map{|i| i.to_a })
+      assert_equal(1, folder[0].num)
+      assert_equal(1, folder[0].uid)
+      assert_equal([ [ 1, 1 ] ], folder.each_msg.map{|i| i.to_a })
     end
 
     def each_msg_src
