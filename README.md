@@ -50,6 +50,30 @@ and password is `bar`.
 
 ### First step
 
+Let's try to start RIMS. Type following on your console. And some
+messages are shown at console.
+
+    $ bundle exec rims server -u foo -w bar
+    I, [2015-01-24T21:02:37.030415 #24475]  INFO -- : start server.
+    I, [2015-01-24T21:02:37.035052 #24475]  INFO -- : open socket: 0.0.0.0:1430
+    I, [2015-01-24T21:02:37.036329 #24475]  INFO -- : opened: [AF_INET][1430][0.0.0.0][0.0.0.0]
+    I, [2015-01-24T21:02:37.036569 #24475]  INFO -- : process ID: 24475
+    I, [2015-01-24T21:02:37.037105 #24475]  INFO -- : process privilege user: toki(1000)
+    I, [2015-01-24T21:02:37.037401 #24475]  INFO -- : process privilege group: toki(1000)
+
+Add e-mail account to your e-mail client:
+
+* Username is `foo`.
+* IMAP server is `192.168.56.101`. This may be replaced to your server
+  hostname or IP address.
+* IMAP port number is `1430`. This is default of RIMS.
+* IMAP authentication password is `bar`.
+
+If setup is success, empty mailbox named INBOX is shown at new mail
+account of your e-mail client.
+
+Last, type Ctrl+C on your console to stop server.
+
 ### Configuration file
 
 ### Mail delivery to mailbox
