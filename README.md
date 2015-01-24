@@ -37,6 +37,27 @@ Type following to show usage.
     command help options:
         -h, --help
 
+## Tutorial
+
+Something to need for RIMS setup are following:
+
+* IP address of your server to run RIMS.
+* At least one pair of username and password.
+* Your e-mail client that can use IMAP.
+
+In this tutorial, IP address is `192.168.56.101`, username is `foo`,
+and password is `bar`.
+
+### First step
+
+### Configuration file
+
+### Mail delivery to mailbox
+
+### IMAP well known port and server process privilege
+
+### Daemon
+
 ## Server Configuration
 
 Server options on start may be described at config.yml file.
