@@ -1720,6 +1720,30 @@ module RIMS::Test
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
+      # first message sequence set operation is shortcut for accessing folder message list.
+      assert_imap_command(:search, '2', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 2').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      # first message sequence set operation is shortcut for accessing folder message list.
+      assert_imap_command(:search, '2', uid: true, crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 3').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      # first message sequence set operation is shortcut for accessing folder message list.
+      assert_imap_command(:search, 'UID', '3', crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 2').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      # first message sequence set operation is shortcut for accessing folder message list.
+      assert_imap_command(:search, 'UID', '3', uid: true, crlf_at_eol: false) {|assert|
+        assert.equal('* SEARCH').equal(' 3').equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
         assert.equal("#{tag} OK LOGOUT completed")
@@ -4464,6 +4488,10 @@ SEARCH ALL
 UID SEARCH ALL
 SEARCH OR FROM alice FROM bob BODY apple
 UID SEARCH OR FROM alice FROM bob BODY apple
+SEARCH 2
+UID SEARCH 2
+SEARCH UID 3
+UID SEARCH UID 3
 LOGOUT
       EOF
 
@@ -4481,6 +4509,14 @@ LOGOUT
         assert.equal('* SEARCH 1 3')
         assert.equal("#{tag!} OK SEARCH completed")
         assert.equal('* SEARCH 1 5')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 2')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 3')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 2')
+        assert.equal("#{tag!} OK SEARCH completed")
+        assert.equal('* SEARCH 3')
         assert.equal("#{tag!} OK SEARCH completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")

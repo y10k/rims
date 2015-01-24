@@ -1942,22 +1942,42 @@ module RIMS
       def search(tag, *cond_args, uid: false)
         protect_select(tag, lock: false) {
           cond = nil
+          msg_src = nil
 
           lock_folder{
             @folder.reload if @folder.updated?
             parser = Protocol::SearchParser.new(get_mail_store, @folder)
-            if (cond_args[0].upcase == 'CHARSET') then
+            if (! cond_args.empty? && cond_args[0].upcase == 'CHARSET') then
               cond_args.shift
               charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
               charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
               parser.charset = charset_string
+            end
+            if (! cond_args.empty?) then
+              if (cond_args[0].upcase == 'UID' && cond_args.length >= 2) then
+                begin
+                  msg_set = @folder.parse_msg_set(cond_args[1], uid: true)
+                  msg_src = @folder.msg_find_all(msg_set, uid: true)
+                  cond_args.shift(2)
+                rescue MessageSetSyntaxError
+                  msg_src = @folder.each_msg
+                end
+              else
+                begin
+                  msg_set = @folder.parse_msg_set(cond_args[0], uid: false)
+                  msg_src = @folder.msg_find_all(msg_set, uid: false)
+                  cond_args.shift
+                rescue MessageSetSyntaxError
+                  msg_src = @folder.each_msg
+                end
+              end
             end
             cond = parser.parse(cond_args)
           }
 
           response_stream(tag) {|res|
             res << '* SEARCH'
-            @folder.each_msg do |msg|
+            for msg in msg_src
               begin
                 if (lock_folder{ cond.call(msg) }) then
                   if (uid) then
