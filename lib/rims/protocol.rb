@@ -1988,13 +1988,7 @@ module RIMS
             @folder.reload if @folder.updated?
 
             msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-            msg_list = @folder.msg_list.find_all{|msg|
-              if (uid) then
-                msg_set.include? msg.uid
-              else
-                msg_set.include? msg.num
-              end
-            }
+            msg_list = @folder.msg_find_all(msg_set, uid: uid)
 
             unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
               data_item_group = [ :group, data_item_group ]
@@ -2080,13 +2074,7 @@ module RIMS
               raise SyntaxError, 'third arugment is not a group list.'
             end
 
-            msg_list = @folder.msg_list.find_all{|msg|
-              if (uid) then
-                msg_set.include? msg.uid
-              else
-                msg_set.include? msg.num
-              end
-            }
+            msg_list = @folder.msg_find_all(msg_set, uid: uid)
 
             for msg in msg_list
               case (action)
@@ -2152,13 +2140,7 @@ module RIMS
           msg_set = @folder.parse_msg_set(msg_set, uid: uid)
 
           if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
-            msg_list = @folder.msg_list.find_all{|msg|
-              if (uid) then
-                msg_set.include? msg.uid
-              else
-                msg_set.include? msg.num
-              end
-            }
+            msg_list = @folder.msg_find_all(msg_set, uid: uid)
 
             src_uids = []
             dst_uids = []

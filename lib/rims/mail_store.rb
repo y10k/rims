@@ -356,6 +356,17 @@ module RIMS
 
     attr_reader :mbox_id
     attr_reader :msg_list
+
+    def msg_find_all(msg_set, uid: false)
+      @msg_list.find_all{|msg|
+        if (uid) then
+          msg_set.include? msg.uid
+        else
+          msg_set.include? msg.num
+        end
+      }
+    end
+
     attr_reader :read_only
     alias read_only? read_only
 
