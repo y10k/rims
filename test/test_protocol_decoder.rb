@@ -1744,6 +1744,14 @@ module RIMS::Test
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
+      assert_imap_command(:search, 'bad-search-command') {|assert|
+        assert.match(/^#{tag} BAD /)
+      }
+
+      assert_imap_command(:search) {|assert|
+        assert.match(/^#{tag} BAD /)
+      }
+
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
         assert.equal("#{tag} OK LOGOUT completed")
@@ -4492,6 +4500,8 @@ SEARCH 2
 UID SEARCH 2
 SEARCH UID 3
 UID SEARCH UID 3
+SEARCH bad-search-command
+SEARCH
 LOGOUT
       EOF
 
@@ -4518,6 +4528,8 @@ LOGOUT
         assert.equal("#{tag!} OK SEARCH completed")
         assert.equal('* SEARCH 3')
         assert.equal("#{tag!} OK SEARCH completed")
+        assert.match(/^#{tag!} BAD /)
+        assert.match(/^#{tag!} BAD /)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
       }

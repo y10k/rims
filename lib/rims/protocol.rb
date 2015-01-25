@@ -1947,29 +1947,33 @@ module RIMS
           lock_folder{
             @folder.reload if @folder.updated?
             parser = Protocol::SearchParser.new(get_mail_store, @folder)
+
             if (! cond_args.empty? && cond_args[0].upcase == 'CHARSET') then
               cond_args.shift
               charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
               charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
               parser.charset = charset_string
             end
-            if (! cond_args.empty?) then
-              if (cond_args[0].upcase == 'UID' && cond_args.length >= 2) then
-                begin
-                  msg_set = @folder.parse_msg_set(cond_args[1], uid: true)
-                  msg_src = @folder.msg_find_all(msg_set, uid: true)
-                  cond_args.shift(2)
-                rescue MessageSetSyntaxError
-                  msg_src = @folder.each_msg
-                end
-              else
-                begin
-                  msg_set = @folder.parse_msg_set(cond_args[0], uid: false)
-                  msg_src = @folder.msg_find_all(msg_set, uid: false)
-                  cond_args.shift
-                rescue MessageSetSyntaxError
-                  msg_src = @folder.each_msg
-                end
+
+            if (cond_args.empty?) then
+              raise SyntaxError, 'required search arguments.'
+            end
+
+            if (cond_args[0].upcase == 'UID' && cond_args.length >= 2) then
+              begin
+                msg_set = @folder.parse_msg_set(cond_args[1], uid: true)
+                msg_src = @folder.msg_find_all(msg_set, uid: true)
+                cond_args.shift(2)
+              rescue MessageSetSyntaxError
+                msg_src = @folder.each_msg
+              end
+            else
+              begin
+                msg_set = @folder.parse_msg_set(cond_args[0], uid: false)
+                msg_src = @folder.msg_find_all(msg_set, uid: false)
+                cond_args.shift
+              rescue MessageSetSyntaxError
+                msg_src = @folder.each_msg
               end
             end
             cond = parser.parse(cond_args)
