@@ -45,7 +45,7 @@ at later.
 
 To start server with config.yml file, type following.
 
-    $ rims server -f a_server_directory/config.yml
+    $ bundle exec rims server -f a_server_directory/config.yml
 
 ### Config.yml Parameters
 
@@ -188,7 +188,7 @@ directory.  A user is identified by unique user ID.  Unique user ID is
 a SHA256 HEX digest of a username.  For example, type following to
 display a "foo" user's unique user ID.
 
-    $ rims unique-user-id foo
+    $ bundle exec rims unique-user-id foo
     2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae 
 
 First two characters of unique user ID is used as a bucket directory.
@@ -197,7 +197,7 @@ directory under the bucket directory.  Shortcut tool to search a two
 level directory of a user under a base directory exists.  For example,
 type following to display a "foo" user's directory.
 
-    $ rims show-user-mbox a_base_directory foo
+    $ bundle exec rims show-user-mbox a_base_directory foo
     a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
 
 There are three types of files under the user directory.  Three types
@@ -215,7 +215,7 @@ is message text.  A message ID is a unique number of a message in RIMS
 internal.  For example, type following to see overview of contents at
 a message key-value store.
 
-    $ rims debug-dump-kvs --dump-size --no-dump-value a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/message
+    $ bundle exec rims debug-dump-kvs --dump-size --no-dump-value a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/message
     "2": 21938 bytes
     "1": 126014 bytes
     "4": 22928 bytes
@@ -279,7 +279,7 @@ content is described here.
 
 For example, type following to see overview of contents at a meta key-value store.
 
-    $ rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/meta
+    $ bundle exec rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/meta
     "msg_id2mbox-3": 25 bytes: {1=>#<Set: {4}>}
     "msg_id2date-2": 49 bytes: 2013-11-08 13:34:10 +0900
     "mbox_id2uid-1": 1 bytes: "6"
@@ -317,7 +317,7 @@ message in a mailbox in IMAP.  A message ID is a unique number of a
 message in RIMS internal.  For example, type following to see overview
 of contents at a mailbox key-value store.
 
-    $ rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/mailbox_1
+    $ bundle exec rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/mailbox_1
     "2": 1 bytes: "1"
     "5": 1 bytes: "4"
     "1": 1 bytes: "0"
