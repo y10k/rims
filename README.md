@@ -121,7 +121,7 @@ To start server with config.yml file, type following.
   socket to listen(2) and accept(2). Default is 0.0.0.0.</dd>
 
   <dt>imap_port</dt>
-  <dd>This parameter describes IP port number of service name of a
+  <dd>This parameter describes IP port number or service name of a
   server socket to listen(2) and accept(2). Default is 1430.</dd>
 
   <dt>mail_delivery_user</dt>
