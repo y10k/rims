@@ -1,3 +1,7 @@
+2015-01-25  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb: fixed response of search command bad pattern.
+
 2015-01-24  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol.rb: search command optimization.
