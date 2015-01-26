@@ -76,6 +76,31 @@ Last, type Ctrl+C on your console to stop server.
 
 ### Configuration file
 
+Password at command line parameter is insecure because password is
+peeped from another user using `ps aux`. Username and password should
+be written at configuration file.
+
+RIMS configuration file format is YAML. Type following in file of
+`config.yml` and save.
+
+    user_list:
+      - { user: foo, pass: bar }
+
+And start RIMS with `-f config.yml` option.
+
+    $ bundle exec rims server -f config.yml
+    I, [2015-01-26T23:20:24.573462 #6106]  INFO -- : start server.
+    I, [2015-01-26T23:20:24.574507 #6106]  INFO -- : open socket: 0.0.0.0:1430
+    I, [2015-01-26T23:20:24.581892 #6106]  INFO -- : opened: [AF_INET][1430][0.0.0.0][0.0.0.0]
+    I, [2015-01-26T23:20:24.582044 #6106]  INFO -- : process ID: 6106
+    I, [2015-01-26T23:20:24.596335 #6106]  INFO -- : process privilege user: toki(1000)
+    I, [2015-01-26T23:20:24.596985 #6106]  INFO -- : process privilege group: toki(1000)
+
+If setup is success, empty mailbox named INBOX is shown at mail
+account of your e-mail client.
+
+Last, type Ctrl+C on your console to stop server.
+
 ### Mail delivery to mailbox
 
 ### IMAP well known port and server process privilege
