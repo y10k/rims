@@ -152,6 +152,42 @@ you will see that message appears in INBOX on your e-mail client.
 
 ### IMAP well known port and server process privilege
 
+Default port number of RIMS is 1430. IMAP protocol well known port
+number is 143. If RIMS opens server socket with 143 port, it needs to
+be root user process at unix. But RIMS doesn't need to be root user
+process as IMAP server.
+
+To open server socket with well known 143 port at RIMS:
+
+1. RIMS starts at root user.
+2. RIMS opens server socket with 143 port by root user privilege.
+3. RIMS calls setuid(2). And privilege of process is changed from root
+   user to another.
+4. RIMS starts IMAP server with another's process privilege.
+
+For example, port number is `imap2` (it is service name of well known
+port of 143), process user privilege is `toki` (uid 1000), and process
+group privilege is `toki` (gid 1000). Type following in configuration
+file.
+
+    user_list:
+      - { user: foo, pass: bar }
+      - { user: "#postman", pass: "#postman" }
+    imap_port: imap2
+    process_privilege_user: toki
+    process_privilege_group: toki
+
+And type following on your console.
+
+    $ sudo bundle exec rims server -f config.yml
+    [sudo] password for toki: 
+    I, [2015-01-31T21:32:30.069848 #9381]  INFO -- : start server.
+    I, [2015-01-31T21:32:30.070068 #9381]  INFO -- : open socket: 0.0.0.0:imap2
+    I, [2015-01-31T21:32:30.070374 #9381]  INFO -- : opened: [AF_INET][143][0.0.0.0][0.0.0.0]
+    I, [2015-01-31T21:32:30.070559 #9381]  INFO -- : process ID: 9381
+    I, [2015-01-31T21:32:30.070699 #9381]  INFO -- : process privilege user: toki(1000)
+    I, [2015-01-31T21:32:30.070875 #9381]  INFO -- : process privilege group: toki(1000)
+
 ### Daemon
 
 ## Server Configuration
