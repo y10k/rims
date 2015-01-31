@@ -103,6 +103,53 @@ Last, type Ctrl+C on your console to stop server.
 
 ### Mail delivery to mailbox
 
+In this section, the way that you deliver mail to mailbox on RIMS is
+described. Prepare a sample mail text file that is picked from your
+e-mail client. The sample mail file is named `mail.txt` on description
+of this section.
+
+Simple way is that you use IMAP APPEND command. `rims` tool has IMAP
+APPEND command. Type following on your console.
+
+    $ bundle exec rims imap-append -v -n 192.168.56.101 -o 1430 -u foo -w bar mail.txt
+    store flags: ()
+    server greeting: OK RIMS v0.0.4 IMAP4rev1 service ready.
+    server capability: IMAP4REV1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5
+    login: OK LOGIN completed
+    append: OK  APPEND completed
+
+The option of `-v` is verbose mode. If you don't need display
+information, no verbose option exists. If mail delivery is success,
+you will see that message appears in INBOX on your e-mail client.
+
+The advantage of IMAP APPEND is to be able to use it by any IMAP mail
+server as well as RIMS. The disadvantage of IMAP APPEND is that it
+requires your password. This may be insecure.
+
+Special user is defined to deliver mail to any user's mailbox on RIMS.
+By special user, it is possible to deliver mail without your password.
+The disadvantage of special user is that it can be used only in RIMS.
+
+At first, you prepare a special user to deliver mail. Type following
+in configuration file. And start RIMS.
+
+    user_list:
+      - { user: foo, pass: bar }
+      - { user: "#postman", pass: "#postman" }
+
+And type following on your console.
+
+    $ bundle exec rims post-mail -v -n 192.168.56.101 -o 1430 -w '#postman' foo mail.txt
+    store flags: ()
+    server greeting: OK RIMS v0.0.4 IMAP4rev1 service ready.
+    server capability: IMAP4REV1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5
+    login: OK LOGIN completed
+    append: OK  APPEND completed
+
+The option of `-v` is verbose mode. If you don't need display
+information, no verbose option exists. If mail delivery is success,
+you will see that message appears in INBOX on your e-mail client.
+
 ### IMAP well known port and server process privilege
 
 ### Daemon
