@@ -190,6 +190,68 @@ And type following on your console.
 
 ### Daemon
 
+If RIMS server is started from console terminal, RIMS server process
+is terminated on closing its console terminal.  At unix, server
+process has to be started as daemon process for the server to keep
+running its service.
+
+RIMS server can start as daemon process. Type following on your
+console.
+
+    $ sudo bundle exec rims daemon start -f config.yml
+
+`sudo` is required for well known 143 port (see previous section).
+Daemon process is started quietly and prompt of console terminal is
+returned immediately. But daemon process is running at background.
+To see background daemon process, type following on your console.
+
+    $ ps -elf | grep rims
+    5 S root      3191  1720  0  80   0 - 23026 wait   21:10 ?        00:00:00 ruby /home/toki/rims/vendor/ruby/2.2.0/bin/rims daemon start -f config.yml
+    5 S toki      3194  3191  0  80   0 - 26382 inet_c 21:10 ?        00:00:00 ruby /home/toki/rims/vendor/ruby/2.2.0/bin/rims daemon start -f config.yml
+
+RIMS daemon is two processes. 1st root process is controller process.
+2nd process that isn't root is server process. RIMS daemon doesn't
+display messages and errors at console. You should see log files to
+verify normal running of RIMS daemon.
+
+To see log of controller process, watch syslog at system directory.
+Type following on your console.
+
+    $ tail -f /var/log/syslog
+    Feb  1 21:10:00 vbox-linux rims-daemon[3191]: start daemon.
+    Feb  1 21:10:00 vbox-linux rims-daemon[3191]: run server process: 3194
+
+To see log of server process, watch imap.log at local directory. Type
+following on your console.
+
+    $ tail -f imap.log
+    I, [2015-02-01T21:10:00.989859 #3194]  INFO -- : start server.
+    I, [2015-02-01T21:10:00.990084 #3194]  INFO -- : open socket: 0.0.0.0:imap2
+    I, [2015-02-01T21:10:00.990989 #3194]  INFO -- : opened: [AF_INET][143][0.0.0.0][0.0.0.0]
+    I, [2015-02-01T21:10:00.991393 #3194]  INFO -- : process ID: 3194
+    I, [2015-02-01T21:10:00.991615 #3194]  INFO -- : process privilege user: toki(1000)
+    I, [2015-02-01T21:10:00.991703 #3194]  INFO -- : process privilege group: toki(1000)
+
+RIMS daemon process can be controlled from command line tool. Defined
+operations are start, stop, restart and status. Start operation is
+already described.
+
+Stop operation:
+
+    $ sudo bundle exec rims daemon stop -f config.yml
+
+Restart operation:
+
+    $ sudo bundle exec rims daemon restart -f config.yml
+
+Status operation:
+
+    $ sudo bundle exec rims daemon status -f config.yml
+    daemon is running.
+
+    $ sudo bundle exec rims daemon status -f config.yml
+    daemon is stopped.
+
 ## Server Configuration
 
 Server options on start may be described at config.yml file.
