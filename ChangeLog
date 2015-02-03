@@ -1,3 +1,7 @@
+2015-02-03  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* README.md: Tutorial section is written.
+
 2015-01-24  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol.rb: search command optimization.
