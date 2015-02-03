@@ -6,25 +6,251 @@ RIMS is Ruby IMap Server.
 
 Add this line to your application's Gemfile:
 
-    gem 'rims', git: 'git://github.com/y10k/rims.git', tag: 'v0.0.4'
+    gem 'rims', git: 'git://github.com/y10k/rims.git', branch: 'master'
 
-And then execute:
+Execute to install your local directory:
 
-    $ bundle
+    $ bundle install --path=vendor
+
+Execute to install your gem home:
+
+    $ bundle install
 
 ## Simple Usage
 
 Type following to show usage.
 
-    $ rims
+    $ bundle exec rims help
+    usage: rims command options
+    
+    commands:
+        help               Show this message.
+        version            Show software version.
+        server             Run IMAP server.
+        daemon             Daemon start/stop/status tool.
+        post-mail          Post mail to any user.
+        imap-append        Append message to IMAP mailbox.
+        mbox-dirty-flag    Show/enable/disable dirty flag of mailbox database.
+        unique-user-id     Show unique user ID from username.
+        show-user-mbox     Show the path in which user's mailbox data is stored.
+    
+    command help options:
+        -h, --help
 
-To start IMAP server, type following and read usage.
+## Tutorial
 
-    $ rims server --help
+Something to need for RIMS setup are following:
 
-To append messages to IMAP mailbox, type following and read usage.
+* IP address of your server to run RIMS.
+* At least one pair of username and password.
+* Your e-mail client that can use IMAP.
 
-    $ rims imap-append --help
+In this tutorial, IP address is `192.168.56.101`, username is `foo`,
+and password is `bar`.
+
+### First step
+
+Let's try to start RIMS. Type following on your console. And some
+messages are shown at console.
+
+    $ bundle exec rims server -u foo -w bar
+    I, [2015-01-24T21:02:37.030415 #24475]  INFO -- : start server.
+    I, [2015-01-24T21:02:37.035052 #24475]  INFO -- : open socket: 0.0.0.0:1430
+    I, [2015-01-24T21:02:37.036329 #24475]  INFO -- : opened: [AF_INET][1430][0.0.0.0][0.0.0.0]
+    I, [2015-01-24T21:02:37.036569 #24475]  INFO -- : process ID: 24475
+    I, [2015-01-24T21:02:37.037105 #24475]  INFO -- : process privilege user: toki(1000)
+    I, [2015-01-24T21:02:37.037401 #24475]  INFO -- : process privilege group: toki(1000)
+
+Add e-mail account to your e-mail client:
+
+* Username is `foo`.
+* IMAP server is `192.168.56.101`. This may be replaced to your server
+  hostname or IP address.
+* IMAP port number is `1430`. This is default of RIMS.
+* IMAP authentication password is `bar`.
+
+If setup is success, empty mailbox named INBOX is shown at new mail
+account of your e-mail client.
+
+Last, type Ctrl+C on your console to stop server.
+
+### Configuration file
+
+Password at command line parameter is insecure because password is
+peeped from another user using `ps aux`. Username and password should
+be written at configuration file.
+
+RIMS configuration file format is YAML. Type following in file of
+`config.yml` and save.
+
+    user_list:
+      - { user: foo, pass: bar }
+
+And start RIMS with `-f config.yml` option.
+
+    $ bundle exec rims server -f config.yml
+    I, [2015-01-26T23:20:24.573462 #6106]  INFO -- : start server.
+    I, [2015-01-26T23:20:24.574507 #6106]  INFO -- : open socket: 0.0.0.0:1430
+    I, [2015-01-26T23:20:24.581892 #6106]  INFO -- : opened: [AF_INET][1430][0.0.0.0][0.0.0.0]
+    I, [2015-01-26T23:20:24.582044 #6106]  INFO -- : process ID: 6106
+    I, [2015-01-26T23:20:24.596335 #6106]  INFO -- : process privilege user: toki(1000)
+    I, [2015-01-26T23:20:24.596985 #6106]  INFO -- : process privilege group: toki(1000)
+
+If setup is success, empty mailbox named INBOX is shown at mail
+account of your e-mail client.
+
+Last, type Ctrl+C on your console to stop server.
+
+### Mail delivery to mailbox
+
+In this section, the way that you deliver mail to mailbox on RIMS is
+described. Prepare a sample mail text file that is picked from your
+e-mail client. The sample mail file is named `mail.txt` on description
+of this section.
+
+Simple way is that you use IMAP APPEND command. `rims` tool has IMAP
+APPEND command. Type following on your console.
+
+    $ bundle exec rims imap-append -v -n 192.168.56.101 -o 1430 -u foo -w bar mail.txt
+    store flags: ()
+    server greeting: OK RIMS v0.0.4 IMAP4rev1 service ready.
+    server capability: IMAP4REV1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5
+    login: OK LOGIN completed
+    append: OK  APPEND completed
+
+The option of `-v` is verbose mode. If you don't need display
+information, no verbose option exists. If mail delivery is success,
+you will see that message appears in INBOX on your e-mail client.
+
+The advantage of IMAP APPEND is to be able to use it by any IMAP mail
+server as well as RIMS. The disadvantage of IMAP APPEND is that it
+requires your password. This may be insecure.
+
+Special user is defined to deliver mail to any user's mailbox on RIMS.
+By special user, it is possible to deliver mail without your password.
+The disadvantage of special user is that it can be used only in RIMS.
+
+At first, you prepare a special user to deliver mail. Type following
+in configuration file. And start RIMS.
+
+    user_list:
+      - { user: foo, pass: bar }
+      - { user: "#postman", pass: "#postman" }
+
+And type following on your console.
+
+    $ bundle exec rims post-mail -v -n 192.168.56.101 -o 1430 -w '#postman' foo mail.txt
+    store flags: ()
+    server greeting: OK RIMS v0.0.4 IMAP4rev1 service ready.
+    server capability: IMAP4REV1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5
+    login: OK LOGIN completed
+    append: OK  APPEND completed
+
+The option of `-v` is verbose mode. If you don't need display
+information, no verbose option exists. If mail delivery is success,
+you will see that message appears in INBOX on your e-mail client.
+
+### IMAP well known port and server process privilege
+
+Default port number of RIMS is 1430. IMAP protocol well known port
+number is 143. If RIMS opens server socket with 143 port, it needs to
+be root user process at unix. But RIMS doesn't need to be root user
+process as IMAP server.
+
+To open server socket with well known 143 port at RIMS:
+
+1. RIMS starts at root user.
+2. RIMS opens server socket with 143 port by root user privilege.
+3. RIMS calls setuid(2). And privilege of process is changed from root
+   user to another.
+4. RIMS starts IMAP server with another's process privilege.
+
+For example, port number is `imap2` (it is service name of well known
+port of 143), process user privilege is `toki` (uid 1000), and process
+group privilege is `toki` (gid 1000). Type following in configuration
+file.
+
+    user_list:
+      - { user: foo, pass: bar }
+      - { user: "#postman", pass: "#postman" }
+    imap_port: imap2
+    process_privilege_user: toki
+    process_privilege_group: toki
+
+And type following on your console.
+
+    $ sudo bundle exec rims server -f config.yml
+    [sudo] password for toki: 
+    I, [2015-01-31T21:32:30.069848 #9381]  INFO -- : start server.
+    I, [2015-01-31T21:32:30.070068 #9381]  INFO -- : open socket: 0.0.0.0:imap2
+    I, [2015-01-31T21:32:30.070374 #9381]  INFO -- : opened: [AF_INET][143][0.0.0.0][0.0.0.0]
+    I, [2015-01-31T21:32:30.070559 #9381]  INFO -- : process ID: 9381
+    I, [2015-01-31T21:32:30.070699 #9381]  INFO -- : process privilege user: toki(1000)
+    I, [2015-01-31T21:32:30.070875 #9381]  INFO -- : process privilege group: toki(1000)
+
+### Daemon
+
+If RIMS server is started from console terminal, RIMS server process
+is terminated on closing its console terminal.  At unix, server
+process has to be started as daemon process for the server to keep
+running its service.
+
+RIMS server can start as daemon process. Type following on your
+console.
+
+    $ sudo bundle exec rims daemon start -f config.yml
+
+`sudo` is required for well known 143 port (see previous section).
+Daemon process is started quietly and prompt of console terminal is
+returned immediately. But daemon process is running at background.
+To see background daemon process, type following on your console.
+
+    $ ps -elf | grep rims
+    5 S root      3191  1720  0  80   0 - 23026 wait   21:10 ?        00:00:00 ruby /home/toki/rims/vendor/ruby/2.2.0/bin/rims daemon start -f config.yml
+    5 S toki      3194  3191  0  80   0 - 26382 inet_c 21:10 ?        00:00:00 ruby /home/toki/rims/vendor/ruby/2.2.0/bin/rims daemon start -f config.yml
+
+RIMS daemon is two processes. 1st root process is controller process.
+2nd process that isn't root is server process. RIMS daemon doesn't
+display messages and errors at console. You should see log files to
+verify normal running of RIMS daemon.
+
+To see log of controller process, watch syslog at system directory.
+Type following on your console.
+
+    $ tail -f /var/log/syslog
+    Feb  1 21:10:00 vbox-linux rims-daemon[3191]: start daemon.
+    Feb  1 21:10:00 vbox-linux rims-daemon[3191]: run server process: 3194
+
+To see log of server process, watch imap.log at local directory. Type
+following on your console.
+
+    $ tail -f imap.log
+    I, [2015-02-01T21:10:00.989859 #3194]  INFO -- : start server.
+    I, [2015-02-01T21:10:00.990084 #3194]  INFO -- : open socket: 0.0.0.0:imap2
+    I, [2015-02-01T21:10:00.990989 #3194]  INFO -- : opened: [AF_INET][143][0.0.0.0][0.0.0.0]
+    I, [2015-02-01T21:10:00.991393 #3194]  INFO -- : process ID: 3194
+    I, [2015-02-01T21:10:00.991615 #3194]  INFO -- : process privilege user: toki(1000)
+    I, [2015-02-01T21:10:00.991703 #3194]  INFO -- : process privilege group: toki(1000)
+
+RIMS daemon process can be controlled from command line tool. Defined
+operations are start, stop, restart and status. Start operation is
+already described.
+
+Stop operation:
+
+    $ sudo bundle exec rims daemon stop -f config.yml
+
+Restart operation:
+
+    $ sudo bundle exec rims daemon restart -f config.yml
+
+Status operation:
+
+    $ sudo bundle exec rims daemon status -f config.yml
+    daemon is running.
+
+    $ sudo bundle exec rims daemon status -f config.yml
+    daemon is stopped.
 
 ## Server Configuration
 
@@ -34,7 +260,7 @@ at later.
 
 To start server with config.yml file, type following.
 
-    $ rims server -f a_server_directory/config.yml
+    $ bundle exec rims server -f a_server_directory/config.yml
 
 ### Config.yml Parameters
 
@@ -121,7 +347,7 @@ To start server with config.yml file, type following.
   socket to listen(2) and accept(2). Default is 0.0.0.0.</dd>
 
   <dt>imap_port</dt>
-  <dd>This parameter describes IP port number of service name of a
+  <dd>This parameter describes IP port number or service name of a
   server socket to listen(2) and accept(2). Default is 1430.</dd>
 
   <dt>mail_delivery_user</dt>
@@ -177,7 +403,7 @@ directory.  A user is identified by unique user ID.  Unique user ID is
 a SHA256 HEX digest of a username.  For example, type following to
 display a "foo" user's unique user ID.
 
-    $ rims unique-user-id foo
+    $ bundle exec rims unique-user-id foo
     2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae 
 
 First two characters of unique user ID is used as a bucket directory.
@@ -186,7 +412,7 @@ directory under the bucket directory.  Shortcut tool to search a two
 level directory of a user under a base directory exists.  For example,
 type following to display a "foo" user's directory.
 
-    $ rims show-user-mbox a_base_directory foo
+    $ bundle exec rims show-user-mbox a_base_directory foo
     a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
 
 There are three types of files under the user directory.  Three types
@@ -204,7 +430,7 @@ is message text.  A message ID is a unique number of a message in RIMS
 internal.  For example, type following to see overview of contents at
 a message key-value store.
 
-    $ rims debug-dump-kvs --dump-size --no-dump-value a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/message
+    $ bundle exec rims debug-dump-kvs --dump-size --no-dump-value a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/message
     "2": 21938 bytes
     "1": 126014 bytes
     "4": 22928 bytes
@@ -268,7 +494,7 @@ content is described here.
 
 For example, type following to see overview of contents at a meta key-value store.
 
-    $ rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/meta
+    $ bundle exec rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/meta
     "msg_id2mbox-3": 25 bytes: {1=>#<Set: {4}>}
     "msg_id2date-2": 49 bytes: 2013-11-08 13:34:10 +0900
     "mbox_id2uid-1": 1 bytes: "6"
@@ -306,7 +532,7 @@ message in a mailbox in IMAP.  A message ID is a unique number of a
 message in RIMS internal.  For example, type following to see overview
 of contents at a mailbox key-value store.
 
-    $ rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/mailbox_1
+    $ bundle exec rims debug-dump-kvs a_base_directory/mailbox.2/2c/26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae/mailbox_1
     "2": 1 bytes: "1"
     "5": 1 bytes: "4"
     "1": 1 bytes: "0"
