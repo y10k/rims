@@ -185,6 +185,7 @@ module RIMS::Test
           }
         end
       end
+      @decoder = @decoder.next_decoder
 
       nil
     end
@@ -206,7 +207,7 @@ module RIMS::Test
       input = StringIO.new(client_response_input_text, 'r')
       output = StringIO.new('', 'w')
 
-      response_lines, @decoder = @decoder.authenticate(input, output, tag, *cmd_str_args)
+      response_lines = @decoder.authenticate(input, output, tag, *cmd_str_args)
       ret_val = yield(response_lines.each)
 
       if ($DEBUG) then
@@ -218,7 +219,7 @@ module RIMS::Test
     private :execute_imap_command_authenticate
 
     def execute_imap_command_login(tag, cmd_str_args)
-      response_lines, @decoder = @decoder.login(tag, *cmd_str_args)
+      response_lines = @decoder.login(tag, *cmd_str_args)
       yield(response_lines.each)
     end
     private :execute_imap_command_login

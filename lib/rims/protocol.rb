@@ -1200,9 +1200,9 @@ module RIMS
             when 'LOGOUT'
               res = decoder.logout(tag, *opt_args)
             when 'AUTHENTICATE'
-              res, decoder = decoder.authenticate(input, output, tag, *opt_args)
+              res = decoder.authenticate(input, output, tag, *opt_args)
             when 'LOGIN'
-              res, decoder = decoder.login(tag, *opt_args)
+              res = decoder.login(tag, *opt_args)
             when 'SELECT'
               res = decoder.select(tag, *opt_args)
             when 'EXAMINE'
@@ -1280,6 +1280,8 @@ module RIMS
           if (command.upcase == 'LOGOUT') then
             break
           end
+
+          decoder = decoder.next_decoder
         end
 
         nil
@@ -1347,16 +1349,23 @@ module RIMS
         res << "* CAPABILITY #{capability_list.join(' ')}\r\n"
         res << "#{tag} OK CAPABILITY completed\r\n"
       end
+
+      def next_decoder
+        self
+      end
     end
 
     class InitialDecoder < Decoder
       def initialize(mail_store_pool, auth, logger, mail_delivery_user: Server::DEFAULT[:mail_delivery_user])
         super(auth, logger)
+        @next_decoder = self
         @mail_store_pool = mail_store_pool
         @folder = nil
         @auth = auth
         @mail_delivery_user = mail_delivery_user
       end
+
+      attr_reader :next_decoder
 
       def auth?
         false
@@ -1408,13 +1417,12 @@ module RIMS
                        tag, auth_type, inline_client_response_data_base64=nil)
         protect_error(tag) {
           res = []
-          next_decoder = self
 
           auth_reader = AuthenticationReader.new(@auth, client_response_input_stream, server_challenge_output_stream, @logger)
           if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
             if (username != :*) then
               @logger.info("authentication OK: #{username}")
-              next_decoder = accept_authentication(username) {|msg| res << msg }
+              @next_decoder = accept_authentication(username) {|msg| res << msg }
               res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
             else
               @logger.info('bad authentication.')
@@ -1424,24 +1432,23 @@ module RIMS
             res << "#{tag} NO authentication failed\r\n"
           end
 
-          return res, next_decoder
+          res
         }
       end
 
       def login(tag, username, password)
         protect_error(tag) {
           res = []
-          next_decoder = self
 
           if (@auth.authenticate_login(username, password)) then
             @logger.info("login authentication OK: #{username}")
-            next_decoder = accept_authentication(username) {|msg| res << msg }
+            @next_decoder = accept_authentication(username) {|msg| res << msg }
             res << "#{tag} OK LOGIN completed\r\n"
           else
             res << "#{tag} NO failed to login\r\n"
           end
 
-          return res, next_decoder
+          res
         }
       end
 
@@ -1522,13 +1529,13 @@ module RIMS
       def authenticate(client_response_input_stream, server_challenge_output_stream,
                        tag, auth_type, inline_client_response_data_base64=nil)
         protect_error(tag) {
-          return [ "#{tag} NO duplicated authentication\r\n" ], self
+          [ "#{tag} NO duplicated authentication\r\n" ]
         }
       end
 
       def login(tag, username, password)
         protect_error(tag) {
-          return [ "#{tag} NO duplicated login\r\n" ], self
+          [ "#{tag} NO duplicated login\r\n" ]
         }
       end
     end
