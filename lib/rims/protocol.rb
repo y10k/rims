@@ -1416,39 +1416,35 @@ module RIMS
       def authenticate(client_response_input_stream, server_challenge_output_stream,
                        tag, auth_type, inline_client_response_data_base64=nil)
         protect_error(tag) {
-          res = []
-
           auth_reader = AuthenticationReader.new(@auth, client_response_input_stream, server_challenge_output_stream, @logger)
           if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
             if (username != :*) then
-              @logger.info("authentication OK: #{username}")
-              @next_decoder = accept_authentication(username) {|msg| res << msg }
-              res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
+              return response_stream(tag) {|res|
+                @logger.info("authentication OK: #{username}")
+                @next_decoder = accept_authentication(username) {|msg| res << msg }
+                res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
+              }
             else
               @logger.info('bad authentication.')
-              res << "#{tag} BAD AUTHENTICATE failed\r\n"
+              return [ "#{tag} BAD AUTHENTICATE failed\r\n" ]
             end
           else
-            res << "#{tag} NO authentication failed\r\n"
+            return [ "#{tag} NO authentication failed\r\n" ]
           end
-
-          res
         }
       end
 
       def login(tag, username, password)
         protect_error(tag) {
-          res = []
-
           if (@auth.authenticate_login(username, password)) then
-            @logger.info("login authentication OK: #{username}")
-            @next_decoder = accept_authentication(username) {|msg| res << msg }
-            res << "#{tag} OK LOGIN completed\r\n"
+            return response_stream(tag) {|res|
+              @logger.info("login authentication OK: #{username}")
+              @next_decoder = accept_authentication(username) {|msg| res << msg }
+              res << "#{tag} OK LOGIN completed\r\n"
+            }
           else
-            res << "#{tag} NO failed to login\r\n"
+            return [ "#{tag} NO failed to login\r\n" ]
           end
-
-          res
         }
       end
 
