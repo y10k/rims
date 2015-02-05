@@ -113,7 +113,7 @@ APPEND command. Type following on your console.
 
     $ bundle exec rims imap-append -v -n 192.168.56.101 -o 1430 -u foo -w bar mail.txt
     store flags: ()
-    server greeting: OK RIMS v0.0.4 IMAP4rev1 service ready.
+    server greeting: OK RIMS vX.Y.Z IMAP4rev1 service ready.
     server capability: IMAP4REV1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5
     login: OK LOGIN completed
     append: OK  APPEND completed
@@ -141,7 +141,7 @@ And type following on your console.
 
     $ bundle exec rims post-mail -v -n 192.168.56.101 -o 1430 -w '#postman' foo mail.txt
     store flags: ()
-    server greeting: OK RIMS v0.0.4 IMAP4rev1 service ready.
+    server greeting: OK RIMS vX.Y.Z IMAP4rev1 service ready.
     server capability: IMAP4REV1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5
     login: OK LOGIN completed
     append: OK  APPEND completed
