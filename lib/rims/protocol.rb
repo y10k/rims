@@ -1330,9 +1330,10 @@ module RIMS
         mail_store_holder = @mail_store_pool.get(unique_user_id)
         if (mail_store_holder.mail_store.abort_transaction?) then
           @logger.warn("user data recovery start: #{username}")
+          yield("* OK [ALERT] start user data recovery.\r\n")
           mail_store_holder.mail_store.recovery_data(logger: @logger).sync
-          yield("* OK [ALERT] recovery user data.\r\n")
           @logger.warn("user data recovery end: #{username}")
+          yield("* OK completed user data recovery.\r\n")
         end
         mail_store_holder
       end

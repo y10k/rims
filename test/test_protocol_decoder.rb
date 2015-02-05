@@ -3532,7 +3532,8 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
-        assert.match(/^\* OK \[ALERT\] recovery/)
+        assert.match(/^\* OK \[ALERT\] start user data recovery/)
+        assert.match(/^\* OK completed user data recovery/)
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -5439,7 +5440,8 @@ LOGOUT
 
       assert_imap_command_loop(cmd_txt) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        assert.match(/^\* OK \[ALERT\] recovery/)
+        assert.match(/^\* OK \[ALERT\] start user data recovery/)
+        assert.match(/^\* OK completed user data recovery/)
         assert.equal("#{tag!} OK LOGIN completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
