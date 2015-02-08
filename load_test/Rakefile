@@ -62,7 +62,7 @@ desc 'load test: rims post-mail'
 task :post_mail do
   mail_file_list = get_mail_file_list
   puts "#{mail_file_list.length} mails."
-  run_server_conf('post_mail', USER_CONF, *%w[ -v quiet -l info --ip-addr=localhost --ip-port=14300 ]) do
+  run_server_conf('post_mail', USER_CONF, *%w[ -v quiet -l info --imap-host=localhost --imap-port=14300 ]) do
     time_shell 'rims', 'post-mail', '--no-verbose', '--host=localhost', '--port=14300', '--username=#postman', "--password=#{PASSWD['#postman']}", 'foo', *mail_file_list
   end
 end
@@ -73,7 +73,7 @@ desc 'load test: rims imap-append'
 task :imap_append do
   mail_file_list = get_mail_file_list
   puts "#{mail_file_list.length} mails."
-  run_server_conf('imap_append', USER_CONF, *%w[ -v quiet -l info --ip-addr=localhost --ip-port=14300 ]) do
+  run_server_conf('imap_append', USER_CONF, *%w[ -v quiet -l info --imap-host=localhost --imap-port=14300 ]) do
     time_shell 'rims', 'imap-append', '--no-verbose', '--host=localhost', '--port=14300', '--username=foo', "--password=#{PASSWD['foo']}", *mail_file_list
   end
 end
