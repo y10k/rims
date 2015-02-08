@@ -2198,8 +2198,13 @@ module RIMS
         @last_user_cache_value_mail_store_holder = nil
       end
 
+      def user_mail_store_cached?(username)
+        @last_user_cache_key_username == username
+      end
+      private :user_mail_store_cached?
+
       def fetch_user_mail_store_holder(username)
-        if (@last_user_cache_key_username != username) then
+        unless (user_mail_store_cached? username) then
           release_user_mail_store_holder
           @last_user_cache_value_mail_store_holder = yield
           @last_user_cache_key_username = username
@@ -2313,18 +2318,26 @@ module RIMS
         username, mbox_name = self.class.decode_user_mailbox(encoded_mbox_name)
         @logger.info("message delivery: user #{username}, mailbox #{mbox_name}")
 
-        res = []
         if (@auth.user? username) then
-          mail_store_holder = fetch_user_mail_store_holder(username) {
-            fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
-          }
-          yield(username, mbox_name, mail_store_holder, res)
+          if (user_mail_store_cached? username) then
+            res = []
+            mail_store_holder = fetch_user_mail_store_holder(username)
+            yield(username, mbox_name, mail_store_holder, res)
+            response_result = res
+          else
+            response_result = Enumerator.new{|res|
+              mail_store_holder = fetch_user_mail_store_holder(username) {
+                fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
+              }
+              yield(username, mbox_name, mail_store_holder, res)
+            }
+          end
         else
           @logger.info('message delivery: not found a user.')
-          res << "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n"
+          response_result = [ "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n" ]
         end
 
-        res
+        response_result
       end
       private :deliver_to_user
 
@@ -2332,11 +2345,14 @@ module RIMS
         protect_error(tag) {
           deliver_to_user(tag, encoded_mbox_name) {|username, mbox_name, mail_store_holder, res|
             user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
-            res.concat(user_decoder.append(tag, mbox_name, *opt_args, msg_text))
-            if (res.last.split(' ', 3)[1] == 'OK') then
+            append_response = user_decoder.append(tag, mbox_name, *opt_args, msg_text)
+            if (append_response.last.split(' ', 3)[1] == 'OK') then
               @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
             else
               @logger.info("message delivery: failed to deliver message.")
+            end
+            for response_data in append_response
+              res << response_data
             end
           }
         }
