@@ -185,6 +185,7 @@ module RIMS::Test
           }
         end
       end
+      @decoder = @decoder.next_decoder
 
       nil
     end
@@ -206,7 +207,7 @@ module RIMS::Test
       input = StringIO.new(client_response_input_text, 'r')
       output = StringIO.new('', 'w')
 
-      response_lines, @decoder = @decoder.authenticate(input, output, tag, *cmd_str_args)
+      response_lines = @decoder.authenticate(input, output, tag, *cmd_str_args)
       ret_val = yield(response_lines.each)
 
       if ($DEBUG) then
@@ -218,7 +219,7 @@ module RIMS::Test
     private :execute_imap_command_authenticate
 
     def execute_imap_command_login(tag, cmd_str_args)
-      response_lines, @decoder = @decoder.login(tag, *cmd_str_args)
+      response_lines = @decoder.login(tag, *cmd_str_args)
       yield(response_lines.each)
     end
     private :execute_imap_command_login
@@ -3531,7 +3532,8 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
-        assert.match(/^\* OK \[ALERT\] recovery/)
+        assert.match(/^\* OK \[ALERT\] start user data recovery/)
+        assert.match(/^\* OK completed user data recovery/)
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -3664,6 +3666,50 @@ module RIMS::Test
         assert.match(/^#{tag} BAD /)
       }
       assert_msg_uid(1, 2)
+
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
+      }
+
+      assert_equal(false, @decoder.auth?)
+    end
+
+    def test_mail_delivery_user_db_recovery
+      reload_mail_store{
+        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
+        meta_db.dirty = true
+        meta_db.close
+      }
+
+      assert_imap_command(:capability) {|assert|
+        assert.match(/^\* CAPABILITY /, peek_next_line: true).no_match(/ X-RIMS-MAIL-DELIVERY-USER/)
+        assert.equal("#{tag} OK CAPABILITY completed")
+      }
+
+      assert_equal(false, @decoder.auth?)
+
+      assert_imap_command(:login, '#postman', 'password_of_mail_delivery_user') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+
+      assert_imap_command(:capability) {|assert|
+        assert.match(/^\* CAPABILITY /, peek_next_line: true).match(/ X-RIMS-MAIL-DELIVERY-USER/)
+        assert.equal("#{tag} OK CAPABILITY completed")
+      }
+
+      base64_foo = RIMS::Protocol.encode_base64('foo')
+
+      assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", 'a') {|assert|
+        assert.match(/^\* OK \[ALERT\] start user data recovery/)
+        assert.match(/^\* OK completed user data recovery/)
+        assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
+      }
+      assert_msg_uid(1)
+      assert_equal('a', get_msg_text(1))
+      assert_msg_flags(1, recent: true)
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -5438,7 +5484,8 @@ LOGOUT
 
       assert_imap_command_loop(cmd_txt) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        assert.match(/^\* OK \[ALERT\] recovery/)
+        assert.match(/^\* OK \[ALERT\] start user data recovery/)
+        assert.match(/^\* OK completed user data recovery/)
         assert.equal("#{tag!} OK LOGIN completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
@@ -5513,6 +5560,36 @@ LOGOUT
       assert_equal('b', get_msg_text(2))
       assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(2))
       assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+    end
+
+    def test_command_loop_mail_delivery_user_db_recovery
+      reload_mail_store{
+        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
+        meta_db.dirty = true
+        meta_db.close
+      }
+
+      cmd_txt = <<-'EOF'.b
+CAPABILITY
+LOGIN "#postman" password_of_mail_delivery_user
+CAPABILITY
+APPEND "b64user-mbox Zm9v INBOX" a
+LOGOUT
+      EOF
+
+      assert_imap_command_loop(cmd_txt) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.match(/^\* CAPABILITY /, peek_next_line: true).no_match(/ X-RIMS-MAIL-DELIVERY-USER/)
+        assert.equal("#{tag!} OK CAPABILITY completed")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.match(/^\* CAPABILITY /, peek_next_line: true).match(/ X-RIMS-MAIL-DELIVERY-USER/)
+        assert.equal("#{tag!} OK CAPABILITY completed")
+        assert.match(/^\* OK \[ALERT\] start user data recovery/)
+        assert.match(/^\* OK completed user data recovery/)
+        assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
+      }
     end
   end
 

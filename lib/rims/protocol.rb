@@ -1200,9 +1200,9 @@ module RIMS
             when 'LOGOUT'
               res = decoder.logout(tag, *opt_args)
             when 'AUTHENTICATE'
-              res, decoder = decoder.authenticate(input, output, tag, *opt_args)
+              res = decoder.authenticate(input, output, tag, *opt_args)
             when 'LOGIN'
-              res, decoder = decoder.login(tag, *opt_args)
+              res = decoder.login(tag, *opt_args)
             when 'SELECT'
               res = decoder.select(tag, *opt_args)
             when 'EXAMINE'
@@ -1280,6 +1280,8 @@ module RIMS
           if (command.upcase == 'LOGOUT') then
             break
           end
+
+          decoder = decoder.next_decoder
         end
 
         nil
@@ -1328,9 +1330,10 @@ module RIMS
         mail_store_holder = @mail_store_pool.get(unique_user_id)
         if (mail_store_holder.mail_store.abort_transaction?) then
           @logger.warn("user data recovery start: #{username}")
+          yield("* OK [ALERT] start user data recovery.\r\n")
           mail_store_holder.mail_store.recovery_data(logger: @logger).sync
-          yield("* OK [ALERT] recovery user data.\r\n")
           @logger.warn("user data recovery end: #{username}")
+          yield("* OK completed user data recovery.\r\n")
         end
         mail_store_holder
       end
@@ -1347,16 +1350,23 @@ module RIMS
         res << "* CAPABILITY #{capability_list.join(' ')}\r\n"
         res << "#{tag} OK CAPABILITY completed\r\n"
       end
+
+      def next_decoder
+        self
+      end
     end
 
     class InitialDecoder < Decoder
       def initialize(mail_store_pool, auth, logger, mail_delivery_user: Server::DEFAULT[:mail_delivery_user])
         super(auth, logger)
+        @next_decoder = self
         @mail_store_pool = mail_store_pool
         @folder = nil
         @auth = auth
         @mail_delivery_user = mail_delivery_user
       end
+
+      attr_reader :next_decoder
 
       def auth?
         false
@@ -1407,41 +1417,35 @@ module RIMS
       def authenticate(client_response_input_stream, server_challenge_output_stream,
                        tag, auth_type, inline_client_response_data_base64=nil)
         protect_error(tag) {
-          res = []
-          next_decoder = self
-
           auth_reader = AuthenticationReader.new(@auth, client_response_input_stream, server_challenge_output_stream, @logger)
           if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
             if (username != :*) then
-              @logger.info("authentication OK: #{username}")
-              next_decoder = accept_authentication(username) {|msg| res << msg }
-              res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
+              return response_stream(tag) {|res|
+                @logger.info("authentication OK: #{username}")
+                @next_decoder = accept_authentication(username) {|msg| res << msg }
+                res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
+              }
             else
               @logger.info('bad authentication.')
-              res << "#{tag} BAD AUTHENTICATE failed\r\n"
+              return [ "#{tag} BAD AUTHENTICATE failed\r\n" ]
             end
           else
-            res << "#{tag} NO authentication failed\r\n"
+            return [ "#{tag} NO authentication failed\r\n" ]
           end
-
-          return res, next_decoder
         }
       end
 
       def login(tag, username, password)
         protect_error(tag) {
-          res = []
-          next_decoder = self
-
           if (@auth.authenticate_login(username, password)) then
-            @logger.info("login authentication OK: #{username}")
-            next_decoder = accept_authentication(username) {|msg| res << msg }
-            res << "#{tag} OK LOGIN completed\r\n"
+            return response_stream(tag) {|res|
+              @logger.info("login authentication OK: #{username}")
+              @next_decoder = accept_authentication(username) {|msg| res << msg }
+              res << "#{tag} OK LOGIN completed\r\n"
+            }
           else
-            res << "#{tag} NO failed to login\r\n"
+            return [ "#{tag} NO failed to login\r\n" ]
           end
-
-          return res, next_decoder
         }
       end
 
@@ -1522,13 +1526,13 @@ module RIMS
       def authenticate(client_response_input_stream, server_challenge_output_stream,
                        tag, auth_type, inline_client_response_data_base64=nil)
         protect_error(tag) {
-          return [ "#{tag} NO duplicated authentication\r\n" ], self
+          [ "#{tag} NO duplicated authentication\r\n" ]
         }
       end
 
       def login(tag, username, password)
         protect_error(tag) {
-          return [ "#{tag} NO duplicated login\r\n" ], self
+          [ "#{tag} NO duplicated login\r\n" ]
         }
       end
     end
@@ -2194,8 +2198,13 @@ module RIMS
         @last_user_cache_value_mail_store_holder = nil
       end
 
+      def user_mail_store_cached?(username)
+        @last_user_cache_key_username == username
+      end
+      private :user_mail_store_cached?
+
       def fetch_user_mail_store_holder(username)
-        if (@last_user_cache_key_username != username) then
+        unless (user_mail_store_cached? username) then
           release_user_mail_store_holder
           @last_user_cache_value_mail_store_holder = yield
           @last_user_cache_key_username = username
@@ -2309,18 +2318,26 @@ module RIMS
         username, mbox_name = self.class.decode_user_mailbox(encoded_mbox_name)
         @logger.info("message delivery: user #{username}, mailbox #{mbox_name}")
 
-        res = []
         if (@auth.user? username) then
-          mail_store_holder = fetch_user_mail_store_holder(username) {
-            fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
-          }
-          yield(username, mbox_name, mail_store_holder, res)
+          if (user_mail_store_cached? username) then
+            res = []
+            mail_store_holder = fetch_user_mail_store_holder(username)
+            yield(username, mbox_name, mail_store_holder, res)
+            response_result = res
+          else
+            response_result = Enumerator.new{|res|
+              mail_store_holder = fetch_user_mail_store_holder(username) {
+                fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
+              }
+              yield(username, mbox_name, mail_store_holder, res)
+            }
+          end
         else
           @logger.info('message delivery: not found a user.')
-          res << "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n"
+          response_result = [ "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n" ]
         end
 
-        res
+        response_result
       end
       private :deliver_to_user
 
@@ -2328,11 +2345,14 @@ module RIMS
         protect_error(tag) {
           deliver_to_user(tag, encoded_mbox_name) {|username, mbox_name, mail_store_holder, res|
             user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
-            res.concat(user_decoder.append(tag, mbox_name, *opt_args, msg_text))
-            if (res.last.split(' ', 3)[1] == 'OK') then
+            append_response = user_decoder.append(tag, mbox_name, *opt_args, msg_text)
+            if (append_response.last.split(' ', 3)[1] == 'OK') then
               @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
             else
               @logger.info("message delivery: failed to deliver message.")
+            end
+            for response_data in append_response
+              res << response_data
             end
           }
         }

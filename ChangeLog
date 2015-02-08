@@ -1,3 +1,8 @@
+2015-02-08  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb: returning response with user data recovery
+	message from IMAP server is step by step.
+
 2015-02-03  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* README.md: Tutorial section is written.
