@@ -4,7 +4,11 @@ RIMS is Ruby IMap Server.
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Add this line to your application's Gemfile (last release version):
+
+    gem 'rims', git: 'git://github.com/y10k/rims.git', tag: 'v0.1.0'
+
+Or add this line to your application's Gemfile (latest version):
 
     gem 'rims', git: 'git://github.com/y10k/rims.git', branch: 'master'
 
@@ -12,7 +16,7 @@ Execute to install your local directory:
 
     $ bundle install --path=vendor
 
-Execute to install your gem home:
+Or execute to install your gem home:
 
     $ bundle install
 
@@ -541,7 +545,16 @@ of contents at a mailbox key-value store.
 
 ## History
 
-* v0.0.4 (Latest version)
+* v0.1.0 (Latest version)
+    - Login authentication mechanisms.
+	- Multi-user mailbox.
+	- Command utility to deliver mail to mailbox.
+	- Server process privilege separated from root user.
+	- UIDPLUS extension. Contributed by Joe Yates, thanks.
+	- Daemon tool.
+	- Fixed some bad response of search command.
+	- Tutorial is written.
+* v0.0.4
     - Mail parser is replaced from mail gem to RIMS::RFC822 parser.
     - Optimization to fast search and fast fetch.
     - Strict e-mail address data at fetch envelope response.
@@ -562,15 +575,11 @@ of contents at a mailbox key-value store.
 * v0.0.1
     - First release.
 
-## Roadmap of development
+## Next Tasks
 
-* v0.0.5
-    - Login authentication mechanisms.
-    - Corresponding to multi-user mailbox. Incompatible mailbox data!
-* v0.0.6
-    - Fixed some connection errors at windows mail client.
-    - Autologout timer.
-    - Command utility to deliver mail to mailbox.
+* Users defined by LDAP.
+* Fixed some connection errors at windows mail client.
+* Autologout timer.
 
 ## Contributing
 
