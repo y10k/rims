@@ -1,3 +1,7 @@
+2015-02-22  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* RIMS version 0.1.0 is released.
+
 2015-02-08  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol.rb: returning response with user data recovery
