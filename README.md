@@ -395,7 +395,7 @@ overview of mailbox data filesystem under the base directory.
                 |
                 +-- mailbox_2
                 |
-				...
+                ...
 
 There is a MAILBOX\_DATA\_STRUCTURE\_VERSION directory under first
 inside of the base directory.  When mailbox data structure will be
@@ -547,13 +547,13 @@ of contents at a mailbox key-value store.
 
 * v0.1.0 (Latest version)
     - Login authentication mechanisms.
-	- Multi-user mailbox.
-	- Command utility to deliver mail to mailbox.
-	- Server process privilege separated from root user.
-	- UIDPLUS extension. Contributed by Joe Yates, thanks.
-	- Daemon tool.
-	- Fixed some bad response of search command.
-	- Tutorial is written.
+    - Multi-user mailbox.
+    - Command utility to deliver mail to mailbox.
+    - Server process privilege separated from root user.
+    - UIDPLUS extension. Contributed by Joe Yates, thanks.
+    - Daemon tool.
+    - Fixed some bad response of search command.
+    - Tutorial is written.
 * v0.0.4
     - Mail parser is replaced from mail gem to RIMS::RFC822 parser.
     - Optimization to fast search and fast fetch.
