@@ -16,14 +16,12 @@ Rake::RDocTask.new do |rd|
 end
 
 desc 'Build README.html from markdown source.'
-task :readme do
+task :readme => %w[ README.html ]
+
+file 'README.html' do
   sh "markdown README.md >README.html"
 end
-
-desc 'Remove README.html.'
-task :clobber_readme do
-  rm_f 'README.html'
-end
+CLOBBER.include 'README.html'
 
 # Local Variables:
 # mode: Ruby
