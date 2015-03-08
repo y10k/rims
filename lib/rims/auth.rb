@@ -36,40 +36,47 @@ module RIMS
       @hostname = hostname
       @time_source = time_source
       @random_string_source = random_string_source
-      @passwd = {}
+      @capability = %w[ PLAIN CRAM-MD5 ]
+      @plain_src = Password::PlainSource.new
+      @passwd_src_list = [ @plain_src ]
     end
 
     attr_reader :hostname
+    attr_reader :capability
+
+    def add_plug_in(passwd_src)
+      unless (passwd_src.raw_password?) then
+        @capability.delete('CRAM-MD5')
+      end
+      @passwd_src_list << passwd_src
+      self
+    end
 
     def entry(username, password)
-      @passwd[username] = password
+      @plain_src.entry(username, password)
       self
     end
 
     def user?(username)
-      @passwd.key? username
-    end
-
-    def capability
-      %w[ PLAIN CRAM-MD5 ]
+      @passwd_src_list.any?{|passwd_src| passwd_src.user? username }
     end
 
     def authenticate_login(username, password)
-      if (@passwd.key? username) then
-        if (@passwd[username] == password) then
-          username
+      for passwd_src in @passwd_src_list
+        if (passwd_src.user? username) then
+          if (passwd_src.compare_password(username, password)) then
+            return username
+          end
         end
       end
+
+      nil
     end
 
     def authenticate_plain(client_response_data)
       authz_id, authc_id, password = client_response_data.split("\0", 3)
       if (authz_id.empty? || (authz_id == authc_id)) then
-        if (@passwd.key? authc_id) then
-          if (@passwd[authc_id] == password) then
-            authc_id
-          end
-        end
+        authenticate_login(authc_id, password)
       end
     end
 
@@ -79,12 +86,19 @@ module RIMS
 
     def authenticate_cram_md5(server_challenge_data, client_response_data)
       username, client_hmac_result_data = client_response_data.split(' ', 2)
-      if (key = @passwd[username]) then
-        server_hmac_result_data = Authentication.hmac_md5_hexdigest(key, server_challenge_data)
-        if (client_hmac_result_data == server_hmac_result_data) then
-          username
+      for passwd_src in @passwd_src_list
+        if (passwd_src.raw_password?) then
+          if (passwd_src.user? username) then
+            key = passwd_src.fetch_password(username) or raise 'internal error.'
+            server_hmac_result_data = Authentication.hmac_md5_hexdigest(key, server_challenge_data)
+            if (client_hmac_result_data == server_hmac_result_data) then
+              return username
+            end
+          end
         end
       end
+
+      nil
     end
   end
 end
