@@ -6,11 +6,16 @@ require 'pp' if $DEBUG
 require 'rims'
 require 'socket'
 require 'test/unit'
+require 'yaml'
 
 module RIMS::Test
   class ConfigTest < Test::Unit::TestCase
     def setup
       @base_dir = 'dummy_test_base_dir'
+    end
+
+    def teardown
+      FileUtils.rm_rf(@base_dir)
     end
 
     def assert_load_from_base_dir(conf_params)
@@ -263,6 +268,35 @@ module RIMS::Test
         assert(auth.authenticate_login(username, password), 'user 1')
         assert(auth.authenticate_login(username.succ, password.succ), 'user 2')
         refute(auth.authenticate_login(username.succ.succ, password.succ.succ), 'user 3')
+      }
+
+      assert_build_authentication({ authentication: [
+                                      { 'plug_in' => 'plain',
+                                        'configuration' => [
+                                          { 'user' => username, 'pass' => password }
+                                        ]
+                                      }
+                                    ]
+                                  }) {|auth|
+        assert(auth.authenticate_login(username, password), 'user')
+        refute(auth.authenticate_login(username.succ, password), 'mismatch username')
+        refute(auth.authenticate_login(username, password.succ), 'mismatch password')
+      }
+
+      FileUtils.mkdir_p(@base_dir)
+      IO.write(File.join(@base_dir, 'passwd.yml'), [
+                 { 'user' => username, 'pass' => password }
+               ].to_yaml)
+
+      assert_build_authentication({ authentication: [
+                                      { 'plug_in' => 'plain',
+                                        'configuration_file' => 'passwd.yml'
+                                      }
+                                    ]
+                                  }) {|auth|
+        assert(auth.authenticate_login(username, password), 'user')
+        refute(auth.authenticate_login(username.succ, password), 'mismatch username')
+        refute(auth.authenticate_login(username, password.succ), 'mismatch password')
       }
     end
 

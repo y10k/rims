@@ -265,22 +265,41 @@ module RIMS
       auth = Authentication.new(hostname: hostname)
 
       user_list = []
-
       if (username = @config.delete(:username)) then
         password = @config.delete(:password) or raise 'not defined configuration entry: password'
         user_list << { 'user' => username, 'pass' => password }
       end
-
       if (@config.key? :user_list) then
         user_list += @config.delete(:user_list)
       end
-
-      if (user_list.empty?) then
-        raise 'empty user list.'
-      end
-
       for user_entry in user_list
         auth.entry(user_entry['user'], user_entry['pass'])
+      end
+
+      if (auth_plug_in_list = @config.delete(:authentication)) then
+        for auth_plug_in_entry in auth_plug_in_list
+          name = auth_plug_in_entry['plug_in'] or raise 'undefined plug-in name.'
+
+          if ((auth_plug_in_entry.key? 'configuration') && (auth_plug_in_entry.key? 'configuraion_file')) then
+            raise 'authentication configuration conflict: configuration, configuraion_file'
+          end
+          if (auth_plug_in_entry.key? 'configuration') then
+            config = auth_plug_in_entry['configuration']
+          elsif (auth_plug_in_entry.key? 'configuration_file') then
+            config_file = auth_plug_in_entry['configuration_file']
+            if (relative_path? config_file) then
+              config_path = File.join(base_dir, config_file)
+            else
+              config_path = config_file
+            end
+            config = YAML.load_file(config_path)
+          else
+            raise "not found an authentication configuration for: #{name}"
+          end
+
+          passwd_src = Authentication.get_plug_in(name, config)
+          auth.add_plug_in(passwd_src)
+        end
       end
 
       auth
