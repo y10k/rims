@@ -6,6 +6,8 @@ require 'securerandom'
 
 module RIMS
   class Authentication
+    PLUG_IN = {}                # :nodoc:
+
     class << self
       def unique_user_id(username)
         Digest::SHA256.hexdigest(username)
@@ -27,6 +29,16 @@ module RIMS
 
       def hmac_md5_hexdigest(key, data)
         OpenSSL::HMAC.hexdigest('md5', key, data)
+      end
+
+      def add_plug_in(name, klass)
+        PLUG_IN[name] = klass
+        self
+      end
+
+      def get_plug_in(name, config)
+        klass = PLUG_IN[name] or raise KeyError, "not found a plug-in: #{name}"
+        klass.build_from_conf(config)
       end
     end
 

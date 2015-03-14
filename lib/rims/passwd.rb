@@ -57,6 +57,7 @@ module RIMS
         plain_src
       end
     end
+    Authentication.add_plug_in('plain', PlainSource)
   end
 end
 
