@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'digest'
 require 'fileutils'
 require 'logger'
 require 'pp' if $DEBUG
@@ -235,6 +236,7 @@ module RIMS::Test
     def test_build_authentication
       username = 'foo'
       password = 'open_sesame'
+      salt = "\x8F\x16\x63\x6D\x21\xE0\x0F\x3D"
 
       assert_build_authentication({ username: username, password: password }) {|auth|
         assert_equal(Socket.gethostname, auth.hostname, 'hostname')
@@ -283,6 +285,21 @@ module RIMS::Test
         refute(auth.authenticate_login(username, password.succ), 'mismatch password')
       }
 
+      assert_build_authentication({ authentication: [
+                                      { 'plug_in' => 'hash',
+                                        'configuration' => [
+                                          { 'user' => username,
+                                            'hash' => RIMS::Password::HashSource.make_entry(Digest::SHA256, 1000, salt, password).to_s
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }) {|auth|
+        assert(auth.authenticate_login(username, password), 'user')
+        refute(auth.authenticate_login(username.succ, password), 'mismatch username')
+        refute(auth.authenticate_login(username, password.succ), 'mismatch password')
+      }
+
       FileUtils.mkdir_p(@base_dir)
       IO.write(File.join(@base_dir, 'passwd.yml'), [
                  { 'user' => username, 'pass' => password }
@@ -290,6 +307,23 @@ module RIMS::Test
 
       assert_build_authentication({ authentication: [
                                       { 'plug_in' => 'plain',
+                                        'configuration_file' => 'passwd.yml'
+                                      }
+                                    ]
+                                  }) {|auth|
+        assert(auth.authenticate_login(username, password), 'user')
+        refute(auth.authenticate_login(username.succ, password), 'mismatch username')
+        refute(auth.authenticate_login(username, password.succ), 'mismatch password')
+      }
+
+      IO.write(File.join(@base_dir, 'passwd.yml'), [
+                 { 'user' => username,
+                   'hash' => RIMS::Password::HashSource.make_entry(Digest::SHA256, 1000, salt, password).to_s
+                 }
+               ].to_yaml)
+
+      assert_build_authentication({ authentication: [
+                                      { 'plug_in' => 'hash',
                                         'configuration_file' => 'passwd.yml'
                                       }
                                     ]

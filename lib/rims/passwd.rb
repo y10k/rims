@@ -130,7 +130,40 @@ module RIMS
         salt = Protocol.decode_base64(salt_base64)
         Entry.new(digest_factory, stretch_count, salt, hash)
       end
+
+      def initialize
+        @passwd = {}
+      end
+
+      def raw_password?
+        false
+      end
+
+      def add(username, entry)
+        @passwd[username] = entry
+        self
+      end
+
+      def user?(username)
+        @passwd.key? username
+      end
+
+      def compare_password(username, password)
+        if (entry = @passwd[username]) then
+          entry.compare(password)
+        end
+      end
+
+      def self.build_from_conf(config)
+        hash_src = self.new
+        for user_entry in config
+          hash_src.add(user_entry['user'], parse_entry(user_entry['hash']))
+        end
+
+        hash_src
+      end
     end
+    Authentication.add_plug_in('hash', HashSource)
   end
 end
 
