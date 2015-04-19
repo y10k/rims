@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'digest'
 require 'pp' if $DEBUG
 require 'rims'
 require 'test/unit'
@@ -42,6 +43,81 @@ module RIMS::Test
       test_user?
       test_fetch_password
       test_compare_password
+    end
+  end
+
+  class PasswordHashSourceEntry < Test::Unit::TestCase
+    def setup
+      @digest_factory = Digest::SHA256
+      @hash_type = 'SHA256'
+      @strech_count = 1000
+      @salt = "\332\322\046\267\211\013\250\263".b
+      @password = 'open_sesame'
+      @entry = RIMS::Password::HashSource.make_entry(@digest_factory, @strech_count, @salt, @password)
+      pp @entry if $DEBUG
+    end
+
+    def new_digest
+      @digest_factory.new
+    end
+    private :new_digest
+
+    def test_encode
+      encoded_password = RIMS::Password::HashSource::Entry.encode(new_digest, @strech_count, @salt, @password)
+      assert_equal(encoded_password,
+                   RIMS::Password::HashSource::Entry.encode(new_digest, @strech_count, @salt, @password))
+      assert_not_equal(encoded_password,
+                   RIMS::Password::HashSource::Entry.encode(new_digest, @strech_count.succ, @salt, @password))
+      assert_not_equal(encoded_password,
+                   RIMS::Password::HashSource::Entry.encode(new_digest, @strech_count, @salt.succ, @password))
+      assert_not_equal(encoded_password,
+                   RIMS::Password::HashSource::Entry.encode(new_digest, @strech_count, @salt, @password.succ))
+    end
+
+    def test_entry
+      assert_equal(@hash_type, @entry.hash_type)
+      assert_equal(@salt, @entry.salt)
+      assert_equal(RIMS::Protocol.encode_base64(@salt), @entry.salt_base64)
+      assert_equal(RIMS::Password::HashSource::Entry.encode(new_digest, @strech_count, @salt, @password), @entry.hash)
+    end
+
+    def test_search_digest_factory
+      assert_equal(Digest::MD5, RIMS::Password::HashSource.search_digest_factory('MD5'))
+      assert_equal(Digest::SHA256, RIMS::Password::HashSource.search_digest_factory('SHA256'))
+      assert_raise(LoadError) { RIMS::Password::HashSource.search_digest_factory('NoDigest') }
+      assert_raise(TypeError) { RIMS::Password::HashSource.search_digest_factory('Object') }
+    end
+
+    def test_make_salt_generator
+      salt_generator = RIMS::Password::HashSource.make_salt_generator(8)
+
+      s1 = salt_generator.call
+      assert_equal(8, s1.bytesize)
+      assert_equal(Encoding::ASCII_8BIT, s1.encoding)
+
+      s2 = salt_generator.call
+      assert_equal(8, s2.bytesize)
+      assert_equal(Encoding::ASCII_8BIT, s2.encoding)
+
+      assert(s1 != s2)
+    end
+
+    def test_parse
+      entry_description = @entry.to_s
+      pp entry_description if $DEBUG
+      parsed_entry = RIMS::Password::HashSource.parse_entry(entry_description)
+      assert_equal(@entry.hash_type, parsed_entry.hash_type)
+      assert_equal(@entry.salt, parsed_entry.salt)
+      assert_equal(@entry.salt_base64, parsed_entry.salt_base64)
+      assert_equal(@entry.hash, parsed_entry.hash)
+
+      assert_raise(LoadError) { RIMS::Password::HashSource.parse_entry('NoDigest:') }
+      assert_raise(TypeError) { RIMS::Password::HashSource.parse_entry('Object:') }
+    end
+
+    def test_compare
+      assert(@entry.compare(@password))
+      assert(! @entry.compare(@password.succ))
     end
   end
 end
