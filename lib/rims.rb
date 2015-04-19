@@ -21,6 +21,7 @@ module RIMS
   autoload :MessageDB, 'rims/db'
   autoload :MessageSetSyntaxError, 'rims/error'
   autoload :Multiplexor, 'rims/server'
+  autoload :Password, 'rims/passwd'
   autoload :Protocol, 'rims/protocol'
   autoload :ProtocolError, 'rims/error'
   autoload :RFC822, 'rims/rfc822'
