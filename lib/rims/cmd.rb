@@ -677,6 +677,56 @@ module RIMS
     end
     command_function :cmd_show_user_mbox, "Show the path in which user's mailbox data is stored."
 
+    def cmd_pass_hash(options, args)
+      option_list = [
+        [ :hash_type, 'SHA256', '--hash-type=DIGEST', 'Password hash type (ex SHA256, MD5, etc). default is SHA256.' ],
+        [ :stretch_count, 10000, '--stretch-count=COUNT', Integer, 'Count to stretch password hash. default is 10000.' ],
+        [ :salt_size, 16, '--salt-size=OCTETS', Integer, 'Size of salt string. default is 16 octets.' ]
+      ]
+
+      conf = Config.new(options, option_list)
+      conf.help_option(add_banner: <<-'EOF'.chomp)
+ passwd_plain.yml
+Example
+  $ cat passwd_plain.yml 
+  - { user: foo, pass: open_sesame }
+  - { user: "#postman", pass: "#postman" }
+  $ rims pass-hash passwd_plain.yml >passwd_hash.yml 
+  $ cat passwd_hash.yml 
+  ---
+  - user: foo
+    hash: SHA256:10000:YkslZucwN2QJ7LOft59Pgw==:d5dca9109cc787220eba65810e40165079ce3292407e74e8fbd5c6a8a9b12204
+  - user: "#postman"
+    hash: SHA256:10000:6Qj/wAYmb7NUGdOy0N35qg==:e967e46b8e0d9df6324e66c7e42da64911a8715e06a123fe5abf7af4ca45a386
+Options:
+      EOF
+      conf.setup_option_list
+      conf.parse_options!(args)
+      pp conf if $DEBUG
+
+      case (args.length)
+      when 0
+        passwd, *optional = YAML.load_stream(STDIN)
+      when 1
+        passwd, *optional = File.open(args[0]) {|f| YAML.load_stream(f) }
+      else
+        raise ArgumentError, 'too many input files.'
+      end
+
+      digest_factory = Password::HashSource.search_digest_factory(conf[:hash_type])
+      salt_generator = Password::HashSource.make_salt_generator(conf[:salt_size])
+
+      for entry in passwd
+        pass = entry.delete('pass') or raise "not found a `pass' entry."
+        entry['hash'] = Password::HashSource.make_entry(digest_factory, conf[:stretch_count], salt_generator.call, pass).to_s
+      end
+
+      puts passwd.to_yaml
+
+      0
+    end
+    command_function :cmd_pass_hash, 'Make hash password configuration file from plain password configuration file.'
+
     def cmd_debug_dump_kvs(options, args)
       option_list = Config::KVS_STORE_OPTION_LIST
       option_list += [
