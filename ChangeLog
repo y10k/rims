@@ -1,3 +1,11 @@
+2015-05-10  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims.rb, lib/rims/auth.rb, lib/rims/cmd.rb,
+	lib/rims/passwd.rb, lib/rims/server.rb: password source plug-in
+	mechanism is defined. plain password source and hash password
+	soruce are registered. pass-hash tool for hash password source is
+	defined.
+
 2015-02-22  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.1.0 is released.
