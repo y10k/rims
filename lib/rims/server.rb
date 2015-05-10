@@ -94,6 +94,15 @@ module RIMS
       self
     end
 
+    # configuration entry.
+    # * <tt>load_libraries</tt>
+    def setup_load_libraries
+      lib_list = @config.delete(:load_libraries) || []
+      for lib in lib_list
+        require(lib)
+      end
+    end
+
     # configuration entries.
     # * <tt>:log_file</tt>
     # * <tt>:log_level</tt>
@@ -342,6 +351,7 @@ module RIMS
     def build_server
       setup_backward_compatibility
 
+      setup_load_libraries
       logger = build_logger
       kvs_factory = build_key_value_store_factory
       auth = build_authentication

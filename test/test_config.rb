@@ -102,6 +102,23 @@ module RIMS::Test
       }
     end
 
+    def test_load_libraries
+      assert(! $LOADED_FEATURES.any?{|name| name =~ /prime/})
+      fork{
+        begin
+          assert_config(load_libraries: %w[ prime ]) {|conf|
+            conf.setup_load_libraries
+            assert($LOADED_FEATURES.any?{|name| name =~ /prime/})          
+          }
+        rescue
+          exit!(1)
+        end
+        exit!(0)
+      }
+      Process.wait
+      assert_equal(0, $?.exitstatus)
+    end
+
     def test_logging_params
       assert_logging_params({}, {
                               log_file: File.join(@base_dir, 'imap.log'),
