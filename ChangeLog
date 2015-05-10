@@ -1,5 +1,8 @@
 2015-05-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/server.rb: a configuration parameter to load libraries
+	is defined.
+
 	* lib/rims.rb, lib/rims/auth.rb, lib/rims/cmd.rb,
 	lib/rims/passwd.rb, lib/rims/server.rb: password source plug-in
 	mechanism is defined. plain password source and hash password
