@@ -157,6 +157,21 @@ module RIMS
         @passwd = {}
       end
 
+      def start
+        if (@logger.debug?) then
+          for name, entry in @passwd
+            @logger.debug("user name: #{name}")
+            @logger.debug("password hash: #{entry}")
+          end
+        end
+        nil
+      end
+
+      def stop
+        @passwd.clear
+        nil
+      end
+
       def raw_password?
         false
       end
