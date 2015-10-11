@@ -42,6 +42,20 @@ module RIMS
         @passwd = {}
       end
 
+      def start
+        if (@logger.debug?) then
+          @passwd.each_key do |name|
+            @logger.debug("user name: #{name}")
+          end
+        end
+        nil
+      end
+
+      def stop
+        @passwd.clear
+        nil
+      end
+
       def raw_password?
         true
       end
