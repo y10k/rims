@@ -1,3 +1,9 @@
+2015-10-11  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/auth.rb, lib/rims/passwd.rb, lib/rims/server.rb:
+	logging and start/stop hooks are defined at password source plug-in
+	mechanism.
+
 2015-05-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/server.rb: a configuration parameter to load libraries
