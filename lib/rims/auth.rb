@@ -64,6 +64,21 @@ module RIMS
       self
     end
 
+    def start_plug_in(logger)
+      for passwd_src in @passwd_src_list
+        logger.info("start password source plug-in: #{passwd_src.class}")
+        passwd_src.logger = logger
+        passwd_src.start
+      end
+    end
+
+    def stop_plug_in(logger)
+      for passwd_src in @passwd_src_list.reverse
+        logger.info("stop password source plug-in: #{passwd_src.class}")
+        passwd_src.stop
+      end
+    end
+
     def entry(username, password)
       @plain_src.entry(username, password)
       self

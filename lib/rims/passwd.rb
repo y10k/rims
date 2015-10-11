@@ -6,6 +6,14 @@ require 'securerandom'
 module RIMS
   module Password
     class Source
+      attr_writer :logger
+
+      def start
+      end
+
+      def stop
+      end
+
       def raw_password?
         false
       end

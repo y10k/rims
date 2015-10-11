@@ -431,6 +431,7 @@ module RIMS
 
     def start
       @logger.info('start server.')
+      @authentication.start_plug_in(@logger)
       @logger.info("open socket: #{@imap_host}:#{@imap_port}")
       sv_sock = TCPServer.new(@imap_host, @imap_port)
 
@@ -466,6 +467,7 @@ module RIMS
       ensure
         @logger.info("close socket: #{ipaddr_log(sv_sock.addr)}")
         sv_sock.close
+        @authentication.stop_plug_in(@logger)
       end
 
       self
