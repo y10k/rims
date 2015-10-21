@@ -29,9 +29,9 @@ module RIMS::Test
     end
 
     def test_compare_password
-      assert_equal(true, @src.compare_password(@username, @password))
-      assert_equal(false, @src.compare_password(@username, @password.succ))
-      assert_nil(@src.compare_password(@username.succ, @password))
+      assert(@src.compare_password(@username, @password))
+      assert(! @src.compare_password(@username, @password.succ))
+      assert(! @src.compare_password(@username.succ, @password))
     end
 
     def test_build_from_conf

@@ -90,10 +90,8 @@ module RIMS
 
     def authenticate_login(username, password)
       for passwd_src in @passwd_src_list
-        if (passwd_src.user? username) then
-          if (passwd_src.compare_password(username, password)) then
-            return username
-          end
+        if (passwd_src.compare_password(username, password)) then
+          return username
         end
       end
 
@@ -115,8 +113,7 @@ module RIMS
       username, client_hmac_result_data = client_response_data.split(' ', 2)
       for passwd_src in @passwd_src_list
         if (passwd_src.raw_password?) then
-          if (passwd_src.user? username) then
-            key = passwd_src.fetch_password(username) or raise 'internal error.'
+          if (key = passwd_src.fetch_password(username)) then
             server_hmac_result_data = Authentication.hmac_md5_hexdigest(key, server_challenge_data)
             if (client_hmac_result_data == server_hmac_result_data) then
               return username
