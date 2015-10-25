@@ -135,6 +135,66 @@ module RIMS::Test
       assert(! @entry.compare(@password.succ))
     end
   end
+
+  class PasswordHashSourceTest < Test::Unit::TestCase
+    def setup
+      @logger = Logger.new(STDOUT)
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
+
+      @username = 'foo'
+      @password = 'open_sesame'
+
+      @digest_factory = Digest::SHA256
+      @hash_type = 'SHA256'
+      @strech_count = 1000
+      @salt = "\332\322\046\267\211\013\250\263".b
+      @entry = RIMS::Password::HashSource.make_entry(@digest_factory, @strech_count, @salt, @password)
+
+      @src = RIMS::Password::HashSource.new
+      @src.add(@username, @entry)
+      @src.logger = @logger
+      @src.start
+    end
+
+    def teardown
+      @src.stop
+    end
+
+    def test_raw_password?
+      assert_equal(false, @src.raw_password?)
+    end
+
+    def test_user?
+      assert_equal(true, (@src.user? @username))
+      assert_equal(false, (@src.user? @username.succ))
+    end
+
+    def test_fetch_password
+      assert_nil(@src.fetch_password(@username))
+      assert_nil(@src.fetch_password(@username.succ))
+    end
+
+    def test_compare_password
+      assert(@src.compare_password(@username, @password))
+      assert(! @src.compare_password(@username, @password.succ))
+      assert(! @src.compare_password(@username.succ, @password))
+    end
+
+    def test_build_from_conf
+      @src.stop
+
+      config = [
+        { 'user' => @username, 'hash' => @entry.to_s }
+      ]
+      @src = RIMS::Password::HashSource.build_from_conf(config)
+      @src.logger = @logger
+      @src.start
+
+      test_user?
+      test_fetch_password
+      test_compare_password
+    end
+  end
 end
 
 # Local Variables:
