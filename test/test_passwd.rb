@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'digest'
+require 'logger'
 require 'pp' if $DEBUG
 require 'rims'
 require 'test/unit'
@@ -8,10 +9,20 @@ require 'test/unit'
 module RIMS::Test
   class PasswordPlainSourceTest < Test::Unit::TestCase
     def setup
+      @logger = Logger.new(STDOUT)
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
+
       @username = 'foo'
       @password = 'open_sesame'
+
       @src = RIMS::Password::PlainSource.new
       @src.entry(@username, @password)
+      @src.logger = @logger
+      @src.start
+    end
+
+    def teardown
+      @src.stop
     end
 
     def test_raw_password?
@@ -35,10 +46,14 @@ module RIMS::Test
     end
 
     def test_build_from_conf
+      @src.stop
+
       config = [
         { 'user' => @username, 'pass' => @password }
       ]
       @src = RIMS::Password::PlainSource.build_from_conf(config)
+      @src.logger = @logger
+      @src.start
 
       test_user?
       test_fetch_password
