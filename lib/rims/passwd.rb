@@ -5,6 +5,29 @@ require 'securerandom'
 
 module RIMS
   module Password
+    # expected behavior of a typical password source.
+    #     1. a password source plug-in file is loaded by a
+    #        configuration file item of <tt>load_libraries</tt>.
+    #        (exceptions: RIMS::Password::PlainSource and
+    #        RIMS::Password::HashSource are not need to load.)
+    #     2. RIMS::Authentication.add_plug_in is called to enable a
+    #        password source on loading its plug-in file.
+    #     3. a password source object is built from a configuration
+    #        file by its <tt>build_from_conf</tt> class method.
+    #     4. if any password source's <tt>raw_passwrd?</tt> method
+    #        returns a <tt>false</tt> value, RIMS IMAP server disables
+    #        challenge-response authentication options (ex. CRAM-MD5).
+    #     5. a logger object is set to a <tt>logger</tt> write
+    #        attribute on a password source object. and the password
+    #        source's <tt>start</tt> method is called.
+    #     6. a password source object authenticates a user by its
+    #        authentication methods those are <tt>fetch_password</tt>
+    #        or <tt>compare_password</tt>.
+    #     7. to deliver a message to a user, a password source object
+    #        confirms existence of a user by its <tt>user?</tt>
+    #        method.
+    #     8. a <tt>stop</tt> method of a password source object is
+    #        called at stopping server.
     class Source
       attr_writer :logger
 
@@ -14,6 +37,12 @@ module RIMS
       def stop
       end
 
+      # this method declares that this password source returns a plain
+      # text password or do not it.
+      # if this method will return a <tt>true</tt> value,
+      # <tt>fetch_password</tt> may be called.
+      # if this method will return a <tt>false</tt> value,
+      # <tt>fetch_password</tt> will never be called.
       def raw_password?
         false
       end
@@ -22,10 +51,22 @@ module RIMS
         raise NotImplementedError, 'not implemented.'
       end
 
+      # if a user exists, this method should return the user's plain
+      # text password.
+      # if a user does not exist, this method should return a
+      # <tt>nil</tt> value.
       def fetch_password(username)
         nil
       end
 
+      # if a user exists and the user's password is right, this method
+      # should return a true context value (not <tt>false</tt>,
+      # <tt>nil</tt>).
+      # if a user exists and the user's password is wrong, this method
+      # should return a false context value (<tt>false<</tt> or
+      # <tt>nil</tt>).
+      # if a user does not exist, this method should return a false
+      # context value (<tt>false<</tt> or <tt>nil</tt>).
       def compare_password(username, password)
         if (raw_password = fetch_password(username)) then
           password == raw_password
