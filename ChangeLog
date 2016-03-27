@@ -1,3 +1,7 @@
+2016-03-27  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/version.rb: version number is changed to 0.2.0.
+
 2015-11-03  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/auth.rb, lib/rims/passwd.rb, test/test_passwd.rb:
