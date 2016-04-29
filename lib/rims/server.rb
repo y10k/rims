@@ -268,6 +268,7 @@ module RIMS
     # * <tt>:username</tt>
     # * <tt>:password</tt>
     # * <tt>:user_list => [ { 'user' => 'username 1', 'pass' => 'password 1'}, { 'user' => 'username 2', 'pass' => 'password 2' } ]</tt>
+    # * <tt>:authentication</tt>
     #
     def build_authentication
       hostname = @config.delete(:hostname) || Socket.gethostname
