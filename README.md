@@ -4,13 +4,9 @@ RIMS is Ruby IMap Server.
 
 ## Installation
 
-Add this line to your application's Gemfile (last release version):
+Add this line to your application's Gemfile:
 
-    gem 'rims', git: 'git://github.com/y10k/rims.git', tag: 'v0.1.0'
-
-Or add this line to your application's Gemfile (latest version):
-
-    gem 'rims', git: 'git://github.com/y10k/rims.git', branch: 'master'
+    gem 'rims', git: 'git://github.com/y10k/rims.git'
 
 Execute to install your local directory:
 
