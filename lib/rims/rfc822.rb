@@ -140,7 +140,7 @@ module RIMS
         elsif (src_txt.sub!(%r{
                  \A
                  \s*
-                 (?<local_part>[^<>@,\s]+) \s* @ \s* (?<domain>[^<>@,\s]+)
+                 (?<local_part>[^<>@",\s]+) \s* @ \s* (?<domain>[^<>@",\s]+)
                  \s*
                  ,?
                }x, ''))
@@ -154,12 +154,12 @@ module RIMS
                  <
                    \s*
                    (?:
-                     (?<route>@[^<>@,]* (?:, \s* @[^<>@,]*)*)
+                     (?<route>@[^<>@",]* (?:, \s* @[^<>@",]*)*)
                      \s*
                      :
                    )?
                    \s*
-                   (?<local_part>[^<>@,\s]+) \s* @ \s* (?<domain>[^<>@,\s]+)
+                   (?<local_part>[^<>@",\s]+) \s* @ \s* (?<domain>[^<>@",\s]+)
                    \s*
                  >
                  \s*
