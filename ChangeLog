@@ -1,3 +1,8 @@
+2016-05-29  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/rfc822.rb: special character double-quote is handled to
+	parsing mail address
+
 2016-03-27  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/version.rb: version number is changed to 0.2.0.
