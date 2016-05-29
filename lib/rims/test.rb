@@ -185,6 +185,21 @@ Hello world.
         @no_body_mail = RIMS::RFC822::Message.new('foo')
       end
       private :make_mail_no_body
+
+      def make_mail_address_header_pattern
+        @address_header_pattern_mail = RIMS::RFC822::Message.new(<<-'EOF')
+To: "foo@nonet.org" <foo@nonet.org>
+From: bar@nonet.org
+Subject: test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
+
+Hello world.
+EOF
+      end
+      private :make_mail_address_header_pattern
     end
   end
 end

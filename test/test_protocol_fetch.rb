@@ -101,6 +101,12 @@ module RIMS::Test
     end
     private :add_mail_no_body
 
+    def add_mail_address_header_pattern
+      make_mail_address_header_pattern
+      @mail_store.add_msg(@inbox_id, @address_header_pattern_mail.raw_source)
+    end
+    private :add_mail_address_header_pattern
+
     def test_parse_all
       make_fetch_parser{
         add_mail_simple
@@ -542,6 +548,7 @@ module RIMS::Test
         add_mail_mime_subject
         add_mail_empty
         add_mail_no_body
+        add_mail_address_header_pattern
       }
       parse_fetch_attribute('ENVELOPE') {
         assert_fetch(0, [
@@ -588,6 +595,20 @@ module RIMS::Test
                      ])
         assert_fetch(3, [ 'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)' ])
         assert_fetch(4, [ 'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)' ])
+        assert_fetch(5, [
+                       'ENVELOPE',
+                       [ '"Fri,  8 Nov 2013 06:47:50 +0900 (JST)"', # Date
+                         '"test"',                                  # Subject
+                         '((NIL NIL "bar" "nonet.org"))',           # From
+                         'NIL',                                     # Sender
+                         'NIL',                                     # Reply-To
+                         '(("foo@nonet.org" NIL "foo" "nonet.org"))', # To
+                         'NIL',                                     # Cc
+                         'NIL',                                     # Bcc
+                         'NIL',                                     # In-Reply-To
+                         'NIL'                                      # Message-Id
+                       ]
+                     ])
       }
     end
 
