@@ -298,6 +298,8 @@ baz
                    RIMS::RFC822.parse_mail_address_list('TOKI(土岐) Yoshinori <toki@freedom.ne.jp>'.b))
       assert_equal([ [ 'TOKI,Yoshinori', nil, 'toki', 'freedom.ne.jp' ] ],
                    RIMS::RFC822.parse_mail_address_list('TOKI\,Yoshinori <toki@freedom.ne.jp>'.b))
+      assert_equal([ [ 'toki@freedom.ne.jp', nil, 'toki', 'freedom.ne.jp' ] ],
+                   RIMS::RFC822.parse_mail_address_list('"toki@freedom.ne.jp" <toki@freedom.ne.jp>'.b))
     end
 
     def test_parse_mail_address_list_route_addr
