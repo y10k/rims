@@ -1741,7 +1741,7 @@ module RIMS
       def subscribe(tag, mbox_name)
         protect_auth(tag) {
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-          if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
+          if (_mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
             [ "#{tag} OK SUBSCRIBE completed\r\n" ]
           else
             [ "#{tag} NO not found a mailbox\r\n" ]
@@ -1751,7 +1751,7 @@ module RIMS
 
       def unsubscribe(tag, mbox_name)
         protect_auth(tag) {
-          if (mbox_id = get_mail_store.mbox_id(mbox_name)) then
+          if (_mbox_id = get_mail_store.mbox_id(mbox_name)) then
             [ "#{tag} NO not implemented subscribe/unsbscribe command\r\n" ]
           else
             [ "#{tag} NO not found a mailbox\r\n" ]
