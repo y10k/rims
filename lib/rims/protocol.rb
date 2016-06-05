@@ -2325,11 +2325,11 @@ module RIMS
             yield(username, mbox_name, mail_store_holder, res)
             response_result = res
           else
-            response_result = Enumerator.new{|res|
+            response_result = Enumerator.new{|stream_res|
               mail_store_holder = fetch_user_mail_store_holder(username) {
-                fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| res << msg }
+                fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| stream_res << msg }
               }
-              yield(username, mbox_name, mail_store_holder, res)
+              yield(username, mbox_name, mail_store_holder, stream_res)
             }
           end
         else
