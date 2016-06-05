@@ -1037,49 +1037,49 @@ module RIMS
       end
       private :parse_body
 
-      def parse_bodystructure(name)
+      def parse_bodystructure(msg_att_name)
         proc{|msg|
-          ''.b << name << ' '.b << encode_list(get_bodystructure_data(get_mail(msg)))
+          ''.b << msg_att_name << ' '.b << encode_list(get_bodystructure_data(get_mail(msg)))
         }
       end
       private :parse_bodystructure
 
-      def parse_envelope(name)
+      def parse_envelope(msg_att_name)
         proc{|msg|
-          ''.b << name << ' '.b << encode_list(get_envelope_data(get_mail(msg)))
+          ''.b << msg_att_name << ' '.b << encode_list(get_envelope_data(get_mail(msg)))
         }
       end
       private :parse_envelope
 
-      def parse_flags(name)
+      def parse_flags(msg_att_name)
         proc{|msg|
-          flag_list = MailStore::MSG_FLAG_NAMES.find_all{|name|
-            @mail_store.msg_flag(@folder.mbox_id, msg.uid, name)
-          }.map{|name|
-            "\\".b << name.capitalize
+          flag_list = MailStore::MSG_FLAG_NAMES.find_all{|flag_name|
+            @mail_store.msg_flag(@folder.mbox_id, msg.uid, flag_name)
+          }.map{|flag_name|
+            "\\".b << flag_name.capitalize
           }.join(' ')
-          ''.b << name << ' (' << flag_list << ')'
+          ''.b << msg_att_name << ' (' << flag_list << ')'
         }
       end
       private :parse_flags
 
-      def parse_internaldate(name)
+      def parse_internaldate(msg_att_name)
         proc{|msg|
-          ''.b << name << @mail_store.msg_date(@folder.mbox_id, msg.uid).strftime(' "%d-%b-%Y %H:%M:%S %z"'.b)
+          ''.b << msg_att_name << @mail_store.msg_date(@folder.mbox_id, msg.uid).strftime(' "%d-%b-%Y %H:%M:%S %z"'.b)
         }
       end
       private :parse_internaldate
 
-      def parse_rfc822_size(name)
+      def parse_rfc822_size(msg_att_name)
         proc{|msg|
-          ''.b << name << ' '.b << get_mail(msg).raw_source.bytesize.to_s
+          ''.b << msg_att_name << ' '.b << get_mail(msg).raw_source.bytesize.to_s
         }
       end
       private :parse_rfc822_size
 
-      def parse_uid(name)
+      def parse_uid(msg_att_name)
         proc{|msg|
-          ''.b << name << ' '.b << msg.uid.to_s
+          ''.b << msg_att_name << ' '.b << msg.uid.to_s
         }
       end
       private :parse_uid
