@@ -35,11 +35,15 @@ module RIMS
         raise 'abort transaction.'
       end
 
+      transaction_completed = false
       begin
-        yield
+        return_value = yield
+        transaction_completed = true
       ensure
-        @abort_transaction = true if $!
+        @abort_transaction = true unless transaction_completed
       end
+
+      return_value
     end
 
     def recovery_data(logger: Logger.new(STDOUT))
