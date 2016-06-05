@@ -107,7 +107,7 @@ module RIMS::Test
     end
 
     def test_authenticate_client_cram_md5_stream_no_client_authentication
-      server_challenge_data_base64, client_response_data_base64 = make_cram_md5_server_client_data_base64(@username, @password)
+      server_challenge_data_base64, _client_response_data_base64 = make_cram_md5_server_client_data_base64(@username, @password)
       assert_input_output_stream("*\r\n", "+ #{server_challenge_data_base64}\r\n") {
         assert_equal(:*, @reader.authenticate_client('cram-md5'))
       }
