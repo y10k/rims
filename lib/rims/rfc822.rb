@@ -19,7 +19,7 @@ module RIMS
                                    )
       }x)
 
-      for name, value in field_pair_list
+      for _name, value in field_pair_list
         value.strip!
       end
 
