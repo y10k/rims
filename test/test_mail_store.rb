@@ -416,7 +416,7 @@ module RIMS::Test
       mbox_id2 = @mail_store.add_mbox('foo')
       mbox_id3 = @mail_store.add_mbox('bar')
 
-      assert_equal(mbox_id3 +1, @mail_store.uidvalidity)
+      assert_equal(mbox_id3 + 1, @mail_store.uidvalidity)
       assert_equal([ mbox_id1, mbox_id2, mbox_id3 ], @mail_store.each_mbox_id.to_a)
       assert_equal('INBOX', @mail_store.mbox_name(mbox_id1))
       assert_equal('foo', @mail_store.mbox_name(mbox_id2))
@@ -445,7 +445,7 @@ module RIMS::Test
         RIMS::DB::Mailbox.new(@kvs_open.call("mbox_#{mbox_id}"))
       }
 
-      assert_equal(mbox_id3 +1, @mail_store.uidvalidity)
+      assert_equal(mbox_id3 + 1, @mail_store.uidvalidity)
       assert_equal([ mbox_id1, mbox_id2, mbox_id3 ], @mail_store.each_mbox_id.to_a)
       assert_equal('INBOX', @mail_store.mbox_name(mbox_id1))
       assert_equal('foo', @mail_store.mbox_name(mbox_id2))
