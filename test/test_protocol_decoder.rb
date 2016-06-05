@@ -3079,7 +3079,7 @@ module RIMS::Test
     def test_copy
       msg_src = make_string_source('a')
       10.times do
-        uid = add_msg(msg_src.next)
+        _uid = add_msg(msg_src.next)
       end
       expunge(2, 4, 6, 8, 10)
       set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
@@ -3251,7 +3251,7 @@ module RIMS::Test
     def test_uid_copy
       msg_src = make_string_source('a')
       10.times do
-        uid = add_msg(msg_src.next)
+        _uid = add_msg(msg_src.next)
       end
       expunge(2, 4, 6, 8, 10)
       set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
@@ -5223,7 +5223,7 @@ LOGOUT
     def test_command_loop_copy
       msg_src = make_string_source('a')
       10.times do
-        uid = add_msg(msg_src.next)
+        _uid = add_msg(msg_src.next)
       end
       expunge(2, 4, 6, 8, 10)
       set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
@@ -5304,7 +5304,7 @@ LOGOUT
     def test_command_loop_uid_copy
       msg_src = make_string_source('a')
       10.times do
-        uid = add_msg(msg_src.next)
+        _uid = add_msg(msg_src.next)
       end
       expunge(2, 4, 6, 8, 10)
       set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
