@@ -55,9 +55,9 @@ module RIMS
     def parse_multipart_body(boundary, body_txt)
       delim = '--' + boundary
       term = delim + '--'
-      body_txt2, body_epilogue_txt = body_txt.split(term, 2)
+      body_txt2, _body_epilogue_txt = body_txt.split(term, 2)
       if (body_txt2) then
-        body_preamble_txt, body_parts_txt = body_txt2.split(delim, 2)
+        _body_preamble_txt, body_parts_txt = body_txt2.split(delim, 2)
         if (body_parts_txt) then
           part_list = body_parts_txt.split(delim, -1)
           for part_txt in part_list
