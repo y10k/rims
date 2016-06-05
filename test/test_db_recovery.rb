@@ -492,14 +492,14 @@ module RIMS::Test
     end
 
     def test_recovery_phase8_lost_found_empty
-      lost_found_id = @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      _lost_found_id = @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
       prev_kvs = deep_copy(@kvs)
       @meta_db.recovery_phase8_lost_found(@mbox_db, logger: @logger)
       assert_equal(prev_kvs, @kvs)
     end
 
     def test_recovery_phase8_lost_found_some_msgs
-      lost_found_id = @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
+      _lost_found_id = @mail_store.add_mbox(RIMS::DB::Meta::LOST_FOUND_MBOX_NAME)
       @mail_store.add_msg(@inbox_id, 'foo')
       @mail_store.add_msg(@inbox_id, 'bar')
       @mail_store.add_msg(@inbox_id, 'baz')
