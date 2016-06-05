@@ -848,7 +848,6 @@ module RIMS::Test
         add_mail_simple
       }
       parse_fetch_attribute('RFC822.SIZE') {
-        s = @simple_mail.raw_source
         assert_fetch(0, [ "RFC822.SIZE #{@simple_mail.raw_source.bytesize}" ])
       }
     end
