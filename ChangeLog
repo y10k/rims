@@ -1,5 +1,10 @@
 2016-06-05  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/protocol.rb, lib/rims/rfc822.rb,
+	test/test_db_recovery.rb, test/test_mail_store.rb,
+	test/test_protocol_auth.rb, test/test_protocol_decoder.rb,
+	test/test_protocol_fetch.rb: clear warning messages
+
 	* lib/rims/mail_store.rb: abort handling of transaction is
 	changed.
 
