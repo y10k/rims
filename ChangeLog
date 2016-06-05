@@ -1,3 +1,8 @@
+2016-06-05  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/mail_store.rb: abort handling of transaction is
+	changed.
+
 2016-05-29  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/rfc822.rb: special character double-quote is handled to
