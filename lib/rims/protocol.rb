@@ -74,7 +74,7 @@ module RIMS
     end
 
     def body(symbol: nil, option: nil, section: nil, section_list: nil, partial_origin: nil, partial_size: nil)
-      body = FetchBody.new(symbol, option, section, section_list, partial_origin, partial_size)
+      FetchBody.new(symbol, option, section, section_list, partial_origin, partial_size)
     end
     module_function :body
 
