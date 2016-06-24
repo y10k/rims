@@ -97,6 +97,18 @@ module RIMS::Test
     end
     private :assert_imap_response
 
+    def open_mail_store
+      mail_store_holder = @mail_store_pool.get(@unique_user_id)
+      begin
+        @mail_store = mail_store_holder.mail_store
+        yield
+      ensure
+        @mail_store = nil
+        mail_store_holder.return_pool
+      end
+    end
+    private :open_mail_store
+
     def setup
       @kvs = Hash.new{|h, k| h[k] = {} }
       @kvs_open = proc{|mbox_version, unique_user_id, db_name|
@@ -105,9 +117,9 @@ module RIMS::Test
       @unique_user_id = RIMS::Authentication.unique_user_id('foo')
 
       @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
-      @mail_store_holder = @mail_store_pool.get(@unique_user_id)
-      @mail_store = @mail_store_holder.mail_store
-      @inbox_id = @mail_store.mbox_id('INBOX')
+      open_mail_store{
+        @inbox_id = @mail_store.mbox_id('INBOX')
+      }
 
       src_time = Time.at(1404369876)
       random_seed = 8091822677904057789202046265537518639
@@ -127,25 +139,8 @@ module RIMS::Test
       @tag = 'T000'
     end
 
-    def reload_mail_store
-      @mail_store_holder.return_pool
-      assert(@mail_store_pool.empty?)
-
-      @mail_store_holder = nil
-      @mail_store = nil
-
-      begin
-        yield
-      ensure
-        @mail_store_holder = @mail_store_pool.get(@unique_user_id)
-        @mail_store = @mail_store_holder.mail_store
-      end
-    end
-    private :reload_mail_store
-
     def teardown
       @decoder.cleanup
-      @mail_store_holder.return_pool
       assert(@mail_store_pool.empty?)
       pp @kvs if $DEBUG
     end
@@ -549,21 +544,23 @@ module RIMS::Test
     end
 
     def test_select
-      add_msg('')
-      add_msg('')
-      add_msg('')
-      set_msg_flags('recent',  false, 1, 2)
-      set_msg_flags('seen',    true,  1, 2)
-      set_msg_flags('deleted', true,  1)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
+        set_msg_flags('recent',  false, 1, 2)
+        set_msg_flags('seen',    true,  1, 2)
+        set_msg_flags('deleted', true,  1)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -602,18 +599,20 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_msg_uid(                      2, 3)
-      assert_flag_enabled_msgs('answered',     )
-      assert_flag_enabled_msgs('flagged' ,     )
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    , 2   )
-      assert_flag_enabled_msgs('draft'   ,     )
-      assert_flag_enabled_msgs('recent'  ,     )
-      assert_mbox_flag_num(seen: 1)
+      open_mail_store{
+        assert_msg_uid(                      2, 3)
+        assert_flag_enabled_msgs('answered',     )
+        assert_flag_enabled_msgs('flagged' ,     )
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    , 2   )
+        assert_flag_enabled_msgs('draft'   ,     )
+        assert_flag_enabled_msgs('recent'  ,     )
+        assert_mbox_flag_num(seen: 1)
+      }
     end
 
     def test_select_utf7_mbox_name
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
@@ -638,21 +637,23 @@ module RIMS::Test
     end
 
     def test_examine
-      add_msg('')
-      add_msg('')
-      add_msg('')
-      set_msg_flags('recent',  false, 1, 2)
-      set_msg_flags('seen',    true,  1, 2)
-      set_msg_flags('deleted', true,  1)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
+        set_msg_flags('recent',  false, 1, 2)
+        set_msg_flags('seen',    true,  1, 2)
+        set_msg_flags('deleted', true,  1)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -691,18 +692,20 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
     end
 
     def test_examine_utf7_mbox_name
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
@@ -740,13 +743,17 @@ module RIMS::Test
       }
 
       assert_equal(true, @decoder.auth?)
-      assert_nil(@mail_store.mbox_id('foo'))
+      open_mail_store{
+        assert_nil(@mail_store.mbox_id('foo'))
+      }
 
       assert_imap_command(:create, 'foo') {|assert|
         assert.equal("#{tag} OK CREATE completed")
       }
 
-      assert_not_nil(@mail_store.mbox_id('foo'))
+      open_mail_store{
+        assert_not_nil(@mail_store.mbox_id('foo'))
+      }
 
       assert_imap_command(:create, 'inbox') {|assert|
         assert.match(/^#{tag} NO /)
@@ -763,13 +770,17 @@ module RIMS::Test
         assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_nil(@mail_store.mbox_id(UTF8_MBOX_NAME))
+      open_mail_store{
+        assert_nil(@mail_store.mbox_id(UTF8_MBOX_NAME))
+      }
 
       assert_imap_command(:create, UTF7_MBOX_NAME) {|assert|
         assert.equal("#{tag} OK CREATE completed")
       }
 
-      assert_not_nil(@mail_store.mbox_id(UTF8_MBOX_NAME))
+      open_mail_store{
+        assert_not_nil(@mail_store.mbox_id(UTF8_MBOX_NAME))
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -778,39 +789,54 @@ module RIMS::Test
     end
 
     def test_delete
-      @mail_store.add_mbox('foo')
-
+      open_mail_store{
+        @mail_store.add_mbox('foo')
+        assert_mbox_exists('foo')
+      }
       assert_equal(false, @decoder.auth?)
 
-      assert_mbox_exists('foo')
       assert_imap_command(:delete, 'foo') {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_mbox_exists('foo')
+
+      open_mail_store{
+        assert_mbox_exists('foo')
+      }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
+      open_mail_store{
+        assert_mbox_exists('foo')
+      }
       assert_equal(true, @decoder.auth?)
 
-      assert_mbox_exists('foo')
       assert_imap_command(:delete, 'foo') {|assert|
         assert.equal("#{tag} OK DELETE completed")
       }
-      assert_mbox_not_exists('foo')
 
-      assert_mbox_not_exists('bar')
+      open_mail_store{
+        assert_mbox_not_exists('foo')
+        assert_mbox_not_exists('bar')
+      }
+
       assert_imap_command(:delete, 'bar') {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_mbox_not_exists('bar')
 
-      assert_mbox_exists('INBOX')
+      open_mail_store{
+        assert_mbox_not_exists('bar')
+        assert_mbox_exists('INBOX')
+      }
+
       assert_imap_command(:delete, 'inbox') {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_mbox_exists('INBOX')
+
+      open_mail_store{
+        assert_mbox_exists('INBOX')
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -819,17 +845,25 @@ module RIMS::Test
     end
 
     def test_delete_utf7_mbox_name
-      @mail_store.add_mbox(UTF8_MBOX_NAME)
+      open_mail_store{
+        @mail_store.add_mbox(UTF8_MBOX_NAME)
+      }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_mbox_exists(UTF8_MBOX_NAME)
+      open_mail_store{
+        assert_mbox_exists(UTF8_MBOX_NAME)
+      }
+
       assert_imap_command(:delete, UTF7_MBOX_NAME) {|assert|
         assert.equal("#{tag} OK DELETE completed")
       }
-      assert_mbox_not_exists(UTF8_MBOX_NAME)
+
+      open_mail_store{
+        assert_mbox_not_exists(UTF8_MBOX_NAME)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -838,45 +872,63 @@ module RIMS::Test
     end
 
     def test_rename
-      mbox_id = @mail_store.add_mbox('foo')
-
+      mbox_id = nil
+      open_mail_store{
+        mbox_id = @mail_store.add_mbox('foo')
+        assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
+      }
       assert_equal(false, @decoder.auth?)
 
-      assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
       assert_imap_command(:rename, 'foo', 'bar') {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
 
+      open_mail_store{
+        assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
+      }
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
+      open_mail_store{
+        assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
+      }
       assert_equal(true, @decoder.auth?)
 
-      assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', 'bar'))
       assert_imap_command(:rename, 'foo', 'bar') {|assert|
         assert.equal("#{tag} OK RENAME completed")
       }
-      assert_equal([ nil, mbox_id ], get_mbox_id_list('foo', 'bar'))
+
+      open_mail_store{
+        assert_equal([ nil, mbox_id ], get_mbox_id_list('foo', 'bar'))
+      }
 
       assert_imap_command(:rename, 'nobox', 'baz') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
-      assert_equal([ @inbox_id, nil ], get_mbox_id_list('INBOX', 'baz'))
+      open_mail_store{
+        assert_equal([ @inbox_id, nil ], get_mbox_id_list('INBOX', 'baz'))
+      }
+
       assert_imap_command(:rename, 'INBOX', 'baz') {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_equal([ @inbox_id, nil ], get_mbox_id_list('INBOX', 'baz'))
 
-      assert_equal([ mbox_id, @inbox_id ], get_mbox_id_list('bar', 'INBOX'))
+      open_mail_store{
+        assert_equal([ @inbox_id, nil ], get_mbox_id_list('INBOX', 'baz'))
+        assert_equal([ mbox_id, @inbox_id ], get_mbox_id_list('bar', 'INBOX'))
+      }
+
       assert_imap_command(:rename, 'bar', 'inbox') {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_equal([ mbox_id, @inbox_id ], get_mbox_id_list('bar', 'INBOX'))
+
+      open_mail_store{
+        assert_equal([ mbox_id, @inbox_id ], get_mbox_id_list('bar', 'INBOX'))
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -885,23 +937,32 @@ module RIMS::Test
     end
 
     def test_rename_utf7_mbox_name
-      mbox_id = @mail_store.add_mbox('foo')
+      mbox_id = open_mail_store{ @mail_store.add_mbox('foo') }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', UTF8_MBOX_NAME))
+      open_mail_store{
+        assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', UTF8_MBOX_NAME))
+      }
+
       assert_imap_command(:rename, 'foo', UTF7_MBOX_NAME) {|assert|
         assert.equal("#{tag} OK RENAME completed")
       }
-      assert_equal([ nil, mbox_id ], get_mbox_id_list('foo', UTF8_MBOX_NAME))
 
-      assert_equal([ mbox_id, nil ], get_mbox_id_list(UTF8_MBOX_NAME, 'bar'))
+      open_mail_store{
+        assert_equal([ nil, mbox_id ], get_mbox_id_list('foo', UTF8_MBOX_NAME))
+        assert_equal([ mbox_id, nil ], get_mbox_id_list(UTF8_MBOX_NAME, 'bar'))
+      }
+
       assert_imap_command(:rename, UTF7_MBOX_NAME, 'bar') {|assert|
         assert.equal("#{tag} OK RENAME completed")
       }
-      assert_equal([ nil, mbox_id ], get_mbox_id_list(UTF8_MBOX_NAME, 'bar'))
+
+      open_mail_store{
+        assert_equal([ nil, mbox_id ], get_mbox_id_list(UTF8_MBOX_NAME, 'bar'))
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -934,7 +995,9 @@ module RIMS::Test
     end
 
     def test_subscribe_utf7_mbox_name
-      @mail_store.add_mbox(UTF8_MBOX_NAME)
+      open_mail_store{
+        @mail_store.add_mbox(UTF8_MBOX_NAME)
+      }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
@@ -999,14 +1062,18 @@ module RIMS::Test
         assert.equal("#{tag} OK LIST completed")
       }
 
-      add_msg('')
+      open_mail_store{
+        add_msg('')
+      }
 
       assert_imap_command(:list, '', '*') {|assert|
         assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
         assert.equal("#{tag} OK LIST completed")
       }
 
-      @mail_store.add_mbox('foo')
+      open_mail_store{
+        @mail_store.add_mbox('foo')
+      }
 
       assert_imap_command(:list, '', '*') {|assert|
         assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
@@ -1031,7 +1098,9 @@ module RIMS::Test
     end
 
     def test_list_utf7_mbox_name
-      @mail_store.add_mbox(UTF8_MBOX_NAME)
+      open_mail_store{
+        @mail_store.add_mbox(UTF8_MBOX_NAME)
+      }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
@@ -1086,31 +1155,46 @@ module RIMS::Test
         assert.equal("#{tag} OK STATUS completed")
       }
 
-      add_msg('')
+      open_mail_store{
+        add_msg('')
+      }
+
       assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
         assert.equal("#{tag} OK STATUS completed")
       }
 
-      set_msg_flag(1, 'recent', false)
+      open_mail_store{
+        set_msg_flag(1, 'recent', false)
+      }
+
       assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
         assert.equal("#{tag} OK STATUS completed")
       }
 
-      set_msg_flag(1, 'seen', true)
+      open_mail_store{
+        set_msg_flag(1, 'seen', true)
+      }
+
       assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
         assert.equal("#{tag} OK STATUS completed")
       }
 
-      add_msg('')
+      open_mail_store{
+        add_msg('')
+      }
+
       assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
         assert.equal("#{tag} OK STATUS completed")
       }
 
-      expunge(2)
+      open_mail_store{
+        expunge(2)
+      }
+
       assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
         assert.equal("#{tag} OK STATUS completed")
@@ -1131,7 +1215,7 @@ module RIMS::Test
     end
 
     def test_status_utf7_mbox_name
-      mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
@@ -1170,7 +1254,9 @@ module RIMS::Test
     end
 
     def test_lsub_dummy_utf7_mbox_name
-      @mail_store.add_mbox(UTF8_MBOX_NAME)
+      open_mail_store{
+        @mail_store.add_mbox(UTF8_MBOX_NAME)
+      }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
@@ -1195,7 +1281,10 @@ module RIMS::Test
       assert_imap_command(:append, 'INBOX', 'a') {|assert|
         assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
       }
-      assert_msg_uid()
+
+      open_mail_store{
+        assert_msg_uid()
+      }
 
       assert_equal(false, @decoder.auth?)
 
@@ -1208,57 +1297,84 @@ module RIMS::Test
       assert_imap_command(:append, 'INBOX', 'a') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
-      assert_msg_uid(1)
-      assert_equal('a', get_msg_text(1))
-      assert_msg_flags(1, recent: true)
+
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_equal('a', get_msg_text(1))
+        assert_msg_flags(1, recent: true)
+      }
 
       assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'b') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
-      assert_msg_uid(1, 2)
-      assert_equal('b', get_msg_text(2))
-      assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+
+      open_mail_store{
+        assert_msg_uid(1, 2)
+        assert_equal('b', get_msg_text(2))
+        assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+      }
 
       assert_imap_command(:append, 'INBOX', '19-Nov-1975 12:34:56 +0900', 'c') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
-      assert_msg_uid(1, 2, 3)
-      assert_equal('c', get_msg_text(3))
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(3))
-      assert_msg_flags(3, recent: true)
+
+      open_mail_store{
+        assert_msg_uid(1, 2, 3)
+        assert_equal('c', get_msg_text(3))
+        assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(3))
+        assert_msg_flags(3, recent: true)
+      }
 
       assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'd') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
-      assert_msg_uid(1, 2, 3, 4)
-      assert_equal('d', get_msg_text(4))
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(4))
-      assert_msg_flags(4, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+
+      open_mail_store{
+        assert_msg_uid(1, 2, 3, 4)
+        assert_equal('d', get_msg_text(4))
+        assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(4))
+        assert_msg_flags(4, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+      }
 
       assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', :NIL, 'x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
-      assert_msg_uid(1, 2, 3, 4)
+
+      open_mail_store{
+        assert_msg_uid(1, 2, 3, 4)
+      }
 
       assert_imap_command(:append, 'INBOX', '19-Nov-1975 12:34:56 +0900', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
-      assert_msg_uid(1, 2, 3, 4)
+
+      open_mail_store{
+        assert_msg_uid(1, 2, 3, 4)
+      }
 
       assert_imap_command(:append, 'INBOX', [ :group, '\Recent' ], 'x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
-      assert_msg_uid(1, 2, 3, 4)
+
+      open_mail_store{
+        assert_msg_uid(1, 2, 3, 4)
+      }
 
       assert_imap_command(:append, 'INBOX', 'bad date-time', 'x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
-      assert_msg_uid(1, 2, 3, 4)
+
+      open_mail_store{
+        assert_msg_uid(1, 2, 3, 4)
+      }
 
       assert_imap_command(:append, 'nobox', 'x') {|assert|
         assert.match(/^#{tag} NO \[TRYCREATE\]/)
       }
-      assert_msg_uid(1, 2, 3, 4)
+
+      open_mail_store{
+        assert_msg_uid(1, 2, 3, 4)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -1267,18 +1383,24 @@ module RIMS::Test
     end
 
     def test_append_utf7_mbox_name
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_msg_uid(mbox_id: utf8_name_mbox_id)
+      open_mail_store{
+        assert_msg_uid(mbox_id: utf8_name_mbox_id)
+      }
+
       assert_imap_command(:append, UTF7_MBOX_NAME, 'Hello world.') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
-      assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
-      assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
+
+      open_mail_store{
+        assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
+        assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -1327,21 +1449,23 @@ module RIMS::Test
     end
 
     def test_close
-      add_msg('')
-      add_msg('')
-      add_msg('')
-      set_msg_flags('recent',  false, 1, 2)
-      set_msg_flags('seen',    true,  1, 2)
-      set_msg_flags('deleted', true,  1)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
+        set_msg_flags('recent',  false, 1, 2)
+        set_msg_flags('seen',    true,  1, 2)
+        set_msg_flags('deleted', true,  1)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -1383,14 +1507,16 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_msg_uid(                      2, 3)
-      assert_flag_enabled_msgs('answered',     )
-      assert_flag_enabled_msgs('flagged' ,     )
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    , 2   )
-      assert_flag_enabled_msgs('draft'   ,     )
-      assert_flag_enabled_msgs('recent'  ,     )
-      assert_mbox_flag_num(seen: 1)
+      open_mail_store{
+        assert_msg_uid(                      2, 3)
+        assert_flag_enabled_msgs('answered',     )
+        assert_flag_enabled_msgs('flagged' ,     )
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    , 2   )
+        assert_flag_enabled_msgs('draft'   ,     )
+        assert_flag_enabled_msgs('recent'  ,     )
+        assert_mbox_flag_num(seen: 1)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -1402,21 +1528,23 @@ module RIMS::Test
     end
 
     def test_close_read_only
-      add_msg('')
-      add_msg('')
-      add_msg('')
-      set_msg_flags('recent',  false, 1, 2)
-      set_msg_flags('seen',    true,  1, 2)
-      set_msg_flags('deleted', true,  1)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
+        set_msg_flags('recent',  false, 1, 2)
+        set_msg_flags('seen',    true,  1, 2)
+        set_msg_flags('deleted', true,  1)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -1458,14 +1586,16 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -1510,71 +1640,77 @@ module RIMS::Test
         assert.equal("#{tag} OK EXPUNGE completed")
       }
 
-      add_msg('')
-      add_msg('')
-      add_msg('')
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' ,        )
-      assert_flag_enabled_msgs('seen'    ,        )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  , 1, 2, 3)
-      assert_mbox_flag_num(recent: 3)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' ,        )
+        assert_flag_enabled_msgs('seen'    ,        )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  , 1, 2, 3)
+        assert_mbox_flag_num(recent: 3)
+      }
 
       assert_imap_command(:expunge) {|assert|
         assert.equal("#{tag} OK EXPUNGE completed")
       }
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' ,        )
-      assert_flag_enabled_msgs('seen'    ,        )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  , 1, 2, 3)
-      assert_mbox_flag_num(recent: 3)
+      open_mail_store{
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' ,        )
+        assert_flag_enabled_msgs('seen'    ,        )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  , 1, 2, 3)
+        assert_mbox_flag_num(recent: 3)
 
-      set_msg_flags('answered', true, 2, 3)
-      set_msg_flags('flagged',  true, 2, 3)
-      set_msg_flags('deleted',  true, 2)
-      set_msg_flags('seen',     true, 2, 3)
-      set_msg_flags('draft',    true, 2, 3)
+        set_msg_flags('answered', true, 2, 3)
+        set_msg_flags('flagged',  true, 2, 3)
+        set_msg_flags('deleted',  true, 2)
+        set_msg_flags('seen',     true, 2, 3)
+        set_msg_flags('draft',    true, 2, 3)
 
-      assert_msg_uid(1, 2, 3)
-      assert_flag_enabled_msgs('answered',    2, 3)
-      assert_flag_enabled_msgs('flagged' ,    2, 3)
-      assert_flag_enabled_msgs('deleted' ,    2   )
-      assert_flag_enabled_msgs('seen'    ,    2, 3)
-      assert_flag_enabled_msgs('draft'   ,    2, 3)
-      assert_flag_enabled_msgs('recent'  , 1, 2, 3)
-      assert_mbox_flag_num(answered: 2, flagged: 2, deleted: 1, seen: 2, draft: 2, recent: 3)
+        assert_msg_uid(1, 2, 3)
+        assert_flag_enabled_msgs('answered',    2, 3)
+        assert_flag_enabled_msgs('flagged' ,    2, 3)
+        assert_flag_enabled_msgs('deleted' ,    2   )
+        assert_flag_enabled_msgs('seen'    ,    2, 3)
+        assert_flag_enabled_msgs('draft'   ,    2, 3)
+        assert_flag_enabled_msgs('recent'  , 1, 2, 3)
+        assert_mbox_flag_num(answered: 2, flagged: 2, deleted: 1, seen: 2, draft: 2, recent: 3)
+      }
 
       assert_imap_command(:expunge) {|assert|
         assert.equal('* 2 EXPUNGE')
         assert.equal("#{tag} OK EXPUNGE completed")
       }
 
-      assert_msg_uid(                      1, 3)
-      assert_flag_enabled_msgs('answered',    3)
-      assert_flag_enabled_msgs('flagged' ,    3)
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    ,    3)
-      assert_flag_enabled_msgs('draft'   ,    3)
-      assert_flag_enabled_msgs('recent'  , 1, 3)
-      assert_mbox_flag_num(answered: 1, flagged: 1, deleted: 0, seen: 1, draft: 1, recent: 2)
+      open_mail_store{
+        assert_msg_uid(                      1, 3)
+        assert_flag_enabled_msgs('answered',    3)
+        assert_flag_enabled_msgs('flagged' ,    3)
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    ,    3)
+        assert_flag_enabled_msgs('draft'   ,    3)
+        assert_flag_enabled_msgs('recent'  , 1, 3)
+        assert_mbox_flag_num(answered: 1, flagged: 1, deleted: 0, seen: 1, draft: 1, recent: 2)
 
-      set_msg_flags('deleted', true, 1, 3)
+        set_msg_flags('deleted', true, 1, 3)
 
-      assert_msg_uid(                      1, 3)
-      assert_flag_enabled_msgs('answered',    3)
-      assert_flag_enabled_msgs('flagged' ,    3)
-      assert_flag_enabled_msgs('deleted' , 1, 3)
-      assert_flag_enabled_msgs('seen'    ,    3)
-      assert_flag_enabled_msgs('draft'   ,    3)
-      assert_flag_enabled_msgs('recent'  , 1, 3)
-      assert_mbox_flag_num(answered: 1, flagged: 1, deleted: 2, seen: 1, draft: 1, recent: 2)
+        assert_msg_uid(                      1, 3)
+        assert_flag_enabled_msgs('answered',    3)
+        assert_flag_enabled_msgs('flagged' ,    3)
+        assert_flag_enabled_msgs('deleted' , 1, 3)
+        assert_flag_enabled_msgs('seen'    ,    3)
+        assert_flag_enabled_msgs('draft'   ,    3)
+        assert_flag_enabled_msgs('recent'  , 1, 3)
+        assert_mbox_flag_num(answered: 1, flagged: 1, deleted: 2, seen: 1, draft: 1, recent: 2)
+      }
 
       assert_imap_command(:expunge) {|assert|
         assert.equal('* 1 EXPUNGE')
@@ -1582,14 +1718,16 @@ module RIMS::Test
         assert.equal("#{tag} OK EXPUNGE completed")
       }
 
-      assert_msg_uid(                      )
-      assert_flag_enabled_msgs('answered', )
-      assert_flag_enabled_msgs('flagged' , )
-      assert_flag_enabled_msgs('deleted' , )
-      assert_flag_enabled_msgs('seen'    , )
-      assert_flag_enabled_msgs('draft'   , )
-      assert_flag_enabled_msgs('recent'  , )
-      assert_mbox_flag_num(answered: 0, flagged: 0, deleted: 0, seen: 0, draft: 0, recent: 0)
+      open_mail_store{
+        assert_msg_uid(                      )
+        assert_flag_enabled_msgs('answered', )
+        assert_flag_enabled_msgs('flagged' , )
+        assert_flag_enabled_msgs('deleted' , )
+        assert_flag_enabled_msgs('seen'    , )
+        assert_flag_enabled_msgs('draft'   , )
+        assert_flag_enabled_msgs('recent'  , )
+        assert_mbox_flag_num(answered: 0, flagged: 0, deleted: 0, seen: 0, draft: 0, recent: 0)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -1598,12 +1736,14 @@ module RIMS::Test
     end
 
     def test_expunge_read_only
-      add_msg('')
-      set_msg_flag(1, 'deleted', true)
+      open_mail_store{
+        add_msg('')
+        set_msg_flag(1, 'deleted', true)
 
-      assert_msg_uid(1)
-      assert_msg_flags(1, deleted: true, recent: true)
-      assert_mbox_flag_num(deleted: 1, recent: 1)
+        assert_msg_uid(1)
+        assert_msg_flags(1, deleted: true, recent: true)
+        assert_mbox_flag_num(deleted: 1, recent: 1)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -1638,9 +1778,11 @@ module RIMS::Test
         assert.match(/^#{tag} NO /)
       }
 
-      assert_msg_uid(1)
-      assert_msg_flags(1, deleted: true, recent: true)
-      assert_mbox_flag_num(deleted: 1, recent: 1)
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_msg_flags(1, deleted: true, recent: true)
+        assert_mbox_flag_num(deleted: 1, recent: 1)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -1683,23 +1825,25 @@ module RIMS::Test
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      add_msg("Content-Type: text/plain\r\n" +
-              "From: alice\r\n" +
-              "\r\n" +
-              "apple")
-      add_msg('')
-      add_msg("Content-Type: text/plain\r\n" +
-              "From: bob\r\n" +
-              "\r\n" +
-              "orange")
-      add_msg('')
-      add_msg("Content-Type: text/plain\r\n" +
-              "From: bob\r\n" +
-              "\r\n" +
-              "pineapple")
-      expunge(2, 4)
+      open_mail_store{
+        add_msg("Content-Type: text/plain\r\n" +
+                "From: alice\r\n" +
+                "\r\n" +
+                "apple")
+        add_msg('')
+        add_msg("Content-Type: text/plain\r\n" +
+                "From: bob\r\n" +
+                "\r\n" +
+                "orange")
+        add_msg('')
+        add_msg("Content-Type: text/plain\r\n" +
+                "From: bob\r\n" +
+                "\r\n" +
+                "pineapple")
+        expunge(2, 4)
 
-      assert_equal([ 1, 3, 5 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+        assert_equal([ 1, 3, 5 ], @mail_store.each_msg_uid(@inbox_id).to_a)
+      }
 
       assert_imap_command(:search, 'ALL', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
@@ -1760,25 +1904,27 @@ module RIMS::Test
     end
 
     def test_search_charset_body
-      add_msg("Content-Type: text/plain\r\n" +
-              "\r\n" +
-              "foo")
-      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-              "\r\n" +
-              "foo")
-      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-              "\r\n" +
-              "foo")
-      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-              "\r\n" +
-              "\u3053\u3093\u306B\u3061\u306F\r\n" +
-              "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
-              "\u3042\u3044\u3046\u3048\u304A\r\n")
-      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-              "\r\n" +
-              "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+      open_mail_store{
+        add_msg("Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                "\u3042\u3044\u3046\u3048\u304A\r\n")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
 
-      assert_msg_uid(1, 2, 3, 4, 5)
+        assert_msg_uid(1, 2, 3, 4, 5)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -1836,26 +1982,28 @@ module RIMS::Test
     end
 
     def test_search_charset_text
-      add_msg("Content-Type: text/plain\r\n" +
-              "foo")
-      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-              "X-foo: dummy\r\n" +
-              "\r\n" +
-              "bar")
-      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-              "X-dummy: foo\r\n" +
-              "\r\n" +
-              "bar")
-      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-              "\r\n" +
-              "\u3053\u3093\u306B\u3061\u306F\r\n" +
-              "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
-              "\u3042\u3044\u3046\u3048\u304A\r\n")
-      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-              "\r\n" +
-              "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+      open_mail_store{
+        add_msg("Content-Type: text/plain\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "X-foo: dummy\r\n" +
+                "\r\n" +
+                "bar")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "X-dummy: foo\r\n" +
+                "\r\n" +
+                "bar")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                "\u3042\u3044\u3046\u3048\u304A\r\n")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
 
-      assert_msg_uid(1, 2, 3, 4, 5)
+        assert_msg_uid(1, 2, 3, 4, 5)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -1918,12 +2066,14 @@ module RIMS::Test
     end
 
     def test_fetch
-      add_msg('')
-      expunge(1)
-      add_mail_simple
-      add_mail_multipart
+      open_mail_store{
+        add_msg('')
+        expunge(1)
+        add_mail_simple
+        add_mail_multipart
 
-      assert_msg_uid(2, 3)
+        assert_msg_uid(2, 3)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -1969,40 +2119,50 @@ module RIMS::Test
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: false, recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: false, recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:fetch, '1', 'RFC822') {|assert|
         assert.strenc_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: true,  recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: true,  recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:fetch, '2', make_body('BODY.PEEK[1]')) {|assert|
         assert.strenc_equal(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: true,  recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: true,  recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:fetch, '2', 'RFC822', uid: true) {|assert|
         assert.strenc_equal("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: true,  recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: true,  recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:fetch, '3', [ :group, 'UID', make_body('BODY.PEEK[1]') ], uid: true) {|assert|
         assert.strenc_equal(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: true,  recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: true,  recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -2011,12 +2171,14 @@ module RIMS::Test
     end
 
     def test_fetch_read_only
-      add_msg('')
-      expunge(1)
-      add_mail_simple
-      add_mail_multipart
+      open_mail_store{
+        add_msg('')
+        expunge(1)
+        add_mail_simple
+        add_mail_multipart
 
-      assert_msg_uid(2, 3)
+        assert_msg_uid(2, 3)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -2062,40 +2224,50 @@ module RIMS::Test
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: false, recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: false, recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:fetch, '1', 'RFC822') {|assert|
         assert.strenc_equal("* 1 FETCH (RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: false, recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: false, recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:fetch, '2', make_body('BODY.PEEK[1]')) {|assert|
         assert.strenc_equal(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: false, recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: false, recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:fetch, '2', 'RFC822', uid: true) {|assert|
         assert.strenc_equal("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: false, recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: false, recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:fetch, '3', [ :group, 'UID', make_body('BODY.PEEK[1]') ], uid: true) {|assert|
         assert.strenc_equal(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_msg_flags(2, seen: false, recent: true)
-      assert_msg_flags(3, seen: false, recent: true)
+      open_mail_store{
+        assert_msg_flags(2, seen: false, recent: true)
+        assert_msg_flags(3, seen: false, recent: true)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -2104,20 +2276,22 @@ module RIMS::Test
     end
 
     def test_store
-      msg_src = make_string_source('a')
-      10.times do
-        add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -2145,28 +2319,32 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, recent: 5)
+      }
 
       assert_imap_command(:store, '1:2', '+FLAGS', [ :group, '\Flagged' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Recent))')
@@ -2174,14 +2352,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
+      }
 
       assert_imap_command(:store, '1:3', '+FLAGS', [ :group, '\Deleted' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Deleted \Recent))')
@@ -2190,14 +2370,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
+      }
 
       assert_imap_command(:store, '1:4', '+FLAGS', [ :group, '\Seen' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Deleted \Seen \Recent))')
@@ -2207,14 +2389,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
+      }
 
       assert_imap_command(:store, '1:5', '+FLAGS', [ :group, '\Draft' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
@@ -2225,14 +2409,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:*', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
@@ -2243,28 +2429,32 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:2', '-FLAGS', [ :group, '\Flagged' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Deleted \Seen \Draft \Recent))')
@@ -2272,14 +2462,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:3', '-FLAGS', [ :group, '\Deleted' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Seen \Draft \Recent))')
@@ -2288,14 +2480,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:4', '-FLAGS', [ :group, '\Seen' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Draft \Recent))')
@@ -2305,14 +2499,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    ,             9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    ,             9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:5', '-FLAGS', [ :group, '\Draft' ]) {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Recent))')
@@ -2323,14 +2519,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    ,             9)
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    ,             9)
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -2339,20 +2537,22 @@ module RIMS::Test
     end
 
     def test_store_silent
-      msg_src = make_string_source('a')
-      10.times do
-        add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -2380,157 +2580,181 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, recent: 5)
+      }
 
       assert_imap_command(:store, '1:2', '+FLAGS.SILENT', [ :group, '\Flagged' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
+      }
 
       assert_imap_command(:store, '1:3', '+FLAGS.SILENT', [ :group, '\Deleted' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
+      }
 
       assert_imap_command(:store, '1:4', '+FLAGS.SILENT', [ :group, '\Seen' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
+      }
 
       assert_imap_command(:store, '1:5', '+FLAGS.SILENT', [ :group, '\Draft' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:*', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:2', '-FLAGS.SILENT', [ :group, '\Flagged' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:3', '-FLAGS.SILENT', [ :group, '\Deleted' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:4', '-FLAGS.SILENT', [ :group, '\Seen' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    ,             9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    ,             9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:5', '-FLAGS.SILENT', [ :group, '\Draft' ]) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    ,             9)
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    ,             9)
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -2539,20 +2763,22 @@ module RIMS::Test
     end
 
     def test_uid_store
-      msg_src = make_string_source('a')
-      10.times do
-        add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -2580,28 +2806,32 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3', '+FLAGS', [ :group, '\Flagged' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Recent))')
@@ -2609,14 +2839,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5', '+FLAGS', [ :group, '\Deleted' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Recent))')
@@ -2625,14 +2857,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5,7', '+FLAGS', [ :group, '\Seen' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Recent))')
@@ -2642,14 +2876,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5,7,9', '+FLAGS', [ :group, '\Draft' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
@@ -2660,14 +2896,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:*', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
@@ -2678,28 +2916,32 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3', '-FLAGS', [ :group, '\Flagged' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Deleted \Seen \Draft \Recent))')
@@ -2707,14 +2949,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5', '-FLAGS', [ :group, '\Deleted' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Seen \Draft \Recent))')
@@ -2723,14 +2967,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5,7', '-FLAGS', [ :group, '\Seen' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Draft \Recent))')
@@ -2740,14 +2986,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    ,             9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    ,             9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5,7,9', '-FLAGS', [ :group, '\Draft' ], uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Recent))')
@@ -2758,14 +3006,16 @@ module RIMS::Test
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    ,             9)
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    ,             9)
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -2774,20 +3024,22 @@ module RIMS::Test
     end
 
     def test_uid_store_silent
-      msg_src = make_string_source('a')
-      10.times do
-        add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -2815,157 +3067,181 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3', '+FLAGS.SILENT', [ :group, '\Flagged' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5', '+FLAGS.SILENT', [ :group, '\Deleted' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5,7', '+FLAGS.SILENT', [ :group, '\Seen' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5,7,9', '+FLAGS.SILENT', [ :group, '\Draft' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1            )
-      assert_flag_enabled_msgs('flagged' , 1, 3         )
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1            )
+        assert_flag_enabled_msgs('flagged' , 1, 3         )
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5      )
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7   )
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1:*', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered', 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered', 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3', '-FLAGS.SILENT', [ :group, '\Flagged' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5', '-FLAGS.SILENT', [ :group, '\Deleted' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5,7', '-FLAGS.SILENT', [ :group, '\Seen' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    ,             9)
-      assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    ,             9)
+        assert_flag_enabled_msgs('draft'   , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
+      }
 
       assert_imap_command(:store, '1,3,5,7,9', '-FLAGS.SILENT', [ :group, '\Draft' ], uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
-      assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,          7, 9)
-      assert_flag_enabled_msgs('seen'    ,             9)
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',    3, 5, 7, 9)
+        assert_flag_enabled_msgs('flagged' ,       5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,          7, 9)
+        assert_flag_enabled_msgs('seen'    ,             9)
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -2974,12 +3250,14 @@ module RIMS::Test
     end
 
     def test_store_read_only
-      add_msg('')
-      set_msg_flag(1, 'flagged', true)
-      set_msg_flag(1, 'seen', true)
+      open_mail_store{
+        add_msg('')
+        set_msg_flag(1, 'flagged', true)
+        set_msg_flag(1, 'seen', true)
 
-      assert_msg_uid(1)
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+        assert_msg_uid(1)
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -2987,12 +3265,18 @@ module RIMS::Test
       assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -3000,7 +3284,10 @@ module RIMS::Test
       assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:examine, 'INBOX') {|assert|
         assert.skip_while{|line| line =~ /^\* / }
@@ -3013,62 +3300,98 @@ module RIMS::Test
       assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted',  '\Seen','\Draft' ]) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+
+      open_mail_store{
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -3077,35 +3400,38 @@ module RIMS::Test
     end
 
     def test_copy
-      msg_src = make_string_source('a')
-      10.times do
-        _uid = add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
-      set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
-      work_id = @mail_store.add_mbox('WORK')
+      work_id = nil
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          _uid = add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
+        set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
+        work_id = @mail_store.add_mbox('WORK')
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',  mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
-      assert_mbox_flag_num(                 mbox_id: work_id)
-      assert_msg_text(                      mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',  mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
+        assert_mbox_flag_num(                 mbox_id: work_id)
+        assert_msg_text(                      mbox_id: work_id)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -3136,107 +3462,115 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',  mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
-      assert_mbox_flag_num(                 mbox_id: work_id)
-      assert_msg_text(                      mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',  mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
+        assert_mbox_flag_num(                 mbox_id: work_id)
+        assert_msg_text(                      mbox_id: work_id)
+      }
 
       assert_imap_command(:copy, '2:4', 'WORK') {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       1, 2, 3, mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',           mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  1, 2, 3, mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,           mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,           mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,           mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  1, 2, 3, mbox_id: work_id)
-      assert_mbox_flag_num(flagged: 3, recent: 3,    mbox_id: work_id)
-      assert_msg_text('c', 'e', 'g',                 mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       1, 2, 3, mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',           mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  1, 2, 3, mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,           mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,           mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,           mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  1, 2, 3, mbox_id: work_id)
+        assert_mbox_flag_num(flagged: 3, recent: 3,    mbox_id: work_id)
+        assert_msg_text('c', 'e', 'g',                 mbox_id: work_id)
+      }
 
       # duplicted message copy
       assert_imap_command(:copy, '2:4', 'WORK') {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_mbox_flag_num(flagged: 6, recent: 6,             mbox_id: work_id)
-      assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_mbox_flag_num(flagged: 6, recent: 6,             mbox_id: work_id)
+        assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+      }
 
       # copy of empty messge set
       assert_imap_command(:copy, '100', 'WORK') {|assert|
         assert.match(/#{tag} OK COPY completed/)
       }
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_mbox_flag_num(flagged: 6, recent: 6,             mbox_id: work_id)
-      assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_mbox_flag_num(flagged: 6, recent: 6,             mbox_id: work_id)
+        assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+      }
 
       assert_imap_command(:copy, '1:*', 'nobox') {|assert|
         assert.match(/^#{tag} NO \[TRYCREATE\]/)
@@ -3249,35 +3583,38 @@ module RIMS::Test
     end
 
     def test_uid_copy
-      msg_src = make_string_source('a')
-      10.times do
-        _uid = add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
-      set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
-      work_id = @mail_store.add_mbox('WORK')
+      work_id = nil
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          _uid = add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
+        set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
+        work_id = @mail_store.add_mbox('WORK')
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',  mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
-      assert_mbox_flag_num(                 mbox_id: work_id)
-      assert_msg_text(                      mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',  mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
+        assert_mbox_flag_num(                 mbox_id: work_id)
+        assert_msg_text(                      mbox_id: work_id)
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -3308,107 +3645,115 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',  mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
-      assert_mbox_flag_num(                 mbox_id: work_id)
-      assert_msg_text(                      mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',  mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
+        assert_mbox_flag_num(                 mbox_id: work_id)
+        assert_msg_text(                      mbox_id: work_id)
+      }
 
       assert_imap_command(:copy, '3,5,7', 'WORK', uid: true) {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       1, 2, 3, mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',           mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  1, 2, 3, mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,           mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,           mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,           mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  1, 2, 3, mbox_id: work_id)
-      assert_mbox_flag_num(flagged: 3, recent: 3,    mbox_id: work_id)
-      assert_msg_text('c', 'e', 'g',                 mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       1, 2, 3, mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',           mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  1, 2, 3, mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,           mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,           mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,           mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  1, 2, 3, mbox_id: work_id)
+        assert_mbox_flag_num(flagged: 3, recent: 3,    mbox_id: work_id)
+        assert_msg_text('c', 'e', 'g',                 mbox_id: work_id)
+      }
 
       # duplicted message copy
       assert_imap_command(:copy, '3,5,7', 'WORK', uid: true) {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_mbox_flag_num(flagged: 6, recent: 6,             mbox_id: work_id)
-      assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_mbox_flag_num(flagged: 6, recent: 6,             mbox_id: work_id)
+        assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+      }
 
       # copy of empty messge set
       assert_imap_command(:copy, '100', 'WORK', uid: true) {|assert|
         assert.match(/#{tag} OK COPY completed/)
       }
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_mbox_flag_num(flagged: 6, recent: 6,             mbox_id: work_id)
-      assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_mbox_flag_num(flagged: 6, recent: 6,             mbox_id: work_id)
+        assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+      }
 
       assert_imap_command(:copy, '1:*', 'nobox', uid: true) {|assert|
         assert.match(/^#{tag} NO \[TRYCREATE\]/)
@@ -3421,11 +3766,14 @@ module RIMS::Test
     end
 
     def test_copy_utf7_mbox_name
-      add_msg('Hello world.')
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = nil
+      open_mail_store{
+        add_msg('Hello world.')
+        utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      assert_msg_uid(1)
-      assert_msg_uid(mbox_id: utf8_name_mbox_id)
+        assert_msg_uid(1)
+        assert_msg_uid(mbox_id: utf8_name_mbox_id)
+      }
 
       assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
@@ -3436,16 +3784,20 @@ module RIMS::Test
         assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
       }
 
-      assert_msg_uid(1)
-      assert_msg_uid(mbox_id: utf8_name_mbox_id)
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_msg_uid(mbox_id: utf8_name_mbox_id)
+      }
 
       assert_imap_command(:copy, '1', UTF7_MBOX_NAME) {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+ \d+\] COPY completed/)
       }
 
-      assert_msg_uid(1)
-      assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
-      assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
+        assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -3454,7 +3806,9 @@ module RIMS::Test
     end
 
     def test_noop
-      add_msg('')
+      open_mail_store{
+        add_msg('')
+      }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
@@ -3523,11 +3877,9 @@ module RIMS::Test
     end
 
     def test_db_recovery
-      reload_mail_store{
-        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
-        meta_db.dirty = true
-        meta_db.close
-      }
+      meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
+      meta_db.dirty = true
+      meta_db.close
 
       assert_equal(false, @decoder.auth?)
 
@@ -3640,32 +3992,47 @@ module RIMS::Test
       assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", 'a') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
-      assert_msg_uid(1)
-      assert_equal('a', get_msg_text(1))
-      assert_msg_flags(1, recent: true)
+
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_equal('a', get_msg_text(1))
+        assert_msg_flags(1, recent: true)
+      }
 
       assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'b') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
-      assert_msg_uid(1, 2)
-      assert_equal('b', get_msg_text(2))
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(2))
-      assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+
+      open_mail_store{
+        assert_msg_uid(1, 2)
+        assert_equal('b', get_msg_text(2))
+        assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(2))
+        assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+      }
 
       assert_imap_command(:append, "b64user-mbox #{base64_foo} nobox", 'x') {|assert|
         assert.match(/^#{tag} NO \[TRYCREATE\]/)
       }
-      assert_msg_uid(1, 2)
+
+      open_mail_store{
+        assert_msg_uid(1, 2)
+      }
 
       assert_imap_command(:append, "b64user-mbox #{base64_nouser} INBOX", 'x') {|assert|
         assert.match(/^#{tag} NO not found a user/)
       }
-      assert_msg_uid(1, 2)
+
+      open_mail_store{
+        assert_msg_uid(1, 2)
+      }
 
       assert_imap_command(:append, "unknown-encode-type #{base64_foo} INBOX", 'x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
-      assert_msg_uid(1, 2)
+
+      open_mail_store{
+        assert_msg_uid(1, 2)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -3676,11 +4043,9 @@ module RIMS::Test
     end
 
     def test_mail_delivery_user_db_recovery
-      reload_mail_store{
-        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
-        meta_db.dirty = true
-        meta_db.close
-      }
+      meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
+      meta_db.dirty = true
+      meta_db.close
 
       assert_imap_command(:capability) {|assert|
         assert.match(/^\* CAPABILITY /, peek_next_line: true).no_match(/ X-RIMS-MAIL-DELIVERY-USER/)
@@ -3707,9 +4072,12 @@ module RIMS::Test
         assert.match(/^\* OK completed user data recovery/)
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
-      assert_msg_uid(1)
-      assert_equal('a', get_msg_text(1))
-      assert_msg_flags(1, recent: true)
+
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_equal('a', get_msg_text(1))
+        assert_msg_flags(1, recent: true)
+      }
 
       assert_imap_command(:logout) {|assert|
         assert.match(/^\* BYE /)
@@ -3839,21 +4207,23 @@ LOGOUT
     end
 
     def test_command_loop_select
-      add_msg('')
-      add_msg('')
-      add_msg('')
-      set_msg_flags('recent',  false, 1, 2)
-      set_msg_flags('seen',    true,  1, 2)
-      set_msg_flags('deleted', true,  1)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
+        set_msg_flags('recent',  false, 1, 2)
+        set_msg_flags('seen',    true,  1, 2)
+        set_msg_flags('deleted', true,  1)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       cmd_txt = <<-'EOF'.b
 SELECT INBOX
@@ -3876,18 +4246,20 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      2, 3)
-      assert_flag_enabled_msgs('answered',     )
-      assert_flag_enabled_msgs('flagged' ,     )
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    , 2   )
-      assert_flag_enabled_msgs('draft'   ,     )
-      assert_flag_enabled_msgs('recent'  ,     )
-      assert_mbox_flag_num(seen: 1)
+      open_mail_store{
+        assert_msg_uid(                      2, 3)
+        assert_flag_enabled_msgs('answered',     )
+        assert_flag_enabled_msgs('flagged' ,     )
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    , 2   )
+        assert_flag_enabled_msgs('draft'   ,     )
+        assert_flag_enabled_msgs('recent'  ,     )
+        assert_mbox_flag_num(seen: 1)
+      }
     end
 
     def test_command_loop_select_utf7_mbox_name
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -3910,21 +4282,23 @@ LOGOUT
     end
 
     def test_command_loop_examine
-      add_msg('')
-      add_msg('')
-      add_msg('')
-      set_msg_flags('recent',  false, 1, 2)
-      set_msg_flags('seen',    true,  1, 2)
-      set_msg_flags('deleted', true,  1)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
+        set_msg_flags('recent',  false, 1, 2)
+        set_msg_flags('seen',    true,  1, 2)
+        set_msg_flags('deleted', true,  1)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       cmd_txt = <<-'EOF'.b
 EXAMINE INBOX
@@ -3947,18 +4321,20 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
     end
 
     def test_command_loop_examine_utf7_mbox_name
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -3981,7 +4357,9 @@ LOGOUT
     end
 
     def test_command_loop_create
-      assert_mbox_not_exists('foo')
+      open_mail_store{
+        assert_mbox_not_exists('foo')
+      }
 
       cmd_txt = <<-'EOF'.b
 CREATE foo
@@ -4001,11 +4379,15 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_mbox_exists('foo')
+      open_mail_store{
+        assert_mbox_exists('foo')
+      }
     end
 
     def test_command_loop_create_utf7_mbox_name
-      assert_mbox_not_exists(UTF8_MBOX_NAME)
+      open_mail_store{
+        assert_mbox_not_exists(UTF8_MBOX_NAME)
+      }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -4021,15 +4403,19 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_mbox_exists(UTF8_MBOX_NAME)
+      open_mail_store{
+        assert_mbox_exists(UTF8_MBOX_NAME)
+      }
     end
 
     def test_command_loop_delete
-      @mail_store.add_mbox('foo')
+      open_mail_store{
+        @mail_store.add_mbox('foo')
 
-      assert_mbox_exists('inbox')
-      assert_mbox_exists('foo')
-      assert_mbox_not_exists('bar')
+        assert_mbox_exists('inbox')
+        assert_mbox_exists('foo')
+        assert_mbox_not_exists('bar')
+      }
 
       cmd_txt = <<-'EOF'.b
 DELETE foo
@@ -4051,15 +4437,18 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_mbox_exists('inbox')
-      assert_mbox_not_exists('foo')
-      assert_mbox_not_exists('bar')
+      open_mail_store{
+        assert_mbox_exists('inbox')
+        assert_mbox_not_exists('foo')
+        assert_mbox_not_exists('bar')
+      }
     end
 
     def test_command_loop_delete_utf7_mbox_name
-      @mail_store.add_mbox(UTF8_MBOX_NAME)
-
-      assert_mbox_exists(UTF8_MBOX_NAME)
+      open_mail_store{
+        @mail_store.add_mbox(UTF8_MBOX_NAME)
+        assert_mbox_exists(UTF8_MBOX_NAME)
+      }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -4075,13 +4464,17 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_mbox_not_exists(UTF8_MBOX_NAME)
+      open_mail_store{
+        assert_mbox_not_exists(UTF8_MBOX_NAME)
+      }
     end
 
     def test_command_loop_rename
-      mbox_id = @mail_store.add_mbox('foo')
-
-      assert_equal([ mbox_id, nil, @inbox_id ], get_mbox_id_list('foo', 'bar', 'INBOX'))
+      mbox_id = nil
+      open_mail_store{
+        mbox_id = @mail_store.add_mbox('foo')
+        assert_equal([ mbox_id, nil, @inbox_id ], get_mbox_id_list('foo', 'bar', 'INBOX'))
+      }
 
       cmd_txt = <<-'EOF'.b
 RENAME foo bar
@@ -4105,13 +4498,17 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal([ nil, mbox_id, @inbox_id ], get_mbox_id_list('foo', 'bar', 'INBOX'))
+      open_mail_store{
+        assert_equal([ nil, mbox_id, @inbox_id ], get_mbox_id_list('foo', 'bar', 'INBOX'))
+      }
     end
 
     def test_command_loop_rename_utf7_mbox_name
-      mbox_id = @mail_store.add_mbox('foo')
-
-      assert_equal([ mbox_id, nil, nil ], get_mbox_id_list('foo', UTF8_MBOX_NAME, 'bar'))
+      mbox_id = nil
+      open_mail_store{
+        mbox_id = @mail_store.add_mbox('foo')
+        assert_equal([ mbox_id, nil, nil ], get_mbox_id_list('foo', UTF8_MBOX_NAME, 'bar'))
+      }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -4129,12 +4526,16 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_equal([ nil, nil, mbox_id ], get_mbox_id_list('foo', UTF8_MBOX_NAME, 'bar'))
+      open_mail_store{
+        assert_equal([ nil, nil, mbox_id ], get_mbox_id_list('foo', UTF8_MBOX_NAME, 'bar'))
+      }
     end
 
     def test_command_loop_list
-      add_msg('foo')
-      @mail_store.add_mbox('foo')
+      open_mail_store{
+        add_msg('foo')
+        @mail_store.add_mbox('foo')
+      }
 
       cmd_txt = <<-'EOF'.b
 LIST "" ""
@@ -4165,7 +4566,9 @@ LOGOUT
     end
 
     def test_command_loop_list_utf7_mbox_name
-      @mail_store.add_mbox(UTF8_MBOX_NAME)
+      open_mail_store{
+        @mail_store.add_mbox(UTF8_MBOX_NAME)
+      }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -4187,10 +4590,12 @@ LOGOUT
     end
 
     def test_command_loop_status
-      add_msg('')
-      add_msg('')
-      set_msg_flag(1, 'recent', false)
-      set_msg_flag(1, 'seen',   true)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        set_msg_flag(1, 'recent', false)
+        set_msg_flag(1, 'seen',   true)
+      }
 
       cmd_txt = <<-'EOF'.b
 STATUS nobox (MESSAGES)
@@ -4217,7 +4622,7 @@ LOGOUT
     end
 
     def test_command_loop_status_utf7_mbox_name
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -4270,21 +4675,23 @@ T012 LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      1, 2, 3, 4)
-      assert_flag_enabled_msgs('answered',    2,    4)
-      assert_flag_enabled_msgs('flagged' ,    2,    4)
-      assert_flag_enabled_msgs('deleted' ,    2,    4)
-      assert_flag_enabled_msgs('seen'    ,    2,    4)
-      assert_flag_enabled_msgs('draft'   ,    2,    4)
-      assert_flag_enabled_msgs('recent'  , 1, 2, 3, 4)
-      assert_mbox_flag_num(answered: 2, flagged: 2, deleted: 2, seen: 2, draft: 2, recent: 4)
-      assert_msg_text('a', 'b', 'c', 'd')
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(3))
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(4))
+      open_mail_store{
+        assert_msg_uid(                      1, 2, 3, 4)
+        assert_flag_enabled_msgs('answered',    2,    4)
+        assert_flag_enabled_msgs('flagged' ,    2,    4)
+        assert_flag_enabled_msgs('deleted' ,    2,    4)
+        assert_flag_enabled_msgs('seen'    ,    2,    4)
+        assert_flag_enabled_msgs('draft'   ,    2,    4)
+        assert_flag_enabled_msgs('recent'  , 1, 2, 3, 4)
+        assert_mbox_flag_num(answered: 2, flagged: 2, deleted: 2, seen: 2, draft: 2, recent: 4)
+        assert_msg_text('a', 'b', 'c', 'd')
+        assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(3))
+        assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(4))
+      }
     end
 
     def test_command_loop_append_utf7_mbox_name
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -4300,8 +4707,10 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
-      assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
+      open_mail_store{
+        assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
+        assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
+      }
     end
 
     def test_command_loop_check
@@ -4328,21 +4737,23 @@ LOGOUT
     end
 
     def test_command_loop_close
-      add_msg('')
-      add_msg('')
-      add_msg('')
-      set_msg_flags('recent',  false, 1, 2)
-      set_msg_flags('seen',    true,  1, 2)
-      set_msg_flags('deleted', true,  1)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
+        set_msg_flags('recent',  false, 1, 2)
+        set_msg_flags('seen',    true,  1, 2)
+        set_msg_flags('deleted', true,  1)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       cmd_txt = <<-'EOF'.b
 CLOSE
@@ -4369,32 +4780,36 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      2, 3)
-      assert_flag_enabled_msgs('answered',     )
-      assert_flag_enabled_msgs('flagged' ,     )
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    , 2   )
-      assert_flag_enabled_msgs('draft'   ,     )
-      assert_flag_enabled_msgs('recent'  ,     )
-      assert_mbox_flag_num(seen: 1)
+      open_mail_store{
+        assert_msg_uid(                      2, 3)
+        assert_flag_enabled_msgs('answered',     )
+        assert_flag_enabled_msgs('flagged' ,     )
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    , 2   )
+        assert_flag_enabled_msgs('draft'   ,     )
+        assert_flag_enabled_msgs('recent'  ,     )
+        assert_mbox_flag_num(seen: 1)
+      }
     end
 
     def test_command_loop_close_read_only
-      add_msg('')
-      add_msg('')
-      add_msg('')
-      set_msg_flags('recent',  false, 1, 2)
-      set_msg_flags('seen',    true,  1, 2)
-      set_msg_flags('deleted', true,  1)
+      open_mail_store{
+        add_msg('')
+        add_msg('')
+        add_msg('')
+        set_msg_flags('recent',  false, 1, 2)
+        set_msg_flags('seen',    true,  1, 2)
+        set_msg_flags('deleted', true,  1)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
 
       cmd_txt = <<-'EOF'.b
 CLOSE
@@ -4421,34 +4836,38 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',        )
-      assert_flag_enabled_msgs('flagged' ,        )
-      assert_flag_enabled_msgs('deleted' , 1      )
-      assert_flag_enabled_msgs('seen'    , 1, 2   )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,       3)
-      assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',        )
+        assert_flag_enabled_msgs('flagged' ,        )
+        assert_flag_enabled_msgs('deleted' , 1      )
+        assert_flag_enabled_msgs('seen'    , 1, 2   )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,       3)
+        assert_mbox_flag_num(deleted: 1, seen: 2, recent: 1)
+      }
     end
 
     def test_command_loop_expunge
-      add_msg('a')
-      add_msg('b')
-      add_msg('c')
-      set_msg_flags('answered', true, 2, 3)
-      set_msg_flags('flagged',  true, 2, 3)
-      set_msg_flags('deleted',  true, 2)
-      set_msg_flags('seen',     true, 2, 3)
-      set_msg_flags('draft',    true, 2, 3)
+      open_mail_store{
+        add_msg('a')
+        add_msg('b')
+        add_msg('c')
+        set_msg_flags('answered', true, 2, 3)
+        set_msg_flags('flagged',  true, 2, 3)
+        set_msg_flags('deleted',  true, 2)
+        set_msg_flags('seen',     true, 2, 3)
+        set_msg_flags('draft',    true, 2, 3)
 
-      assert_msg_uid(                      1, 2, 3)
-      assert_flag_enabled_msgs('answered',    2, 3)
-      assert_flag_enabled_msgs('flagged' ,    2, 3)
-      assert_flag_enabled_msgs('deleted' ,    2   )
-      assert_flag_enabled_msgs('seen'    ,    2, 3)
-      assert_flag_enabled_msgs('draft'   ,    2, 3)
-      assert_flag_enabled_msgs('recent'  , 1, 2, 3)
-      assert_mbox_flag_num(answered: 2, flagged: 2, deleted: 1, seen: 2, draft: 2, recent: 3)
+        assert_msg_uid(                      1, 2, 3)
+        assert_flag_enabled_msgs('answered',    2, 3)
+        assert_flag_enabled_msgs('flagged' ,    2, 3)
+        assert_flag_enabled_msgs('deleted' ,    2   )
+        assert_flag_enabled_msgs('seen'    ,    2, 3)
+        assert_flag_enabled_msgs('draft'   ,    2, 3)
+        assert_flag_enabled_msgs('recent'  , 1, 2, 3)
+        assert_mbox_flag_num(answered: 2, flagged: 2, deleted: 1, seen: 2, draft: 2, recent: 3)
+      }
 
       cmd_txt = <<-'EOF'.b
 EXPUNGE
@@ -4472,22 +4891,26 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      1, 3)
-      assert_flag_enabled_msgs('answered',    3)
-      assert_flag_enabled_msgs('flagged' ,    3)
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    ,    3)
-      assert_flag_enabled_msgs('draft'   ,    3)
-      assert_flag_enabled_msgs('recent'  ,     )
-      assert_mbox_flag_num(answered: 1, flagged: 1, seen: 1, draft: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 3)
+        assert_flag_enabled_msgs('answered',    3)
+        assert_flag_enabled_msgs('flagged' ,    3)
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    ,    3)
+        assert_flag_enabled_msgs('draft'   ,    3)
+        assert_flag_enabled_msgs('recent'  ,     )
+        assert_mbox_flag_num(answered: 1, flagged: 1, seen: 1, draft: 1)
+      }
     end
 
     def test_command_loop_expunge_read_only
-      add_msg('a')
-      set_msg_flag(1, 'deleted', true)
+      open_mail_store{
+        add_msg('a')
+        set_msg_flag(1, 'deleted', true)
 
-      assert_msg_uid(1)
-      assert_msg_flags(1, deleted: true, recent: true)
+        assert_msg_uid(1)
+        assert_msg_flags(1, deleted: true, recent: true)
+      }
 
       cmd_txt = <<-'EOF'.b
 EXPUNGE
@@ -4510,28 +4933,32 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(1)
-      assert_msg_flags(1, deleted: true, recent: true)
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_msg_flags(1, deleted: true, recent: true)
+      }
     end
 
     def test_command_loop_search
-      add_msg("Content-Type: text/plain\r\n" +
-              "From: alice\r\n" +
-              "\r\n" +
-              "apple")
-      add_msg('')
-      add_msg("Content-Type: text/plain\r\n" +
-              "From: bob\r\n" +
-              "\r\n" +
-              "orange")
-      add_msg('')
-      add_msg("Content-Type: text/plain\r\n" +
-              "From: bob\r\n" +
-              "\r\n" +
-              "pineapple")
-      expunge(2, 4)
+      open_mail_store{
+        add_msg("Content-Type: text/plain\r\n" +
+                "From: alice\r\n" +
+                "\r\n" +
+                "apple")
+        add_msg('')
+        add_msg("Content-Type: text/plain\r\n" +
+                "From: bob\r\n" +
+                "\r\n" +
+                "orange")
+        add_msg('')
+        add_msg("Content-Type: text/plain\r\n" +
+                "From: bob\r\n" +
+                "\r\n" +
+                "pineapple")
+        expunge(2, 4)
 
-      assert_msg_uid(1, 3, 5)
+        assert_msg_uid(1, 3, 5)
+      }
 
       cmd_txt = <<-'EOF'.b
 SEARCH ALL
@@ -4582,25 +5009,27 @@ LOGOUT
     end
 
     def test_command_loop_search_charset_body
-      add_msg("Content-Type: text/plain\r\n" +
-              "\r\n" +
-              "foo")
-      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-              "\r\n" +
-              "foo")
-      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-              "\r\n" +
-              "foo")
-      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-              "\r\n" +
-              "\u3053\u3093\u306B\u3061\u306F\r\n" +
-              "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
-              "\u3042\u3044\u3046\u3048\u304A\r\n")
-      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-              "\r\n" +
-              "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+      open_mail_store{
+        add_msg("Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                "\u3042\u3044\u3046\u3048\u304A\r\n")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
 
-      assert_msg_uid(1, 2, 3, 4, 5)
+        assert_msg_uid(1, 2, 3, 4, 5)
+      }
 
       cmd_txt = <<-"EOF".b
 SEARCH CHARSET "utf-8" ALL
@@ -4635,26 +5064,28 @@ LOGOUT
     end
 
     def test_command_loop_search_charset_text
-      add_msg("Content-Type: text/plain\r\n" +
-              "foo")
-      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-              "X-foo: dummy\r\n" +
-              "\r\n" +
-              "bar")
-      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-              "X-dummy: foo\r\n" +
-              "\r\n" +
-              "bar")
-      add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-              "\r\n" +
-              "\u3053\u3093\u306B\u3061\u306F\r\n" +
-              "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
-              "\u3042\u3044\u3046\u3048\u304A\r\n")
-      add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-              "\r\n" +
-              "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
+      open_mail_store{
+        add_msg("Content-Type: text/plain\r\n" +
+                "foo")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "X-foo: dummy\r\n" +
+                "\r\n" +
+                "bar")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "X-dummy: foo\r\n" +
+                "\r\n" +
+                "bar")
+        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                "\u3042\u3044\u3046\u3048\u304A\r\n")
+        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                "\r\n" +
+                "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
 
-      assert_msg_uid(1, 2, 3, 4, 5)
+        assert_msg_uid(1, 2, 3, 4, 5)
+      }
 
       cmd_txt = <<-"EOF".b
 SEARCH CHARSET "utf-8" ALL
@@ -4692,19 +5123,21 @@ LOGOUT
     end
 
     def test_command_loop_fetch
-      add_msg('')
-      add_mail_simple
-      add_mail_multipart
-      expunge(1)
+      open_mail_store{
+        add_msg('')
+        add_mail_simple
+        add_mail_multipart
+        expunge(1)
 
-      assert_msg_uid(                      2, 3)
-      assert_flag_enabled_msgs('answered',     )
-      assert_flag_enabled_msgs('flagged' ,     )
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    ,     )
-      assert_flag_enabled_msgs('draft'   ,     )
-      assert_flag_enabled_msgs('recent'  , 2, 3)
-      assert_mbox_flag_num(recent: 2)
+        assert_msg_uid(                      2, 3)
+        assert_flag_enabled_msgs('answered',     )
+        assert_flag_enabled_msgs('flagged' ,     )
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    ,     )
+        assert_flag_enabled_msgs('draft'   ,     )
+        assert_flag_enabled_msgs('recent'  , 2, 3)
+        assert_mbox_flag_num(recent: 2)
+      }
 
       cmd_txt = <<-'EOF'.b
 FETCH 1:* FAST
@@ -4749,30 +5182,34 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      2, 3)
-      assert_flag_enabled_msgs('answered',     )
-      assert_flag_enabled_msgs('flagged' ,     )
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    , 2   )
-      assert_flag_enabled_msgs('draft'   ,     )
-      assert_flag_enabled_msgs('recent'  ,     )
-      assert_mbox_flag_num(seen: 1)
+      open_mail_store{
+        assert_msg_uid(                      2, 3)
+        assert_flag_enabled_msgs('answered',     )
+        assert_flag_enabled_msgs('flagged' ,     )
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    , 2   )
+        assert_flag_enabled_msgs('draft'   ,     )
+        assert_flag_enabled_msgs('recent'  ,     )
+        assert_mbox_flag_num(seen: 1)
+      }
     end
 
     def test_command_loop_fetch_read_only
-      add_msg('')
-      add_mail_simple
-      add_mail_multipart
-      expunge(1)
+      open_mail_store{
+        add_msg('')
+        add_mail_simple
+        add_mail_multipart
+        expunge(1)
 
-      assert_msg_uid(                      2, 3)
-      assert_flag_enabled_msgs('answered',     )
-      assert_flag_enabled_msgs('flagged' ,     )
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    ,     )
-      assert_flag_enabled_msgs('draft'   ,     )
-      assert_flag_enabled_msgs('recent'  , 2, 3)
-      assert_mbox_flag_num(recent: 2)
+        assert_msg_uid(                      2, 3)
+        assert_flag_enabled_msgs('answered',     )
+        assert_flag_enabled_msgs('flagged' ,     )
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    ,     )
+        assert_flag_enabled_msgs('draft'   ,     )
+        assert_flag_enabled_msgs('recent'  , 2, 3)
+        assert_mbox_flag_num(recent: 2)
+      }
 
       cmd_txt = <<-'EOF'.b
 FETCH 1:* FAST
@@ -4817,31 +5254,35 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      2, 3)
-      assert_flag_enabled_msgs('answered',     )
-      assert_flag_enabled_msgs('flagged' ,     )
-      assert_flag_enabled_msgs('deleted' ,     )
-      assert_flag_enabled_msgs('seen'    ,     )
-      assert_flag_enabled_msgs('draft'   ,     )
-      assert_flag_enabled_msgs('recent'  , 2, 3)
-      assert_mbox_flag_num(recent: 2)
+      open_mail_store{
+        assert_msg_uid(                      2, 3)
+        assert_flag_enabled_msgs('answered',     )
+        assert_flag_enabled_msgs('flagged' ,     )
+        assert_flag_enabled_msgs('deleted' ,     )
+        assert_flag_enabled_msgs('seen'    ,     )
+        assert_flag_enabled_msgs('draft'   ,     )
+        assert_flag_enabled_msgs('recent'  , 2, 3)
+        assert_mbox_flag_num(recent: 2)
+      }
     end
 
     def test_command_loop_store
-      msg_src = make_string_source('a')
-      10.times do
-        add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       cmd_txt = <<-'EOF'.b
 STORE 1 +FLAGS (\Answered)
@@ -4919,31 +5360,35 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      1, 3, 5)
-      assert_flag_enabled_msgs('answered',    3, 5)
-      assert_flag_enabled_msgs('flagged' ,       5)
-      assert_flag_enabled_msgs('deleted' ,        )
-      assert_flag_enabled_msgs('seen'    ,        )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,        )
-      assert_mbox_flag_num(answered: 2, flagged: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5)
+        assert_flag_enabled_msgs('answered',    3, 5)
+        assert_flag_enabled_msgs('flagged' ,       5)
+        assert_flag_enabled_msgs('deleted' ,        )
+        assert_flag_enabled_msgs('seen'    ,        )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,        )
+        assert_mbox_flag_num(answered: 2, flagged: 1)
+      }
     end
 
     def test_command_loop_store_silent
-      msg_src = make_string_source('a')
-      10.times do
-        add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       cmd_txt = <<-'EOF'.b
 STORE 1 +FLAGS.SILENT (\Answered)
@@ -4986,31 +5431,35 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      1, 3, 5)
-      assert_flag_enabled_msgs('answered',    3, 5)
-      assert_flag_enabled_msgs('flagged' ,       5)
-      assert_flag_enabled_msgs('deleted' ,        )
-      assert_flag_enabled_msgs('seen'    ,        )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,        )
-      assert_mbox_flag_num(answered: 2, flagged: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5)
+        assert_flag_enabled_msgs('answered',    3, 5)
+        assert_flag_enabled_msgs('flagged' ,       5)
+        assert_flag_enabled_msgs('deleted' ,        )
+        assert_flag_enabled_msgs('seen'    ,        )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,        )
+        assert_mbox_flag_num(answered: 2, flagged: 1)
+      }
     end
 
     def test_command_loop_uid_store
-      msg_src = make_string_source('a')
-      10.times do
-        add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       cmd_txt = <<-'EOF'.b
 UID STORE 1 +FLAGS (\Answered)
@@ -5088,31 +5537,35 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      1, 3, 5)
-      assert_flag_enabled_msgs('answered',    3, 5)
-      assert_flag_enabled_msgs('flagged' ,       5)
-      assert_flag_enabled_msgs('deleted' ,        )
-      assert_flag_enabled_msgs('seen'    ,        )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,        )
-      assert_mbox_flag_num(answered: 2, flagged: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5)
+        assert_flag_enabled_msgs('answered',    3, 5)
+        assert_flag_enabled_msgs('flagged' ,       5)
+        assert_flag_enabled_msgs('deleted' ,        )
+        assert_flag_enabled_msgs('seen'    ,        )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,        )
+        assert_mbox_flag_num(answered: 2, flagged: 1)
+      }
     end
 
     def test_command_loop_uid_store_silent
-      msg_src = make_string_source('a')
-      10.times do
-        add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
 
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' ,              )
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(recent: 5)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' ,              )
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(recent: 5)
+      }
 
       cmd_txt = <<-'EOF'.b
 UID STORE 1 +FLAGS.SILENT (\Answered)
@@ -5155,23 +5608,27 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(                      1, 3, 5)
-      assert_flag_enabled_msgs('answered',    3, 5)
-      assert_flag_enabled_msgs('flagged' ,       5)
-      assert_flag_enabled_msgs('deleted' ,        )
-      assert_flag_enabled_msgs('seen'    ,        )
-      assert_flag_enabled_msgs('draft'   ,        )
-      assert_flag_enabled_msgs('recent'  ,        )
-      assert_mbox_flag_num(answered: 2, flagged: 1)
+      open_mail_store{
+        assert_msg_uid(                      1, 3, 5)
+        assert_flag_enabled_msgs('answered',    3, 5)
+        assert_flag_enabled_msgs('flagged' ,       5)
+        assert_flag_enabled_msgs('deleted' ,        )
+        assert_flag_enabled_msgs('seen'    ,        )
+        assert_flag_enabled_msgs('draft'   ,        )
+        assert_flag_enabled_msgs('recent'  ,        )
+        assert_mbox_flag_num(answered: 2, flagged: 1)
+      }
     end
 
     def test_command_loop_store_read_only
-      add_msg('')
-      set_msg_flag(1, 'flagged', true)
-      set_msg_flag(1, 'seen', true)
+      open_mail_store{
+        add_msg('')
+        set_msg_flag(1, 'flagged', true)
+        set_msg_flag(1, 'seen', true)
 
-      assert_msg_uid(1)
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+        assert_msg_uid(1)
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
 
       cmd_txt = <<-'EOF'.b
 STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)
@@ -5216,40 +5673,45 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(1)
-      assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
+      }
     end
 
     def test_command_loop_copy
-      msg_src = make_string_source('a')
-      10.times do
-        _uid = add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
-      set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
-      work_id = @mail_store.add_mbox('WORK')
+      work_id = nil
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          _uid = add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
+        set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
+        work_id = @mail_store.add_mbox('WORK')
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',  mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
-      assert_mbox_flag_num(                 mbox_id: work_id)
-      assert_msg_text(                      mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',  mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
+        assert_mbox_flag_num(                 mbox_id: work_id)
+        assert_msg_text(                      mbox_id: work_id)
+      }
 
       cmd_txt = <<-'EOF'.b
 COPY 2:4 WORK
@@ -5278,59 +5740,64 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  ,              )
-      assert_mbox_flag_num(flagged: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  ,              )
+        assert_mbox_flag_num(flagged: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,                    mbox_id: work_id)
-      assert_mbox_flag_num(flagged: 6,                        mbox_id: work_id)
-      assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,                    mbox_id: work_id)
+        assert_mbox_flag_num(flagged: 6,                        mbox_id: work_id)
+        assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+      }
     end
 
     def test_command_loop_uid_copy
-      msg_src = make_string_source('a')
-      10.times do
-        _uid = add_msg(msg_src.next)
-      end
-      expunge(2, 4, 6, 8, 10)
-      set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
-      work_id = @mail_store.add_mbox('WORK')
+      work_id = nil
+      open_mail_store{
+        msg_src = make_string_source('a')
+        10.times do
+          _uid = add_msg(msg_src.next)
+        end
+        expunge(2, 4, 6, 8, 10)
+        set_msg_flags('flagged', true, 1, 3, 5, 7, 9)
+        work_id = @mail_store.add_mbox('WORK')
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
-      assert_mbox_flag_num(flagged: 5, recent: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
+        assert_mbox_flag_num(flagged: 5, recent: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',  mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
-      assert_mbox_flag_num(                 mbox_id: work_id)
-      assert_msg_text(                      mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',  mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,  mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,  mbox_id: work_id)
+        assert_mbox_flag_num(                 mbox_id: work_id)
+        assert_msg_text(                      mbox_id: work_id)
+      }
 
       cmd_txt = <<-'EOF'.b
 UID COPY 3,5,7 WORK
@@ -5359,35 +5826,40 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      # INBOX mailbox messages (copy source)
-      assert_msg_uid(                      1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('answered',              )
-      assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
-      assert_flag_enabled_msgs('deleted' ,              )
-      assert_flag_enabled_msgs('seen'    ,              )
-      assert_flag_enabled_msgs('draft'   ,              )
-      assert_flag_enabled_msgs('recent'  ,              )
-      assert_mbox_flag_num(flagged: 5)
-      assert_msg_text('a', 'c', 'e', 'g', 'i')
+      open_mail_store{
+        # INBOX mailbox messages (copy source)
+        assert_msg_uid(                      1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('answered',              )
+        assert_flag_enabled_msgs('flagged' , 1, 3, 5, 7, 9)
+        assert_flag_enabled_msgs('deleted' ,              )
+        assert_flag_enabled_msgs('seen'    ,              )
+        assert_flag_enabled_msgs('draft'   ,              )
+        assert_flag_enabled_msgs('recent'  ,              )
+        assert_mbox_flag_num(flagged: 5)
+        assert_msg_text('a', 'c', 'e', 'g', 'i')
 
-      # WORK mailbox messages (copy destination)
-      assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
-      assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
-      assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
-      assert_flag_enabled_msgs('recent'  ,                    mbox_id: work_id)
-      assert_mbox_flag_num(flagged: 6,                        mbox_id: work_id)
-      assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+        # WORK mailbox messages (copy destination)
+        assert_msg_uid(                       1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('answered',                    mbox_id: work_id)
+        assert_flag_enabled_msgs('flagged' ,  1, 2, 3, 4, 5, 6, mbox_id: work_id)
+        assert_flag_enabled_msgs('deleted' ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('seen'    ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('draft'   ,                    mbox_id: work_id)
+        assert_flag_enabled_msgs('recent'  ,                    mbox_id: work_id)
+        assert_mbox_flag_num(flagged: 6,                        mbox_id: work_id)
+        assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
+      }
     end
 
     def test_command_loop_copy_utf7_mbox_name
-      add_msg('Hello world.')
-      utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
+      utf8_name_mbox_id = nil
+      open_mail_store{
+        add_msg('Hello world.')
+        utf8_name_mbox_id = @mail_store.add_mbox(UTF8_MBOX_NAME)
 
-      assert_msg_uid(1)
-      assert_msg_uid(mbox_id: utf8_name_mbox_id)
+        assert_msg_uid(1)
+        assert_msg_uid(mbox_id: utf8_name_mbox_id)
+      }
 
       cmd_txt = <<-"EOF".b
 LOGIN foo open_sesame
@@ -5406,13 +5878,17 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(1)
-      assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
-      assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
+      open_mail_store{
+        assert_msg_uid(1)
+        assert_msg_uid(1, mbox_id: utf8_name_mbox_id)
+        assert_equal('Hello world.', get_msg_text(1, mbox_id: utf8_name_mbox_id))
+      }
     end
 
     def test_command_loop_noop
-      add_msg('')
+      open_mail_store{
+        add_msg('')
+      }
 
       cmd_txt = <<-'EOF'.b
 NOOP
@@ -5450,7 +5926,9 @@ LOGOUT
     end
 
     def test_command_loop_error_handling
-      add_msg('')
+      open_mail_store{
+        add_msg('')
+      }
 
       cmd_txt = <<-'EOF'.b
 SYNTAX_ERROR
@@ -5471,11 +5949,9 @@ T004 NOOP DETARAME
     end
 
     def test_command_loop_db_recovery
-      reload_mail_store{
-        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
-        meta_db.dirty = true
-        meta_db.close
-      }
+      meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
+      meta_db.dirty = true
+      meta_db.close
 
       cmd_txt = <<-'EOF'.b
 LOGIN foo open_sesame
@@ -5555,19 +6031,19 @@ LOGOUT
         assert.equal("#{tag!} OK LOGOUT completed")
       }
 
-      assert_msg_uid(1, 2)
-      assert_equal('a', get_msg_text(1))
-      assert_equal('b', get_msg_text(2))
-      assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(2))
-      assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+      open_mail_store{
+        assert_msg_uid(1, 2)
+        assert_equal('a', get_msg_text(1))
+        assert_equal('b', get_msg_text(2))
+        assert_equal(Time.utc(1975, 11, 19, 3, 34, 56), get_msg_date(2))
+        assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
+      }
     end
 
     def test_command_loop_mail_delivery_user_db_recovery
-      reload_mail_store{
-        meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
-        meta_db.dirty = true
-        meta_db.close
-      }
+      meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
+      meta_db.dirty = true
+      meta_db.close
 
       cmd_txt = <<-'EOF'.b
 CAPABILITY
