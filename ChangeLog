@@ -1,3 +1,7 @@
+2016-06-26  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/auth.rb: a unique user ID should not be modified.
+
 2016-06-05  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol.rb, lib/rims/rfc822.rb,
