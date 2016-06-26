@@ -26,14 +26,17 @@ module RIMS::Test
     def test_unique_user_id
       id1 = RIMS::Authentication.unique_user_id(@username)
       assert_instance_of(String, id1)
+      assert_true(id1.frozen?)
       refute(id1.empty?)
 
       id2 = RIMS::Authentication.unique_user_id(@username)
       assert_instance_of(String, id2)
+      assert_true(id2.frozen?)
       refute(id2.empty?)
 
       id3 = RIMS::Authentication.unique_user_id(@username.succ)
       assert_instance_of(String, id3)
+      assert_true(id3.frozen?)
       refute(id3.empty?)
 
       assert(id2.bytesize == id1.bytesize)

@@ -10,7 +10,7 @@ module RIMS
 
     class << self
       def unique_user_id(username)
-        Digest::SHA256.hexdigest(username)
+        Digest::SHA256.hexdigest(username).freeze
       end
 
       def make_time_source
