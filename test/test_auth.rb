@@ -37,7 +37,7 @@ module RIMS::Test
       refute(id3.empty?)
 
       assert(id2.bytesize == id1.bytesize)
-      assert(id3.bytesize == id3.bytesize)
+      assert(id3.bytesize == id1.bytesize)
 
       assert(id2 == id1)
       assert(id3 != id1)
