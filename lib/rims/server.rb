@@ -455,11 +455,7 @@ module RIMS
             begin
               @logger.info("accept client: #{ipaddr_log(cl_sock.peeraddr(false))}")
               decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger, mail_delivery_user: @mail_delivery_user)
-              begin
-                Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
-              ensure
-                Error.suppress_2nd_error_at_resource_closing(logger: @logger) { decoder.cleanup }
-              end
+              Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
             ensure
               Error.suppress_2nd_error_at_resource_closing(logger: @logger) { cl_sock.close }
             end

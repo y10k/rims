@@ -1,3 +1,11 @@
+2016-06-29  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb: fixed a bug of protocol decoder chain
+	cleanup. cleanup method should be called from last decoder of
+	chain. the bug is that cleanup method was called from first
+	decoder of chain. therefor next decoders cleanup method was not
+	called.
+
 2016-06-26  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/auth.rb: a unique user ID should not be modified.

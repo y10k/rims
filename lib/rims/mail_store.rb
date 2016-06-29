@@ -517,8 +517,9 @@ module RIMS
       attr_reader :unique_user_id
       attr_reader :user_lock
 
-      def return_pool
-        @parent_pool.put(self)
+      # optional block is called when a mail store is closed.
+      def return_pool(&block)   # yields:
+        @parent_pool.put(self, &block)
         nil
       end
     end
@@ -552,12 +553,14 @@ module RIMS
     end
     private :new_mail_store
 
-    def get(unique_user_id)
+    # optional block is called when a new mail store is opened.
+    def get(unique_user_id)     # yields:
       user_lock = @pool_lock.synchronize{ @user_lock_map[unique_user_id] }
       user_lock.synchronize{
         if (@pool_map.key? unique_user_id) then
           ref_count_entry = @pool_map[unique_user_id]
         else
+          yield if block_given?
           mail_store = new_mail_store(unique_user_id)
           holder = Holder.new(self, mail_store, unique_user_id, user_lock)
           ref_count_entry = RefCountEntry.new(0, holder)
@@ -571,7 +574,8 @@ module RIMS
       }
     end
 
-    def put(mail_store_holder)
+    # optional block is called when a mail store is closed.
+    def put(mail_store_holder)  # yields:
       user_lock = @pool_lock.synchronize{ @user_lock_map[mail_store_holder.unique_user_id] }
       user_lock.synchronize{
         ref_count_entry = @pool_map[mail_store_holder.unique_user_id] or raise 'internal error.'
@@ -582,6 +586,7 @@ module RIMS
         if (ref_count_entry.count == 0) then
           @pool_map.delete(mail_store_holder.unique_user_id)
           ref_count_entry.mail_store_holder.mail_store.close
+          yield if block_given?
         end
       }
       nil

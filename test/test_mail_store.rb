@@ -577,6 +577,132 @@ module RIMS::Test
       mail_store.close
     end
   end
+
+  class MailStorePoolRefCountTest < Test::Unit::TestCase
+    def setup
+      @kvs = Hash.new{|h, k| h[k] = {} }
+      @kvs_open = proc{|mbox_version, unique_user_id, db_name|
+        RIMS::Hash_KeyValueStore.new(@kvs["#{mbox_version}/#{unique_user_id[0, 7]}/#{db_name}"])
+      }
+      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
+    end
+
+    def teardown
+      pp @kvs if $DEBUG
+    end
+
+    def assert_call_hook
+      call_count = 0
+      yield(proc{ call_count += 1 })
+      assert_equal(1, call_count, 'a hook should be called once.')
+    end
+    private :assert_call_hook
+
+    def test_get
+      unique_user_id = RIMS::Authentication.unique_user_id('foo')
+      assert_call_hook{|hook|
+        @mail_store_pool.get(unique_user_id) { hook.call }
+      }
+    end
+
+    def test_get2
+      unique_user_id = RIMS::Authentication.unique_user_id('foo')
+      @mail_store_pool.get(unique_user_id)
+      @mail_store_pool.get(unique_user_id) { flunk }
+    end
+
+    def test_get_multiuser
+      unique_user_id = RIMS::Authentication.unique_user_id('foo')
+      unique_user_id2 = RIMS::Authentication.unique_user_id('bar')
+
+      assert_call_hook{|hook|
+        @mail_store_pool.get(unique_user_id) { hook.call }
+      }
+      assert_call_hook{|hook|
+        @mail_store_pool.get(unique_user_id2) { hook.call }
+      }
+
+      @mail_store_pool.get(unique_user_id) { flunk }
+      @mail_store_pool.get(unique_user_id2) { flunk }
+    end
+
+    def test_return_pool
+      unique_user_id = RIMS::Authentication.unique_user_id('foo')
+
+      holder = @mail_store_pool.get(unique_user_id)
+      assert_call_hook{|hook|
+        holder.return_pool{ hook.call }
+      }
+    end
+
+    def test_return_pool2
+      unique_user_id = RIMS::Authentication.unique_user_id('foo')
+
+      holders = []
+      holders << @mail_store_pool.get(unique_user_id)
+      holders << @mail_store_pool.get(unique_user_id)
+      holders << @mail_store_pool.get(unique_user_id)
+
+      holders.pop.return_pool{ flunk }
+      holders.shift.return_pool{ flunk }
+      assert_call_hook{|hook|
+        holders.pop.return_pool{ hook.call }
+      }
+    end
+
+    def test_return_pool_multiuser
+      unique_user_id = RIMS::Authentication.unique_user_id('foo')
+      unique_user_id2 = RIMS::Authentication.unique_user_id('bar')
+
+      holders = []
+      holders << @mail_store_pool.get(unique_user_id)
+      holders << @mail_store_pool.get(unique_user_id)
+      holders << @mail_store_pool.get(unique_user_id)
+
+      holders2 = []
+      holders2 << @mail_store_pool.get(unique_user_id2)
+      holders2 << @mail_store_pool.get(unique_user_id2)
+      holders2 << @mail_store_pool.get(unique_user_id2)
+
+      holders.pop.return_pool{ flunk }
+      holders2.shift.return_pool{ flunk }
+      holders.pop.return_pool{ flunk }
+      holders2.shift.return_pool{ flunk }
+      assert_call_hook{|hook|
+        holders2.shift.return_pool{ hook.call }
+      }
+      assert_call_hook{|hook|
+        holders.pop.return_pool{ hook.call }
+      }
+    end
+
+    def test_cycle
+      unique_user_id = RIMS::Authentication.unique_user_id('foo')
+
+      holders = []
+      assert_call_hook{|hook|
+        holders << @mail_store_pool.get(unique_user_id) { hook.call }
+      }
+      holders << @mail_store_pool.get(unique_user_id) { flunk }
+      holders << @mail_store_pool.get(unique_user_id) { flunk }
+
+      holders.pop.return_pool{ flunk }
+      holders.pop.return_pool{ flunk }
+      assert_call_hook{|hook|
+        holders.pop.return_pool{ hook.call }
+      }
+
+      assert_call_hook{|hook|
+        holders << @mail_store_pool.get(unique_user_id) { hook.call }
+      }
+      holders << @mail_store_pool.get(unique_user_id) { flunk }
+
+      holders.shift.return_pool{ flunk }
+      assert_call_hook{|hook|
+        holders.shift.return_pool{ hook.call }
+      }
+    end
+  end
 end
 
 # Local Variables:

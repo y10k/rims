@@ -1285,6 +1285,8 @@ module RIMS
         end
 
         nil
+      ensure
+        Error.suppress_2nd_error_at_resource_closing(logger: logger) { decoder.cleanup }
       end
 
       def initialize(auth, logger)
@@ -1327,7 +1329,9 @@ module RIMS
       def fetch_mail_store_holder_and_on_demand_recovery(username)
         unique_user_id = Authentication.unique_user_id(username)
         @logger.debug("unique user ID: #{username} -> #{unique_user_id}") if @logger.debug?
-        mail_store_holder = @mail_store_pool.get(unique_user_id)
+        mail_store_holder = @mail_store_pool.get(unique_user_id) {
+          @logger.info("open mail store: #{unique_user_id} [ #{username} ]")
+        }
         if (mail_store_holder.mail_store.abort_transaction?) then
           @logger.warn("user data recovery start: #{username}")
           yield("* OK [ALERT] start user data recovery.\r\n")
@@ -1555,7 +1559,9 @@ module RIMS
 
       def cleanup
         unless (@mail_store_holder.nil?) then
-          @mail_store_holder.return_pool
+          @mail_store_holder.return_pool{
+            @logger.info("close mail store: #{@mail_store_holder.unique_user_id}")
+          }
           @mail_store_holder = nil
         end
 
@@ -2218,7 +2224,9 @@ module RIMS
           mail_store_holder = @last_user_cache_value_mail_store_holder
           @last_user_cache_key_username = nil
           @last_user_cache_value_mail_store_holder = nil
-          mail_store_holder.return_pool
+          mail_store_holder.return_pool{
+            @logger.info("close cached mail store to deliver message: #{mail_store_holder.unique_user_id}")
+          }
         end
       end
       private :release_user_mail_store_holder
