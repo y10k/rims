@@ -14,7 +14,7 @@ module RIMS
     def parse_header(header_txt)
       field_pair_list = header_txt.scan(%r{
         ^
-        ((?#name) \S+ )
+        ((?#name) \S+? )
         \s* : \s*
         (
            (?#value)

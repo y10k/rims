@@ -122,6 +122,11 @@ module RIMS::Test
 
       field_pair_list = RIMS::RFC822.parse_header('foo'.b)
       assert_equal(0, field_pair_list.length)
+
+      field_pair_list = RIMS::RFC822.parse_header('foo:bar:baz'.b)
+      assert_equal(1, field_pair_list.length)
+      assert_strenc_equal('ascii-8bit', 'foo', field_pair_list[0][0])
+      assert_strenc_equal('ascii-8bit', 'bar:baz', field_pair_list[0][1])
     end
 
     def test_parse_content_type
