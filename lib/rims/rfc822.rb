@@ -13,10 +13,14 @@ module RIMS
 
     def parse_header(header_txt)
       field_pair_list = header_txt.scan(%r{
-        ^((?#name) \S+ ) \s* : \s* ((?#value)
-                                    .*? (?: \n|\z)
-                                    (?: ^\s .*? (?: \n|\z) )*
-                                   )
+        ^
+        ((?#name) \S+ )
+        \s* : \s*
+        (
+           (?#value)
+           .*? (?: \n|\z)
+           (?: ^\s .*? (?: \n|\z) )*
+        )
       }x)
 
       for _name, value in field_pair_list
