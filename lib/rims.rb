@@ -13,7 +13,9 @@ module RIMS
   autoload :GDBM_KeyValueStore, 'rims/gdbm_kvs'
   autoload :GlobalDB, 'rims/db'
   autoload :Hash_KeyValueStore, 'rims/hash_kvs'
+  autoload :IllegalLockError, 'rims/lock'
   autoload :KeyValueStore, 'rims/kvs'
+  autoload :LockError, 'rims/lock'
   autoload :MailFolder, 'rims/mail_store'
   autoload :MailStore, 'rims/mail_store'
   autoload :MailStorePool, 'rims/mail_store'
@@ -25,9 +27,14 @@ module RIMS
   autoload :Protocol, 'rims/protocol'
   autoload :ProtocolError, 'rims/error'
   autoload :RFC822, 'rims/rfc822'
+  autoload :ReadLockError, 'rims/lock'
+  autoload :ReadLockTimeoutError, 'rims/lock'
+  autoload :ReadWriteLock, 'rims/lock'
   autoload :Server, 'rims/server'
   autoload :SyntaxError, 'rims/error'
   autoload :Test, 'rims/test'
+  autoload :WriteLockError, 'rims/lock'
+  autoload :WriteLockTimeoutError, 'rims/lock'
 end
 
 # Local Variables:
