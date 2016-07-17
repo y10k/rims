@@ -187,14 +187,16 @@ module RIMS::Test
     private :assert_imap_command
 
     def execute_imap_command(cmd_method_symbol, tag, cmd_str_args)
-      response_lines = @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args)
-      yield(response_lines.each)
+      @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args) {|response_lines|
+        yield(response_lines.each)
+      }
     end
     private :execute_imap_command
 
     def execute_imap_command_with_options(cmd_method_symbol, tag, cmd_str_args, cmd_opts)
-      response_lines = @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args, **cmd_opts)
-      yield(response_lines.each)
+      @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args, **cmd_opts) {|response_lines|
+        yield(response_lines.each)
+      }
     end
     private :execute_imap_command_with_options
 
@@ -202,8 +204,9 @@ module RIMS::Test
       input = StringIO.new(client_response_input_text, 'r')
       output = StringIO.new('', 'w')
 
-      response_lines = @decoder.authenticate(input, output, tag, *cmd_str_args)
-      ret_val = yield(response_lines.each)
+      ret_val = @decoder.authenticate(input, output, tag, *cmd_str_args) {|response_lines|
+        yield(response_lines.each)
+      }
 
       if ($DEBUG) then
         pp input.string, output.string
@@ -214,8 +217,9 @@ module RIMS::Test
     private :execute_imap_command_authenticate
 
     def execute_imap_command_login(tag, cmd_str_args)
-      response_lines = @decoder.login(tag, *cmd_str_args)
-      yield(response_lines.each)
+      @decoder.login(tag, *cmd_str_args) {|response_lines|
+        yield(response_lines.each)
+      }
     end
     private :execute_imap_command_login
 
