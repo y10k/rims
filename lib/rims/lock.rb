@@ -107,6 +107,9 @@ module RIMS
         write_unlock
       end
     end
+
+    # compatible for Thread::Mutex
+    alias synchronize write_synchronize
   end
 end
 

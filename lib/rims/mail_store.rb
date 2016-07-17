@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'forwardable'
 require 'logger'
 require 'set'
 require 'thread'
@@ -506,6 +507,8 @@ module RIMS
     RefCountEntry = Struct.new(:count, :mail_store_holder)
 
     class Holder
+      extend Forwardable
+
       def initialize(parent_pool, mail_store, unique_user_id, user_lock)
         @parent_pool = parent_pool
         @mail_store = mail_store
@@ -516,6 +519,9 @@ module RIMS
       attr_reader :mail_store
       attr_reader :unique_user_id
       attr_reader :user_lock
+
+      def_delegator :@user_lock, :read_synchronize
+      def_delegator :@user_lock, :write_synchronize
 
       # optional block is called when a mail store is closed.
       def return_pool(&block)   # yields:
@@ -529,7 +535,7 @@ module RIMS
       @kvs_open_text = kvs_open_text
       @pool_map = {}
       @pool_lock = Mutex.new
-      @user_lock_map = Hash.new{|hash, key| hash[key] = Mutex.new }
+      @user_lock_map = Hash.new{|hash, key| hash[key] = ReadWriteLock.new }
     end
 
     def empty?
@@ -556,7 +562,7 @@ module RIMS
     # optional block is called when a new mail store is opened.
     def get(unique_user_id)     # yields:
       user_lock = @pool_lock.synchronize{ @user_lock_map[unique_user_id] }
-      user_lock.synchronize{
+      user_lock.write_synchronize{
         if (@pool_map.key? unique_user_id) then
           ref_count_entry = @pool_map[unique_user_id]
         else
@@ -576,8 +582,7 @@ module RIMS
 
     # optional block is called when a mail store is closed.
     def put(mail_store_holder)  # yields:
-      user_lock = @pool_lock.synchronize{ @user_lock_map[mail_store_holder.unique_user_id] }
-      user_lock.synchronize{
+      mail_store_holder.write_synchronize{
         ref_count_entry = @pool_map[mail_store_holder.unique_user_id] or raise 'internal error.'
         if (ref_count_entry.count < 1) then
           raise 'internal error.'
