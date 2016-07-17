@@ -1172,7 +1172,7 @@ module RIMS
           end
         }
 
-        response_write.call(decoder.ok_greeting)
+        decoder.ok_greeting{|res| response_write.call(res) }
 
         request_reader = Protocol::RequestReader.new(input, output, logger)
         loop do
@@ -1194,51 +1194,51 @@ module RIMS
           begin
             case (command.upcase)
             when 'CAPABILITY'
-              res = decoder.capability(tag, *opt_args)
+              decoder.capability(tag, *opt_args) {|res| response_write.call(res) }
             when 'NOOP'
-              res = decoder.noop(tag, *opt_args)
+              decoder.noop(tag, *opt_args) {|res| response_write.call(res) }
             when 'LOGOUT'
-              res = decoder.logout(tag, *opt_args)
+              decoder.logout(tag, *opt_args) {|res| response_write.call(res) }
             when 'AUTHENTICATE'
-              res = decoder.authenticate(input, output, tag, *opt_args)
+              decoder.authenticate(input, output, tag, *opt_args) {|res| response_write.call(res) }
             when 'LOGIN'
-              res = decoder.login(tag, *opt_args)
+              decoder.login(tag, *opt_args) {|res| response_write.call(res) }
             when 'SELECT'
-              res = decoder.select(tag, *opt_args)
+              decoder.select(tag, *opt_args) {|res| response_write.call(res) }
             when 'EXAMINE'
-              res = decoder.examine(tag, *opt_args)
+              decoder.examine(tag, *opt_args) {|res| response_write.call(res) }
             when 'CREATE'
-              res = decoder.create(tag, *opt_args)
+              decoder.create(tag, *opt_args) {|res| response_write.call(res) }
             when 'DELETE'
-              res = decoder.delete(tag, *opt_args)
+              decoder.delete(tag, *opt_args) {|res| response_write.call(res) }
             when 'RENAME'
-              res = decoder.rename(tag, *opt_args)
+              decoder.rename(tag, *opt_args) {|res| response_write.call(res) }
             when 'SUBSCRIBE'
-              res = decoder.subscribe(tag, *opt_args)
+              decoder.subscribe(tag, *opt_args) {|res| response_write.call(res) }
             when 'UNSUBSCRIBE'
-              res = decoder.unsubscribe(tag, *opt_args)
+              decoder.unsubscribe(tag, *opt_args) {|res| response_write.call(res) }
             when 'LIST'
-              res = decoder.list(tag, *opt_args)
+              decoder.list(tag, *opt_args) {|res| response_write.call(res) }
             when 'LSUB'
-              res = decoder.lsub(tag, *opt_args)
+              decoder.lsub(tag, *opt_args) {|res| response_write.call(res) }
             when 'STATUS'
-              res = decoder.status(tag, *opt_args)
+              decoder.status(tag, *opt_args) {|res| response_write.call(res) }
             when 'APPEND'
-              res = decoder.append(tag, *opt_args)
+              decoder.append(tag, *opt_args) {|res| response_write.call(res) }
             when 'CHECK'
-              res = decoder.check(tag, *opt_args)
+              decoder.check(tag, *opt_args) {|res| response_write.call(res) }
             when 'CLOSE'
-              res = decoder.close(tag, *opt_args)
+              decoder.close(tag, *opt_args) {|res| response_write.call(res) }
             when 'EXPUNGE'
-              res = decoder.expunge(tag, *opt_args)
+              decoder.expunge(tag, *opt_args) {|res| response_write.call(res) }
             when 'SEARCH'
-              res = decoder.search(tag, *opt_args)
+              decoder.search(tag, *opt_args) {|res| response_write.call(res) }
             when 'FETCH'
-              res = decoder.fetch(tag, *opt_args)
+              decoder.fetch(tag, *opt_args) {|res| response_write.call(res) }
             when 'STORE'
-              res = decoder.store(tag, *opt_args)
+              decoder.store(tag, *opt_args) {|res| response_write.call(res) }
             when 'COPY'
-              res = decoder.copy(tag, *opt_args)
+              decoder.copy(tag, *opt_args) {|res| response_write.call(res) }
             when 'UID'
               unless (opt_args.empty?) then
                 uid_command, *uid_args = opt_args
@@ -1246,36 +1246,34 @@ module RIMS
                 logger.debug("uid parameter: #{uid_args}") if logger.debug?
                 case (uid_command.upcase)
                 when 'SEARCH'
-                  res = decoder.search(tag, *uid_args, uid: true)
+                  decoder.search(tag, *uid_args, uid: true) {|res| response_write.call(res) }
                 when 'FETCH'
-                  res = decoder.fetch(tag, *uid_args, uid: true)
+                  decoder.fetch(tag, *uid_args, uid: true) {|res| response_write.call(res) }
                 when 'STORE'
-                  res = decoder.store(tag, *uid_args, uid: true)
+                  decoder.store(tag, *uid_args, uid: true) {|res| response_write.call(res) }
                 when 'COPY'
-                  res = decoder.copy(tag, *uid_args, uid: true)
+                  decoder.copy(tag, *uid_args, uid: true) {|res| response_write.call(res) }
                 else
                   logger.error("unknown uid command: #{uid_command}")
-                  res = [ "#{tag} BAD unknown uid command\r\n" ]
+                  response_write.call([ "#{tag} BAD unknown uid command\r\n" ])
                 end
               else
                 logger.error('empty uid parameter.')
-                res = [ "#{tag} BAD empty uid parameter\r\n" ]
+                response_write.call([ "#{tag} BAD empty uid parameter\r\n" ])
               end
             else
               logger.error("unknown command: #{command}")
-              res = [ "#{tag} BAD unknown command\r\n" ]
+              response_write.call([ "#{tag} BAD unknown command\r\n" ])
             end
           rescue ArgumentError
             logger.error('invalid command parameter.')
             logger.error($!)
-            res = [ "#{tag} BAD invalid command parameter\r\n" ]
+            response_write.call([ "#{tag} BAD invalid command parameter\r\n" ])
           rescue
             logger.error('internal server error.')
             logger.error($!)
-            res = [ "#{tag} BAD internal server error\r\n" ]
+            response_write.call([ "#{tag} BAD internal server error\r\n" ])
           end
-
-          response_write.call(res)
 
           if (command.upcase == 'LOGOUT') then
             break
@@ -1294,17 +1292,17 @@ module RIMS
         @logger = logger
       end
 
-      def protect_error(tag)
+      def protect_error(tag, block)
         begin
           yield
         rescue SyntaxError
           @logger.error('client command syntax error.')
           @logger.error($!)
-          [ "#{tag} BAD client command syntax error\r\n" ]
+          block.call([ "#{tag} BAD client command syntax error\r\n" ])
         rescue
           @logger.error('internal server error.')
           @logger.error($!)
-          [ "#{tag} BAD internal server error\r\n" ]
+          block.call([ "#{tag} BAD internal server error\r\n" ])
         end
       end
       private :protect_error
@@ -1344,7 +1342,7 @@ module RIMS
       private :fetch_mail_store_holder_and_on_demand_recovery
 
       def ok_greeting
-        [ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ]
+        yield([ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ])
       end
 
       def capability(tag)
@@ -1353,6 +1351,7 @@ module RIMS
         res = []
         res << "* CAPABILITY #{capability_list.join(' ')}\r\n"
         res << "#{tag} OK CAPABILITY completed\r\n"
+        yield(res)
       end
 
       def next_decoder
@@ -1389,18 +1388,19 @@ module RIMS
       end
       private :not_authenticated_response
 
-      def noop(tag)
-        protect_error(tag) {
-          [ "#{tag} OK NOOP completed\r\n" ]
+      def noop(tag, &block)
+        protect_error(tag, block) {
+          yield([ "#{tag} OK NOOP completed\r\n" ])
         }
       end
 
-      def logout(tag)
-        protect_error(tag) {
+      def logout(tag, &block)
+        protect_error(tag, block) {
           cleanup
           res = []
           res << "* BYE server logout\r\n"
           res << "#{tag} OK LOGOUT completed\r\n"
+          yield(res)
         }
       end
 
@@ -1419,124 +1419,124 @@ module RIMS
       private :accept_authentication
 
       def authenticate(client_response_input_stream, server_challenge_output_stream,
-                       tag, auth_type, inline_client_response_data_base64=nil)
-        protect_error(tag) {
+                       tag, auth_type, inline_client_response_data_base64=nil, &block)
+        protect_error(tag, block) {
           auth_reader = AuthenticationReader.new(@auth, client_response_input_stream, server_challenge_output_stream, @logger)
           if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
             if (username != :*) then
-              return response_stream(tag) {|res|
+              yield response_stream(tag) {|res|
                 @logger.info("authentication OK: #{username}")
                 @next_decoder = accept_authentication(username) {|msg| res << msg }
                 res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
               }
             else
               @logger.info('bad authentication.')
-              return [ "#{tag} BAD AUTHENTICATE failed\r\n" ]
+              yield([ "#{tag} BAD AUTHENTICATE failed\r\n" ])
             end
           else
-            return [ "#{tag} NO authentication failed\r\n" ]
+            yield([ "#{tag} NO authentication failed\r\n" ])
           end
         }
       end
 
-      def login(tag, username, password)
-        protect_error(tag) {
+      def login(tag, username, password, &block)
+        protect_error(tag, block) {
           if (@auth.authenticate_login(username, password)) then
-            return response_stream(tag) {|res|
+            yield response_stream(tag) {|res|
               @logger.info("login authentication OK: #{username}")
               @next_decoder = accept_authentication(username) {|msg| res << msg }
               res << "#{tag} OK LOGIN completed\r\n"
             }
           else
-            return [ "#{tag} NO failed to login\r\n" ]
+            yield([ "#{tag} NO failed to login\r\n" ])
           end
         }
       end
 
       def select(tag, mbox_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def examine(tag, mbox_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def create(tag, mbox_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def delete(tag, mbox_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def rename(tag, src_name, dst_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def subscribe(tag, mbox_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def unsubscribe(tag, mbox_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def list(tag, ref_name, mbox_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def lsub(tag, ref_name, mbox_name)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def status(tag, mbox_name, data_item_group)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def append(tag, mbox_name, *opt_args, msg_text)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def check(tag)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def close(tag)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def expunge(tag)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def search(tag, *cond_args, uid: false)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def fetch(tag, msg_set, data_item_group, uid: false)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
 
       def copy(tag, msg_set, mbox_name, uid: false)
-        not_authenticated_response(tag)
+        yield(not_authenticated_response(tag))
       end
     end
 
     class AuthenticatedDecoder < Decoder
       def authenticate(client_response_input_stream, server_challenge_output_stream,
-                       tag, auth_type, inline_client_response_data_base64=nil)
-        protect_error(tag) {
-          [ "#{tag} NO duplicated authentication\r\n" ]
+                       tag, auth_type, inline_client_response_data_base64=nil, &block)
+        protect_error(tag, block) {
+          yield([ "#{tag} NO duplicated authentication\r\n" ])
         }
       end
 
-      def login(tag, username, password)
-        protect_error(tag) {
-          [ "#{tag} NO duplicated login\r\n" ]
+      def login(tag, username, password, &block)
+        protect_error(tag, block) {
+          yield([ "#{tag} NO duplicated login\r\n" ])
         }
       end
     end
@@ -1578,8 +1578,8 @@ module RIMS
       end
       private :get_mail_store
 
-      def protect_auth(tag, lock: true)
-        protect_error(tag) {
+      def protect_auth(tag, block, lock: true)
+        protect_error(tag, block) {
           if (auth?) then
             if (lock) then
               @mail_store_holder.user_lock.synchronize{ yield }
@@ -1587,18 +1587,18 @@ module RIMS
               yield
             end
           else
-            [ "#{tag} NO not authenticated\r\n" ]
+            block.call([ "#{tag} NO not authenticated\r\n" ])
           end
         }
       end
       private :protect_auth
 
-      def protect_select(tag, lock: true)
-        protect_auth(tag, lock: lock) {
+      def protect_select(tag, block, lock: true)
+        protect_auth(tag, block, lock: lock) {
           if (selected?) then
             yield
           else
-            [ "#{tag} NO not selected\r\n" ]
+            block.call([ "#{tag} NO not selected\r\n" ])
           end
         }
       end
@@ -1619,8 +1619,8 @@ module RIMS
       end
       private :lock_folder
 
-      def noop(tag)
-        protect_error(tag) {
+      def noop(tag, &block)
+        protect_error(tag, block) {
           res = []
           if (auth? && selected?) then
             lock_folder{
@@ -1630,11 +1630,12 @@ module RIMS
             }
           end
           res << "#{tag} OK NOOP completed\r\n"
+          yield(res)
         }
       end
 
-      def logout(tag)
-        protect_error(tag) {
+      def logout(tag, &block)
+        protect_error(tag, block) {
           if (auth? && selected?) then
             lock_folder{
               @folder.reload if @folder.updated?
@@ -1646,6 +1647,7 @@ module RIMS
           res = []
           res << "* BYE server logout\r\n"
           res << "#{tag} OK LOGOUT completed\r\n"
+          yield(res)
         }
       end
 
@@ -1662,8 +1664,8 @@ module RIMS
       end
       private :folder_open_msgs
 
-      def select(tag, mbox_name)
-        protect_auth(tag) {
+      def select(tag, mbox_name, &block)
+        protect_auth(tag, block) {
           res = []
           @folder = nil
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
@@ -1676,11 +1678,12 @@ module RIMS
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
+          yield(res)
         }
       end
 
-      def examine(tag, mbox_name)
-        protect_auth(tag) {
+      def examine(tag, mbox_name, &block)
+        protect_auth(tag, block) {
           res = []
           @folder = nil
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
@@ -1693,11 +1696,12 @@ module RIMS
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
+          yield(res)
         }
       end
 
-      def create(tag, mbox_name)
-        protect_auth(tag) {
+      def create(tag, mbox_name, &block)
+        protect_auth(tag, block) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (get_mail_store.mbox_id(mbox_name_utf8)) then
@@ -1706,11 +1710,12 @@ module RIMS
             get_mail_store.add_mbox(mbox_name_utf8)
             res << "#{tag} OK CREATE completed\r\n"
           end
+          yield(res)
         }
       end
 
-      def delete(tag, mbox_name)
-        protect_auth(tag) {
+      def delete(tag, mbox_name, &block)
+        protect_auth(tag, block) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
@@ -1723,44 +1728,45 @@ module RIMS
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
+          yield(res)
         }
       end
 
-      def rename(tag, src_name, dst_name)
-        protect_auth(tag) {
+      def rename(tag, src_name, dst_name, &block)
+        protect_auth(tag, block) {
           src_name_utf8 = Net::IMAP.decode_utf7(src_name)
           dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
           unless (id = get_mail_store.mbox_id(src_name_utf8)) then
-            return [ "#{tag} NO not found a mailbox\r\n" ]
+            return yield([ "#{tag} NO not found a mailbox\r\n" ])
           end
           if (id == get_mail_store.mbox_id('INBOX')) then
-            return [ "#{tag} NO not rename inbox\r\n"]
+            return yield([ "#{tag} NO not rename inbox\r\n"])
           end
           if (get_mail_store.mbox_id(dst_name_utf8)) then
-            return [ "#{tag} NO duplicated mailbox\r\n" ]
+            return yield([ "#{tag} NO duplicated mailbox\r\n" ])
           end
           get_mail_store.rename_mbox(id, dst_name_utf8)
-          [ "#{tag} OK RENAME completed\r\n" ]
+          return yield([ "#{tag} OK RENAME completed\r\n" ])
         }
       end
 
-      def subscribe(tag, mbox_name)
-        protect_auth(tag) {
+      def subscribe(tag, mbox_name, &block)
+        protect_auth(tag, block) {
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (_mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
-            [ "#{tag} OK SUBSCRIBE completed\r\n" ]
+            yield([ "#{tag} OK SUBSCRIBE completed\r\n" ])
           else
-            [ "#{tag} NO not found a mailbox\r\n" ]
+            yield([ "#{tag} NO not found a mailbox\r\n" ])
           end
         }
       end
 
-      def unsubscribe(tag, mbox_name)
-        protect_auth(tag) {
+      def unsubscribe(tag, mbox_name, &block)
+        protect_auth(tag, block) {
           if (_mbox_id = get_mail_store.mbox_id(mbox_name)) then
-            [ "#{tag} NO not implemented subscribe/unsbscribe command\r\n" ]
+            yield([ "#{tag} NO not implemented subscribe/unsbscribe command\r\n" ])
           else
-            [ "#{tag} NO not found a mailbox\r\n" ]
+            yield([ "#{tag} NO not found a mailbox\r\n" ])
           end
         }
       end
@@ -1789,8 +1795,8 @@ module RIMS
       end
       private :list_mbox
 
-      def list(tag, ref_name, mbox_name)
-        protect_auth(tag) {
+      def list(tag, ref_name, mbox_name, &block)
+        protect_auth(tag, block) {
           res = []
           if (mbox_name.empty?) then
             res << "* LIST (\\Noselect) NIL \"\"\r\n"
@@ -1800,11 +1806,12 @@ module RIMS
             end
           end
           res << "#{tag} OK LIST completed\r\n"
+          yield(res)
         }
       end
 
-      def lsub(tag, ref_name, mbox_name)
-        protect_auth(tag) {
+      def lsub(tag, ref_name, mbox_name, &block)
+        protect_auth(tag, block) {
           res = []
           if (mbox_name.empty?) then
             res << "* LSUB (\\Noselect) NIL \"\"\r\n"
@@ -1814,11 +1821,12 @@ module RIMS
             end
           end
           res << "#{tag} OK LSUB completed\r\n"
+          yield(res)
         }
       end
 
-      def status(tag, mbox_name, data_item_group)
-        protect_auth(tag) {
+      def status(tag, mbox_name, data_item_group, &block)
+        protect_auth(tag, block) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
@@ -1850,11 +1858,12 @@ module RIMS
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
+          yield(res)
         }
       end
 
-      def append(tag, mbox_name, *opt_args, msg_text)
-        protect_auth(tag) {
+      def append(tag, mbox_name, *opt_args, msg_text, &block)
+        protect_auth(tag, block) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
@@ -1893,7 +1902,7 @@ module RIMS
             end
 
             unless (opt_args.empty?) then
-              raise SyntaxError, 'unknown option.'
+              raise SyntaxError, "unknown option: #{opt_args.inspect}"
             end
 
             uid = get_mail_store.add_msg(mbox_id, msg_text, msg_date)
@@ -1905,30 +1914,31 @@ module RIMS
           else
             res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end
+          yield(res)
         }
       end
 
-      def check(tag)
-        protect_select(tag) {
+      def check(tag, &block)
+        protect_select(tag, block) {
           get_mail_store.sync
-          [ "#{tag} OK CHECK completed\r\n" ]
+          yield([ "#{tag} OK CHECK completed\r\n" ])
         }
       end
 
-      def close(tag)
-        protect_select(tag) {
+      def close(tag, &block)
+        protect_select(tag, block) {
           get_mail_store.sync
           if (@folder) then
             @folder.reload if @folder.updated?
             @folder.close
             @folder = nil
           end
-          [ "#{tag} OK CLOSE completed\r\n" ]
+          yield([ "#{tag} OK CLOSE completed\r\n" ])
         }
       end
 
-      def expunge(tag)
-        protect_select(tag) {
+      def expunge(tag, &block)
+        protect_select(tag, block) {
           unless (@folder.read_only?) then
             @folder.reload if @folder.updated?
 
@@ -1937,20 +1947,20 @@ module RIMS
               msg_num_list << msg_num
             end
 
-            response_stream(tag) {|res|
+            yield response_stream(tag) {|res|
               for msg_num in msg_num_list
                 res << "* #{msg_num} EXPUNGE\r\n"
               end
               res << "#{tag} OK EXPUNGE completed\r\n"
             }
           else
-            [ "#{tag} NO cannot expunge in read-only mode\r\n" ]
+            yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ])
           end
         }
       end
 
-      def search(tag, *cond_args, uid: false)
-        protect_select(tag, lock: false) {
+      def search(tag, *cond_args,uid: false, &block)
+        protect_select(tag, block, lock: false) {
           cond = nil
           msg_src = nil
 
@@ -1989,7 +1999,7 @@ module RIMS
             cond = parser.parse(cond_args)
           }
 
-          response_stream(tag) {|res|
+          yield response_stream(tag) {|res|
             res << '* SEARCH'
             for msg in msg_src
               begin
@@ -2013,8 +2023,8 @@ module RIMS
         }
       end
 
-      def fetch(tag, msg_set, data_item_group, uid: false)
-        protect_select(tag, lock: false) {
+      def fetch(tag, msg_set, data_item_group, uid: false, &block)
+        protect_select(tag, block, lock: false) {
           fetch = nil
           msg_list = nil
 
@@ -2037,7 +2047,7 @@ module RIMS
             fetch = parser.parse(data_item_group)
           }
 
-          response_stream(tag) {|res|
+          yield response_stream(tag) {|res|
             for msg in msg_list
               begin
                 res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << lock_folder{ fetch.call(msg) } << "\r\n".b)
@@ -2053,13 +2063,13 @@ module RIMS
         }
       end
 
-      def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        protect_select(tag, lock: false) {
+      def store(tag, msg_set, data_item_name, data_item_value, uid: false, &block)
+        protect_select(tag, block, lock: false) {
           is_silent = nil
           msg_list = nil
 
           lock_folder{
-            return [ "#{tag} NO cannot store in read-only mode\r\n" ] if @folder.read_only?
+            return yield([ "#{tag} NO cannot store in read-only mode\r\n" ]) if @folder.read_only?
             @folder.reload if @folder.updated?
 
             msg_set = @folder.parse_msg_set(msg_set, uid: uid)
@@ -2134,9 +2144,9 @@ module RIMS
           }
 
           if (is_silent) then
-            [ "#{tag} OK STORE completed\r\n" ]
+            yield([ "#{tag} OK STORE completed\r\n" ])
           else
-            response_stream(tag) {|res|
+            yield response_stream(tag) {|res|
               for msg in msg_list
                 flag_atom_list = nil
 
@@ -2167,8 +2177,8 @@ module RIMS
         }
       end
 
-      def copy(tag, msg_set, mbox_name, uid: false)
-        protect_select(tag) {
+      def copy(tag, msg_set, mbox_name, uid: false, &block)
+        protect_select(tag, block) {
           res = []
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           msg_set = @folder.parse_msg_set(msg_set, uid: uid)
@@ -2191,6 +2201,7 @@ module RIMS
           else
             res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end
+          yield(res)
         }
       end
     end
@@ -2258,22 +2269,25 @@ module RIMS
         return Protocol.decode_base64(base64_username), mbox_name
       end
 
-      def logout(tag)
-        protect_error(tag) {
+      def logout(tag, &block)
+        protect_error(tag, block) {
           cleanup
           res = []
           res << "* BYE server logout\r\n"
           res << "#{tag} OK LOGOUT completed\r\n"
+          yield(res)
         }
       end
 
       def capability(tag)
-        super.map{|line|
-          if (line.start_with? '* CAPABILITY ') then
-            line.strip + " X-RIMS-MAIL-DELIVERY-USER\r\n"
-          else
-            line
-          end
+        super{|res|
+          yield res.map{|line|
+            if (line.start_with? '* CAPABILITY ') then
+              line.strip + " X-RIMS-MAIL-DELIVERY-USER\r\n"
+            else
+              line
+            end
+          }
         }
       end
 
@@ -2283,46 +2297,46 @@ module RIMS
       private :not_allowed_command_response
 
       def select(tag, mbox_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def examine(tag, mbox_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def create(tag, mbox_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def delete(tag, mbox_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def rename(tag, src_name, dst_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def subscribe(tag, mbox_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def unsubscribe(tag, mbox_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def list(tag, ref_name, mbox_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def lsub(tag, ref_name, mbox_name)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def status(tag, mbox_name, data_item_group)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
-      def deliver_to_user(tag, encoded_mbox_name)
+      def deliver_to_user(tag, encoded_mbox_name, block)
         username, mbox_name = self.class.decode_user_mailbox(encoded_mbox_name)
         @logger.info("message delivery: user #{username}, mailbox #{mbox_name}")
 
@@ -2345,53 +2359,54 @@ module RIMS
           response_result = [ "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n" ]
         end
 
-        response_result
+        block.call(response_result)
       end
       private :deliver_to_user
 
-      def append(tag, encoded_mbox_name, *opt_args, msg_text)
-        protect_error(tag) {
-          deliver_to_user(tag, encoded_mbox_name) {|username, mbox_name, mail_store_holder, res|
+      def append(tag, encoded_mbox_name, *opt_args, msg_text, &block)
+        protect_error(tag, block) {
+          deliver_to_user(tag, encoded_mbox_name, block) {|username, mbox_name, mail_store_holder, res|
             user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
-            append_response = user_decoder.append(tag, mbox_name, *opt_args, msg_text)
-            if (append_response.last.split(' ', 3)[1] == 'OK') then
-              @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
-            else
-              @logger.info("message delivery: failed to deliver message.")
-            end
-            for response_data in append_response
-              res << response_data
-            end
+            user_decoder.append(tag, mbox_name, *opt_args, msg_text) {|append_response|
+              if (append_response.last.split(' ', 3)[1] == 'OK') then
+                @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
+              else
+                @logger.info("message delivery: failed to deliver message.")
+              end
+              for response_data in append_response
+                res << response_data
+              end
+            }
           }
         }
       end
 
       def check(tag)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def close(tag)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def expunge(tag)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def search(tag, *cond_args, uid: false)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def fetch(tag, msg_set, data_item_group, uid: false)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
 
       def copy(tag, msg_set, mbox_name, uid: false)
-        not_allowed_command_response(tag)
+        yield(not_allowed_command_response(tag))
       end
     end
   end
