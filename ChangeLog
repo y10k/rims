@@ -1,3 +1,9 @@
+2016-07-18  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb: protocol decoder. IMAP commands I/F are
+	changed to block method. refactoring IMAP command implementations
+	to suit a method call given block.
+
 2016-07-02  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/rfc822.rb: header field name should not contain a colon
