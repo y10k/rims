@@ -1640,9 +1640,9 @@ module RIMS
       end
       private :guard_authenticated
 
-      def guard_selected(tag, imap_command, *args, lock: true, **name_args)
+      def guard_selected(tag, imap_command, *args, **name_args)
         if (selected?) then
-          guard_authenticated(tag, imap_command, *args, lock: lock, **name_args) {|res|
+          guard_authenticated(tag, imap_command, *args, **name_args) {|res|
             yield(res)
           }
         else
@@ -1652,21 +1652,21 @@ module RIMS
       private :guard_selected
 
       class << self
-        def imap_command_authenticated(name, lock: true)
+        def imap_command_authenticated(name, **guard_optional)
           orig_name = "_#{name}".to_sym
           alias_method orig_name, name
           define_method name, lambda{|tag, *args, **name_args, &block|
-            guard_authenticated(tag, orig_name, *args, lock: lock, **name_args, &block)
+            guard_authenticated(tag, orig_name, *args, **name_args.merge(guard_optional), &block)
           }
           name.to_sym
         end
         private :imap_command_authenticated
 
-        def imap_command_selected(name, lock: true)
+        def imap_command_selected(name, **guard_optional)
           orig_name = "_#{name}".to_sym
           alias_method orig_name, name
           define_method name, lambda{|tag, *args, **name_args, &block|
-            guard_selected(tag, orig_name, *args, lock: lock, **name_args, &block)
+            guard_selected(tag, orig_name, *args, **name_args.merge(guard_optional), &block)
           }
           name.to_sym
         end
