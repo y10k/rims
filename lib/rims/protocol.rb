@@ -1585,8 +1585,28 @@ module RIMS
         @folder != nil
       end
 
+      def alive_folder?
+        get_mail_store.mbox_name(@folder.mbox_id) != nil
+      end
+      private :alive_folder?
+
+      def close_folder
+        if (auth? && selected? && alive_folder?) then
+          @folder.reload if @folder.updated?
+          @folder.close
+          @folder = nil
+        end
+
+        nil
+      end
+      private :close_folder
+
       def cleanup
         unless (@mail_store_holder.nil?) then
+          @mail_store_holder.user_lock.synchronize{
+            close_folder
+            @mail_store_holder.mail_store.sync
+          }
           @mail_store_holder.return_pool{
             @logger.info("close mail store: #{@mail_store_holder.unique_user_id}")
           }
@@ -1608,13 +1628,8 @@ module RIMS
 
       def lock_folder
         @mail_store_holder.user_lock.synchronize{
-          unless (@folder) then
-            raise 'no open folder.'
-          end
-
-          unless (get_mail_store.mbox_name(@folder.mbox_id)) then
-            raise "deleted folder: #{id}"
-          end
+          selected? or raise 'no open folder.'
+          alive_folder? or raise "deleted folder: #{@folder.mbox_id}"
 
           yield
         }
@@ -1688,13 +1703,6 @@ module RIMS
       imap_command :noop
 
       def logout(tag)
-        if (auth? && selected?) then
-          lock_folder{
-            @folder.reload if @folder.updated?
-            @folder.close
-            @folder = nil
-          }
-        end
         cleanup
         res = []
         res << "* BYE server logout\r\n"
@@ -1966,12 +1974,8 @@ module RIMS
       imap_command_selected :check
 
       def close(tag, &block)
+        close_folder
         get_mail_store.sync
-        if (@folder) then
-          @folder.reload if @folder.updated?
-          @folder.close
-          @folder = nil
-        end
         yield([ "#{tag} OK CLOSE completed\r\n" ])
       end
       imap_command_selected :close
