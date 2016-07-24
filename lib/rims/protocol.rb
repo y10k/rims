@@ -1340,21 +1340,25 @@ module RIMS
         end
         private :imap_command
 
-        def fetch_mail_store_holder_and_on_demand_recovery(mail_store_pool, username, logger: Logger.new(STDOUT))
+        def fetch_mail_store_holder_and_on_demand_recovery(mail_store_pool, username,
+                                                           write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
+                                                           logger: Logger.new(STDOUT))
           unique_user_id = Authentication.unique_user_id(username)
           logger.debug("unique user ID: #{username} -> #{unique_user_id}") if logger.debug?
 
-          mail_store_holder = mail_store_pool.get(unique_user_id) {
+          mail_store_holder = mail_store_pool.get(unique_user_id, timeout_seconds: write_lock_timeout_seconds) {
             logger.info("open mail store: #{unique_user_id} [ #{username} ]")
           }
 
-          if (mail_store_holder.mail_store.abort_transaction?) then
-            logger.warn("user data recovery start: #{username}")
-            yield("* OK [ALERT] start user data recovery.\r\n")
-            mail_store_holder.mail_store.recovery_data(logger: logger).sync
-            logger.warn("user data recovery end: #{username}")
-            yield("* OK completed user data recovery.\r\n")
-          end
+          mail_store_holder.write_synchronize(write_lock_timeout_seconds) {
+            if (mail_store_holder.mail_store.abort_transaction?) then
+              logger.warn("user data recovery start: #{username}")
+              yield("* OK [ALERT] start user data recovery.\r\n")
+              mail_store_holder.mail_store.recovery_data(logger: logger).sync
+              logger.warn("user data recovery end: #{username}")
+              yield("* OK completed user data recovery.\r\n")
+            end
+          }
 
           mail_store_holder
         end
@@ -1379,13 +1383,18 @@ module RIMS
     end
 
     class InitialDecoder < Decoder
-      def initialize(mail_store_pool, auth, logger, mail_delivery_user: Server::DEFAULT[:mail_delivery_user])
+      def initialize(mail_store_pool, auth, logger,
+                     mail_delivery_user: Server::DEFAULT[:mail_delivery_user],
+                     write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
+                     **next_decoder_optional)
         super(auth, logger)
         @next_decoder = self
         @mail_store_pool = mail_store_pool
         @folder = nil
         @auth = auth
         @mail_delivery_user = mail_delivery_user
+        @write_lock_timeout_seconds = write_lock_timeout_seconds
+        @next_decoder_optional = next_decoder_optional
       end
 
       attr_reader :next_decoder
@@ -1429,8 +1438,13 @@ module RIMS
           @logger.info("mail delivery user: #{username}")
           MailDeliveryDecoder.new(@mail_store_pool, @auth, @logger)
         else
-          mail_store_holder = self.class.fetch_mail_store_holder_and_on_demand_recovery(@mail_store_pool, username, logger: @logger) {|msg| yield(msg) }
-          UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
+          mail_store_holder =
+            self.class.fetch_mail_store_holder_and_on_demand_recovery(@mail_store_pool, username,
+                                                                      write_lock_timeout_seconds: @write_lock_timeout_seconds,
+                                                                      logger: @logger) {|msg| yield(msg) }
+          UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger,
+                                 write_lock_timeout_seconds: @write_lock_timeout_seconds,
+                                 **@next_decoder_optional)
         end
       end
       private :accept_authentication
@@ -1573,12 +1587,23 @@ module RIMS
     end
 
     class UserMailboxDecoder < AuthenticatedDecoder
-      def initialize(parent_decoder, mail_store_holder, auth, logger)
+      def initialize(parent_decoder, mail_store_holder, auth, logger,
+                     read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
+                     write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
+                     cleanup_write_lock_timeout_seconds: 1)
         super(auth, logger)
         @parent_decoder = parent_decoder
         @mail_store_holder = mail_store_holder
+        @read_lock_timeout_seconds = read_lock_timeout_seconds
+        @write_lock_timeout_seconds = write_lock_timeout_seconds
+        @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
         @folder = nil
       end
+
+      def get_mail_store
+        @mail_store_holder.mail_store
+      end
+      private :get_mail_store
 
       def auth?
         @mail_store_holder != nil
@@ -1606,12 +1631,20 @@ module RIMS
 
       def cleanup
         unless (@mail_store_holder.nil?) then
-          @mail_store_holder.user_lock.synchronize{
-            close_folder
-            @mail_store_holder.mail_store.sync
-          }
-          @mail_store_holder.return_pool{
-            @logger.info("close mail store: #{@mail_store_holder.unique_user_id}")
+          begin
+            @mail_store_holder.write_synchronize(@cleanup_write_lock_timeout_seconds) {
+              close_folder
+              @mail_store_holder.mail_store.sync
+            }
+          rescue WriteLockTimeoutError
+            @logger.warn("give up to close folder becaue of write-lock timeout over #{@write_lock_timeout_seconds} seconds")
+            @folder = nil
+          end
+          tmp_mail_store_holder = @mail_store_holder
+          ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
+            tmp_mail_store_holder.return_pool(timeout_seconds: timeout_seconds) {
+              @logger.info("close mail store: #{tmp_mail_store_holder.unique_user_id}")
+            }
           }
           @mail_store_holder = nil
         end
@@ -1624,33 +1657,39 @@ module RIMS
         nil
       end
 
-      def get_mail_store
-        @mail_store_holder.mail_store
+      def should_be_alive_folder
+        alive_folder? or raise "deleted folder: #{@folder.mbox_id}"
       end
-      private :get_mail_store
+      private :should_be_alive_folder
 
-      def lock_folder
-        @mail_store_holder.user_lock.synchronize{
-          selected? or raise 'no open folder.'
-          alive_folder? or raise "deleted folder: #{@folder.mbox_id}"
-
-          yield
-        }
-      end
-      private :lock_folder
-
-      def guard_authenticated(tag, imap_command, *args, lock: true, **name_args)
+      def guard_authenticated(tag, imap_command, *args, exclusive: false, **name_args)
         if (auth?) then
-          if (lock) then
-            @mail_store_holder.user_lock.synchronize{
-              guard_error(tag, imap_command, *args, **name_args) {|res|
-                yield(res)
-              }
-            }
-          else
+          if (exclusive.nil?) then
             guard_error(tag, imap_command, *args, **name_args) {|res|
               yield(res)
             }
+          else
+            begin
+              if (exclusive) then
+                @mail_store_holder.write_synchronize(@write_lock_timeout_seconds) {
+                  guard_authenticated(tag, imap_command, *args, exclusive: nil, **name_args) {|res|
+                    yield(res)
+                  }
+                }
+              else
+                @mail_store_holder.read_synchronize(@read_lock_timeout_seconds){
+                  guard_authenticated(tag, imap_command, *args, exclusive: nil, **name_args) {|res|
+                    yield(res)
+                  }
+                }
+              end
+            rescue ReadLockTimeoutError
+              @logger.error("write-lock timeout over #{@write_lock_timeout_seconds} seconds")
+              yield([ "#{tag} BAD write-lock timeout over #{@write_lock_timeout_seconds} seconds" ])
+            rescue WriteLockTimeoutError
+              @logger.error("read-lock timeout over #{@read_lock_timeout_seconds} seconds")
+              yield([ "#{tag} BAD read-lock timeout over #{@read_lock_timeout_seconds} seconds" ])
+            end
           end
         else
           yield([ "#{tag} NO not authenticated\r\n" ])
@@ -1694,11 +1733,16 @@ module RIMS
       def noop(tag)
         res = []
         if (auth? && selected?) then
-          lock_folder{
-            @folder.reload if @folder.updated?
-            res << "* #{get_mail_store.mbox_msg_num(@folder.mbox_id)} EXISTS\r\n"
-            res << "* #{get_mail_store.mbox_flag_num(@folder.mbox_id, 'recent')} RECENTS\r\n"
-          }
+          should_be_alive_folder
+          begin
+            @mail_store_holder.read_synchronize(@read_lock_timeout_seconds) {
+              @folder.reload if @folder.updated?
+              res << "* #{get_mail_store.mbox_msg_num(@folder.mbox_id)} EXISTS\r\n"
+              res << "* #{get_mail_store.mbox_flag_num(@folder.mbox_id, 'recent')} RECENTS\r\n"
+            }
+          rescue ReadLockTimeoutError
+            @logger.warn("give up to get folder status because of write-lock timeout over #{@read_lock_timeout_seconds} seconds")
+          end
         end
         res << "#{tag} OK NOOP completed\r\n"
         yield(res)
@@ -1772,7 +1816,7 @@ module RIMS
         end
         yield(res)
       end
-      imap_command_authenticated :create
+      imap_command_authenticated :create, exclusive: true
 
       def delete(tag, mbox_name)
         res = []
@@ -1789,7 +1833,7 @@ module RIMS
         end
         yield(res)
       end
-      imap_command_authenticated :delete
+      imap_command_authenticated :delete, exclusive: true
 
       def rename(tag, src_name, dst_name)
         src_name_utf8 = Net::IMAP.decode_utf7(src_name)
@@ -1806,7 +1850,7 @@ module RIMS
         get_mail_store.rename_mbox(id, dst_name_utf8)
         return yield([ "#{tag} OK RENAME completed\r\n" ])
       end
-      imap_command_authenticated :rename
+      imap_command_authenticated :rename, exclusive: true
 
       def subscribe(tag, mbox_name)
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
@@ -1968,222 +2012,194 @@ module RIMS
         end
         yield(res)
       end
-      imap_command_authenticated :append
+      imap_command_authenticated :append, exclusive: true
 
       def check(tag)
         get_mail_store.sync
         yield([ "#{tag} OK CHECK completed\r\n" ])
       end
-      imap_command_selected :check
+      imap_command_selected :check, exclusive: true
 
       def close(tag, &block)
         close_folder
         get_mail_store.sync
         yield([ "#{tag} OK CLOSE completed\r\n" ])
       end
-      imap_command_selected :close
+      imap_command_selected :close, exclusive: true
 
       def expunge(tag)
-        unless (@folder.read_only?) then
-          @folder.reload if @folder.updated?
+        return yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ])if @folder.read_only?
+        should_be_alive_folder
+        @folder.reload if @folder.updated?
 
-          msg_num_list = []
-          @folder.expunge_mbox do |msg_num|
-            msg_num_list << msg_num
-          end
-
-          yield response_stream(tag) {|res|
-            for msg_num in msg_num_list
-              res << "* #{msg_num} EXPUNGE\r\n"
-            end
-            res << "#{tag} OK EXPUNGE completed\r\n"
-          }
-        else
-          yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ])
+        msg_num_list = []
+        @folder.expunge_mbox do |msg_num|
+          msg_num_list << msg_num
         end
+
+        yield response_stream(tag) {|res|
+          for msg_num in msg_num_list
+            res << "* #{msg_num} EXPUNGE\r\n"
+          end
+          res << "#{tag} OK EXPUNGE completed\r\n"
+        }
       end
-      imap_command_selected :expunge
+      imap_command_selected :expunge, exclusive: true
 
       def search(tag, *cond_args, uid: false)
-        cond = nil
-        msg_src = nil
+        should_be_alive_folder
+        @folder.reload if @folder.updated?
+        parser = Protocol::SearchParser.new(get_mail_store, @folder)
 
-        lock_folder{
-          @folder.reload if @folder.updated?
-          parser = Protocol::SearchParser.new(get_mail_store, @folder)
+        if (! cond_args.empty? && cond_args[0].upcase == 'CHARSET') then
+          cond_args.shift
+          charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
+          charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
+          parser.charset = charset_string
+        end
 
-          if (! cond_args.empty? && cond_args[0].upcase == 'CHARSET') then
+        if (cond_args.empty?) then
+          raise SyntaxError, 'required search arguments.'
+        end
+
+        if (cond_args[0].upcase == 'UID' && cond_args.length >= 2) then
+          begin
+            msg_set = @folder.parse_msg_set(cond_args[1], uid: true)
+            msg_src = @folder.msg_find_all(msg_set, uid: true)
+            cond_args.shift(2)
+          rescue MessageSetSyntaxError
+            msg_src = @folder.each_msg
+          end
+        else
+          begin
+            msg_set = @folder.parse_msg_set(cond_args[0], uid: false)
+            msg_src = @folder.msg_find_all(msg_set, uid: false)
             cond_args.shift
-            charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
-            charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
-            parser.charset = charset_string
+          rescue MessageSetSyntaxError
+            msg_src = @folder.each_msg
           end
-
-          if (cond_args.empty?) then
-            raise SyntaxError, 'required search arguments.'
-          end
-
-          if (cond_args[0].upcase == 'UID' && cond_args.length >= 2) then
-            begin
-              msg_set = @folder.parse_msg_set(cond_args[1], uid: true)
-              msg_src = @folder.msg_find_all(msg_set, uid: true)
-              cond_args.shift(2)
-            rescue MessageSetSyntaxError
-              msg_src = @folder.each_msg
-            end
-          else
-            begin
-              msg_set = @folder.parse_msg_set(cond_args[0], uid: false)
-              msg_src = @folder.msg_find_all(msg_set, uid: false)
-              cond_args.shift
-            rescue MessageSetSyntaxError
-              msg_src = @folder.each_msg
-            end
-          end
-          cond = parser.parse(cond_args)
-        }
+        end
+        cond = parser.parse(cond_args)
 
         yield response_stream(tag) {|res|
           res << '* SEARCH'
           for msg in msg_src
-            begin
-              if (lock_folder{ cond.call(msg) }) then
-                if (uid) then
-                  res << " #{msg.uid}"
-                else
-                  res << " #{msg.num}"
-                end
+            if (cond.call(msg)) then
+              if (uid) then
+                res << " #{msg.uid}"
+              else
+                res << " #{msg.num}"
               end
-            rescue SystemCallError
-              raise
-            rescue
-              @logger.warn("failed to search message: uidvalidity(#{@folder.mbox_id}) uid(#{msg.uid})")
-              @logger.warn($!)
             end
           end
           res << "\r\n"
           res << "#{tag} OK SEARCH completed\r\n"
         }
       end
-      imap_command_selected :search, lock: false
+      imap_command_selected :search
 
       def fetch(tag, msg_set, data_item_group, uid: false)
-        fetch = nil
-        msg_list = nil
+        should_be_alive_folder
+        @folder.reload if @folder.updated?
 
-        lock_folder{
-          @folder.reload if @folder.updated?
+        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+        msg_list = @folder.msg_find_all(msg_set, uid: uid)
 
-          msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-          msg_list = @folder.msg_find_all(msg_set, uid: uid)
-
-          unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
-            data_item_group = [ :group, data_item_group ]
+        unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
+          data_item_group = [ :group, data_item_group ]
+        end
+        if (uid) then
+          unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
+            data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
           end
-          if (uid) then
-            unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
-              data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
-            end
-          end
+        end
 
-          parser = Protocol::FetchParser.new(get_mail_store, @folder)
-          fetch = parser.parse(data_item_group)
-        }
+        parser = Protocol::FetchParser.new(get_mail_store, @folder)
+        fetch = parser.parse(data_item_group)
 
         yield response_stream(tag) {|res|
           for msg in msg_list
-            begin
-              res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << lock_folder{ fetch.call(msg) } << "\r\n".b)
-            rescue SystemCallError
-              raise
-            rescue
-              @logger.warn("failed to fetch message: uidvalidity(#{@folder.mbox_id}) uid(#{msg.uid})")
-              @logger.warn($!)
-            end
+            res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
           end
           res << "#{tag} OK FETCH completed\r\n"
         }
       end
-      imap_command_selected :fetch, lock: false
+      imap_command_selected :fetch
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        is_silent = nil
-        msg_list = nil
+        return yield([ "#{tag} NO cannot store in read-only mode\r\n" ]) if @folder.read_only?
+        should_be_alive_folder
+        @folder.reload if @folder.updated?
 
-        lock_folder{
-          return yield([ "#{tag} NO cannot store in read-only mode\r\n" ]) if @folder.read_only?
-          @folder.reload if @folder.updated?
+        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
+        name, option = data_item_name.split(/\./, 2)
 
-          msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-          name, option = data_item_name.split(/\./, 2)
+        case (name.upcase)
+        when 'FLAGS'
+          action = :flags_replace
+        when '+FLAGS'
+          action = :flags_add
+        when '-FLAGS'
+          action = :flags_del
+        else
+          raise SyntaxError, "unknown store action: #{name}"
+        end
 
-          case (name.upcase)
-          when 'FLAGS'
-            action = :flags_replace
-          when '+FLAGS'
-            action = :flags_add
-          when '-FLAGS'
-            action = :flags_del
-          else
-            raise SyntaxError, "unknown store action: #{name}"
-          end
+        case (option && option.upcase)
+        when 'SILENT'
+          is_silent = true
+        when nil
+          is_silent = false
+        else
+          raise SyntaxError, "unknown store option: #{option.inspect}"
+        end
 
-          case (option && option.upcase)
-          when 'SILENT'
-            is_silent = true
-          when nil
-            is_silent = false
-          else
-            raise SyntaxError, "unknown store option: #{option.inspect}"
-          end
-
-          if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
-            flag_list = []
-            for flag_atom in data_item_value[1..-1]
-              case (flag_atom.upcase)
-              when '\ANSWERED'
-                flag_list << 'answered'
-              when '\FLAGGED'
-                flag_list << 'flagged'
-              when '\DELETED'
-                flag_list << 'deleted'
-              when '\SEEN'
-                flag_list << 'seen'
-              when '\DRAFT'
-                flag_list << 'draft'
-              else
-                raise SyntaxError, "invalid flag: #{flag_atom}"
-              end
-            end
-            rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
-          else
-            raise SyntaxError, 'third arugment is not a group list.'
-          end
-
-          msg_list = @folder.msg_find_all(msg_set, uid: uid)
-
-          for msg in msg_list
-            case (action)
-            when :flags_replace
-              for name in flag_list
-                get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, true)
-              end
-              for name in rest_flag_list
-                get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, false)
-              end
-            when :flags_add
-              for name in flag_list
-                get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, true)
-              end
-            when :flags_del
-              for name in flag_list
-                get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, false)
-              end
+        if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
+          flag_list = []
+          for flag_atom in data_item_value[1..-1]
+            case (flag_atom.upcase)
+            when '\ANSWERED'
+              flag_list << 'answered'
+            when '\FLAGGED'
+              flag_list << 'flagged'
+            when '\DELETED'
+              flag_list << 'deleted'
+            when '\SEEN'
+              flag_list << 'seen'
+            when '\DRAFT'
+              flag_list << 'draft'
             else
-              raise "internal error: unknown action: #{action}"
+              raise SyntaxError, "invalid flag: #{flag_atom}"
             end
           end
-        }
+          rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
+        else
+          raise SyntaxError, 'third arugment is not a group list.'
+        end
+
+        msg_list = @folder.msg_find_all(msg_set, uid: uid)
+
+        for msg in msg_list
+          case (action)
+          when :flags_replace
+            for name in flag_list
+              get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, true)
+            end
+            for name in rest_flag_list
+              get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, false)
+            end
+          when :flags_add
+            for name in flag_list
+              get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, true)
+            end
+          when :flags_del
+            for name in flag_list
+              get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, false)
+            end
+          else
+            raise "internal error: unknown action: #{action}"
+          end
+        end
 
         if (is_silent) then
           yield([ "#{tag} OK STORE completed\r\n" ])
@@ -2192,16 +2208,14 @@ module RIMS
             for msg in msg_list
               flag_atom_list = nil
 
-              lock_folder{
-                if (get_mail_store.msg_exist? @folder.mbox_id, msg.uid) then
-                  flag_atom_list = []
-                  for name in MailStore::MSG_FLAG_NAMES
-                    if (get_mail_store.msg_flag(@folder.mbox_id, msg.uid, name)) then
-                      flag_atom_list << "\\#{name.capitalize}"
-                    end
+              if (get_mail_store.msg_exist? @folder.mbox_id, msg.uid) then
+                flag_atom_list = []
+                for name in MailStore::MSG_FLAG_NAMES
+                  if (get_mail_store.msg_flag(@folder.mbox_id, msg.uid, name)) then
+                    flag_atom_list << "\\#{name.capitalize}"
                   end
                 end
-              }
+              end
 
               if (flag_atom_list) then
                 if (uid) then
@@ -2217,9 +2231,12 @@ module RIMS
           }
         end
       end
-      imap_command_selected :store, lock: false
+      imap_command_selected :store, exclusive: true
 
       def copy(tag, msg_set, mbox_name, uid: false)
+        should_be_alive_folder
+        @folder.reload if @folder.updated?
+
         res = []
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         msg_set = @folder.parse_msg_set(msg_set, uid: uid)
@@ -2244,7 +2261,7 @@ module RIMS
         end
         yield(res)
       end
-      imap_command_selected :copy
+      imap_command_selected :copy, exclusive: true
     end
 
     class MailDeliveryDecoder < AuthenticatedDecoder
