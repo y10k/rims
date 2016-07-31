@@ -49,12 +49,19 @@ module RIMS::Test
       }
     end
 
-    def test_read_write_lock_multithread
+    def calculate_threa_work_seconds
       t0 = Time.now
       1000.times{|i| i.succ }
       t1 = Time.now
-      lock_wait = t1 - t0
-      p format('%.9f', lock_wait) if $DEBUG
+      wait_seconds = t1 - t0
+      p format('%.9f', wait_seconds) if $DEBUG
+
+      wait_seconds
+    end
+    private :calculate_threa_work_seconds
+
+    def test_read_write_lock_multithread
+      lock_wait_seconds = calculate_threa_work_seconds
 
       count = 0
       read_thread_num = 10
@@ -69,14 +76,14 @@ module RIMS::Test
         read_thread_list << Thread.new(i) {|th_id|
           until (mutex.synchronize{ end_of_read })
             @lock.read_synchronize{
-              sleep(lock_wait)
+              sleep(lock_wait_seconds)
               assert(count >= 0, "read thread #{th_id}")
             }
           end
         }
       end
 
-      sleep(lock_wait)
+      sleep(lock_wait_seconds)
 
       write_thread_list = []
       write_thread_num.times do |i|
@@ -85,7 +92,7 @@ module RIMS::Test
             @lock.write_synchronize{
               tmp_count = count
               count = -1
-              sleep(lock_wait)
+              sleep(lock_wait_seconds)
               count = tmp_count + 1
             }
           end
