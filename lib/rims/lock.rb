@@ -33,13 +33,15 @@ module RIMS
     end
 
     def read_lock(timeout_seconds=DEFAULT_TIMEOUT_SECONDS)
-      t0 = Time.now
+      time_limit = Time.now + timeout_seconds
       @lock.synchronize{
         while (@writing || (@prefer_to_writer && @count_of_standby_writers > 0))
-          @read_cond.wait(@lock, timeout_seconds)
-          if (Time.now - t0 >= timeout_seconds) then
-            raise ReadLockTimeoutError, "timeout over #{timeout_seconds}s since #{t0}"
+          if (timeout_seconds > 0) then
+            @read_cond.wait(@lock, timeout_seconds)
+          else
+            raise ReadLockTimeoutError, 'read-lock wait timeout'
           end
+          timeout_seconds = time_limit - Time.now
         end
         @count_of_working_readers += 1
       }
@@ -68,15 +70,17 @@ module RIMS
     end
 
     def write_lock(timeout_seconds=DEFAULT_TIMEOUT_SECONDS)
-      t0 = Time.now
+      time_limit = Time.now + timeout_seconds
       @lock.synchronize{
         @count_of_standby_writers += 1
         begin
           while (@writing || @count_of_working_readers > 0)
-            @write_cond.wait(@lock, timeout_seconds)
-            if (Time.now - t0 >= timeout_seconds) then
-              raise WriteLockTimeoutError, "timeout over #{timeout_seconds}s since #{t0}"
+            if (timeout_seconds > 0) then
+              @write_cond.wait(@lock, timeout_seconds)
+            else
+              raise WriteLockTimeoutError, 'write-lock wait timeout'
             end
+            timeout_seconds = time_limit - Time.now
           end
           @writing = true
         ensure
