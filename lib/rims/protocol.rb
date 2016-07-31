@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
 require 'net/imap'
 require 'set'
 require 'time'
@@ -1338,24 +1339,26 @@ module RIMS
           name.to_sym
         end
         private :imap_command
-      end
 
-      def fetch_mail_store_holder_and_on_demand_recovery(username)
-        unique_user_id = Authentication.unique_user_id(username)
-        @logger.debug("unique user ID: #{username} -> #{unique_user_id}") if @logger.debug?
-        mail_store_holder = @mail_store_pool.get(unique_user_id) {
-          @logger.info("open mail store: #{unique_user_id} [ #{username} ]")
-        }
-        if (mail_store_holder.mail_store.abort_transaction?) then
-          @logger.warn("user data recovery start: #{username}")
-          yield("* OK [ALERT] start user data recovery.\r\n")
-          mail_store_holder.mail_store.recovery_data(logger: @logger).sync
-          @logger.warn("user data recovery end: #{username}")
-          yield("* OK completed user data recovery.\r\n")
+        def fetch_mail_store_holder_and_on_demand_recovery(mail_store_pool, username, logger: Logger.new(STDOUT))
+          unique_user_id = Authentication.unique_user_id(username)
+          logger.debug("unique user ID: #{username} -> #{unique_user_id}") if logger.debug?
+
+          mail_store_holder = mail_store_pool.get(unique_user_id) {
+            logger.info("open mail store: #{unique_user_id} [ #{username} ]")
+          }
+
+          if (mail_store_holder.mail_store.abort_transaction?) then
+            logger.warn("user data recovery start: #{username}")
+            yield("* OK [ALERT] start user data recovery.\r\n")
+            mail_store_holder.mail_store.recovery_data(logger: logger).sync
+            logger.warn("user data recovery end: #{username}")
+            yield("* OK completed user data recovery.\r\n")
+          end
+
+          mail_store_holder
         end
-        mail_store_holder
       end
-      private :fetch_mail_store_holder_and_on_demand_recovery
 
       def ok_greeting
         yield([ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ])
@@ -1426,7 +1429,7 @@ module RIMS
           @logger.info("mail delivery user: #{username}")
           MailDeliveryDecoder.new(@mail_store_pool, @auth, @logger)
         else
-          mail_store_holder = fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| yield(msg) }
+          mail_store_holder = self.class.fetch_mail_store_holder_and_on_demand_recovery(@mail_store_pool, username, logger: @logger) {|msg| yield(msg) }
           UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
         end
       end
@@ -2414,7 +2417,7 @@ module RIMS
           else
             res = Enumerator.new{|stream_res|
               mail_store_holder = fetch_user_mail_store_holder(username) {
-                fetch_mail_store_holder_and_on_demand_recovery(username) {|msg| stream_res << msg }
+                self.class.fetch_mail_store_holder_and_on_demand_recovery(@mail_store_pool, username, logger: @logger) {|msg| stream_res << msg }
               }
               deliver_to_user(tag, username, mbox_name, opt_args, msg_text, mail_store_holder, stream_res)
             }
