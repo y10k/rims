@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
+
 module RIMS
   class LockError < StandardError
   end
@@ -114,6 +116,32 @@ module RIMS
 
     # compatible for Thread::Mutex
     alias synchronize write_synchronize
+
+    def self.write_lock_timeout_detach(first_timeout_seconds, detached_timeout_seconds, logger: Logger.new(STDOUT)) # yields: timeout_seconds
+      begin
+        logger.debug('ready to detach write-lock timeout.')
+        yield(first_timeout_seconds)
+        logger.debug('not detached write-lock timeout.')
+        nil
+      rescue WriteLockTimeoutError
+        logger.warn($!)
+        Thread.new{
+          begin
+            logger.warn('detached write-lock timeout.')
+            yield(detached_timeout_seconds)
+            logger.info('detached write-lock timeout thread is completed.')
+            nil
+          rescue WriteLockTimeoutError
+            logger.warn($!)
+            retry
+          rescue
+            logger.error('unexpected error at a detached thread and give up to retry write-lock timeout error.')
+            logger.error($!)
+            $!
+          end
+        }
+      end
+    end
   end
 end
 

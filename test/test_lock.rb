@@ -110,6 +110,47 @@ module RIMS::Test
 
       assert_equal(write_loop_num * write_thread_num, count)
     end
+
+    def test_write_lock_timeout_detach
+      logger = Logger.new(STDOUT)
+      logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
+      wait_seconds = calculate_threa_work_seconds
+
+      t_list = []
+      assert_nil(RIMS::ReadWriteLock.write_lock_timeout_detach(wait_seconds, wait_seconds * 2, logger: logger ) {|timeout_seconds|
+                   @lock.write_synchronize(timeout_seconds) { t_list << timeout_seconds }
+                 })
+      assert_equal([ wait_seconds ], t_list)
+
+      t_list = []
+      detached_thread = nil
+      @lock.write_synchronize{
+        detached_thread = RIMS::ReadWriteLock.write_lock_timeout_detach(wait_seconds, wait_seconds * 2, logger: logger ) {|timeout_seconds|
+          @lock.write_synchronize(timeout_seconds) { t_list << timeout_seconds }
+        }
+        assert_instance_of(Thread, detached_thread)
+        10.times do
+          sleep(wait_seconds)
+        end
+      }
+
+      assert_nil(detached_thread.value)
+      assert_equal([ wait_seconds * 2 ], t_list)
+
+      detached_thread = nil
+      @lock.write_synchronize{
+        detached_thread = RIMS::ReadWriteLock.write_lock_timeout_detach(wait_seconds, wait_seconds * 2, logger: logger ) {|timeout_seconds|
+          @lock.write_synchronize(timeout_seconds) { raise 'test' }
+        }
+        assert_instance_of(Thread, detached_thread)
+        10.times do
+          sleep(wait_seconds)
+        end
+      }
+
+      assert(error = detached_thread.value)
+      assert_equal('test', error.message)
+    end
   end
 end
 
