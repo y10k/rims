@@ -1436,7 +1436,9 @@ module RIMS
         case (username)
         when @mail_delivery_user
           @logger.info("mail delivery user: #{username}")
-          MailDeliveryDecoder.new(@mail_store_pool, @auth, @logger)
+          MailDeliveryDecoder.new(@mail_store_pool, @auth, @logger,
+                                  write_lock_timeout_seconds: @write_lock_timeout_seconds,
+                                  **@next_decoder_optional)
         else
           mail_store_holder =
             self.class.fetch_mail_store_holder_and_on_demand_recovery(@mail_store_pool, username,
@@ -2265,10 +2267,16 @@ module RIMS
     end
 
     class MailDeliveryDecoder < AuthenticatedDecoder
-      def initialize(mail_store_pool, auth, logger)
+      def initialize(mail_store_pool, auth, logger,
+                     write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
+                     cleanup_write_lock_timeout_seconds: 1,
+                     **mailbox_decoder_optional)
         super(auth, logger)
         @mail_store_pool = mail_store_pool
         @auth = auth
+        @write_lock_timeout_seconds = write_lock_timeout_seconds
+        @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
+        @mailbox_decoder_optional = mailbox_decoder_optional
         @last_user_cache_key_username = nil
         @last_user_cache_value_mail_store_holder = nil
       end
@@ -2293,8 +2301,10 @@ module RIMS
           mail_store_holder = @last_user_cache_value_mail_store_holder
           @last_user_cache_key_username = nil
           @last_user_cache_value_mail_store_holder = nil
-          mail_store_holder.return_pool{
-            @logger.info("close cached mail store to deliver message: #{mail_store_holder.unique_user_id}")
+          ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
+            mail_store_holder.return_pool(timeout_seconds: timeout_seconds) {
+              @logger.info("close cached mail store to deliver message: #{mail_store_holder.unique_user_id}")
+            }
           }
         end
       end
@@ -2408,7 +2418,10 @@ module RIMS
       imap_command :status
 
       def deliver_to_user(tag, username, mbox_name, opt_args, msg_text, mail_store_holder, res)
-        user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger)
+        user_decoder = UserMailboxDecoder.new(self, mail_store_holder, @auth, @logger,
+                                              write_lock_timeout_seconds: @write_lock_timeout_seconds,
+                                              cleanup_write_lock_timeout_seconds: @cleanup_write_lock_timeout_seconds,
+                                              **@mailbox_decoder_optional)
         user_decoder.append(tag, mbox_name, *opt_args, msg_text) {|append_response|
           if (append_response.last.split(' ', 3)[1] == 'OK') then
             @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
@@ -2434,7 +2447,9 @@ module RIMS
           else
             res = Enumerator.new{|stream_res|
               mail_store_holder = fetch_user_mail_store_holder(username) {
-                self.class.fetch_mail_store_holder_and_on_demand_recovery(@mail_store_pool, username, logger: @logger) {|msg| stream_res << msg }
+                self.class.fetch_mail_store_holder_and_on_demand_recovery(@mail_store_pool, username,
+                                                                          write_lock_timeout_seconds: @write_lock_timeout_seconds,
+                                                                          logger: @logger) {|msg| stream_res << msg }
               }
               deliver_to_user(tag, username, mbox_name, opt_args, msg_text, mail_store_holder, stream_res)
             }
