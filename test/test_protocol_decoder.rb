@@ -236,7 +236,7 @@ module RIMS::Test
       input = StringIO.new(client_command_list_text, 'r')
       output = StringIO.new('', 'w')
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, output, @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, input, RIMS::BufferedWriter.new(output), @logger)
       response_lines = output.string.each_line
 
       assert_imap_response(response_lines) {|assert|

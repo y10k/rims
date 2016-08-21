@@ -121,6 +121,7 @@ module RIMS
           next_size = $&[1..-2].to_i
           @logger.debug("found literal: #{next_size} octets.") if @logger.debug?
           @output.write("+ continue\r\n")
+          @output.flush
           @logger.debug('continue literal.') if @logger.debug?
           literal_string = @input.read(next_size) or raise 'unexpected client close.'
           @logger.debug("read literal: #{Protocol.io_data_log(literal_string)}") if @logger.debug?
@@ -214,9 +215,11 @@ module RIMS
           server_challenge_data_base64 = Protocol.encode_base64(server_challenge_data)
           @logger.debug("authenticate command: server challenge data: #{Protocol.io_data_log(server_challenge_data_base64)}") if @logger.debug?
           @output.write("+ #{server_challenge_data_base64}\r\n")
+          @output.flush
         else
           @logger.debug("authenticate command: server challenge data is nil.") if @logger.debug?
           @output.write("+ \r\n")
+          @output.flush
         end
 
         if (client_response_data_base64 = @input.gets) then

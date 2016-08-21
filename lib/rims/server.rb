@@ -382,12 +382,48 @@ module RIMS
     end
   end
 
+  class BufferedWriter
+    def initialize(output, buffer_limit=1024*16)
+      @output = output
+      @buffer_limit = buffer_limit
+      @buffer_string = ''.b
+    end
+
+    def write_and_flush
+      write_bytes = @output.write(@buffer_string)
+      while (write_bytes < @buffer_string.bytesize)
+        remaining_byte_range = write_bytes..-1
+        write_bytes += @output.write(@buffer_string.byteslice(remaining_byte_range))
+      end
+      @buffer_string.clear
+      @output.flush
+      write_bytes
+    end
+    private :write_and_flush
+
+    def write(string)
+      @buffer_string << string.b
+      write_and_flush if (@buffer_string.bytesize >= @buffer_limit)
+    end
+
+    def flush
+      write_and_flush unless @buffer_string.empty?
+      self
+    end
+
+    def <<(string)
+      write(string)
+      self
+    end
+  end
+
   class Server
     DEFAULT = {
       key_value_store_type: 'GDBM'.freeze,
       use_key_value_store_checksum: true,
       imap_host: '0.0.0.0'.freeze,
       imap_port: 1430,
+      send_buffer_limit: 1024 * 16,
       mail_delivery_user: '#postman'.freeze,
       process_privilege_uid: 65534,
       process_privilege_gid: 65534,
@@ -401,6 +437,7 @@ module RIMS
                    authentication: nil,
                    imap_host: DEFAULT[:imap_host],
                    imap_port: DEFAULT[:imap_port],
+                   send_buffer_limit: DEFAULT[:send_buffer_limit],
                    mail_delivery_user: DEFAULT[:mail_delivery_user],
                    process_privilege_uid: DEFAULT[:process_privilege_uid],
                    process_privilege_gid: DEFAULT[:process_privilege_gid],
@@ -412,6 +449,7 @@ module RIMS
 
         @imap_host = imap_host
         @imap_port = imap_port
+        @send_buffer_limit = send_buffer_limit
         @logger = logger
         @mail_delivery_user = mail_delivery_user
 
@@ -455,7 +493,7 @@ module RIMS
             begin
               @logger.info("accept client: #{ipaddr_log(cl_sock.peeraddr(false))}")
               decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger, mail_delivery_user: @mail_delivery_user)
-              Protocol::Decoder.repl(decoder, cl_sock, cl_sock, @logger)
+              Protocol::Decoder.repl(decoder, cl_sock, BufferedWriter.new(cl_sock, @send_buffer_limit), @logger)
             ensure
               Error.suppress_2nd_error_at_resource_closing(logger: @logger) { cl_sock.close }
             end
