@@ -1,3 +1,8 @@
+2016-08-21  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/server.rb: defined I/O-buffered writer for response
+	sender socket.
+
 2016-07-18  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol.rb: protocol decoder. IMAP commands I/F are
