@@ -1,5 +1,10 @@
 2016-08-22  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/mail_store.rb, lib/rims/protocol.rb: the message
+	numbers that are returned from a folder's expunge_mbox method
+	should be always consistent with a client side message number
+	list. and close command should be return expunge response.
+
 	* lib/rims/mail_store.rb: late loading message number list of
 	mailbox folder.
 
