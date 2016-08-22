@@ -4,6 +4,7 @@ require "rims/version"
 
 module RIMS
   autoload :Authentication, 'rims/auth'
+  autoload :BufferedWriter, 'rims/server'
   autoload :Checksum_KeyValueStore, 'rims/cksum_kvs'
   autoload :Cmd, 'rims/cmd'
   autoload :Config, 'rims/server'
