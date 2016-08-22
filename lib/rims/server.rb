@@ -429,7 +429,10 @@ module RIMS
       process_privilege_gid: 65534,
       log_file: 'imap.log'.freeze,
       log_level: 'INFO',
-      log_stdout: 'INFO'
+      log_stdout: 'INFO',
+      read_lock_timeout_seconds: 30,
+      write_lock_timeout_seconds: 30,
+      cleanup_write_lock_timeout_seconds: 1
     }.freeze
 
     def initialize(kvs_meta_open: nil,
@@ -441,6 +444,9 @@ module RIMS
                    mail_delivery_user: DEFAULT[:mail_delivery_user],
                    process_privilege_uid: DEFAULT[:process_privilege_uid],
                    process_privilege_gid: DEFAULT[:process_privilege_gid],
+                   read_lock_timeout_seconds: DEFAULT[:read_lock_timeout_seconds],
+                   write_lock_timeout_seconds: DEFAULT[:write_lock_timeout_seconds],
+                   cleanup_write_lock_timeout_seconds: DEFAULT[:cleanup_write_lock_timeout_seconds],
                    logger: Logger.new(STDOUT))
       begin
         kvs_meta_open or raise ArgumentError, 'need for a keyword argument: kvs_meta_open'
@@ -450,12 +456,16 @@ module RIMS
         @imap_host = imap_host
         @imap_port = imap_port
         @send_buffer_limit = send_buffer_limit
-        @logger = logger
         @mail_delivery_user = mail_delivery_user
 
         @process_privilege_uid = process_privilege_uid
         @process_privilege_gid = process_privilege_gid
 
+        @read_lock_timeout_seconds = read_lock_timeout_seconds
+        @write_lock_timeout_seconds = write_lock_timeout_seconds
+        @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
+
+        @logger = logger
         @mail_store_pool = MailStorePool.new(kvs_meta_open, kvs_text_open)
       rescue
         logger.fatal($!) rescue StandardError
@@ -492,7 +502,11 @@ module RIMS
           Thread.start(sv_sock.accept) {|cl_sock|
             begin
               @logger.info("accept client: #{ipaddr_log(cl_sock.peeraddr(false))}")
-              decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger, mail_delivery_user: @mail_delivery_user)
+              decoder = Protocol::Decoder.new_decoder(@mail_store_pool, @authentication, @logger,
+                                                      mail_delivery_user: @mail_delivery_user,
+                                                      read_lock_timeout_seconds: @read_lock_timeout_seconds,
+                                                      write_lock_timeout_seconds: @write_lock_timeout_seconds,
+                                                      cleanup_write_lock_timeout_seconds: @cleanup_write_lock_timeout_seconds)
               Protocol::Decoder.repl(decoder, cl_sock, BufferedWriter.new(cl_sock, @send_buffer_limit), @logger)
             ensure
               Error.suppress_2nd_error_at_resource_closing(logger: @logger) { cl_sock.close }

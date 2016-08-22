@@ -1,3 +1,9 @@
+2016-08-22  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/error.rb, lib/rims/lock.rb, lib/rims/mail_store.rb,
+	lib/rims/protocol.rb: read-write lock and lock-try timeout is
+	defined for IMAP command interaction.
+
 2016-08-21  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/server.rb: defined I/O-buffered writer for response
