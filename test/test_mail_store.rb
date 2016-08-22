@@ -412,6 +412,34 @@ module RIMS::Test
       assert_equal([].to_set, folder.parse_msg_set('1:*', uid: true))
     end
 
+    def test_mail_folder_expunge_mbox
+      mbox_id = @mail_store.add_mbox('INBOX')
+      @mail_store.add_msg(mbox_id, 'a') # 1 deleted
+      @mail_store.add_msg(mbox_id, 'b') # 2 deleted
+      @mail_store.add_msg(mbox_id, 'c') # 3
+      @mail_store.add_msg(mbox_id, 'd') # 4
+      @mail_store.add_msg(mbox_id, 'e') # 5
+      @mail_store.add_msg(mbox_id, 'f') # 6 deleted
+      @mail_store.add_msg(mbox_id, 'g') # 7
+      @mail_store.add_msg(mbox_id, 'h') # 8 deleted
+
+      folder = @mail_store.select_mbox(mbox_id).reload
+      assert_equal(8, folder.each_msg.count)
+
+      client_msg_list = folder.each_msg.to_a
+      @mail_store.set_msg_flag(mbox_id, client_msg_list[0].uid, 'deleted', true)
+      @mail_store.set_msg_flag(mbox_id, client_msg_list[7].uid, 'deleted', true)
+      @mail_store.set_msg_flag(mbox_id, client_msg_list[1].uid, 'deleted', true)
+      @mail_store.set_msg_flag(mbox_id, client_msg_list[5].uid, 'deleted', true)
+
+      folder.expunge_mbox do |msg_num|
+        client_msg_list.delete_at(msg_num - 1)
+      end
+      folder.reload
+
+      assert_equal(folder.each_msg.map(&:uid), client_msg_list.map(&:uid))
+    end
+
     def test_close_open
       mbox_id1 = @mail_store.add_mbox('INBOX')
       msg_uid1 = @mail_store.add_msg(mbox_id1, 'foo', Time.local(2014, 5, 6, 12, 34, 56))

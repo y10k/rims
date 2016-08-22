@@ -429,8 +429,18 @@ module RIMS
             uid2num[msg.uid] = msg.num
           end
 
+          msg_num_list = []
           @mail_store.expunge_mbox(@mbox_id) do |uid|
             num = uid2num[uid] or raise "internal error: not found a message: #{@mbox_id},#{uid}"
+            msg_num_list << num
+          end
+
+          # to prevent to decrement message sequence numbers that
+          # appear in a set of successive expunge responses, expunge
+          # command should early return an expunge response of larger
+          # message sequence number.
+          msg_num_list.sort!
+          msg_num_list.reverse_each do |num|
             yield(num)
           end
         else

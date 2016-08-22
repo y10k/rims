@@ -1717,8 +1717,8 @@ module RIMS::Test
       }
 
       assert_imap_command(:expunge) {|assert|
-        assert.equal('* 1 EXPUNGE')
         assert.equal('* 2 EXPUNGE')
+        assert.equal('* 1 EXPUNGE')
         assert.equal("#{tag} OK EXPUNGE completed")
       }
 
