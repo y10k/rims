@@ -2041,13 +2041,8 @@ module RIMS
         should_be_alive_folder
         @folder.reload if @folder.updated?
 
-        msg_num_list = []
-        @folder.expunge_mbox do |msg_num|
-          msg_num_list << msg_num
-        end
-
         yield response_stream(tag) {|res|
-          for msg_num in msg_num_list
+          @folder.expunge_mbox do |msg_num|
             res << "* #{msg_num} EXPUNGE\r\n"
           end
           res << "#{tag} OK EXPUNGE completed\r\n"
