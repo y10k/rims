@@ -2033,7 +2033,7 @@ module RIMS
       imap_command_selected :close, exclusive: true
 
       def expunge(tag)
-        return yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ])if @folder.read_only?
+        return yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ]) if @folder.read_only?
         should_be_alive_folder
         @folder.reload if @folder.updated?
 
