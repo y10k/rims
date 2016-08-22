@@ -3,24 +3,6 @@
 require 'logger'
 
 module RIMS
-  class LockError < StandardError
-  end
-
-  class IllegalLockError < LockError
-  end
-
-  class ReadLockError < LockError
-  end
-
-  class ReadLockTimeoutError < ReadLockError
-  end
-
-  class WriteLockError < LockError
-  end
-
-  class WriteLockTimeoutError < LockError
-  end
-
   class ReadWriteLock
     DEFAULT_TIMEOUT_SECONDS = 300
 

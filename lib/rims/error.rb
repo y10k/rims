@@ -16,6 +16,24 @@ module RIMS
     end
   end
 
+  class LockError < Error
+  end
+
+  class IllegalLockError < LockError
+  end
+
+  class ReadLockError < LockError
+  end
+
+  class ReadLockTimeoutError < ReadLockError
+  end
+
+  class WriteLockError < LockError
+  end
+
+  class WriteLockTimeoutError < LockError
+  end
+
   class ProtocolError < Error
   end
 
