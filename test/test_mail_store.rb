@@ -331,6 +331,10 @@ module RIMS::Test
       mbox_id = @mail_store.add_mbox('INBOX')
       folder = @mail_store.select_mbox(mbox_id)
       assert_equal(mbox_id, folder.mbox_id)
+      assert_equal(false, folder.read_only)
+      assert_equal(true, folder.updated?)
+
+      folder.reload
       assert_equal(false, folder.updated?)
       assert_equal([], folder.each_msg.to_a)
 
@@ -367,7 +371,7 @@ module RIMS::Test
       end
       @mail_store.expunge_mbox(mbox_id)
 
-      folder = @mail_store.select_mbox(mbox_id)
+      folder = @mail_store.select_mbox(mbox_id).reload
 
       assert_equal([ 1 ].to_set, folder.parse_msg_set('1'))
       assert_equal([ 1 ].to_set, folder.parse_msg_set('1', uid: false))
@@ -393,7 +397,7 @@ module RIMS::Test
     def test_mail_folder_parse_msg_set_empty
       mbox_id = @mail_store.add_mbox('INBOX')
       assert_equal([], @mail_store.each_msg_uid(mbox_id).to_a)
-      folder = @mail_store.select_mbox(mbox_id)
+      folder = @mail_store.select_mbox(mbox_id).reload
 
       assert_equal([ 1 ].to_set, folder.parse_msg_set('1'))
       assert_equal([ 1 ].to_set, folder.parse_msg_set('1', uid: false))

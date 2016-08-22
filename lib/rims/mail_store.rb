@@ -344,7 +344,11 @@ module RIMS
       @mbox_id = mbox_id
       @mail_store = mail_store
       @read_only = read_only
-      reload
+
+      # late loding
+      @cnum = nil
+      @msg_list = nil
+      @uid_map = nil
     end
 
     def reload
@@ -367,7 +371,7 @@ module RIMS
     end
 
     def updated?
-      @mail_store.cnum > @cnum
+      @mail_store.cnum != @cnum
     end
 
     attr_reader :mbox_id

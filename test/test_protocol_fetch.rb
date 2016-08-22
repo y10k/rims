@@ -35,9 +35,9 @@ module RIMS::Test
     def make_fetch_parser(read_only: false)
       yield if block_given?
       if (read_only) then
-        @folder = @mail_store.examine_mbox(@inbox_id)
+        @folder = @mail_store.examine_mbox(@inbox_id).reload
       else
-        @folder = @mail_store.select_mbox(@inbox_id)
+        @folder = @mail_store.select_mbox(@inbox_id).reload
       end
       @parser = RIMS::Protocol::FetchParser.new(@mail_store, @folder)
     end
