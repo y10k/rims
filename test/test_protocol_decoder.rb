@@ -1505,6 +1505,7 @@ module RIMS::Test
       assert_equal(true, @decoder.selected?)
 
       assert_imap_command(:close) {|assert|
+        assert.equal("* 1 EXPUNGE")
         assert.equal("#{tag} OK CLOSE completed")
       }
 
@@ -4779,6 +4780,7 @@ LOGOUT
         assert.equal('* OK [UIDVALIDITY 1]')
         assert.equal('* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)')
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal("* 1 EXPUNGE\r\n")
         assert.equal("#{tag!} OK CLOSE completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")

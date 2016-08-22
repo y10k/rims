@@ -1623,10 +1623,10 @@ module RIMS
       end
       private :alive_folder?
 
-      def close_folder
+      def close_folder(&block)
         if (auth? && selected? && alive_folder?) then
           @folder.reload if @folder.updated?
-          @folder.close
+          @folder.close(&block)
           @folder = nil
         end
 
@@ -2026,9 +2026,13 @@ module RIMS
       imap_command_selected :check, exclusive: true
 
       def close(tag, &block)
-        close_folder
-        get_mail_store.sync
-        yield([ "#{tag} OK CLOSE completed\r\n" ])
+        yield response_stream(tag) {|res|
+          close_folder do |msg_num|
+            res << "* #{msg_num} EXPUNGE\r\n"
+          end
+          get_mail_store.sync
+          res << "#{tag} OK CLOSE completed\r\n"
+        }
       end
       imap_command_selected :close, exclusive: true
 

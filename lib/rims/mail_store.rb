@@ -451,9 +451,9 @@ module RIMS
       self
     end
 
-    def close
+    def close(&block)
       unless (@read_only) then
-        expunge_mbox
+        expunge_mbox(&block)
         @mail_store.each_msg_uid(@mbox_id) do |msg_id|
           if (@mail_store.msg_flag(@mbox_id, msg_id, 'recent')) then
             @mail_store.set_msg_flag(@mbox_id, msg_id, 'recent', false)
