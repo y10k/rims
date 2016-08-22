@@ -1,5 +1,8 @@
 2016-08-22  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/mail_store.rb: late loading message number list of
+	mailbox folder.
+
 	* lib/rims/error.rb, lib/rims/lock.rb, lib/rims/mail_store.rb,
 	lib/rims/protocol.rb: read-write lock and lock-try timeout is
 	defined for IMAP command interaction.
