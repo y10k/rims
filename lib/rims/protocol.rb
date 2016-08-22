@@ -1746,7 +1746,7 @@ module RIMS
               res << "* #{get_mail_store.mbox_flag_num(@folder.mbox_id, 'recent')} RECENTS\r\n"
             }
           rescue ReadLockTimeoutError
-            @logger.warn("give up to get folder status because of write-lock timeout over #{@read_lock_timeout_seconds} seconds")
+            @logger.warn("give up to get folder status because of read-lock timeout over #{@read_lock_timeout_seconds} seconds")
           end
         end
         res << "#{tag} OK NOOP completed\r\n"
