@@ -337,7 +337,9 @@ module RIMS
     end
 
     def self.build_pool(kvs_meta_open, kvs_text_open)
-      MailStorePool.new(kvs_meta_open, kvs_text_open)
+      RIMS::ObjectPool.new{|object_pool, unique_user_id, object_lock|
+        RIMS::MailStoreHolder.build(object_pool, unique_user_id, object_lock, kvs_meta_open, kvs_text_open)
+      }
     end
   end
 
@@ -521,98 +523,37 @@ module RIMS
     end
   end
 
-  class MailStorePool
-    RefCountEntry = Struct.new(:count, :mail_store_holder)
+  class MailStoreHolder < ObjectPool::ObjectHolder
+    extend Forwardable
 
-    class Holder
-      extend Forwardable
-
-      def initialize(parent_pool, mail_store, unique_user_id, user_lock)
-        @parent_pool = parent_pool
-        @mail_store = mail_store
-        @unique_user_id = unique_user_id
-        @user_lock = user_lock
-      end
-
-      attr_reader :mail_store
-      attr_reader :unique_user_id
-      attr_reader :user_lock
-
-      def_delegator :@user_lock, :read_synchronize
-      def_delegator :@user_lock, :write_synchronize
-
-      # optional block is called when a mail store is closed.
-      def return_pool(**name_args, &block) # yields:
-        @parent_pool.put(self, **name_args, &block)
-        nil
-      end
-    end
-
-    def initialize(kvs_open_attr, kvs_open_text)
-      @kvs_open_attr = kvs_open_attr
-      @kvs_open_text = kvs_open_text
-      @pool_map = {}
-      @pool_lock = Mutex.new
-      @user_lock_map = Hash.new{|hash, key| hash[key] = ReadWriteLock.new }
-    end
-
-    def empty?
-      @pool_map.empty?
-    end
-
-    def new_mail_store(unique_user_id)
+    def self.build(object_pool, unique_user_id, object_lock, kvs_meta_open, kvs_text_open)
       kvs_build = proc{|kvs_open, db_name|
         kvs_open.call(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id, db_name)
       }
 
-      mail_store = MailStore.new(DB::Meta.new(kvs_build.call(@kvs_open_attr, 'meta')),
-                                 DB::Message.new(kvs_build.call(@kvs_open_text, 'message'))) {|mbox_id|
-        DB::Mailbox.new(kvs_build.call(@kvs_open_attr, "mailbox_#{mbox_id}"))
+      mail_store = MailStore.new(DB::Meta.new(kvs_build.call(kvs_meta_open, 'meta')),
+                                 DB::Message.new(kvs_build.call(kvs_text_open, 'message'))) {|mbox_id|
+        DB::Mailbox.new(kvs_build.call(kvs_meta_open, "mailbox_#{mbox_id}"))
       }
-      unless (mail_store.mbox_id('INBOX')) then
-        mail_store.add_mbox('INBOX')
-      end
+      mail_store.add_mbox('INBOX') unless mail_store.mbox_id('INBOX')
 
-      mail_store
-    end
-    private :new_mail_store
-
-    # optional block is called when a new mail store is opened.
-    def get(unique_user_id, timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS) # yields:
-      user_lock = @pool_lock.synchronize{ @user_lock_map[unique_user_id] }
-      user_lock.write_synchronize(timeout_seconds) {
-        if (@pool_map.key? unique_user_id) then
-          ref_count_entry = @pool_map[unique_user_id]
-        else
-          yield if block_given?
-          mail_store = new_mail_store(unique_user_id)
-          holder = Holder.new(self, mail_store, unique_user_id, user_lock)
-          ref_count_entry = RefCountEntry.new(0, holder)
-          @pool_map[unique_user_id] = ref_count_entry
-        end
-        if (ref_count_entry.count < 0) then
-          raise 'internal error.'
-        end
-        ref_count_entry.count += 1
-        ref_count_entry.mail_store_holder
-      }
+      new(object_pool, unique_user_id, object_lock, mail_store)
     end
 
-    # optional block is called when a mail store is closed.
-    def put(mail_store_holder, timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS) # yields:
-      mail_store_holder.write_synchronize(timeout_seconds) {
-        ref_count_entry = @pool_map[mail_store_holder.unique_user_id] or raise 'internal error.'
-        if (ref_count_entry.count < 1) then
-          raise 'internal error.'
-        end
-        ref_count_entry.count -= 1
-        if (ref_count_entry.count == 0) then
-          @pool_map.delete(mail_store_holder.unique_user_id)
-          ref_count_entry.mail_store_holder.mail_store.close
-          yield if block_given?
-        end
-      }
-      nil
+    def initialize(object_pool, unique_user_id, object_lock, mail_store)
+      super(object_pool, unique_user_id)
+      @object_lock = object_lock
+      @mail_store = mail_store
+    end
+
+    alias unique_user_id object_id
+    attr_reader :mail_store
+
+    def_delegator :@object_lock, :read_synchronize
+    def_delegator :@object_lock, :write_synchronize
+
+    def object_destroy
+      @mail_store.close
     end
   end
 end

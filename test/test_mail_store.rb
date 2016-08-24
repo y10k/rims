@@ -616,7 +616,7 @@ module RIMS::Test
       @kvs_open = proc{|mbox_version, unique_user_id, db_name|
         RIMS::Hash_KeyValueStore.new(@kvs["#{mbox_version}/#{unique_user_id[0, 7]}/#{db_name}"])
       }
-      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
+      @mail_store_pool = RIMS::MailStore.build_pool(@kvs_open, @kvs_open)
     end
 
     def teardown
