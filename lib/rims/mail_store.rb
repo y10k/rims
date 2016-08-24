@@ -335,6 +335,10 @@ module RIMS
       @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
       MailFolder.new(mbox_id, self, read_only: true)
     end
+
+    def self.build_pool(kvs_meta_open, kvs_text_open)
+      MailStorePool.new(kvs_meta_open, kvs_text_open)
+    end
   end
 
   class MailFolder

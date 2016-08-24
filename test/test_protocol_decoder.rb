@@ -121,7 +121,7 @@ module RIMS::Test
       }
       @unique_user_id = RIMS::Authentication.unique_user_id('foo')
 
-      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
+      @mail_store_pool = RIMS::MailStore.build_pool(@kvs_open, @kvs_open)
       open_mail_store{
         @inbox_id = @mail_store.mbox_id('INBOX')
       }

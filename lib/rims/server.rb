@@ -466,7 +466,7 @@ module RIMS
         @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
 
         @logger = logger
-        @mail_store_pool = MailStorePool.new(kvs_meta_open, kvs_text_open)
+        @mail_store_pool = MailStore.build_pool(kvs_meta_open, kvs_text_open)
       rescue
         logger.fatal($!) rescue StandardError
         raise
