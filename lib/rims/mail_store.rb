@@ -25,6 +25,10 @@ module RIMS
         @abort_transaction = false
         @meta_db.dirty = true
       end
+
+      @server_response_queue_pool = RIMS::ObjectPool.new{|object_pool, mbox_id, object_lock|
+        MailboxServerResponseQueueBundleHolder.new(object_pool, mbox_id, object_lock)
+      }
     end
 
     def abort_transaction?
@@ -328,12 +332,12 @@ module RIMS
     end
 
     def select_mbox(mbox_id)
-      MailFolder.new(mbox_id, self)
+      MailFolder.new(mbox_id, self).attach_server_response_queue(@server_response_queue_pool)
     end
 
     def examine_mbox(mbox_id)
       @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
-      MailFolder.new(mbox_id, self, read_only: true)
+      MailFolder.new(mbox_id, self, read_only: true).attach_server_response_queue(@server_response_queue_pool)
     end
 
     def self.build_pool(kvs_meta_open, kvs_text_open)
@@ -350,11 +354,35 @@ module RIMS
       @mbox_id = mbox_id
       @mail_store = mail_store
       @read_only = read_only
+      @mail_folder_key = object_id
 
       # late loding
       @cnum = nil
       @msg_list = nil
       @uid_map = nil
+    end
+
+    def attach_server_response_queue(server_response_queue_pool)
+      @server_response_queue_bundle = server_response_queue_pool.get(@mbox_id)
+      @server_response_queue = @server_response_queue_bundle.attach_queue(@mail_folder_key)
+      self
+    end
+
+    def server_response_multicast_push(server_response_message)
+      @server_response_queue_bundle.multicast_push(server_response_message, @mail_folder_key)
+      self
+    end
+
+    def server_response?
+      ! @server_response_queue.empty?
+    end
+
+    def server_response_fetch
+      while (server_response?)
+        server_response_message = @server_response_queue.pop(true)
+        yield(server_response_message)
+      end
+      self
     end
 
     def reload
@@ -466,6 +494,11 @@ module RIMS
           end
         end
       end
+      @mail_store = nil
+
+      @server_response_queue_bundle.detach_queue(@mail_folder_key)
+      @server_response_queue_bundle.return_pool
+      @server_response_queue_bundle = nil
 
       self
     end
@@ -554,6 +587,35 @@ module RIMS
 
     def object_destroy
       @mail_store.close
+    end
+  end
+
+  class MailboxServerResponseQueueBundleHolder < ObjectPool::ObjectHolder
+    def initialize(object_pool, mbox_id, object_lock)
+      super(object_pool, mbox_id)
+      @object_lock = object_lock
+      @queue_map = Hash.new{|h, k| h[k] = Thread::Queue.new }
+    end
+
+    alias mbox_id object_id
+
+    def attach_queue(mail_folder_key)
+      @object_lock.write_synchronize{ @queue_map[mail_folder_key] }
+    end
+
+    def detach_queue(mail_folder_key)
+      @object_lock.write_synchronize{ @queue_map.delete(mail_folder_key) } or raise "not found a queue at mail folder key: #{mail_folder_key}"
+      self
+    end
+
+    def multicast_push(server_response_message, this_mail_folder_key)
+      @object_lock.read_synchronize{
+        for mail_folder_key, queue in @queue_map
+          next if (mail_folder_key == this_mail_folder_key)
+          queue.push(server_response_message)
+        end
+      }
+      self
     end
   end
 end
