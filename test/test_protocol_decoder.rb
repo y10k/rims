@@ -3854,8 +3854,6 @@ module RIMS::Test
       assert_equal(true, @decoder.selected?)
 
       assert_imap_command(:noop) {|assert|
-        assert.equal('* 1 EXISTS')
-        assert.equal('* 1 RECENTS')
         assert.equal("#{tag} OK NOOP completed")
       }
 
@@ -3879,8 +3877,6 @@ module RIMS::Test
       assert_equal(true, @decoder.selected?)
 
       assert_imap_command(:noop) {|assert|
-        assert.equal('* 1 EXISTS')
-        assert.equal('* 0 RECENTS')
         assert.equal("#{tag} OK NOOP completed")
       }
 
@@ -5928,15 +5924,11 @@ LOGOUT
         assert.equal("#{tag!} OK NOOP completed")
         assert.skip_while{|line| line =~ /^\* /}
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
-        assert.equal('* 1 EXISTS')
-        assert.equal('* 1 RECENTS')
         assert.equal("#{tag!} OK NOOP completed")
         assert.equal("#{tag!} OK CLOSE completed")
         assert.equal("#{tag!} OK NOOP completed")
         assert.skip_while{|line| line =~ /^\* /}
         assert.equal("#{tag!} OK [READ-ONLY] EXAMINE completed")
-        assert.equal('* 1 EXISTS')
-        assert.equal('* 0 RECENTS')
         assert.equal("#{tag!} OK NOOP completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
