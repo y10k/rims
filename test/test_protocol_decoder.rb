@@ -109,6 +109,11 @@ module RIMS::Test
     end
     private :open_mail_store
 
+    def make_decoder
+      RIMS::Protocol::Decoder.new_decoder(@mail_store_pool, @auth, @logger)
+    end
+    private :make_decoder
+
     def setup
       @kvs = Hash.new{|h, k| h[k] = {} }
       @kvs_open = proc{|mbox_version, unique_user_id, db_name|
@@ -135,7 +140,7 @@ module RIMS::Test
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
 
-      @decoder = RIMS::Protocol::Decoder.new_decoder(@mail_store_pool, @auth, @logger)
+      @decoder = make_decoder
       @tag = 'T000'
     end
 
