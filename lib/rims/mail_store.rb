@@ -328,6 +328,7 @@ module RIMS
     end
 
     def select_mbox(mbox_id)
+      @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
       MailFolder.new(mbox_id, self)
     end
 
