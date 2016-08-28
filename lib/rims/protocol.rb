@@ -1976,9 +1976,24 @@ module RIMS
       end
       imap_command_authenticated :status
 
+      def mailbox_size_server_response_multicast_push(mbox_id)
+        all_msgs = get_mail_store.mbox_msg_num(mbox_id)
+        recent_msgs = get_mail_store.mbox_flag_num(mbox_id, 'recent')
+
+        f = get_mail_store.examine_mbox(mbox_id)
+        begin
+          f.server_response_multicast_push("* #{all_msgs} EXISTS\r\n")
+          f.server_response_multicast_push("* #{recent_msgs} RECENT\r\n")
+        ensure
+          f.close
+        end
+
+        nil
+      end
+      private :mailbox_size_server_response_multicast_push
+
       def append(tag, mbox_name, *opt_args, msg_text)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
           msg_flags = []
@@ -2023,9 +2038,12 @@ module RIMS
           for flag_name in msg_flags
             get_mail_store.set_msg_flag(mbox_id, uid, flag_name, true)
           end
+          mailbox_size_server_response_multicast_push(mbox_id)
 
+          @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
           res << "#{tag} OK [APPENDUID #{mbox_id} #{uid}] APPEND completed\r\n"
         else
+          @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
           res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
         end
         yield(res)
@@ -2270,8 +2288,6 @@ module RIMS
         @folder.reload if @folder.updated?
 
         res = []
-        @folder.server_response_fetch{|r| res << r } if @folder.server_response?
-
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         msg_set = @folder.parse_msg_set(msg_set, uid: uid)
 
@@ -2286,11 +2302,15 @@ module RIMS
           end
 
           if msg_list.size > 0
+            mailbox_size_server_response_multicast_push(mbox_id)
+            @folder.server_response_fetch{|r| res << r } if @folder.server_response?
             res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
           else
+            @folder.server_response_fetch{|r| res << r } if @folder.server_response?
             res << "#{tag} OK COPY completed\r\n"
           end
         else
+          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
           res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
         end
         yield(res)
