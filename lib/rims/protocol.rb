@@ -1301,6 +1301,7 @@ module RIMS
             @logger.error($!)
             res << "#{tag} BAD client command syntax error\r\n"
           rescue
+            raise if ($!.name =~ /AssertionFailedError/)
             @logger.error('internal server error.')
             @logger.error($!)
             res << "#{tag} BAD internal server error\r\n"
@@ -1325,6 +1326,7 @@ module RIMS
           @logger.error($!)
           yield([ "#{tag} BAD invalid command parameter\r\n" ])
         rescue
+          raise if ($!.class.name =~ /AssertionFailedError/)
           @logger.error('internal server error.')
           @logger.error($!)
           yield([ "#{tag} BAD internal server error\r\n" ])
