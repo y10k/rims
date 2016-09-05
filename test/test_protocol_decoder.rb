@@ -157,29 +157,36 @@ module RIMS::Test
 
     def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, client_response_input_text: nil, **cmd_opts)
       tag!
+      block_call = 0
 
       case (cmd_method_symbol)
       when :authenticate
         assert(cmd_opts.empty?)
         execute_imap_command_authenticate(tag, cmd_str_args, client_response_input_text) {|response_lines|
+          block_call += 1
           assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
         }
       when :login
         assert(cmd_opts.empty?)
         execute_imap_command_login(tag, cmd_str_args) {|response_lines|
+          block_call += 1
           assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
         }
       else
         if (cmd_opts.empty?) then
           execute_imap_command(cmd_method_symbol, tag, cmd_str_args) {|response_lines|
+            block_call += 1
             assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
           }
         else
           execute_imap_command_with_options(cmd_method_symbol, tag, cmd_str_args, cmd_opts) {|response_lines|
+            block_call += 1
             assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
           }
         end
       end
+
+      assert_equal(1, block_call, 'IMAP command block should be called only once.')
       @decoder = @decoder.next_decoder
 
       nil
