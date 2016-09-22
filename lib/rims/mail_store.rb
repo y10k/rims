@@ -580,7 +580,7 @@ module RIMS
       @mail_store = mail_store
     end
 
-    alias unique_user_id object_id
+    alias unique_user_id object_key
     attr_reader :mail_store
 
     def_delegator :@object_lock, :read_synchronize

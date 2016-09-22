@@ -630,6 +630,13 @@ module RIMS::Test
     end
     private :assert_call_hook
 
+    def test_holder_object_key
+      unique_user_id = RIMS::Authentication.unique_user_id('foo')
+      holder = @mail_store_pool.get(unique_user_id)
+      assert_equal(unique_user_id, holder.object_key)
+      assert_equal(unique_user_id, holder.unique_user_id)
+    end
+
     def test_get
       unique_user_id = RIMS::Authentication.unique_user_id('foo')
       assert_call_hook{|hook|
