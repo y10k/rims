@@ -1301,6 +1301,7 @@ module RIMS
             @logger.error($!)
             res << "#{tag} BAD client command syntax error\r\n"
           rescue
+            raise if ($!.name =~ /AssertionFailedError/)
             @logger.error('internal server error.')
             @logger.error($!)
             res << "#{tag} BAD internal server error\r\n"
@@ -1325,6 +1326,7 @@ module RIMS
           @logger.error($!)
           yield([ "#{tag} BAD invalid command parameter\r\n" ])
         rescue
+          raise if ($!.class.name =~ /AssertionFailedError/)
           @logger.error('internal server error.')
           @logger.error($!)
           yield([ "#{tag} BAD internal server error\r\n" ])
@@ -1738,12 +1740,9 @@ module RIMS
       def noop(tag)
         res = []
         if (auth? && selected?) then
-          should_be_alive_folder
           begin
             @mail_store_holder.read_synchronize(@read_lock_timeout_seconds) {
-              @folder.reload if @folder.updated?
-              res << "* #{get_mail_store.mbox_msg_num(@folder.mbox_id)} EXISTS\r\n"
-              res << "* #{get_mail_store.mbox_flag_num(@folder.mbox_id, 'recent')} RECENTS\r\n"
+              @folder.server_response_fetch{|r| res << r } if @folder.server_response?
             }
           rescue ReadLockTimeoutError
             @logger.warn("give up to get folder status because of read-lock timeout over #{@read_lock_timeout_seconds} seconds")
@@ -1812,6 +1811,7 @@ module RIMS
 
       def create(tag, mbox_name)
         res = []
+        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (get_mail_store.mbox_id(mbox_name_utf8)) then
           res << "#{tag} NO duplicated mailbox\r\n"
@@ -1825,6 +1825,7 @@ module RIMS
 
       def delete(tag, mbox_name)
         res = []
+        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
           if (id != get_mail_store.mbox_id('INBOX')) then
@@ -1841,38 +1842,46 @@ module RIMS
       imap_command_authenticated :delete, exclusive: true
 
       def rename(tag, src_name, dst_name)
+        res = []
+        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         src_name_utf8 = Net::IMAP.decode_utf7(src_name)
         dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
         unless (id = get_mail_store.mbox_id(src_name_utf8)) then
-          return yield([ "#{tag} NO not found a mailbox\r\n" ])
+          return yield(res << "#{tag} NO not found a mailbox\r\n")
         end
         if (id == get_mail_store.mbox_id('INBOX')) then
-          return yield([ "#{tag} NO not rename inbox\r\n"])
+          return yield(res << "#{tag} NO not rename inbox\r\n")
         end
         if (get_mail_store.mbox_id(dst_name_utf8)) then
-          return yield([ "#{tag} NO duplicated mailbox\r\n" ])
+          return yield(res << "#{tag} NO duplicated mailbox\r\n")
         end
         get_mail_store.rename_mbox(id, dst_name_utf8)
-        return yield([ "#{tag} OK RENAME completed\r\n" ])
+        return yield(res << "#{tag} OK RENAME completed\r\n")
       end
       imap_command_authenticated :rename, exclusive: true
 
       def subscribe(tag, mbox_name)
+        res = []
+        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (_mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          yield([ "#{tag} OK SUBSCRIBE completed\r\n" ])
+          res << "#{tag} OK SUBSCRIBE completed\r\n"
         else
-          yield([ "#{tag} NO not found a mailbox\r\n" ])
+          res << "#{tag} NO not found a mailbox\r\n"
         end
+        yield(res)
       end
       imap_command_authenticated :subscribe
 
       def unsubscribe(tag, mbox_name)
+        res = []
+        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         if (_mbox_id = get_mail_store.mbox_id(mbox_name)) then
-          yield([ "#{tag} NO not implemented subscribe/unsbscribe command\r\n" ])
+          res << "#{tag} NO not implemented subscribe/unsbscribe command\r\n"
         else
-          yield([ "#{tag} NO not found a mailbox\r\n" ])
+          res << "#{tag} NO not found a mailbox\r\n"
         end
+        yield(res)
       end
       imap_command_authenticated :unsubscribe
 
@@ -1902,6 +1911,7 @@ module RIMS
 
       def list(tag, ref_name, mbox_name)
         res = []
+        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         if (mbox_name.empty?) then
           res << "* LIST (\\Noselect) NIL \"\"\r\n"
         else
@@ -1916,6 +1926,7 @@ module RIMS
 
       def lsub(tag, ref_name, mbox_name)
         res = []
+        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         if (mbox_name.empty?) then
           res << "* LSUB (\\Noselect) NIL \"\"\r\n"
         else
@@ -1930,6 +1941,7 @@ module RIMS
 
       def status(tag, mbox_name, data_item_group)
         res = []
+        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
           unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
@@ -1963,6 +1975,22 @@ module RIMS
         yield(res)
       end
       imap_command_authenticated :status
+
+      def mailbox_size_server_response_multicast_push(mbox_id)
+        all_msgs = get_mail_store.mbox_msg_num(mbox_id)
+        recent_msgs = get_mail_store.mbox_flag_num(mbox_id, 'recent')
+
+        f = get_mail_store.examine_mbox(mbox_id)
+        begin
+          f.server_response_multicast_push("* #{all_msgs} EXISTS\r\n")
+          f.server_response_multicast_push("* #{recent_msgs} RECENT\r\n")
+        ensure
+          f.close
+        end
+
+        nil
+      end
+      private :mailbox_size_server_response_multicast_push
 
       def append(tag, mbox_name, *opt_args, msg_text)
         res = []
@@ -2010,9 +2038,12 @@ module RIMS
           for flag_name in msg_flags
             get_mail_store.set_msg_flag(mbox_id, uid, flag_name, true)
           end
+          mailbox_size_server_response_multicast_push(mbox_id)
 
+          @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
           res << "#{tag} OK [APPENDUID #{mbox_id} #{uid}] APPEND completed\r\n"
         else
+          @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
           res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
         end
         yield(res)
@@ -2020,15 +2051,21 @@ module RIMS
       imap_command_authenticated :append, exclusive: true
 
       def check(tag)
+        res = []
+        @folder.server_response_fetch{|r| res << r } if @folder.server_response?
         get_mail_store.sync
-        yield([ "#{tag} OK CHECK completed\r\n" ])
+        res << "#{tag} OK CHECK completed\r\n"
+        yield(res)
       end
       imap_command_selected :check, exclusive: true
 
       def close(tag, &block)
         yield response_stream(tag) {|res|
+          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
           close_folder do |msg_num|
-            res << "* #{msg_num} EXPUNGE\r\n"
+            r = "* #{msg_num} EXPUNGE\r\n"
+            res << r
+            @folder.server_response_multicast_push(r)
           end
           get_mail_store.sync
           res << "#{tag} OK CLOSE completed\r\n"
@@ -2042,8 +2079,11 @@ module RIMS
         @folder.reload if @folder.updated?
 
         yield response_stream(tag) {|res|
+          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
           @folder.expunge_mbox do |msg_num|
-            res << "* #{msg_num} EXPUNGE\r\n"
+            r = "* #{msg_num} EXPUNGE\r\n"
+            res << r
+            @folder.server_response_multicast_push(r)
           end
           res << "#{tag} OK EXPUNGE completed\r\n"
         }
@@ -2086,6 +2126,7 @@ module RIMS
         cond = parser.parse(cond_args)
 
         yield response_stream(tag) {|res|
+          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
           res << '* SEARCH'
           for msg in msg_src
             if (cond.call(msg)) then
@@ -2122,6 +2163,7 @@ module RIMS
         fetch = parser.parse(data_item_group)
 
         yield response_stream(tag) {|res|
+          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
           for msg in msg_list
             res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
           end
@@ -2206,9 +2248,13 @@ module RIMS
         end
 
         if (is_silent) then
-          yield([ "#{tag} OK STORE completed\r\n" ])
+          silent_res = []
+          @folder.server_response_fetch{|r| silent_res << r } if @folder.server_response?
+          silent_res << "#{tag} OK STORE completed\r\n"
+          yield(silent_res)
         else
           yield response_stream(tag) {|res|
+            @folder.server_response_fetch{|r| res << r } if @folder.server_response?
             for msg in msg_list
               flag_atom_list = nil
 
@@ -2256,11 +2302,15 @@ module RIMS
           end
 
           if msg_list.size > 0
+            mailbox_size_server_response_multicast_push(mbox_id)
+            @folder.server_response_fetch{|r| res << r } if @folder.server_response?
             res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
           else
+            @folder.server_response_fetch{|r| res << r } if @folder.server_response?
             res << "#{tag} OK COPY completed\r\n"
           end
         else
+          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
           res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
         end
         yield(res)

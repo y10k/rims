@@ -25,6 +25,10 @@ module RIMS
         @abort_transaction = false
         @meta_db.dirty = true
       end
+
+      @server_response_queue_pool = RIMS::ObjectPool.new{|object_pool, mbox_id, object_lock|
+        MailboxServerResponseQueueBundleHolder.new(object_pool, mbox_id, object_lock)
+      }
     end
 
     def abort_transaction?
@@ -329,12 +333,18 @@ module RIMS
 
     def select_mbox(mbox_id)
       @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
-      MailFolder.new(mbox_id, self)
+      MailFolder.new(mbox_id, self).attach_server_response_queue(@server_response_queue_pool)
     end
 
     def examine_mbox(mbox_id)
       @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
-      MailFolder.new(mbox_id, self, read_only: true)
+      MailFolder.new(mbox_id, self, read_only: true).attach_server_response_queue(@server_response_queue_pool)
+    end
+
+    def self.build_pool(kvs_meta_open, kvs_text_open)
+      RIMS::ObjectPool.new{|object_pool, unique_user_id, object_lock|
+        RIMS::MailStoreHolder.build(object_pool, unique_user_id, object_lock, kvs_meta_open, kvs_text_open)
+      }
     end
   end
 
@@ -345,11 +355,35 @@ module RIMS
       @mbox_id = mbox_id
       @mail_store = mail_store
       @read_only = read_only
+      @mail_folder_key = object_id
 
       # late loding
       @cnum = nil
       @msg_list = nil
       @uid_map = nil
+    end
+
+    def attach_server_response_queue(server_response_queue_pool)
+      @server_response_queue_bundle = server_response_queue_pool.get(@mbox_id)
+      @server_response_queue = @server_response_queue_bundle.attach_queue(@mail_folder_key)
+      self
+    end
+
+    def server_response_multicast_push(server_response_message)
+      @server_response_queue_bundle.multicast_push(server_response_message, @mail_folder_key)
+      self
+    end
+
+    def server_response?
+      ! @server_response_queue.empty?
+    end
+
+    def server_response_fetch
+      while (server_response?)
+        server_response_message = @server_response_queue.pop(true)
+        yield(server_response_message)
+      end
+      self
     end
 
     def reload
@@ -461,6 +495,11 @@ module RIMS
           end
         end
       end
+      @mail_store = nil
+
+      @server_response_queue_bundle.detach_queue(@mail_folder_key)
+      @server_response_queue_bundle.return_pool
+      @server_response_queue_bundle = nil
 
       self
     end
@@ -518,98 +557,66 @@ module RIMS
     end
   end
 
-  class MailStorePool
-    RefCountEntry = Struct.new(:count, :mail_store_holder)
+  class MailStoreHolder < ObjectPool::ObjectHolder
+    extend Forwardable
 
-    class Holder
-      extend Forwardable
-
-      def initialize(parent_pool, mail_store, unique_user_id, user_lock)
-        @parent_pool = parent_pool
-        @mail_store = mail_store
-        @unique_user_id = unique_user_id
-        @user_lock = user_lock
-      end
-
-      attr_reader :mail_store
-      attr_reader :unique_user_id
-      attr_reader :user_lock
-
-      def_delegator :@user_lock, :read_synchronize
-      def_delegator :@user_lock, :write_synchronize
-
-      # optional block is called when a mail store is closed.
-      def return_pool(**name_args, &block) # yields:
-        @parent_pool.put(self, **name_args, &block)
-        nil
-      end
-    end
-
-    def initialize(kvs_open_attr, kvs_open_text)
-      @kvs_open_attr = kvs_open_attr
-      @kvs_open_text = kvs_open_text
-      @pool_map = {}
-      @pool_lock = Mutex.new
-      @user_lock_map = Hash.new{|hash, key| hash[key] = ReadWriteLock.new }
-    end
-
-    def empty?
-      @pool_map.empty?
-    end
-
-    def new_mail_store(unique_user_id)
+    def self.build(object_pool, unique_user_id, object_lock, kvs_meta_open, kvs_text_open)
       kvs_build = proc{|kvs_open, db_name|
         kvs_open.call(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id, db_name)
       }
 
-      mail_store = MailStore.new(DB::Meta.new(kvs_build.call(@kvs_open_attr, 'meta')),
-                                 DB::Message.new(kvs_build.call(@kvs_open_text, 'message'))) {|mbox_id|
-        DB::Mailbox.new(kvs_build.call(@kvs_open_attr, "mailbox_#{mbox_id}"))
+      mail_store = MailStore.new(DB::Meta.new(kvs_build.call(kvs_meta_open, 'meta')),
+                                 DB::Message.new(kvs_build.call(kvs_text_open, 'message'))) {|mbox_id|
+        DB::Mailbox.new(kvs_build.call(kvs_meta_open, "mailbox_#{mbox_id}"))
       }
-      unless (mail_store.mbox_id('INBOX')) then
-        mail_store.add_mbox('INBOX')
-      end
+      mail_store.add_mbox('INBOX') unless mail_store.mbox_id('INBOX')
 
-      mail_store
-    end
-    private :new_mail_store
-
-    # optional block is called when a new mail store is opened.
-    def get(unique_user_id, timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS) # yields:
-      user_lock = @pool_lock.synchronize{ @user_lock_map[unique_user_id] }
-      user_lock.write_synchronize(timeout_seconds) {
-        if (@pool_map.key? unique_user_id) then
-          ref_count_entry = @pool_map[unique_user_id]
-        else
-          yield if block_given?
-          mail_store = new_mail_store(unique_user_id)
-          holder = Holder.new(self, mail_store, unique_user_id, user_lock)
-          ref_count_entry = RefCountEntry.new(0, holder)
-          @pool_map[unique_user_id] = ref_count_entry
-        end
-        if (ref_count_entry.count < 0) then
-          raise 'internal error.'
-        end
-        ref_count_entry.count += 1
-        ref_count_entry.mail_store_holder
-      }
+      new(object_pool, unique_user_id, object_lock, mail_store)
     end
 
-    # optional block is called when a mail store is closed.
-    def put(mail_store_holder, timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS) # yields:
-      mail_store_holder.write_synchronize(timeout_seconds) {
-        ref_count_entry = @pool_map[mail_store_holder.unique_user_id] or raise 'internal error.'
-        if (ref_count_entry.count < 1) then
-          raise 'internal error.'
-        end
-        ref_count_entry.count -= 1
-        if (ref_count_entry.count == 0) then
-          @pool_map.delete(mail_store_holder.unique_user_id)
-          ref_count_entry.mail_store_holder.mail_store.close
-          yield if block_given?
+    def initialize(object_pool, unique_user_id, object_lock, mail_store)
+      super(object_pool, unique_user_id)
+      @object_lock = object_lock
+      @mail_store = mail_store
+    end
+
+    alias unique_user_id object_id
+    attr_reader :mail_store
+
+    def_delegator :@object_lock, :read_synchronize
+    def_delegator :@object_lock, :write_synchronize
+
+    def object_destroy
+      @mail_store.close
+    end
+  end
+
+  class MailboxServerResponseQueueBundleHolder < ObjectPool::ObjectHolder
+    def initialize(object_pool, mbox_id, object_lock)
+      super(object_pool, mbox_id)
+      @object_lock = object_lock
+      @queue_map = Hash.new{|h, k| h[k] = Thread::Queue.new }
+    end
+
+    alias mbox_id object_id
+
+    def attach_queue(mail_folder_key)
+      @object_lock.write_synchronize{ @queue_map[mail_folder_key] }
+    end
+
+    def detach_queue(mail_folder_key)
+      @object_lock.write_synchronize{ @queue_map.delete(mail_folder_key) } or raise "not found a queue at mail folder key: #{mail_folder_key}"
+      self
+    end
+
+    def multicast_push(server_response_message, this_mail_folder_key)
+      @object_lock.read_synchronize{
+        for mail_folder_key, queue in @queue_map
+          next if (mail_folder_key == this_mail_folder_key)
+          queue.push(server_response_message)
         end
       }
-      nil
+      self
     end
   end
 end

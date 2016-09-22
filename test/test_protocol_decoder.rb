@@ -109,6 +109,11 @@ module RIMS::Test
     end
     private :open_mail_store
 
+    def make_decoder
+      RIMS::Protocol::Decoder.new_decoder(@mail_store_pool, @auth, @logger)
+    end
+    private :make_decoder
+
     def setup
       @kvs = Hash.new{|h, k| h[k] = {} }
       @kvs_open = proc{|mbox_version, unique_user_id, db_name|
@@ -116,7 +121,7 @@ module RIMS::Test
       }
       @unique_user_id = RIMS::Authentication.unique_user_id('foo')
 
-      @mail_store_pool = RIMS::MailStorePool.new(@kvs_open, @kvs_open)
+      @mail_store_pool = RIMS::MailStore.build_pool(@kvs_open, @kvs_open)
       open_mail_store{
         @inbox_id = @mail_store.mbox_id('INBOX')
       }
@@ -135,7 +140,7 @@ module RIMS::Test
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
 
-      @decoder = RIMS::Protocol::Decoder.new_decoder(@mail_store_pool, @auth, @logger)
+      @decoder = make_decoder
       @tag = 'T000'
     end
 
@@ -157,29 +162,36 @@ module RIMS::Test
 
     def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, client_response_input_text: nil, **cmd_opts)
       tag!
+      block_call = 0
 
       case (cmd_method_symbol)
       when :authenticate
         assert(cmd_opts.empty?)
         execute_imap_command_authenticate(tag, cmd_str_args, client_response_input_text) {|response_lines|
+          block_call += 1
           assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
         }
       when :login
         assert(cmd_opts.empty?)
         execute_imap_command_login(tag, cmd_str_args) {|response_lines|
+          block_call += 1
           assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
         }
       else
         if (cmd_opts.empty?) then
           execute_imap_command(cmd_method_symbol, tag, cmd_str_args) {|response_lines|
+            block_call += 1
             assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
           }
         else
           execute_imap_command_with_options(cmd_method_symbol, tag, cmd_str_args, cmd_opts) {|response_lines|
+            block_call += 1
             assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
           }
         end
       end
+
+      assert_equal(1, block_call, 'IMAP command block should be called only once.')
       @decoder = @decoder.next_decoder
 
       nil
@@ -3842,8 +3854,6 @@ module RIMS::Test
       assert_equal(true, @decoder.selected?)
 
       assert_imap_command(:noop) {|assert|
-        assert.equal('* 1 EXISTS')
-        assert.equal('* 1 RECENTS')
         assert.equal("#{tag} OK NOOP completed")
       }
 
@@ -3867,8 +3877,6 @@ module RIMS::Test
       assert_equal(true, @decoder.selected?)
 
       assert_imap_command(:noop) {|assert|
-        assert.equal('* 1 EXISTS')
-        assert.equal('* 0 RECENTS')
         assert.equal("#{tag} OK NOOP completed")
       }
 
@@ -5916,15 +5924,11 @@ LOGOUT
         assert.equal("#{tag!} OK NOOP completed")
         assert.skip_while{|line| line =~ /^\* /}
         assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
-        assert.equal('* 1 EXISTS')
-        assert.equal('* 1 RECENTS')
         assert.equal("#{tag!} OK NOOP completed")
         assert.equal("#{tag!} OK CLOSE completed")
         assert.equal("#{tag!} OK NOOP completed")
         assert.skip_while{|line| line =~ /^\* /}
         assert.equal("#{tag!} OK [READ-ONLY] EXAMINE completed")
-        assert.equal('* 1 EXISTS')
-        assert.equal('* 0 RECENTS')
         assert.equal("#{tag!} OK NOOP completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
@@ -6072,6 +6076,207 @@ LOGOUT
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
       }
+    end
+
+    def test_untagged_server_response
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
+      }
+
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.equal('* 0 EXISTS')
+        assert.equal('* 0 RECENT')
+        assert.equal('* OK [UNSEEN 0]')
+        assert.equal('* OK [UIDVALIDITY 1]')
+        assert.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+      }
+
+      another_decoder = make_decoder
+      another_writer = proc{|res|
+        for line in res
+          p line if $DEBUG
+        end
+      }
+
+      another_decoder.login('tag', 'foo', 'open_sesame', &another_writer)
+      another_decoder = another_decoder.next_decoder
+      assert_equal(true, another_decoder.auth?)
+
+      another_decoder.select('tag', 'INBOX', &another_writer)
+      another_decoder = another_decoder.next_decoder
+      assert_equal(true, another_decoder.selected?)
+
+      another_decoder.append('tag', 'INBOX', [ :group, '\Deleted' ], 'test', &another_writer)
+      assert_imap_command(:noop) {|assert|
+        assert.equal('* 1 EXISTS')
+        assert.equal('* 1 RECENT')
+        assert.equal("#{tag} OK NOOP completed")
+      }
+
+      another_decoder.copy('tag', '1', 'INBOX', &another_writer)
+      assert_imap_command(:noop) {|assert|
+        assert.equal('* 2 EXISTS')
+        assert.equal('* 2 RECENT')
+        assert.equal("#{tag} OK NOOP completed")
+      }
+
+      another_decoder.expunge('tag', &another_writer)
+      assert_imap_command(:noop) {|assert|
+        assert.equal('* 1 EXPUNGE')
+        assert.equal("#{tag} OK NOOP completed")
+      }
+
+      n = 2
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:create, 'foo') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("#{tag} OK CREATE completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:rename, 'foo', 'bar') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("#{tag} OK RENAME completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:delete, 'bar') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("#{tag} OK DELETE completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:subscribe, 'INBOX') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("#{tag} OK SUBSCRIBE completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:unsubscribe, 'INBOX') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("#{tag} NO not implemented subscribe/unsbscribe command")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:list, '', '*') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
+        assert.equal("#{tag} OK LIST completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:lsub, '', '*') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal('* LSUB (\Noinferiors \Marked) NIL "INBOX"')
+        assert.equal("#{tag} OK LSUB completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("* STATUS \"INBOX\" (MESSAGES #{n} RECENT #{n} UIDNEXT #{(n+1).succ} UIDVALIDITY #{@inbox_id} UNSEEN #{n})")
+        assert.equal("#{tag} OK STATUS completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:append, 'INBOX', 'test') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("* #{n+1} EXISTS")
+        assert.equal("* #{n+1} RECENT")
+        assert.equal("#{tag} OK [APPENDUID 1 #{n+2}] APPEND completed")
+      }
+      n += 2
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:check) {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("#{tag} OK CHECK completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:expunge) {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("#{tag} OK EXPUNGE completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:search, '*', crlf_at_eol: false) {|assert|
+        assert.equal("* #{n} EXISTS\r\n")
+        assert.equal("* #{n} RECENT\r\n")
+        assert.equal('* SEARCH').equal(" #{n}").equal("\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:fetch, '1', make_body('BODY.PEEK[]')) {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal(%Q'* 1 FETCH (BODY[] "test")')
+        assert.equal("#{tag} OK FETCH completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Flagged']) {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal('* 1 FETCH (FLAGS (\Flagged \Recent))')
+        assert.equal("#{tag} OK STORE completed")
+      }
+      n += 1
+
+      another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+      assert_imap_command(:copy, '1', 'INBOX') {|assert|
+        assert.equal("* #{n} EXISTS")
+        assert.equal("* #{n} RECENT")
+        assert.equal("* #{n+1} EXISTS")
+        assert.equal("* #{n+1} RECENT")
+        assert.equal("#{tag} OK [COPYUID 1 2 #{n+2}] COPY completed")
+      }
+      n += 2
+
+      open_mail_store{
+        f = @mail_store.examine_mbox(@inbox_id)
+        begin
+          uid_list = @mail_store.each_msg_uid(@inbox_id).to_a
+          last_uid = uid_list.min
+          @mail_store.set_msg_flag(@inbox_id, last_uid, 'deleted', true)
+        ensure
+          f.close
+        end
+      }
+
+      another_decoder.close('tag', &another_writer)
+      assert_imap_command(:noop) {|assert|
+        assert.equal("* 1 EXPUNGE")
+        assert.equal("#{tag} OK NOOP completed")
+      }
+
+      another_decoder.cleanup
     end
   end
 
