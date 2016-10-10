@@ -165,7 +165,7 @@ module RIMS::Test
       block_call = 0
 
       case (cmd_method_symbol)
-      when :authenticate
+      when :authenticate, :idle
         assert(cmd_opts.empty?)
         execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text) {|response_lines|
           block_call += 1
@@ -3876,6 +3876,81 @@ module RIMS::Test
       assert_equal(false, @decoder.selected?)
     end
 
+    def test_idle
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:idle, client_input_text: '') {|assert|
+        assert.equal("#{tag} NO not authenticated")
+      }
+
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:idle, client_input_text: '') {|assert|
+        assert.equal("#{tag} NO not selected")
+      }
+
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      assert_imap_command(:idle, client_input_text: "DONE\r\n") {|assert|
+        assert.equal("#{tag} OK IDLE terminated")
+      }
+
+      assert_imap_command(:idle, client_input_text: "done\r\n") {|assert|
+        assert.equal("#{tag} OK IDLE terminated")
+      }
+
+      assert_imap_command(:idle, client_input_text: "detarame\r\n") {|assert|
+        assert.equal("#{tag} BAD unexpected client response")
+      }
+
+      assert_imap_command(:idle, client_input_text: '') {|assert|
+        assert.equal("#{tag} BAD unexpected client connection close")
+      }
+
+      assert_imap_command(:close) {|assert|
+        assert.equal("#{tag} OK CLOSE completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+
+      assert_imap_command(:idle, client_input_text: '') {|assert|
+        assert.equal("#{tag} NO not selected")
+      }
+
+      assert_imap_command(:examine, 'INBOX') {|assert|
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
+      }
+
+      assert_equal(true, @decoder.auth?)
+      assert_equal(true, @decoder.selected?)
+
+      assert_imap_command(:idle, client_input_text: "DONE\r\n") {|assert|
+        assert.equal("#{tag} OK IDLE terminated")
+      }
+
+      assert_imap_command(:logout) {|assert|
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag} OK LOGOUT completed")
+      }
+
+      assert_equal(false, @decoder.auth?)
+      assert_equal(false, @decoder.selected?)
+    end
+
     def test_db_recovery
       meta_db = RIMS::DB::Meta.new(RIMS::Hash_KeyValueStore.new(@kvs["#{RIMS::MAILBOX_DATA_STRUCTURE_VERSION}/#{@unique_user_id[0, 7]}/meta"]))
       meta_db.dirty = true
@@ -5917,6 +5992,50 @@ LOGOUT
         assert.skip_while{|line| line =~ /^\* /}
         assert.equal("#{tag!} OK [READ-ONLY] EXAMINE completed")
         assert.equal("#{tag!} OK NOOP completed")
+        assert.match(/^\* BYE /)
+        assert.equal("#{tag!} OK LOGOUT completed")
+      }
+    end
+
+    def test_command_loop_idle
+      cmd_txt = <<-'EOF'.b
+T001 IDLE
+T002 LOGIN foo open_sesame
+T003 IDLE
+T004 SELECT INBOX
+T005 IDLE
+DONE
+T006 IDLE
+done
+T007 IDLE
+detarame
+T008 CLOSE
+T009 IDLE
+T010 EXAMINE INBOX
+T011 IDLE
+DONE
+T012 LOGOUT
+      EOF
+
+      assert_imap_command_loop(cmd_txt, autotag: false) {|assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("#{tag!} NO not authenticated")
+        assert.equal("#{tag!} OK LOGIN completed")
+        assert.equal("#{tag!} NO not selected")
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag!} OK [READ-WRITE] SELECT completed")
+        assert.equal('+ continue')
+        assert.equal("#{tag!} OK IDLE terminated")
+        assert.equal('+ continue')
+        assert.equal("#{tag!} OK IDLE terminated")
+        assert.equal('+ continue')
+        assert.equal("#{tag!} BAD unexpected client response")
+        assert.equal("#{tag!} OK CLOSE completed")
+        assert.equal("#{tag!} NO not selected")
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag!} OK [READ-ONLY] EXAMINE completed")
+        assert.equal('+ continue')
+        assert.equal("#{tag!} OK IDLE terminated")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
       }

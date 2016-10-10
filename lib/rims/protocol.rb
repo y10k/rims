@@ -1243,6 +1243,8 @@ module RIMS
               decoder.store(tag, *opt_args) {|res| response_write.call(res) }
             when 'COPY'
               decoder.copy(tag, *opt_args) {|res| response_write.call(res) }
+            when 'IDLE'
+              decoder.idle(tag, input, output, *opt_args) {|res| response_write.call(res) }
             when 'UID'
               unless (opt_args.empty?) then
                 uid_command, *uid_args = opt_args
@@ -1578,6 +1580,11 @@ module RIMS
         yield(not_authenticated_response(tag))
       end
       imap_command :copy
+
+      def idle(tag, client_input_stream, server_output_stream)
+        yield(not_authenticated_response(tag))
+      end
+      imap_command :idle
     end
 
     class AuthenticatedDecoder < Decoder
@@ -2316,6 +2323,31 @@ module RIMS
         yield(res)
       end
       imap_command_selected :copy, exclusive: true
+
+      def idle(tag, client_input_stream, server_output_stream)
+        @logger.info('idle start...')
+        server_output_stream.write("+ continue\r\n")
+        server_output_stream.flush
+
+        res = []
+        if (line = client_input_stream.gets) then
+          line.chomp!("\n")
+          line.chomp!("\r")
+          if (line.upcase == "DONE") then
+            @logger.info('idle terminated.')
+            res << "#{tag} OK IDLE terminated\r\n"
+          else
+            @logger.warn('unexpected client response and idle terminated.')
+            @logger.debug("unexpected client response data: #{line}")
+            res << "#{tag} BAD unexpected client response\r\n"
+          end
+        else
+          @logger.warn('unexpected client connection close and idle terminated.')
+          res << "#{tag} BAD unexpected client connection close\r\n"
+        end
+        yield(res)
+      end
+      imap_command_selected :idle, exclusive: nil
     end
 
     class MailDeliveryDecoder < AuthenticatedDecoder
@@ -2548,6 +2580,11 @@ module RIMS
         yield(not_allowed_command_response(tag))
       end
       imap_command :copy
+
+      def idle(tag, client_input_stream, server_output_stream)
+        yield(not_allowed_command_response(tag))
+      end
+      imap_command :idle
     end
   end
 end
