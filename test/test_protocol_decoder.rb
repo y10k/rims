@@ -167,7 +167,7 @@ module RIMS::Test
       case (cmd_method_symbol)
       when :authenticate
         assert(cmd_opts.empty?)
-        execute_imap_command_authenticate(tag, cmd_str_args, client_response_input_text) {|response_lines|
+        execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_response_input_text) {|response_lines|
           block_call += 1
           assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
         }
@@ -206,11 +206,11 @@ module RIMS::Test
     end
     private :execute_imap_command_with_options
 
-    def execute_imap_command_authenticate(tag, cmd_str_args, client_response_input_text)
+    def execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_response_input_text)
       input = StringIO.new(client_response_input_text, 'r')
       output = StringIO.new('', 'w')
 
-      ret_val = @decoder.authenticate(input, output, tag, *cmd_str_args) {|response_lines|
+      ret_val = @decoder.__send__(cmd_method_symbol, input, output, tag, *cmd_str_args) {|response_lines|
         yield(response_lines.each)
       }
 
@@ -220,7 +220,7 @@ module RIMS::Test
 
       ret_val
     end
-    private :execute_imap_command_authenticate
+    private :execute_imap_command_with_inout
 
     def assert_imap_command_loop(client_command_list_text, autotag: true)
       if (autotag) then
