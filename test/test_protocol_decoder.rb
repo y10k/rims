@@ -171,12 +171,6 @@ module RIMS::Test
           block_call += 1
           assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
         }
-      when :login
-        assert(cmd_opts.empty?)
-        execute_imap_command_login(tag, cmd_str_args) {|response_lines|
-          block_call += 1
-          assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
-        }
       else
         if (cmd_opts.empty?) then
           execute_imap_command(cmd_method_symbol, tag, cmd_str_args) {|response_lines|
@@ -227,13 +221,6 @@ module RIMS::Test
       ret_val
     end
     private :execute_imap_command_authenticate
-
-    def execute_imap_command_login(tag, cmd_str_args)
-      @decoder.login(tag, *cmd_str_args) {|response_lines|
-        yield(response_lines.each)
-      }
-    end
-    private :execute_imap_command_login
 
     def assert_imap_command_loop(client_command_list_text, autotag: true)
       if (autotag) then
