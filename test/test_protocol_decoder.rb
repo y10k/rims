@@ -210,7 +210,7 @@ module RIMS::Test
       input = StringIO.new(client_response_input_text, 'r')
       output = StringIO.new('', 'w')
 
-      ret_val = @decoder.__send__(cmd_method_symbol, input, output, tag, *cmd_str_args) {|response_lines|
+      ret_val = @decoder.__send__(cmd_method_symbol, tag, input, output, *cmd_str_args) {|response_lines|
         yield(response_lines.each)
       }
 

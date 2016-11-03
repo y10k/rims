@@ -1204,7 +1204,7 @@ module RIMS
             when 'LOGOUT'
               decoder.logout(tag, *opt_args) {|res| response_write.call(res) }
             when 'AUTHENTICATE'
-              decoder.authenticate(input, output, tag, *opt_args) {|res| response_write.call(res) }
+              decoder.authenticate(tag, input, output, *opt_args) {|res| response_write.call(res) }
             when 'LOGIN'
               decoder.login(tag, *opt_args) {|res| response_write.call(res) }
             when 'SELECT'
@@ -1456,8 +1456,8 @@ module RIMS
       end
       private :accept_authentication
 
-      def authenticate(client_response_input_stream, server_challenge_output_stream,
-                       tag, auth_type, inline_client_response_data_base64=nil)
+      def authenticate(tag, client_response_input_stream, server_challenge_output_stream,
+                       auth_type, inline_client_response_data_base64=nil)
         auth_reader = AuthenticationReader.new(@auth, client_response_input_stream, server_challenge_output_stream, @logger)
         if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
           if (username != :*) then
@@ -1581,8 +1581,8 @@ module RIMS
     end
 
     class AuthenticatedDecoder < Decoder
-      def authenticate(client_response_input_stream, server_challenge_output_stream,
-                       tag, auth_type, inline_client_response_data_base64=nil, &block)
+      def authenticate(tag, client_response_input_stream, server_challenge_output_stream,
+                       auth_type, inline_client_response_data_base64=nil, &block)
         yield([ "#{tag} NO duplicated authentication\r\n" ])
       end
       imap_command :authenticate
