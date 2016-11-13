@@ -386,6 +386,18 @@ module RIMS
       self
     end
 
+    def server_response_wait
+      while (true)
+        server_response_message = @server_response_queue.pop(false)
+        yield(server_response_message)
+      end
+      self
+    end
+
+    def server_response_interrupt
+      @server_response_queue.push(nil)
+    end
+
     def reload
       @cnum = @mail_store.cnum
 
