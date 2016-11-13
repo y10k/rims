@@ -6388,6 +6388,79 @@ LOGOUT
 
       another_decoder.cleanup
     end
+
+    def test_idle_untagged_server_response
+      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+        assert.equal("#{tag} OK LOGIN completed")
+      }
+
+      assert_imap_command(:select, 'INBOX') {|assert|
+        assert.equal('* 0 EXISTS')
+        assert.equal('* 0 RECENT')
+        assert.equal('* OK [UNSEEN 0]')
+        assert.equal('* OK [UIDVALIDITY 1]')
+        assert.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+      }
+
+      another_decoder = make_decoder
+      another_writer = proc{|res|
+        for line in res
+          p line if $DEBUG
+        end
+      }
+
+      another_decoder.login('tag', 'foo', 'open_sesame', &another_writer)
+      another_decoder = another_decoder.next_decoder
+      assert_equal(true, another_decoder.auth?)
+
+      another_decoder.select('tag', 'INBOX', &another_writer)
+      another_decoder = another_decoder.next_decoder
+      assert_equal(true, another_decoder.selected?)
+
+      another_decoder.append('tag', 'INBOX', [ :group, '\Deleted' ], 'test', &another_writer)
+      assert_imap_command(:idle, client_input_text: "DONE\r\n", server_output_expected:
+                          "+ continue\r\n" +
+                          "* 1 EXISTS\r\n" +
+                          "* 1 RECENT\r\n") {|assert|
+        assert.equal("#{tag} OK IDLE terminated")
+      }
+
+      another_decoder.copy('tag', '1', 'INBOX', &another_writer)
+      assert_imap_command(:idle, client_input_text: "DONE\r\n", server_output_expected:
+                          "+ continue\r\n" +
+                          "* 2 EXISTS\r\n" +
+                          "* 2 RECENT\r\n") {|assert|
+        assert.equal("#{tag} OK IDLE terminated")
+      }
+
+      another_decoder.expunge('tag', &another_writer)
+      assert_imap_command(:idle, client_input_text: "DONE\r\n", server_output_expected:
+                          "+ continue\r\n" +
+                          "* 1 EXPUNGE\r\n") {|assert|
+        assert.equal("#{tag} OK IDLE terminated")
+      }
+
+      open_mail_store{
+        f = @mail_store.examine_mbox(@inbox_id)
+        begin
+          uid_list = @mail_store.each_msg_uid(@inbox_id).to_a
+          last_uid = uid_list.min
+          @mail_store.set_msg_flag(@inbox_id, last_uid, 'deleted', true)
+        ensure
+          f.close
+        end
+      }
+
+      another_decoder.close('tag', &another_writer)
+      assert_imap_command(:idle, client_input_text: "DONE\r\n", server_output_expected:
+                          "+ continue\r\n" +
+                          "* 1 EXPUNGE\r\n") {|assert|
+        assert.equal("#{tag} OK IDLE terminated")
+      }
+
+      another_decoder.cleanup
+    end
   end
 
   class ProtocolMailDeliveryDecoderTest < Test::Unit::TestCase

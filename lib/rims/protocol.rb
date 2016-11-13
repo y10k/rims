@@ -2329,8 +2329,33 @@ module RIMS
         server_output_stream.write("+ continue\r\n")
         server_output_stream.flush
 
+        server_response_thread = Thread.new{
+          @logger.info('idle server response thread start... ')
+          catch(:server_response_interrupted) {
+            @folder.server_response_wait{|server_response|
+              throw(:server_response_interrupted) unless server_response
+              @logger.debug("idle server response: #{server_response}") if @logger.debug?
+              server_output_stream.write(server_response)
+              @folder.server_response_fetch{|next_server_response|
+                throw(:server_response_interrupted) unless next_server_response
+                server_output_stream.write(next_server_response)
+              }
+              server_output_stream.flush
+            }
+          }
+          server_output_stream.flush
+          @logger.info('idle server response thread terminated.')
+        }
+
+        begin
+          line = client_input_stream.gets
+        ensure
+          @folder.server_response_interrupt
+          server_response_thread.join
+        end
+
         res = []
-        if (line = client_input_stream.gets) then
+        if (line) then
           line.chomp!("\n")
           line.chomp!("\r")
           if (line.upcase == "DONE") then
