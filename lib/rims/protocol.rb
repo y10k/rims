@@ -1811,7 +1811,7 @@ module RIMS
 
       def create(tag, mbox_name)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+        @folder.server_response_fetch{|r| res << r } if selected?
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (get_mail_store.mbox_id(mbox_name_utf8)) then
           res << "#{tag} NO duplicated mailbox\r\n"
@@ -1825,7 +1825,7 @@ module RIMS
 
       def delete(tag, mbox_name)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+        @folder.server_response_fetch{|r| res << r } if selected?
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
           if (id != get_mail_store.mbox_id('INBOX')) then
@@ -1843,7 +1843,7 @@ module RIMS
 
       def rename(tag, src_name, dst_name)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+        @folder.server_response_fetch{|r| res << r } if selected?
         src_name_utf8 = Net::IMAP.decode_utf7(src_name)
         dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
         unless (id = get_mail_store.mbox_id(src_name_utf8)) then
@@ -1862,7 +1862,7 @@ module RIMS
 
       def subscribe(tag, mbox_name)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+        @folder.server_response_fetch{|r| res << r } if selected?
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (_mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
           res << "#{tag} OK SUBSCRIBE completed\r\n"
@@ -1875,7 +1875,7 @@ module RIMS
 
       def unsubscribe(tag, mbox_name)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+        @folder.server_response_fetch{|r| res << r } if selected?
         if (_mbox_id = get_mail_store.mbox_id(mbox_name)) then
           res << "#{tag} NO not implemented subscribe/unsbscribe command\r\n"
         else
@@ -1911,7 +1911,7 @@ module RIMS
 
       def list(tag, ref_name, mbox_name)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+        @folder.server_response_fetch{|r| res << r } if selected?
         if (mbox_name.empty?) then
           res << "* LIST (\\Noselect) NIL \"\"\r\n"
         else
@@ -1926,7 +1926,7 @@ module RIMS
 
       def lsub(tag, ref_name, mbox_name)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+        @folder.server_response_fetch{|r| res << r } if selected?
         if (mbox_name.empty?) then
           res << "* LSUB (\\Noselect) NIL \"\"\r\n"
         else
@@ -1941,7 +1941,7 @@ module RIMS
 
       def status(tag, mbox_name, data_item_group)
         res = []
-        @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+        @folder.server_response_fetch{|r| res << r } if selected?
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
           unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
@@ -2040,10 +2040,10 @@ module RIMS
           end
           mailbox_size_server_response_multicast_push(mbox_id)
 
-          @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+          @folder.server_response_fetch{|r| res << r } if selected?
           res << "#{tag} OK [APPENDUID #{mbox_id} #{uid}] APPEND completed\r\n"
         else
-          @folder.server_response_fetch{|r| res << r } if (selected? && @folder.server_response?)
+          @folder.server_response_fetch{|r| res << r } if selected?
           res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
         end
         yield(res)
@@ -2052,7 +2052,7 @@ module RIMS
 
       def check(tag)
         res = []
-        @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+        @folder.server_response_fetch{|r| res << r }
         get_mail_store.sync
         res << "#{tag} OK CHECK completed\r\n"
         yield(res)
@@ -2061,7 +2061,7 @@ module RIMS
 
       def close(tag, &block)
         yield response_stream(tag) {|res|
-          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+          @folder.server_response_fetch{|r| res << r }
           close_folder do |msg_num|
             r = "* #{msg_num} EXPUNGE\r\n"
             res << r
@@ -2079,7 +2079,7 @@ module RIMS
         @folder.reload if @folder.updated?
 
         yield response_stream(tag) {|res|
-          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+          @folder.server_response_fetch{|r| res << r }
           @folder.expunge_mbox do |msg_num|
             r = "* #{msg_num} EXPUNGE\r\n"
             res << r
@@ -2126,7 +2126,7 @@ module RIMS
         cond = parser.parse(cond_args)
 
         yield response_stream(tag) {|res|
-          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+          @folder.server_response_fetch{|r| res << r }
           res << '* SEARCH'
           for msg in msg_src
             if (cond.call(msg)) then
@@ -2163,7 +2163,7 @@ module RIMS
         fetch = parser.parse(data_item_group)
 
         yield response_stream(tag) {|res|
-          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+          @folder.server_response_fetch{|r| res << r }
           for msg in msg_list
             res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
           end
@@ -2249,12 +2249,12 @@ module RIMS
 
         if (is_silent) then
           silent_res = []
-          @folder.server_response_fetch{|r| silent_res << r } if @folder.server_response?
+          @folder.server_response_fetch{|r| silent_res << r }
           silent_res << "#{tag} OK STORE completed\r\n"
           yield(silent_res)
         else
           yield response_stream(tag) {|res|
-            @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+            @folder.server_response_fetch{|r| res << r }
             for msg in msg_list
               flag_atom_list = nil
 
@@ -2303,14 +2303,14 @@ module RIMS
 
           if msg_list.size > 0
             mailbox_size_server_response_multicast_push(mbox_id)
-            @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+            @folder.server_response_fetch{|r| res << r }
             res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
           else
-            @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+            @folder.server_response_fetch{|r| res << r }
             res << "#{tag} OK COPY completed\r\n"
           end
         else
-          @folder.server_response_fetch{|r| res << r } if @folder.server_response?
+          @folder.server_response_fetch{|r| res << r }
           res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
         end
         yield(res)
