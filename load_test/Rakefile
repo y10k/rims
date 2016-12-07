@@ -78,6 +78,13 @@ task :imap_append do
   end
 end
 
+desc 'run server'
+task :run_server do
+  run_server_conf('imap_server', USER_CONF, *%w[ -v debug -l debug --imap-host=localhost --imap-port=14300 ]) do
+    sleep
+  end
+end
+
 CLOBBER.include('imap_append')
 
 # Local Variables:
