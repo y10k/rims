@@ -160,14 +160,14 @@ module RIMS::Test
     end
     private :tag!
 
-    def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, client_response_input_text: nil, **cmd_opts)
+    def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, client_input_text: nil, **cmd_opts)
       tag!
       block_call = 0
 
       case (cmd_method_symbol)
       when :authenticate
         assert(cmd_opts.empty?)
-        execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_response_input_text) {|response_lines|
+        execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text) {|response_lines|
           block_call += 1
           assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
         }
@@ -206,8 +206,8 @@ module RIMS::Test
     end
     private :execute_imap_command_with_options
 
-    def execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_response_input_text)
-      input = StringIO.new(client_response_input_text, 'r')
+    def execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text)
+      input = StringIO.new(client_input_text, 'r')
       output = StringIO.new('', 'w')
 
       ret_val = @decoder.__send__(cmd_method_symbol, tag, input, output, *cmd_str_args) {|response_lines|
@@ -413,7 +413,7 @@ module RIMS::Test
 
       assert_imap_command(:authenticate, 'plain',
                           client_plain_response_base64('foo', 'detarame'),
-                          client_response_input_text: '') {|assert|
+                          client_input_text: '') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -421,7 +421,7 @@ module RIMS::Test
 
       assert_imap_command(:authenticate, 'plain',
                           client_plain_response_base64('foo', 'open_sesame'),
-                          client_response_input_text: '') {|assert|
+                          client_input_text: '') {|assert|
         assert.equal("#{tag} OK AUTHENTICATE plain success")
       }
 
@@ -429,7 +429,7 @@ module RIMS::Test
 
       assert_imap_command(:authenticate, 'plain',
                           client_plain_response_base64('foo', 'open_sesame'),
-                          client_response_input_text: '') {|assert|
+                          client_input_text: '') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -446,25 +446,25 @@ module RIMS::Test
     def test_authenticate_plain_stream
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:authenticate, 'plain', client_response_input_text: "*\r\n") {|assert|
+      assert_imap_command(:authenticate, 'plain', client_input_text: "*\r\n") {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
       assert_imap_command(:authenticate, 'plain',
-                          client_response_input_text: client_plain_response_base64('foo', 'detarame') + "\r\n") {|assert|
+                          client_input_text: client_plain_response_base64('foo', 'detarame') + "\r\n") {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command(:authenticate, 'plain',
-                          client_response_input_text: client_plain_response_base64('foo', 'open_sesame') + "\r\n") {|assert|
+                          client_input_text: client_plain_response_base64('foo', 'open_sesame') + "\r\n") {|assert|
         assert.equal("#{tag} OK AUTHENTICATE plain success")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:authenticate, 'plain', client_response_input_text: '') {|assert|
+      assert_imap_command(:authenticate, 'plain', client_input_text: '') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -487,25 +487,25 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:authenticate, 'cram-md5', client_response_input_text: "*\r\n") {|assert|
+      assert_imap_command(:authenticate, 'cram-md5', client_input_text: "*\r\n") {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
       assert_imap_command(:authenticate, 'cram-md5',
-                          client_response_input_text: server_client_data_base64_pair_list[1][1] + "\r\n") {|assert|
+                          client_input_text: server_client_data_base64_pair_list[1][1] + "\r\n") {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command(:authenticate, 'cram-md5',
-                          client_response_input_text: server_client_data_base64_pair_list[2][1] + "\r\n") {|assert|
+                          client_input_text: server_client_data_base64_pair_list[2][1] + "\r\n") {|assert|
         assert.equal("#{tag} OK AUTHENTICATE cram-md5 success")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:authenticate, 'cram-md5', client_response_input_text: '') {|assert|
+      assert_imap_command(:authenticate, 'cram-md5', client_input_text: '') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
