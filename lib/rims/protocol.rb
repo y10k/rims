@@ -1376,7 +1376,8 @@ module RIMS
       end
 
       def capability(tag)
-        capability_list = %w[ IMAP4rev1 UIDPLUS ] + @auth.capability.map{|auth_capability| "AUTH=#{auth_capability}" }
+        capability_list = %w[ IMAP4rev1 UIDPLUS IDLE ]
+        capability_list += @auth.capability.map{|auth_capability| "AUTH=#{auth_capability}" }
         res = []
         res << "* CAPABILITY #{capability_list.join(' ')}\r\n"
         res << "#{tag} OK CAPABILITY completed\r\n"

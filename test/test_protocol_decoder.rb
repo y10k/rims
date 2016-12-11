@@ -400,7 +400,7 @@ module RIMS::Test
 
     def test_capability
       assert_imap_command(:capability) {|assert|
-        assert.equal('* CAPABILITY IMAP4rev1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5')
+        assert.equal('* CAPABILITY IMAP4rev1 UIDPLUS IDLE AUTH=PLAIN AUTH=CRAM-MD5')
         assert.equal("#{tag} OK CAPABILITY completed")
       }
     end
@@ -4184,7 +4184,7 @@ LOGOUT
 
       assert_imap_command_loop(cmd_txt) {|assert|
         assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-        assert.equal('* CAPABILITY IMAP4rev1 UIDPLUS AUTH=PLAIN AUTH=CRAM-MD5')
+        assert.equal('* CAPABILITY IMAP4rev1 UIDPLUS IDLE AUTH=PLAIN AUTH=CRAM-MD5')
         assert.equal("#{tag!} OK CAPABILITY completed")
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
