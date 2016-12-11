@@ -160,14 +160,14 @@ module RIMS::Test
     end
     private :tag!
 
-    def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, client_input_text: nil, **cmd_opts)
+    def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, client_input_text: nil, server_output_expected: nil, **cmd_opts)
       tag!
       block_call = 0
 
       case (cmd_method_symbol)
       when :authenticate, :idle
         assert(cmd_opts.empty?)
-        execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text) {|response_lines|
+        execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text, server_output_expected) {|response_lines|
           block_call += 1
           assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
         }
@@ -206,13 +206,17 @@ module RIMS::Test
     end
     private :execute_imap_command_with_options
 
-    def execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text)
+    def execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text, server_output_expected)
       input = StringIO.new(client_input_text, 'r')
       output = StringIO.new('', 'w')
 
       ret_val = @decoder.__send__(cmd_method_symbol, tag, input, output, *cmd_str_args) {|response_lines|
         yield(response_lines.each)
       }
+
+      if (server_output_expected) then
+        assert_equal(server_output_expected, output.string, 'server response on output stream')
+      end
 
       if ($DEBUG) then
         pp input.string, output.string
