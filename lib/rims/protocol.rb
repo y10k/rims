@@ -828,19 +828,19 @@ module RIMS
         if (mail.multipart?) then       # body_type_mpart
           mpart_data = []
           mpart_data.concat(mail.parts.map{|part_msg| get_bodystructure_data(part_msg) })
-          mpart_data << mail.media_sub_type
+          mpart_data << mail.media_sub_type_upcase
         elsif (mail.text?) then         # body_type_text
           text_data = []
 
           # media_text
-          text_data << mail.media_main_type
-          text_data << mail.media_sub_type
+          text_data << mail.media_main_type_upcase
+          text_data << mail.media_sub_type_upcase
 
           # body_fields
           text_data << mail.content_type_parameters.flatten
           text_data << mail.header['Content-Id']
           text_data << mail.header['Content-Description']
-          text_data << mail.header['Content-Transfer-Encoding']
+          text_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
           text_data << mail.raw_source.bytesize
 
           # body_fld_lines
@@ -849,14 +849,14 @@ module RIMS
           msg_data = []
 
           # message_media
-          msg_data << mail.media_main_type
-          msg_data << mail.media_sub_type
+          msg_data << mail.media_main_type_upcase
+          msg_data << mail.media_sub_type_upcase
 
           # body_fields
           msg_data << mail.content_type_parameters.flatten
           msg_data << mail.header['Content-Id']
           msg_data << mail.header['Content-Description']
-          msg_data << mail.header['Content-Transfer-Encoding']
+          msg_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
           msg_data << mail.raw_source.bytesize
 
           # envelope
@@ -871,14 +871,14 @@ module RIMS
           basic_data = []
 
           # media_basic
-          basic_data << mail.media_main_type
-          basic_data << mail.media_sub_type
+          basic_data << mail.media_main_type_upcase
+          basic_data << mail.media_sub_type_upcase
 
           # body_fields
           basic_data << mail.content_type_parameters.flatten
           basic_data << mail.header['Content-Id']
           basic_data << mail.header['Content-Description']
-          basic_data << mail.header['Content-Transfer-Encoding']
+          basic_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
           basic_data << mail.raw_source.bytesize
         end
       end
