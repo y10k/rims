@@ -231,6 +231,15 @@ module RIMS
         end
       end
 
+      def fetch_upcase(name)
+        setup_header
+        if (value_list = @field_map[name.downcase]) then
+          if (value = value_list[0]) then
+            value.upcase
+          end
+        end
+      end
+
       def field_value_list(name)
         setup_header
         @field_map[name.downcase]
@@ -294,9 +303,19 @@ module RIMS
       end
       private :setup_content_type
 
+      def to_upper(text_or_nil)
+        text_or_nil.upcase if text_or_nil
+      end
+      private :to_upper
+
       def media_main_type
         setup_content_type
         @content_type[0]
+      end
+
+      def media_main_type_upcase
+        setup_content_type
+        to_upper(@content_type[0])
       end
 
       def media_sub_type
@@ -304,8 +323,17 @@ module RIMS
         @content_type[1]
       end
 
+      def media_sub_type_upcase
+        setup_content_type
+        to_upper(@content_type[1])
+      end
+
       def content_type
         "#{media_main_type}/#{media_sub_type}"
+      end
+
+      def content_type_upcase
+        to_upper("#{media_main_type}/#{media_sub_type}")
       end
 
       def content_type_parameters

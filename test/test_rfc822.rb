@@ -384,6 +384,20 @@ baz
       assert_nil(@header['BAZ'])
     end
 
+    def test_fetch_upcase
+      assert_equal('APPLE', @header.fetch_upcase('foo'))
+      assert_equal('APPLE', @header.fetch_upcase('Foo'))
+      assert_equal('APPLE', @header.fetch_upcase('FOO'))
+
+      assert_equal('BOB', @header.fetch_upcase('bar'))
+      assert_equal('BOB', @header.fetch_upcase('Bar'))
+      assert_equal('BOB', @header.fetch_upcase('BAR'))
+
+      assert_nil(@header.fetch_upcase('baz'))
+      assert_nil(@header.fetch_upcase('Baz'))
+      assert_nil(@header.fetch_upcase('BAZ'))
+    end
+
     def test_field_value_list
       assert_equal(%w[ apple banana orange ], @header.field_value_list('foo'))
       assert_equal(%w[ apple banana orange ], @header.field_value_list('Foo'))
@@ -431,16 +445,19 @@ baz
     def test_media_main_type
       setup_message
       assert_equal('text', @msg.media_main_type)
+      assert_equal('TEXT', @msg.media_main_type_upcase)
     end
 
     def test_media_sub_type
       setup_message
       assert_equal('plain', @msg.media_sub_type)
+      assert_equal('PLAIN', @msg.media_sub_type_upcase)
     end
 
     def test_content_type
       setup_message
       assert_equal('text/plain', @msg.content_type)
+      assert_equal('TEXT/PLAIN', @msg.content_type_upcase)
     end
 
     def test_content_type_parameters
