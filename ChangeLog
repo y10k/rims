@@ -1,3 +1,8 @@
+2016-12-25  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol.rb, lib/rims/rfc822.rb: some body fields at
+	BODYSTRUCTURE response should be uppercase letters.
+
 2016-12-11  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/mail_store.rb, lib/rims/protocol.rb: IMAP IDLE command
