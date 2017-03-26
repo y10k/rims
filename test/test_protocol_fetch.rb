@@ -403,8 +403,7 @@ module RIMS::Test
         assert_fetch(0, [ "BODY[]<0> #{literal(msg_txt)}" ])
       }
 
-      assert_instance_of(Bignum, 2**128)
-      parse_fetch_attribute(make_body("BODY[]<0.#{2**128}>")) {
+      parse_fetch_attribute(make_body("BODY[]<0.#{2**256}>")) { # `2**256' may be Bignum
         assert_fetch(0, [ "BODY[]<0> #{literal(msg_txt)}" ])
       }
 
