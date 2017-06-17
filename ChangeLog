@@ -1,3 +1,9 @@
+2017-06-17  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims.rb, lib/rims/error.rb, lib/rims/lock.rb,
+	lib/rims/protocol.rb: API errors should be defined at API
+	implementations.
+
 2017-03-26  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* test/test_protocol_fetch.rb: fixed for warning: constant
