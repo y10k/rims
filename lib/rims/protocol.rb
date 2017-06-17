@@ -6,6 +6,15 @@ require 'set'
 require 'time'
 
 module RIMS
+  class ProtocolError < Error
+  end
+
+  class SyntaxError < ProtocolError
+  end
+
+  class MessageSetSyntaxError < SyntaxError
+  end
+
   module Protocol
     def quote(s)
       qs = ''.encode(s.encoding)

@@ -15,15 +15,6 @@ module RIMS
       end
     end
   end
-
-  class ProtocolError < Error
-  end
-
-  class SyntaxError < ProtocolError
-  end
-
-  class MessageSetSyntaxError < SyntaxError
-  end
 end
 
 # Local Variables:
