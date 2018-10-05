@@ -56,12 +56,7 @@ module RIMS
     autoload :AuthenticationReader, 'rims/protocol/parser'
     autoload :SearchParser, 'rims/protocol/parser'
     autoload :FetchParser, 'rims/protocol/parser'
-
     autoload :Decoder, 'rims/protocol/decoder'
-    autoload :InitialDecoder, 'rims/protocol/decoder'
-    autoload :AuthenticatedDecoder, 'rims/protocol/decoder'
-    autoload :UserMailboxDecoder, 'rims/protocol/decoder'
-    autoload :MailDeliveryDecoder, 'rims/protocol/decoder'
 
     def body(symbol: nil, option: nil, section: nil, section_list: nil, partial_origin: nil, partial_size: nil)
       FetchBody.new(symbol, option, section, section_list, partial_origin, partial_size)
