@@ -561,7 +561,7 @@ module RIMS
         end
         each_message(args) do |msg_txt|
           t = conf.look_for_date(msg_txt)
-          encoded_mbox_name = Protocol::MailDeliveryDecoder.encode_user_mailbox(post_user, conf[:mailbox])
+          encoded_mbox_name = Protocol::Decoder.encode_delivery_target_mailbox(post_user, conf[:mailbox])
           imap_append(imap, encoded_mbox_name, msg_txt, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
         end
       }

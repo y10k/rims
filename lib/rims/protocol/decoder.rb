@@ -1229,6 +1229,18 @@ module RIMS
       imap_command_selected :idle, exclusive: nil
     end
 
+    def Decoder.encode_delivery_target_mailbox(username, mbox_name)
+      "b64user-mbox #{Protocol.encode_base64(username)} #{mbox_name}"
+    end
+
+    def Decoder.decode_delivery_target_mailbox(encoded_mbox_name)
+      encode_type, base64_username, mbox_name = encoded_mbox_name.split(' ', 3)
+      if (encode_type != 'b64user-mbox') then
+        raise SyntaxError, "unknown mailbox encode type: #{encode_type}"
+      end
+      return Protocol.decode_base64(base64_username), mbox_name
+    end
+
     class MailDeliveryDecoder < AuthenticatedDecoder
       def initialize(mail_store_pool, auth, logger,
                      write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
@@ -1286,18 +1298,6 @@ module RIMS
         @mail_store_pool = nil unless @mail_store_pool.nil?
         @auth = nil unless @auth.nil?
         nil
-      end
-
-      def self.encode_user_mailbox(username, mbox_name)
-        "b64user-mbox #{Protocol.encode_base64(username)} #{mbox_name}"
-      end
-
-      def self.decode_user_mailbox(encoded_mbox_name)
-        encode_type, base64_username, mbox_name = encoded_mbox_name.split(' ', 3)
-        if (encode_type != 'b64user-mbox') then
-          raise SyntaxError, "unknown mailbox encode type: #{encode_type}"
-        end
-        return Protocol.decode_base64(base64_username), mbox_name
       end
 
       def logout(tag)
@@ -1399,7 +1399,7 @@ module RIMS
       private :deliver_to_user
 
       def append(tag, encoded_mbox_name, *opt_args, msg_text)
-        username, mbox_name = self.class.decode_user_mailbox(encoded_mbox_name)
+        username, mbox_name = self.class.decode_delivery_target_mailbox(encoded_mbox_name)
         @logger.info("message delivery: user #{username}, mailbox #{mbox_name}")
 
         if (@auth.user? username) then
