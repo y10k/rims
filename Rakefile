@@ -18,8 +18,8 @@ end
 desc 'Build README.html from markdown source.'
 task :readme => %w[ README.html ]
 
-file 'README.html' do
-  sh "markdown README.md >README.html"
+file 'README.html' => [ 'README.md' ] do
+  sh "pandoc --from=markdown --to=html5 --standalone --self-contained --css=$HOME/.pandoc/github.css --output=README.html README.md"
 end
 CLOBBER.include 'README.html'
 
