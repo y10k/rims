@@ -1,3 +1,10 @@
+2018-11-03  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb (RIMS::Cmd#cmd_post_mail, RIMS::Cmd#cmd_imap_append):
+	it should be treated as binary to be neutral to message
+	encoding. the message from standard input was not binary, so it
+	was fixed to binary.
+
 2018-10-05  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/parser.rb, lib/rims/protocol/decoder.rb:
