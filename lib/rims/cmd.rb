@@ -538,6 +538,8 @@ module RIMS
     module_function :each_message
 
     def cmd_post_mail(options, args)
+      STDIN.set_encoding(Encoding::ASCII_8BIT)
+
       option_list =
         Config::VERBOSE_OPTION_LIST +
         Config::POST_MAIL_CONNECT_OPTION_LIST +
@@ -569,6 +571,8 @@ module RIMS
     command_function :cmd_post_mail, "Post mail to any user."
 
     def cmd_imap_append(options, args)
+      STDIN.set_encoding(Encoding::ASCII_8BIT)
+
       option_list =
         Config::VERBOSE_OPTION_LIST +
         Config::IMAP_CONNECT_OPTION_LIST +
