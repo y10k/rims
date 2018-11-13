@@ -1,5 +1,7 @@
 2018-11-13  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* README.md: modified installation example.
+
 	* lib/rims/mail_store.rb (RIMS::MailFolder),
 	lib/rims/protocol/decoder.rb (RIMS::Protocol::UserMailboxDecoder):
 	IMAP IDLE interruption control is moved from
