@@ -9,9 +9,20 @@ module RIMS
       @path = path
     end
 
-    def self.open(path, *optional)
-      gdbm_path = path + '.gdbm'
-      new(GDBM.new(gdbm_path, *optional), gdbm_path)
+    class << self
+      def exist?(path)
+        gdbm_path = path + '.gdbm'
+        File.exist? gdbm_path
+      end
+
+      def open(path, *optional)
+        gdbm_path = path + '.gdbm'
+        new(GDBM.new(gdbm_path, *optional), gdbm_path)
+      end
+
+      def open_with_conf(name, config)
+        open(name)
+      end
     end
 
     def [](key)
@@ -56,6 +67,7 @@ module RIMS
       nil
     end
   end
+  KeyValueStore::FactoryBuilder.add_plug_in('gdbm', GDBM_KeyValueStore)
 end
 
 # Local Variables:

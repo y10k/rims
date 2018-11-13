@@ -107,6 +107,33 @@ module RIMS::Test
       assert_equal(false, (File.exist? @name))
     end
   end
+
+  class GDBM_KeyValueStoreOpenCloseTest < Test::Unit::TestCase
+    def setup
+      @base_dir = 'gdbm_test_dir'
+      @name = File.join(@base_dir, 'test_kvs')
+      FileUtils.mkdir_p(@base_dir)
+    end
+
+    def teardown
+      FileUtils.rm_rf(@base_dir)
+    end
+
+    def test_open_close
+      assert_equal(false, (RIMS::GDBM_KeyValueStore.exist? @name))
+
+      kvs = RIMS::GDBM_KeyValueStore.open(@name)
+      begin
+        assert_equal(true, (RIMS::GDBM_KeyValueStore.exist? @name))
+      ensure
+        kvs.close
+      end
+      assert_equal(true, (RIMS::GDBM_KeyValueStore.exist? @name))
+
+      kvs.destroy
+      assert_equal(false, (RIMS::GDBM_KeyValueStore.exist? @name))
+    end
+  end
 end
 
 # Local Variables:

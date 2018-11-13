@@ -48,7 +48,28 @@ module RIMS
       raise NotImplementedError, 'abstract'
     end
 
+    def self.exist?(path)
+      raise NotImplementedError, 'not implemented.'
+    end
+
+    def self.open_with_conf(config)
+      raise NotImplementedError, 'not implemented.'
+    end
+
     class FactoryBuilder
+      PLUG_IN = {}                # :nodoc:
+
+      class << self
+        def add_plug_in(name, klass)
+          PLUG_IN[name] = klass
+          self
+        end
+
+        def get_plug_in(name)
+          PLUG_IN[name] or raise KeyError, "not found a plug-in: #{name}"
+        end
+      end
+
       def initialize
         @open = nil
         @factory = proc{|name|
