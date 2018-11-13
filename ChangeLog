@@ -1,3 +1,8 @@
+2018-11-13  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/mail_store.rb (RIMS::MailStore): open a mailbox
+	database on demand.
+
 2018-11-03  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb (RIMS::Cmd#cmd_post_mail, RIMS::Cmd#cmd_imap_append):
