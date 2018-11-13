@@ -6,7 +6,7 @@ RIMS is Ruby IMap Server.
 
 Add this line to your application's Gemfile:
 
-    gem 'rims', git: 'git://github.com/y10k/rims.git'
+    gem 'rims', git: 'https://github.com/y10k/rims.git'
 
 Execute to install your local directory:
 
