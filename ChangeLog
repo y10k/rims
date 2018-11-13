@@ -1,5 +1,11 @@
 2018-11-13  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/mail_store.rb (RIMS::MailFolder),
+	lib/rims/protocol/decoder.rb (RIMS::Protocol::UserMailboxDecoder):
+	IMAP IDLE interruption control is moved from
+	RIMS::Protocol::UserMailboxDecoder class to
+	RIMS::MailFolder class.
+
 	* lib/rims/mail_store.rb (RIMS::MailStore): open a mailbox
 	database on demand.
 
