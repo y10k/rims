@@ -16,7 +16,7 @@ module RIMS
 
       @mbox_db = {}
       @meta_db.each_mbox_id do |mbox_id|
-        @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
+        @mbox_db[mbox_id] = nil
       end
 
       if (@meta_db.dirty?) then
@@ -30,6 +30,13 @@ module RIMS
         MailboxServerResponseQueueBundleHolder.new(object_pool, mbox_id, object_lock)
       }
     end
+
+    def get_mbox_db(mbox_id)
+      if (@mbox_db.key? mbox_id) then
+        @mbox_db[mbox_id] ||= @mbox_db_factory.call(mbox_id)
+      end
+    end
+    private :get_mbox_db
 
     def abort_transaction?
       @abort_transaction
@@ -63,6 +70,7 @@ module RIMS
         end
         @mbox_db.each_key do |mbox_id|
           logger.info("test_read_all: mailbox DB #{mbox_id}")
+          get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
           @mbox_db[mbox_id].test_read_all do |error|
             logger.error("read fail: #{error}")
           end
@@ -74,7 +82,12 @@ module RIMS
         @meta_db.recovery_phase3_mbox_scan(logger: logger)
         @meta_db.recovery_phase4_mbox_scan(logger: logger)
         @meta_db.recovery_phase5_mbox_repair(logger: logger) {|mbox_id|
-          @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
+          if (@mbox_db.key? mbox_id) then
+            raise "not a lost mailbox: #{mbox_id}"
+          else
+            @mbox_db[mbox_id] = nil
+            get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
+          end
         }
         @meta_db.recovery_phase6_msg_scan(@mbox_db, logger: logger)
         @meta_db.recovery_phase7_mbox_msg_scan(@mbox_db, MSG_FLAG_NAMES, logger: logger)
@@ -89,7 +102,7 @@ module RIMS
 
     def close
       @mbox_db.each_value do |db|
-        db.close
+        db.close if db
       end
       @msg_db.close
       @meta_db.dirty = false unless @abort_transaction
@@ -101,7 +114,7 @@ module RIMS
       transaction{
         @msg_db.sync
         @mbox_db.each_value do |db|
-          db.sync
+          db.sync if db
         end
         @meta_db.sync
         self
@@ -126,7 +139,7 @@ module RIMS
         name = name.b
 
         mbox_id = @meta_db.add_mbox(name)
-        @mbox_db[mbox_id] = @mbox_db_factory.call(mbox_id)
+        @mbox_db[mbox_id] = nil
 
         @meta_db.cnum_succ!
 
@@ -138,6 +151,7 @@ module RIMS
       transaction{
         mbox_name = @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
 
+        get_mbox_db(mbox_id)
         mbox_db = @mbox_db.delete(mbox_id)
         mbox_db.each_msg_uid do |uid|
           msg_id = mbox_db.msg_id(uid)
@@ -204,7 +218,7 @@ module RIMS
 
     def add_msg(mbox_id, msg_text, msg_date=Time.now)
       transaction{
-        mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+        mbox_db = get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
 
         msg_id = @meta_db.msg_id_succ!
         @msg_db.add_msg(msg_id, msg_text)
@@ -235,8 +249,8 @@ module RIMS
 
     def copy_msg(src_uid, src_mbox_id, dst_mbox_id)
       transaction{
-        src_mbox_db = @mbox_db[src_mbox_id] or raise "not found a source mailbox: #{src_mbox_id}"
-        dst_mbox_db = @mbox_db[dst_mbox_id] or raise "not found a destination mailbox: #{dst_mbox_id}"
+        src_mbox_db = get_mbox_db(src_mbox_id) or raise "not found a source mailbox: #{src_mbox_id}"
+        dst_mbox_db = get_mbox_db(dst_mbox_id) or raise "not found a destination mailbox: #{dst_mbox_id}"
 
         msg_id = src_mbox_db.msg_id(src_uid) or raise "not found a message: #{src_mbox_id},#{src_uid}"
         dst_uid = @meta_db.add_msg_mbox_uid(msg_id, dst_mbox_id)
@@ -249,24 +263,24 @@ module RIMS
     end
 
     def msg_exist?(mbox_id, uid)
-      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      mbox_db = get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
       mbox_db.msg_exist? uid
     end
 
     def msg_text(mbox_id, uid)
-      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      mbox_db = get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
       msg_id = mbox_db.msg_id(uid) or raise "not found a message: #{mbox_id},#{uid}"
       @msg_db.msg_text(msg_id)
     end
 
     def msg_date(mbox_id, uid)
-      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      mbox_db = get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
       msg_id = mbox_db.msg_id(uid) or raise "not found a message: #{mbox_id},#{uid}"
       @meta_db.msg_date(msg_id)
     end
 
     def msg_flag(mbox_id, uid, flag_name)
-      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      mbox_db = get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
 
       if ((MSG_FLAG_NAMES - %w[ deleted ]).include? flag_name) then
         msg_id = mbox_db.msg_id(uid) or raise "not found a message: #{mbox_id},#{uid}"
@@ -280,7 +294,7 @@ module RIMS
 
     def set_msg_flag(mbox_id, uid, flag_name, flag_value)
       transaction{
-        mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+        mbox_db = get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
 
         if ((MSG_FLAG_NAMES - %w[ deleted ]).include? flag_name) then
           msg_id = mbox_db.msg_id(uid) or raise "not found a message: #{mbox_id},#{uid}"
@@ -304,7 +318,7 @@ module RIMS
     end
 
     def each_msg_uid(mbox_id)
-      mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+      mbox_db = get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
       return enum_for(:each_msg_uid, mbox_id) unless block_given?
       mbox_db.each_msg_uid do |uid|
         yield(uid)
@@ -314,7 +328,7 @@ module RIMS
 
     def expunge_mbox(mbox_id)
       transaction{
-        mbox_db = @mbox_db[mbox_id] or raise "not found a mailbox: #{mbox_id}."
+        mbox_db = get_mbox_db(mbox_id) or raise "not found a mailbox: #{mbox_id}."
 
         uid_list = mbox_db.each_msg_uid.find_all{|uid| mbox_db.msg_flag_deleted(uid) }
         msg_id_list = uid_list.map{|uid| mbox_db.msg_id(uid) }
