@@ -1185,17 +1185,12 @@ module RIMS
 
         server_response_thread = Thread.new{
           @logger.info('idle server response thread start... ')
-          catch(:server_response_interrupted) {
-            @folder.server_response_wait{|server_response|
-              throw(:server_response_interrupted) unless server_response
-              @logger.debug("idle server response: #{server_response}") if @logger.debug?
+          @folder.server_response_idle_wait{|server_response_list|
+            @logger.debug("idle server response: #{server_response}") if @logger.debug?
+            for server_response in server_response_list
               server_output_stream.write(server_response)
-              @folder.server_response_fetch{|next_server_response|
-                throw(:server_response_interrupted) unless next_server_response
-                server_output_stream.write(next_server_response)
-              }
-              server_output_stream.flush
-            }
+            end
+            server_output_stream.flush
           }
           server_output_stream.flush
           @logger.info('idle server response thread terminated.')
@@ -1204,7 +1199,7 @@ module RIMS
         begin
           line = client_input_stream.gets
         ensure
-          @folder.server_response_interrupt
+          @folder.server_response_idle_interrupt
           server_response_thread.join
         end
 

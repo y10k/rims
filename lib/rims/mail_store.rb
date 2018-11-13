@@ -400,15 +400,25 @@ module RIMS
       self
     end
 
-    def server_response_wait
-      while (true)
-        server_response_message = @server_response_queue.pop(false)
-        yield(server_response_message)
-      end
+    def server_response_idle_wait
+      catch(:server_response_idle_wait_interrupt) {
+        while (server_response_message = @server_response_queue.pop(false))
+          server_response_list = [ server_response_message ]
+          server_response_fetch{|next_response_message|
+            if (next_response_message) then
+              server_response_list.push(next_response_message)
+            else
+              yield(server_response_list)
+              throw(:server_response_idle_wait_interrupt)
+            end
+          }
+          yield(server_response_list)
+        end
+      }
       self
     end
 
-    def server_response_interrupt
+    def server_response_idle_interrupt
       @server_response_queue.push(nil)
     end
 
