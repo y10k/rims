@@ -42,9 +42,9 @@ module RIMS::Test
     end
     private :assert_logging_params
 
-    def assert_key_value_store_params(conf_params, expected_params)
+    def assert_key_value_store_params(db_type, conf_params, expected_params)
       assert_config(conf_params) {|conf|
-        assert_equal(expected_params, conf.key_value_store_params, 'key_value_store_params')
+        assert_equal(expected_params, conf.key_value_store_params(db_type), 'key_value_store_params')
         assert_equal({}, conf.through_server_params, 'throuth_server_params')
       }
     end
@@ -229,23 +229,85 @@ module RIMS::Test
     end
 
     def test_key_value_store_params
-      assert_key_value_store_params({}, {
+      assert_key_value_store_params(:meta_key_value_store, {}, {
                                       origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: {},
                                       middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
                                     })
 
-      assert_key_value_store_params({ key_value_store_type: 'GDBM' }, {
+      assert_key_value_store_params(:meta_key_value_store, {
+                                      meta_key_value_store: {
+                                        'plug_in' => 'gdbm'
+                                      }
+                                    }, {
                                       origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: {},
                                       middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
                                     })
 
-      assert_key_value_store_params({ use_key_value_store_checksum: true }, {
+      assert_key_value_store_params(:meta_key_value_store, {
+                                      meta_key_value_store: {
+                                        'plug_in' => 'gdbm',
+                                        'configuration' => { 'foo' => 'bar' }
+                                      }
+                                    }, {
                                       origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: { 'foo' => 'bar' },
                                       middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
                                     })
 
-      assert_key_value_store_params({ use_key_value_store_checksum: false }, {
+      FileUtils.mkdir_p(@base_dir)
+      IO.write(File.join(@base_dir, 'config.yml'), { 'foo' => 'bar' }.to_yaml)
+
+      assert_key_value_store_params(:meta_key_value_store, {
+                                      meta_key_value_store: {
+                                        'plug_in' => 'gdbm',
+                                        'configuration_file' => 'config.yml'
+                                      }
+                                    }, {
                                       origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: { 'foo' => 'bar' },
+                                      middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
+                                    })
+
+      assert_key_value_store_params(:meta_key_value_store, {
+                                      meta_key_value_store: {
+                                        'use_checksum' => true
+                                      }
+                                    }, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: {},
+                                      middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
+                                    })
+
+      assert_key_value_store_params(:meta_key_value_store, {
+                                      meta_key_value_store: {
+                                        'use_checksum' => false
+                                      }
+                                    }, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: {},
+                                      middleware_key_value_store_list: []
+                                    })
+
+      # for backward compatibility
+      assert_key_value_store_params(:meta_key_value_store, { key_value_store_type: 'gdbm' }, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: {},
+                                      middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
+                                    })
+
+      # for backward compatibility
+      assert_key_value_store_params(:meta_key_value_store, { use_key_value_store_checksum: true }, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: {},
+                                      middleware_key_value_store_list: [ RIMS::Checksum_KeyValueStore ]
+                                    })
+
+      # for backward compatibility
+      assert_key_value_store_params(:meta_key_value_store, { use_key_value_store_checksum: false }, {
+                                      origin_key_value_store: RIMS::GDBM_KeyValueStore,
+                                      origin_config: {},
                                       middleware_key_value_store_list: []
                                     })
     end

@@ -190,33 +190,43 @@ module RIMS
       logger
     end
 
-    # configuration entries.
-    # * <tt>:key_value_store_type</tt>
-    # * <tt>:use_key_value_store_checksum</tt>
-    #
-    def key_value_store_params
-      kvs_type = (@config.delete(:key_value_store_type) || Server::DEFAULT[:key_value_store_type]).upcase
-      case (kvs_type)
-      when 'GDBM'
-        origin_key_value_store = GDBM_KeyValueStore
+    def key_value_store_params(db_type)
+      kvs_conf = @config.delete(db_type) || {}
+      key_value_store_type = @config.delete(:key_value_store_type)                 # for backward compatibility
+      use_key_value_store_checksum = @config.delete(:use_key_value_store_checksum) # for backward compatibility
+
+      kvs_type = kvs_conf['plug_in']
+      kvs_type ||= key_value_store_type
+      if (kvs_type) then
+        origin_key_value_store = KeyValueStore::FactoryBuilder.get_plug_in(kvs_type)
       else
-        raise "unknown key-value store type: #{kvs_type}"
+        origin_key_value_store = Server::DEFAULT[:key_value_store]
+      end
+      origin_config = self.class.load_plug_in_configuration(base_dir, kvs_conf)
+
+      if (kvs_conf.key? 'use_checksum') then
+        use_checksum = kvs_conf['use_checksum']
+      elsif (! use_key_value_store_checksum.nil?) then
+        use_checksum = use_key_value_store_checksum
+      else
+        use_checksum = Server::DEFAULT[:use_key_value_store_checksum]
       end
 
       middleware_key_value_store_list = []
-      if ((@config.key? :use_key_value_store_checksum) ? @config.delete(:use_key_value_store_checksum) : Server::DEFAULT[:use_key_value_store_checksum]) then
+      if (use_checksum) then
         middleware_key_value_store_list << Checksum_KeyValueStore
       end
 
       { origin_key_value_store: origin_key_value_store,
+        origin_config: origin_config,
         middleware_key_value_store_list: middleware_key_value_store_list
       }
     end
 
-    def build_key_value_store_factory
-      c = key_value_store_params
+    def build_key_value_store_factory(db_type)
+      c = key_value_store_params(db_type)
       builder = KeyValueStore::FactoryBuilder.new
-      builder.open{|name| c[:origin_key_value_store].open(name) }
+      builder.open{|name| c[:origin_key_value_store].open_with_conf(name, c[:origin_config]) }
       for middleware_key_value_store in c[:middleware_key_value_store_list]
         builder.use(middleware_key_value_store)
       end
@@ -357,7 +367,8 @@ module RIMS
 
       setup_load_libraries
       logger = build_logger
-      kvs_factory = build_key_value_store_factory
+      meta_kvs_factory = build_key_value_store_factory(:meta_key_value_store)
+      text_kvs_factory = build_key_value_store_factory(:text_key_value_store)
       auth = build_authentication
       setup_privilege_params
 
@@ -371,13 +382,13 @@ module RIMS
                    make_parent_dir_and_logging.call(mailbox_data_structure_version, unique_user_id)
                    kvs_path = make_key_value_store_path_from_base_dir(mailbox_data_structure_version, unique_user_id, db_name: db_name)
                    logger.debug("meta data key-value store path: #{kvs_path}") if logger.debug?
-                   kvs_factory.call(kvs_path)
+                   meta_kvs_factory.call(kvs_path)
                  },
                  kvs_text_open: proc{|mailbox_data_structure_version, unique_user_id, db_name|
                    make_parent_dir_and_logging.call(mailbox_data_structure_version, unique_user_id)
                    kvs_path = make_key_value_store_path_from_base_dir(mailbox_data_structure_version, unique_user_id, db_name: db_name)
                    logger.debug("message data key-value store path: #{kvs_path}") if logger.debug?
-                   kvs_factory.call(kvs_path)
+                   text_kvs_factory.call(kvs_path)
                  },
                  authentication: auth,
                  logger: logger,
@@ -422,7 +433,7 @@ module RIMS
 
   class Server
     DEFAULT = {
-      key_value_store_type: 'GDBM'.freeze,
+      key_value_store: GDBM_KeyValueStore,
       use_key_value_store_checksum: true,
       imap_host: '0.0.0.0'.freeze,
       imap_port: 1430,

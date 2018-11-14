@@ -117,7 +117,7 @@ module RIMS
         conf.load(log_shift_size: size)
       end
       options.on('--kvs-type=TYPE', %w[ gdbm ],
-                 "Choose the key-value store type of mailbox database. only GDBM can be chosen now.") do |type|
+                 "Choose the key-value store type of mailbox database. only gdbm can be chosen now.") do |type|
         conf.load(key_value_store_type: type)
       end
       options.on('--[no-]use-kvs-cksum',
@@ -382,7 +382,7 @@ module RIMS
       def make_kvs_factory(read_only: false)
         builder = KeyValueStore::FactoryBuilder.new
         case (@conf[:key_value_store_type].upcase)
-        when 'GDBM'
+        when 'gdbm'
           if (read_only) then
             builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
           else
