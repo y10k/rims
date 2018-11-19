@@ -393,6 +393,26 @@ module RIMS::Test
       FileUtils.rm_rf(@base_dir) unless $DEBUG
     end
 
+    def test_load_plug_in_configuration
+      assert_equal({},RIMS::Config.load_plug_in_configuration(@base_dir, {}))
+      assert_equal({ 'foo' => 'bar' },
+                   RIMS::Config.load_plug_in_configuration(@base_dir,
+                                                           { 'configuration' => { 'foo' => 'bar' } }))
+
+      FileUtils.mkdir_p(@base_dir)
+      IO.write(File.join(@base_dir, 'config.yml'), { 'foo' => 'bar' }.to_yaml)
+      assert_equal({ 'foo' => 'bar' },
+                   RIMS::Config.load_plug_in_configuration(@base_dir,
+                                                           { 'configuration_file' => 'config.yml' }))
+
+      assert_raise(RuntimeError) {
+        RIMS::Config.load_plug_in_configuration(@base_dir, {
+                                                  'configuration' => { 'foo' => 'bar' },
+                                                  'configuration_file' => 'config.yml'
+                                                })
+      }
+    end
+
     def test_mkdir_from_base_dir
       target_dir = File.join(@base_dir, 'foo', 'bar')
       Dir.mkdir(@base_dir)

@@ -36,6 +36,26 @@ module RIMS
     def_delegator 'self.class', :relative_path?
     private :relative_path?
 
+    def self.load_plug_in_configuration(base_dir, config)
+      if ((config.key? 'configuration') && (config.key? 'configuration_file')) then
+        raise 'configuration conflict: configuration, configuraion_file'
+      end
+
+      if (config.key? 'configuration') then
+        config['configuration']
+      elsif (config.key? 'configuration_file') then
+        config_file = config['configuration_file']
+        if (relative_path? config_file) then
+          config_path = File.join(base_dir, config_file)
+        else
+          config_path = config_file
+        end
+        YAML.load_file(config_path)
+      else
+        {}
+      end
+    end
+
     def initialize
       @config = {}
     end
@@ -289,24 +309,7 @@ module RIMS
       if (auth_plug_in_list = @config.delete(:authentication)) then
         for auth_plug_in_entry in auth_plug_in_list
           name = auth_plug_in_entry['plug_in'] or raise 'undefined plug-in name.'
-
-          if ((auth_plug_in_entry.key? 'configuration') && (auth_plug_in_entry.key? 'configuraion_file')) then
-            raise 'authentication configuration conflict: configuration, configuraion_file'
-          end
-          if (auth_plug_in_entry.key? 'configuration') then
-            config = auth_plug_in_entry['configuration']
-          elsif (auth_plug_in_entry.key? 'configuration_file') then
-            config_file = auth_plug_in_entry['configuration_file']
-            if (relative_path? config_file) then
-              config_path = File.join(base_dir, config_file)
-            else
-              config_path = config_file
-            end
-            config = YAML.load_file(config_path)
-          else
-            raise "not found an authentication configuration for: #{name}"
-          end
-
+          config = self.class.load_plug_in_configuration(base_dir, auth_plug_in_entry)
           passwd_src = Authentication.get_plug_in(name, config)
           auth.add_plug_in(passwd_src)
         end
