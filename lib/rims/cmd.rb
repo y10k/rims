@@ -117,7 +117,7 @@ module RIMS
         conf.load(log_shift_size: size)
       end
       options.on('--kvs-type=TYPE', %w[ gdbm ],
-                 "Choose the key-value store type of mailbox database. only gdbm can be chosen now.") do |type|
+                 "Choose the key-value store type of mailbox database. load plug-in on config.yml.") do |type|
         conf.load(key_value_store_type: type)
       end
       options.on('--[no-]use-kvs-cksum',
