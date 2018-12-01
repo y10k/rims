@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'fileutils'
 require 'set'
 
 module RIMS
@@ -200,6 +201,170 @@ Hello world.
 EOF
       end
       private :make_mail_address_header_pattern
+    end
+
+    module KeyValueStoreTestUtility
+      def open_database
+        raise NotImplementedError, "not implemented to open `#{@name}'"
+      end
+
+      def make_key_value_store
+        raise NotImplementedError, 'not implemented.'
+      end
+
+      def db_close
+        @db.close
+      end
+
+      def db_closed?
+        @db.closed?
+      end
+
+      def db_fetch(key)
+        @db[key]
+      end
+
+      def db_key?(key)
+        @db.key? key
+      end
+
+      def db_each_key
+        return enum_for(:db_each_key) unless block_given?
+        @db.each_key do |key|
+          yield(key)
+        end
+      end
+
+      def setup
+        @base_dir = 'kvs_test_dir'
+        FileUtils.mkdir_p(@base_dir)
+        @name = File.join(@base_dir, "kvs_test.db.#{$$}")
+
+        @db = open_database
+        @kvs = make_key_value_store
+      end
+
+      def teardown
+        db_close unless db_closed?
+        FileUtils.rm_rf(@base_dir)
+      end
+
+      def test_store_fetch
+        assert_nil(db_fetch('foo'))
+        assert_nil(@kvs['foo'])
+
+        assert_equal('apple', (@kvs['foo'] = 'apple'))
+
+        assert_equal('apple', db_fetch('foo'))
+        assert_equal('apple', @kvs['foo'])
+      end
+
+      def test_delete
+        assert_nil(@kvs.delete('foo'))
+
+        @kvs['foo'] = 'apple'
+        assert_equal('apple', @kvs.delete('foo'))
+
+        assert_nil(db_fetch('foo'))
+        assert_nil(@kvs['foo'])
+      end
+
+      def test_key?
+        assert_equal(false, (db_key? 'foo'))
+        assert_equal(false, (@kvs.key? 'foo'))
+
+        @kvs['foo'] = 'apple'
+        assert_equal(true, (db_key? 'foo'))
+        assert_equal(true, (@kvs.key? 'foo'))
+
+        @kvs.delete('foo')
+        assert_equal(false, (db_key? 'foo'))
+        assert_equal(false, (@kvs.key? 'foo'))
+      end
+
+      def test_each_key
+        assert_equal(%w[], db_each_key.to_a)
+        assert_equal(%w[], @kvs.each_key.to_a)
+
+        @kvs['foo'] = 'apple'
+        assert_equal(%w[ foo ], db_each_key.to_a)
+        assert_equal(%w[ foo ], @kvs.each_key.to_a)
+        assert_equal(%w[ apple ], @kvs.each_value.to_a)
+        assert_equal([ %w[ foo apple ] ], @kvs.each_pair.to_a)
+
+        @kvs['bar'] = 'banana'
+        assert_equal(%w[ foo bar ].sort, db_each_key.sort)
+        assert_equal(%w[ foo bar ].sort, @kvs.each_key.sort)
+        assert_equal(%w[ apple banana ].sort, @kvs.each_value.sort)
+        assert_equal([ %w[ foo apple ], %w[ bar banana ] ].sort, @kvs.each_pair.sort)
+
+        @kvs['baz'] = 'orange'
+        assert_equal(%w[ foo bar baz ].sort, db_each_key.sort)
+        assert_equal(%w[ foo bar baz ].sort, @kvs.each_key.sort)
+        assert_equal(%w[ apple banana orange ].sort, @kvs.each_value.sort)
+        assert_equal([ %w[ foo apple ], %w[ bar banana ], %w[ baz orange ] ].sort, @kvs.each_pair.sort)
+
+        @kvs.delete('bar')
+        assert_equal(%w[ foo baz ].sort, db_each_key.sort)
+        assert_equal(%w[ foo baz ].sort, @kvs.each_key.sort)
+        assert_equal(%w[ apple orange ].sort, @kvs.each_value.sort)
+        assert_equal([ %w[ foo apple ], %w[ baz orange ] ].sort, @kvs.each_pair.sort)
+      end
+
+      def test_sync
+        @kvs.sync
+      end
+
+      def test_close
+        @kvs.close
+        assert_equal(true, db_closed?)
+
+        # closed exception
+        assert_raise(RuntimeError) { @kvs['foo'] }
+        assert_raise(RuntimeError) { @kvs['foo'] = 'apple' }
+        assert_raise(RuntimeError) { @kvs.delete('foo') }
+        assert_raise(RuntimeError) { @kvs.key? 'foo' }
+        assert_raise(RuntimeError) { @kvs.each_key.to_a }
+        assert_raise(RuntimeError) { @kvs.each_value.to_a }
+        assert_raise(RuntimeError) { @kvs.each_pair.to_a }
+      end
+    end
+
+    module KeyValueStoreOpenCloseTestUtility
+      def get_kvs_name
+        raise NotImplementedError, 'not implemented.'
+      end
+
+      def get_config
+        {}
+      end
+
+      def setup
+        @base_dir = 'kvs_open_close_test_dir'
+        @name = File.join(@base_dir, 'test_kvs')
+        FileUtils.mkdir_p(@base_dir)
+
+        @Test_KeyValueStore = RIMS::KeyValueStore::FactoryBuilder.get_plug_in(get_kvs_name)
+      end
+
+      def teardown
+        FileUtils.rm_rf(@base_dir)
+      end
+
+      def test_open_close
+        assert_equal(false, (@Test_KeyValueStore.exist? @name))
+
+        kvs = @Test_KeyValueStore.open_with_conf(@name, get_config)
+        begin
+          assert_equal(true, (@Test_KeyValueStore.exist? @name))
+        ensure
+          kvs.close
+        end
+        assert_equal(true, (@Test_KeyValueStore.exist? @name))
+
+        kvs.destroy
+        assert_equal(false, (@Test_KeyValueStore.exist? @name))
+      end
     end
   end
 end
