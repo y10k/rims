@@ -235,11 +235,6 @@ module RIMS
         ]
       ]
 
-      KVS_STORE_OPTION_LIST = [
-        [ :key_value_store_type, 'gdbm', '--kvs-type=TYPE', %w[ gdbm ], "Choose the key-value store type. only gdbm can be chosen now." ],
-        [ :use_key_value_store_checksum, true, '--[no-]use-kvs-cksum', "Enable/disable data checksum at key-value store. default is enabled." ]
-      ]
-
       def initialize(options, option_list)
         @options = options
         @option_list = option_list
@@ -291,6 +286,28 @@ module RIMS
           for name, value in YAML.load_file(path)
             @conf[name.to_sym] = value
           end
+        end
+
+        self
+      end
+
+      def load_library_option
+        @options.on('-r', '--load-library=LIBRARY', 'require LIBRARY.') do |library|
+          require(library)
+        end
+
+        self
+      end
+
+      def key_value_store_option
+        @conf[:key_value_store_type] = GDBM_KeyValueStore
+        @options.on('--kvs-type=TYPE', 'Choose the key-value store type.') do |kvs_type|
+          @conf[:key_value_store_type] = KeyValueStore::FactoryBuilder.get_plug_in(kvs_type)
+        end
+
+        @conf[:use_key_value_store_checksum] = true
+        @options.on('--[no-]use-kvs-cksum', 'Enable/disable data checksum at key-value store. default is enabled.') do |use_checksum|
+          @conf[:use_key_value_store_checksum] = use_checksum
         end
 
         self
@@ -379,22 +396,12 @@ module RIMS
         end
       end
 
-      def make_kvs_factory(read_only: false)
+      def make_kvs_factory
         builder = KeyValueStore::FactoryBuilder.new
-        case (@conf[:key_value_store_type].upcase)
-        when 'gdbm'
-          if (read_only) then
-            builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::READER) }
-          else
-            builder.open{|name| GDBM_KeyValueStore.open(name, 0666, GDBM::WRITER) }
-          end
-        else
-          raise "unknown key-value store type: #{@conf[:key_value_store_type]}"
-        end
+        builder.open{|name| @conf[:key_value_store_type].open_with_conf(name, {}) }
         if (@conf[:use_key_value_store_checksum]) then
           builder.use(Checksum_KeyValueStore)
         end
-
         builder.factory
       end
     end
@@ -598,24 +605,31 @@ module RIMS
     command_function :cmd_imap_append, "Append message to IMAP mailbox."
 
     def cmd_mbox_dirty_flag(options, args)
-      option_list = Config::KVS_STORE_OPTION_LIST
-      option_list += [
+      option_list = [
         [ :return_flag_exit_code, true, '--[no-]return-flag-exit-code', 'Dirty flag value is returned to exit code. default is true.' ]
       ]
 
       conf = Config.new(options, option_list)
-      write_dirty_flag = nil
-
+      conf.load_library_option
+      conf.key_value_store_option
       conf.help_option(add_banner: ' [mailbox directory]')
       conf.quiet_option
       conf.setup_option_list
+
+      write_dirty_flag = nil
       options.on('--enable-dirty-flag', 'Enable mailbox dirty flag.') { write_dirty_flag = true }
       options.on('--disable-dirty-flag', 'Disable mailbox dirty flag.') { write_dirty_flag = false }
+
       conf.parse_options!(args)
-      pp conf, write_dirty_flag if $DEBUG
+      pp conf if $DEBUG
 
       mbox_dir = args.shift or raise 'need for mailbox directory.'
-      kvs_factory = conf.make_kvs_factory(read_only: write_dirty_flag.nil?)
+      meta_db_path = File.join(mbox_dir, 'meta')
+      unless (conf[:key_value_store_type].exist? meta_db_path) then
+        raise "not found a mailbox meta DB: #{meta_db_path}"
+      end
+
+      kvs_factory = conf.make_kvs_factory
       meta_db = DB::Meta.new(kvs_factory.call(File.join(mbox_dir, 'meta')))
       begin
         unless (write_dirty_flag.nil?) then
@@ -732,8 +746,7 @@ Options:
     command_function :cmd_pass_hash, 'Make hash password configuration file from plain password configuration file.'
 
     def cmd_debug_dump_kvs(options, args)
-      option_list = Config::KVS_STORE_OPTION_LIST
-      option_list += [
+      option_list = [
         [ :match_key, nil, '--match-key=REGEXP', Regexp, 'Show keys matching regular expression.' ],
         [ :dump_size, true, '--[no-]dump-size', 'Dump size of value with key.' ],
         [ :dump_value, true, '--[no-]dump-value', 'Dump value with key.' ],
@@ -741,13 +754,19 @@ Options:
       ]
 
       conf = Config.new(options, option_list)
+      conf.load_library_option
+      conf.key_value_store_option
       conf.help_option(add_banner: ' [DB_NAME]')
       conf.setup_option_list
       conf.parse_options!(args)
       pp conf if $DEBUG
 
       name = args.shift or raise 'need for DB name.'
-      factory = conf.make_kvs_factory(read_only: true)
+      unless (conf[:key_value_store_type].exist? name) then
+        raise "not found a key-value store: #{name}"
+      end
+
+      factory = conf.make_kvs_factory
       db = factory.call(name)
       begin
         db.each_key do |key|
