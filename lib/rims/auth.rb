@@ -37,7 +37,7 @@ module RIMS
       end
 
       def get_plug_in(name, config)
-        klass = PLUG_IN[name] or raise KeyError, "not found a plug-in: #{name}"
+        klass = PLUG_IN[name] or raise KeyError, "not found a password source plug-in: #{name}"
         klass.build_from_conf(config)
       end
     end

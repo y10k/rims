@@ -66,7 +66,7 @@ module RIMS
         end
 
         def get_plug_in(name)
-          PLUG_IN[name] or raise KeyError, "not found a plug-in: #{name}"
+          PLUG_IN[name] or raise KeyError, "not found a key-value store plug-in: #{name}"
         end
       end
 
