@@ -1,3 +1,9 @@
+2018-12-02  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb, lib/rims/gdbm_kvs.rb, lib/rims/kvs.rb,
+	lib/rims/server.rb ,lib/rims/test.rb:
+	key-value store. added plug-in API.
+
 2018-11-13  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* README.md: modified installation example.
