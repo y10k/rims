@@ -254,9 +254,13 @@ EOF
         assert_nil(@kvs['foo'])
 
         assert_equal('apple', (@kvs['foo'] = 'apple'))
-
         assert_equal('apple', db_fetch('foo'))
         assert_equal('apple', @kvs['foo'])
+
+        # update
+        assert_equal('banana', (@kvs['foo'] = 'banana'))
+        assert_equal('banana', db_fetch('foo'))
+        assert_equal('banana', @kvs['foo'])
       end
 
       def test_delete
@@ -274,6 +278,11 @@ EOF
         assert_equal(false, (@kvs.key? 'foo'))
 
         @kvs['foo'] = 'apple'
+        assert_equal(true, (db_key? 'foo'))
+        assert_equal(true, (@kvs.key? 'foo'))
+
+        # update
+        @kvs['foo'] = 'banana'
         assert_equal(true, (db_key? 'foo'))
         assert_equal(true, (@kvs.key? 'foo'))
 
@@ -309,6 +318,13 @@ EOF
         assert_equal(%w[ foo baz ].sort, @kvs.each_key.sort)
         assert_equal(%w[ apple orange ].sort, @kvs.each_value.sort)
         assert_equal([ %w[ foo apple ], %w[ baz orange ] ].sort, @kvs.each_pair.sort)
+
+        # update
+        @kvs['baz'] = 'melon'
+        assert_equal(%w[ foo baz ].sort, db_each_key.sort)
+        assert_equal(%w[ foo baz ].sort, @kvs.each_key.sort)
+        assert_equal(%w[ apple melon ].sort, @kvs.each_value.sort)
+        assert_equal([ %w[ foo apple ], %w[ baz melon ] ].sort, @kvs.each_pair.sort)
       end
 
       def test_sync
