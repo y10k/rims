@@ -9,8 +9,13 @@ Gem::Specification.new do |spec|
   spec.version       = RIMS::VERSION
   spec.authors       = ["TOKI Yoshinori"]
   spec.email         = ["toki@freedom.ne.jp"]
-  spec.summary       = %q{Ruby IMap Server}
-  spec.description   = %q{Ruby IMap Server}
+  spec.summary       = %q{RIMS is Ruby IMap Server}
+  spec.description   = <<-'EOF'
+    RIMS is Ruby IMap Server.
+    This gem provides a complete IMAP server by itself.  The IMAP
+    server can run as a daemon, mailboxes are provided and messages
+    can be delivered to them.
+  EOF
   spec.homepage      = "https://github.com/y10k/rims"
   spec.license       = "MIT"
 
