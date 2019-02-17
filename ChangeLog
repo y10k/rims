@@ -1,3 +1,7 @@
+2019-02-18  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/version.rb : start to version 0.2.1.
+
 2018-12-02  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb, lib/rims/gdbm_kvs.rb, lib/rims/kvs.rb,
