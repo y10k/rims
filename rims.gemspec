@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["toki@freedom.ne.jp"]
   spec.summary       = %q{Ruby IMap Server}
   spec.description   = %q{Ruby IMap Server}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/y10k/rims"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)
