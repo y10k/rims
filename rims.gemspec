@@ -9,8 +9,8 @@ Gem::Specification.new do |spec|
   spec.version       = RIMS::VERSION
   spec.authors       = ["TOKI Yoshinori"]
   spec.email         = ["toki@freedom.ne.jp"]
-  spec.description   = %q{Ruby IMap Server}
   spec.summary       = %q{Ruby IMap Server}
+  spec.description   = %q{Ruby IMap Server}
   spec.homepage      = ""
   spec.license       = "MIT"
 
