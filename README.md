@@ -8,7 +8,9 @@ Installation
 
 Add this line to your application's Gemfile:
 
-    gem 'rims', git: 'https://github.com/y10k/rims.git'
+```ruby
+gem 'rims', git: 'https://github.com/y10k/rims.git'
+```
 
 Execute to install your local directory:
 
@@ -87,8 +89,10 @@ be written at configuration file.
 RIMS configuration file format is YAML. Type following in file of
 `config.yml` and save.
 
-    user_list:
-      - { user: foo, pass: bar }
+```yaml
+user_list:
+  - { user: foo, pass: bar }
+```
 
 And start RIMS with `-f config.yml` option.
 
@@ -137,9 +141,11 @@ The disadvantage of special user is that it can be used only in RIMS.
 At first, you prepare a special user to deliver mail. Type following
 in configuration file. And start RIMS.
 
-    user_list:
-      - { user: foo, pass: bar }
-      - { user: "#postman", pass: "#postman" }
+```yaml
+user_list:
+  - { user: foo, pass: bar }
+  - { user: "#postman", pass: "#postman" }
+```
 
 And type following on your console.
 
@@ -174,12 +180,14 @@ port of 143), process user privilege is `toki` (uid 1000), and process
 group privilege is `toki` (gid 1000). Type following in configuration
 file.
 
-    user_list:
-      - { user: foo, pass: bar }
-      - { user: "#postman", pass: "#postman" }
-    imap_port: imap2
-    process_privilege_user: toki
-    process_privilege_group: toki
+```yaml
+user_list:
+  - { user: foo, pass: bar }
+  - { user: "#postman", pass: "#postman" }
+imap_port: imap2
+process_privilege_user: toki
+process_privilege_group: toki
+```
 
 And type following on your console.
 
