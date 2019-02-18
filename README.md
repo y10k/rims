@@ -12,16 +12,16 @@ Installation
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'rims', git: 'https://github.com/y10k/rims.git'
+gem 'rims'
 ```
 
-Execute to install your local directory:
+And then execute:
 
-    $ bundle install --path=vendor
+    $ bundle
 
-Or execute to install your gem home:
+Or install it yourself as:
 
-    $ bundle install
+    $ gem install rims
 
 Simple Usage
 ------------
