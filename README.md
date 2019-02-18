@@ -1,8 +1,10 @@
-# RIMS
+RIMS
+====
 
 RIMS is Ruby IMap Server.
 
-## Installation
+Installation
+------------
 
 Add this line to your application's Gemfile:
 
@@ -16,7 +18,8 @@ Or execute to install your gem home:
 
     $ bundle install
 
-## Simple Usage
+Simple Usage
+------------
 
 Type following to show usage.
 
@@ -37,7 +40,8 @@ Type following to show usage.
     command help options:
         -h, --help
 
-## Tutorial
+Tutorial
+--------
 
 Something to need for RIMS setup are following:
 
@@ -252,7 +256,8 @@ Status operation:
     $ sudo bundle exec rims daemon status -f config.yml
     daemon is stopped.
 
-## Server Configuration
+Server Configuration
+--------------------
 
 Server options on start may be described at config.yml file.
 Config.yml is a YAML format file and its contents are explained
@@ -370,7 +375,8 @@ To start server with config.yml file, type following.
   nogroup) and should be changed.</dd>
 </dl>
 
-## Mailbox Data
+Mailbox Data
+------------
 
 Mailbox data exists under the base directory. Next picture is a
 overview of mailbox data filesystem under the base directory.
@@ -539,7 +545,8 @@ of contents at a mailbox key-value store.
     "4": 1 bytes: "3"
     "3": 1 bytes: "2"
 
-## Contributing
+Contributing
+------------
 
 1. Fork it
 2. Create your feature branch (`git checkout -b my-new-feature`)
