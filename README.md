@@ -539,44 +539,6 @@ of contents at a mailbox key-value store.
     "4": 1 bytes: "3"
     "3": 1 bytes: "2"
 
-## History
-
-* v0.1.0 (Latest version)
-    - Login authentication mechanisms.
-    - Multi-user mailbox.
-    - Command utility to deliver mail to mailbox.
-    - Server process privilege separated from root user.
-    - UIDPLUS extension. Contributed by Joe Yates, thanks.
-    - Daemon tool.
-    - Fixed some bad response of search command.
-    - Tutorial is written.
-* v0.0.4
-    - Mail parser is replaced from mail gem to RIMS::RFC822 parser.
-    - Optimization to fast search and fast fetch.
-    - Strict e-mail address data at fetch envelope response.
-    - Charset search.
-    - Refactored unit test codes.
-* v0.0.3
-    - DB structure is changed and IMAP UID behavior will follow rules
-      that is described at RFC. Incompatible mailbox data!
-    - DB data checksum is added. mail data is verified with checksum
-      at default.
-    - data recovery process is added to mail data DB.
-    - mbox-dirty-flag command is added to force recovery.
-* v0.0.2
-    - Fast error recovery on connection fatal error (ex. Errno::EPIPE).
-    - Server log rotation.
-    - debug-dump-kvs command.
-    - Fine grain lock for one user multiple connection.
-* v0.0.1
-    - First release.
-
-## Next Tasks
-
-* Users defined by LDAP.
-* Fixed some connection errors at windows mail client.
-* Autologout timer.
-
 ## Contributing
 
 1. Fork it
