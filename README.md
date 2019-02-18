@@ -2,6 +2,9 @@ RIMS
 ====
 
 RIMS is Ruby IMap Server.
+This gem provides a complete IMAP server by itself.  The IMAP
+server can run as a daemon, mailboxes are provided and messages
+can be delivered to them.
 
 Installation
 ------------
