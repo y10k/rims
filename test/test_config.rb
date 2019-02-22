@@ -108,7 +108,7 @@ module RIMS::Test
         begin
           assert_config(load_libraries: %w[ prime ]) {|conf|
             conf.setup_load_libraries
-            assert($LOADED_FEATURES.any?{|name| name =~ /prime/})          
+            assert($LOADED_FEATURES.any?{|name| name =~ /prime/})
           }
         rescue
           exit!(1)

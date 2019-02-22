@@ -657,7 +657,7 @@ Content-Type: application/octet-stream
                     'Reply-To' => 'Baz <baz@mail.example.com>',
                     'To' => 'Alice <alice@mail.example.com>',
                     'Cc' => 'Bob <bob@mail.example.com>',
-                    'Bcc' => 'Kate <kate@mail.example.com>')                    
+                    'Bcc' => 'Kate <kate@mail.example.com>')
 
       assert_equal([ [ 'Foo', nil, 'foo', 'mail.example.com' ] ], @msg.from)
       assert_equal([ [ 'Bar', nil, 'bar', 'mail.example.com' ] ], @msg.sender)

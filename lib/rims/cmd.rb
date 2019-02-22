@@ -706,11 +706,11 @@ module RIMS
       conf.help_option(add_banner: <<-'EOF'.chomp)
  passwd_plain.yml
 Example
-  $ cat passwd_plain.yml 
+  $ cat passwd_plain.yml
   - { user: foo, pass: open_sesame }
   - { user: "#postman", pass: "#postman" }
-  $ rims pass-hash passwd_plain.yml >passwd_hash.yml 
-  $ cat passwd_hash.yml 
+  $ rims pass-hash passwd_plain.yml >passwd_hash.yml
+  $ cat passwd_hash.yml
   ---
   - user: foo
     hash: SHA256:10000:YkslZucwN2QJ7LOft59Pgw==:d5dca9109cc787220eba65810e40165079ce3292407e74e8fbd5c6a8a9b12204
