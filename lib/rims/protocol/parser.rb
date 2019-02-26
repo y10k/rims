@@ -631,9 +631,9 @@ module RIMS
         unless (search_key.empty?) then
           search_key = search_key.dup
           factory = fetch_next_node(search_key)
-          cond = factory.call(parse_cached(search_key))
+          _cond = factory.call(parse_cached(search_key))
         else
-          cond = end_of_cond
+          _cond = end_of_cond
         end
       end
       private :parse_cached
