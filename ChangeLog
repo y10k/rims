@@ -1,3 +1,13 @@
+2019-02-26  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/mail_store.rb, lib/rims/pool.rb: generic object
+	pool. object's Lock has to be owned to the object that needs to
+	lock.
+
+	object pool no longer has object lock.
+	mail store now has read-write lock.
+	response queue bundle now has mutex lock.
+
 2019-02-18  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.2.1 is released.
