@@ -206,7 +206,7 @@ module RIMS
           unique_user_id = Authentication.unique_user_id(username)
           logger.debug("unique user ID: #{username} -> #{unique_user_id}") if logger.debug?
 
-          mail_store_holder = mail_store_pool.get(unique_user_id, timeout_seconds: write_lock_timeout_seconds) {
+          mail_store_holder = mail_store_pool.get(unique_user_id) {
             logger.info("open mail store: #{unique_user_id} [ #{username} ]")
           }
 
@@ -510,7 +510,7 @@ module RIMS
           end
           tmp_mail_store_holder = @mail_store_holder
           ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
-            tmp_mail_store_holder.return_pool(timeout_seconds: timeout_seconds) {
+            tmp_mail_store_holder.return_pool{
               @logger.info("close mail store: #{tmp_mail_store_holder.unique_user_id}")
             }
           }
@@ -1272,7 +1272,7 @@ module RIMS
           @last_user_cache_key_username = nil
           @last_user_cache_value_mail_store_holder = nil
           ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
-            mail_store_holder.return_pool(timeout_seconds: timeout_seconds) {
+            mail_store_holder.return_pool{
               @logger.info("close cached mail store to deliver message: #{mail_store_holder.unique_user_id}")
             }
           }

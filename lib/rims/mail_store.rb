@@ -7,9 +7,13 @@ require 'thread'
 
 module RIMS
   class MailStore
+    extend Forwardable
+
     MSG_FLAG_NAMES = %w[ answered flagged deleted seen draft recent ].each{|n| n.freeze }.freeze
 
     def initialize(meta_db, msg_db, &mbox_db_factory) # :yields: mbox_id
+      @rw_lock = ReadWriteLock.new
+
       @meta_db = meta_db
       @msg_db = msg_db
       @mbox_db_factory = mbox_db_factory
@@ -26,10 +30,12 @@ module RIMS
         @meta_db.dirty = true
       end
 
-      @server_response_queue_pool = RIMS::ObjectPool.new{|object_pool, mbox_id, object_lock|
-        MailboxServerResponseQueueBundleHolder.new(object_pool, mbox_id, object_lock)
+      @server_response_queue_pool = RIMS::ObjectPool.new{|object_pool, mbox_id|
+        MailboxServerResponseQueueBundleHolder.new(object_pool, mbox_id)
       }
     end
+
+    def_delegators :@rw_lock, :read_synchronize, :write_synchronize
 
     def get_mbox_db(mbox_id)
       if (@mbox_db.key? mbox_id) then
@@ -356,8 +362,8 @@ module RIMS
     end
 
     def self.build_pool(kvs_meta_open, kvs_text_open)
-      RIMS::ObjectPool.new{|object_pool, unique_user_id, object_lock|
-        RIMS::MailStoreHolder.build(object_pool, unique_user_id, object_lock, kvs_meta_open, kvs_text_open)
+      RIMS::ObjectPool.new{|object_pool, unique_user_id|
+        RIMS::MailStoreHolder.build(object_pool, unique_user_id, kvs_meta_open, kvs_text_open)
       }
     end
   end
@@ -596,7 +602,7 @@ module RIMS
   class MailStoreHolder < ObjectPool::ObjectHolder
     extend Forwardable
 
-    def self.build(object_pool, unique_user_id, object_lock, kvs_meta_open, kvs_text_open)
+    def self.build(object_pool, unique_user_id, kvs_meta_open, kvs_text_open)
       kvs_build = proc{|kvs_open, db_name|
         kvs_open.call(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id, db_name)
       }
@@ -607,20 +613,18 @@ module RIMS
       }
       mail_store.add_mbox('INBOX') unless mail_store.mbox_id('INBOX')
 
-      new(object_pool, unique_user_id, object_lock, mail_store)
+      new(object_pool, unique_user_id, mail_store)
     end
 
-    def initialize(object_pool, unique_user_id, object_lock, mail_store)
+    def initialize(object_pool, unique_user_id, mail_store)
       super(object_pool, unique_user_id)
-      @object_lock = object_lock
       @mail_store = mail_store
     end
 
     alias unique_user_id object_key
     attr_reader :mail_store
 
-    def_delegator :@object_lock, :read_synchronize
-    def_delegator :@object_lock, :write_synchronize
+    def_delegators :@mail_store, :read_synchronize, :write_synchronize
 
     def object_destroy
       @mail_store.close
@@ -628,25 +632,25 @@ module RIMS
   end
 
   class MailboxServerResponseQueueBundleHolder < ObjectPool::ObjectHolder
-    def initialize(object_pool, mbox_id, object_lock)
+    def initialize(object_pool, mbox_id)
       super(object_pool, mbox_id)
-      @object_lock = object_lock
+      @mutex = Mutex.new
       @queue_map = Hash.new{|h, k| h[k] = Thread::Queue.new }
     end
 
     alias mbox_id object_id
 
     def attach_queue(mail_folder_key)
-      @object_lock.write_synchronize{ @queue_map[mail_folder_key] }
+      @mutex.synchronize{ @queue_map[mail_folder_key] }
     end
 
     def detach_queue(mail_folder_key)
-      @object_lock.write_synchronize{ @queue_map.delete(mail_folder_key) } or raise "not found a queue at mail folder key: #{mail_folder_key}"
+      @mutex.synchronize{ @queue_map.delete(mail_folder_key) } or raise "not found a queue at mail folder key: #{mail_folder_key}"
       self
     end
 
     def multicast_push(server_response_message, this_mail_folder_key)
-      @object_lock.read_synchronize{
+      @mutex.synchronize{
         for mail_folder_key, queue in @queue_map
           next if (mail_folder_key == this_mail_folder_key)
           queue.push(server_response_message)

@@ -14,8 +14,8 @@ module RIMS
       end
 
       # optional block is called when a mail store is closed.
-      def return_pool(**name_args, &block) # yields:
-        @object_pool.put(self, **name_args, &block)
+      def return_pool(&block) # yields:
+        @object_pool.put(self, &block)
         nil
       end
     end
@@ -35,27 +35,25 @@ module RIMS
     end
 
     def initialize(&object_factory)      # yields: object_pool, object_key, object_lock
+      @mutex = Mutex.new
       @object_factory = object_factory
-      @pool_map = {}
-      @pool_lock = Mutex.new
-      @object_lock_map = Hash.new{|hash, key| hash[key] = ReadWriteLock.new }
+      @pool = {}
     end
 
     def empty?
-      @pool_map.empty?
+      @mutex.synchronize{ @pool.empty? }
     end
 
     # optional block is called when a new object is added to an object pool.
-    def get(object_key, timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS) # yields:
-      object_lock = @pool_lock.synchronize{ @object_lock_map[object_key] }
-      object_lock.write_synchronize(timeout_seconds) {
-        if (@pool_lock.synchronize{ @pool_map.key? object_key }) then
-          ref_count = @pool_lock.synchronize{ @pool_map[object_key] }
+    def get(object_key)         # yields:
+      @mutex.synchronize{
+        if (@pool.key? object_key) then
+          ref_count = @pool[object_key]
         else
           yield if block_given?
-          object_holder = @object_factory.call(self, object_key, object_lock)
+          object_holder = @object_factory.call(self, object_key)
           ref_count = ReferenceCount.new(0, object_holder)
-          @pool_lock.synchronize{ @pool_map[object_key] = ref_count }
+          @pool[object_key] = ref_count
         end
         ref_count.count >= 0 or raise 'internal error'
         ref_count.count += 1
@@ -64,15 +62,14 @@ module RIMS
     end
 
     # optional block is called when an object is deleted from an object pool.
-    def put(object_holder, timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS) # yields:
-      object_lock = @pool_lock.synchronize{ @object_lock_map[object_holder.object_key] }
-      object_lock.write_synchronize(timeout_seconds) {
-        ref_count = @pool_lock.synchronize{ @pool_map[object_holder.object_key] } or raise 'internal error'
+    def put(object_holder) # yields:
+      @mutex.synchronize{
+        ref_count = @pool[object_holder.object_key] or raise 'internal error'
         ref_count.object_holder.equal? object_holder or raise 'internal error'
         ref_count.count > 0 or raise 'internal error'
         ref_count.count -= 1
         if (ref_count.count == 0) then
-          @pool_lock.synchronize{ @pool_map.delete(object_holder.object_key) }
+          @pool.delete(object_holder.object_key)
           ref_count.object_destroy
           yield if block_given?
         end
