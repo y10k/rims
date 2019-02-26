@@ -1,8 +1,8 @@
 2019-02-18  TOKI Yoshinori  <toki@freedom.ne.jp>
 
-	* README.md, rims.gemspec: fixed for release to rubygems.
+	* RIMS version 0.2.1 is released.
 
-	* lib/rims/version.rb : start to version 0.2.1.
+	* README.md, rims.gemspec: fixed for release to rubygems.
 
 2018-12-02  TOKI Yoshinori  <toki@freedom.ne.jp>
 
