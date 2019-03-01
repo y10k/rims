@@ -33,6 +33,7 @@ module RIMS
   autoload :ReadLockTimeoutError, 'rims/lock'
   autoload :ReadWriteLock, 'rims/lock'
   autoload :Server, 'rims/server'
+  autoload :ServerResponseChannel, 'rims/channel'
   autoload :SyntaxError, 'rims/protocol'
   autoload :Test, 'rims/test'
   autoload :WriteLockError, 'rims/lock'
