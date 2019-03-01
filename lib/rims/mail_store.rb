@@ -3,7 +3,6 @@
 require 'forwardable'
 require 'logger'
 require 'set'
-require 'thread'
 
 module RIMS
   class MailStore
@@ -634,7 +633,7 @@ module RIMS
   class MailboxServerResponseQueueBundleHolder < ObjectPool::ObjectHolder
     def initialize(object_pool, mbox_id)
       super(object_pool, mbox_id)
-      @mutex = Mutex.new
+      @mutex = Thread::Mutex.new
       @queue_map = Hash.new{|h, k| h[k] = Thread::Queue.new }
     end
 

@@ -35,7 +35,7 @@ module RIMS
     end
 
     def initialize(&object_factory)      # yields: object_pool, object_key, object_lock
-      @mutex = Mutex.new
+      @mutex = Thread::Mutex.new
       @object_factory = object_factory
       @pool = {}
     end
