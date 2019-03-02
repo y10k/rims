@@ -29,9 +29,7 @@ module RIMS
         @meta_db.dirty = true
       end
 
-      @server_response_queue_pool = RIMS::ObjectPool.new{|object_pool, mbox_id|
-        MailboxServerResponseQueueBundleHolder.new(object_pool, mbox_id)
-      }
+      @channel = ServerResponseChannel.new
     end
 
     def_delegators :@rw_lock, :read_synchronize, :write_synchronize
@@ -352,12 +350,12 @@ module RIMS
 
     def select_mbox(mbox_id)
       @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
-      MailFolder.new(mbox_id, self).attach_server_response_queue(@server_response_queue_pool)
+      MailFolder.new(mbox_id, self).attach(@channel)
     end
 
     def examine_mbox(mbox_id)
       @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
-      MailFolder.new(mbox_id, self, read_only: true).attach_server_response_queue(@server_response_queue_pool)
+      MailFolder.new(mbox_id, self, read_only: true).attach(@channel)
     end
 
     def self.build_pool(kvs_meta_open, kvs_text_open)
@@ -368,13 +366,14 @@ module RIMS
   end
 
   class MailFolder
+    extend Forwardable
+
     MessageStruct = Struct.new(:uid, :num)
 
     def initialize(mbox_id, mail_store, read_only: false)
       @mbox_id = mbox_id
       @mail_store = mail_store
       @read_only = read_only
-      @mail_folder_key = object_id
 
       # late loding
       @cnum = nil
@@ -382,50 +381,17 @@ module RIMS
       @uid_map = nil
     end
 
-    def attach_server_response_queue(server_response_queue_pool)
-      @server_response_queue_bundle = server_response_queue_pool.get(@mbox_id)
-      @server_response_queue = @server_response_queue_bundle.attach_queue(@mail_folder_key)
+    def attach(server_response_channel)
+      @pub, @sub = server_response_channel.make_pub_sub_pair(@mbox_id)
+      server_response_channel.attach(@pub, @sub)
       self
     end
 
-    def server_response_multicast_push(server_response_message)
-      @server_response_queue_bundle.multicast_push(server_response_message, @mail_folder_key)
-      self
-    end
-
-    def server_response?
-      ! @server_response_queue.empty?
-    end
-
-    def server_response_fetch
-      while (server_response?)
-        server_response_message = @server_response_queue.pop(true)
-        yield(server_response_message)
-      end
-      self
-    end
-
-    def server_response_idle_wait
-      catch(:server_response_idle_wait_interrupt) {
-        while (server_response_message = @server_response_queue.pop(false))
-          server_response_list = [ server_response_message ]
-          server_response_fetch{|next_response_message|
-            if (next_response_message) then
-              server_response_list.push(next_response_message)
-            else
-              yield(server_response_list)
-              throw(:server_response_idle_wait_interrupt)
-            end
-          }
-          yield(server_response_list)
-        end
-      }
-      self
-    end
-
-    def server_response_idle_interrupt
-      @server_response_queue.push(nil)
-    end
+    def_delegator :@pub, :publish,        :server_response_multicast_push
+    def_delegator :@sub, :message?,       :server_response?
+    def_delegator :@sub, :fetch,          :server_response_fetch
+    def_delegator :@sub, :idle_wait,      :server_response_idle_wait
+    def_delegator :@sub, :idle_interrupt, :server_response_idle_interrupt
 
     def reload
       @cnum = @mail_store.cnum
@@ -537,11 +503,8 @@ module RIMS
         end
       end
       @mail_store = nil
-
-      @server_response_queue_bundle.detach_queue(@mail_folder_key)
-      @server_response_queue_bundle.return_pool
-      @server_response_queue_bundle = nil
-
+      @pub.detach
+      @sub.detach
       self
     end
 
