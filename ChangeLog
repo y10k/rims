@@ -1,3 +1,9 @@
+2019-03-02  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/channel.rb, lib/rims/mail_store.rb: untagged servere
+	response mechanism is changed. server response queue is replaced
+	to server response channel.
+
 2019-02-26  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/mail_store.rb, lib/rims/pool.rb: generic object
