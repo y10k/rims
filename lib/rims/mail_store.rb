@@ -592,35 +592,6 @@ module RIMS
       @mail_store.close
     end
   end
-
-  class MailboxServerResponseQueueBundleHolder < ObjectPool::ObjectHolder
-    def initialize(object_pool, mbox_id)
-      super(object_pool, mbox_id)
-      @mutex = Thread::Mutex.new
-      @queue_map = Hash.new{|h, k| h[k] = Thread::Queue.new }
-    end
-
-    alias mbox_id object_id
-
-    def attach_queue(mail_folder_key)
-      @mutex.synchronize{ @queue_map[mail_folder_key] }
-    end
-
-    def detach_queue(mail_folder_key)
-      @mutex.synchronize{ @queue_map.delete(mail_folder_key) } or raise "not found a queue at mail folder key: #{mail_folder_key}"
-      self
-    end
-
-    def multicast_push(server_response_message, this_mail_folder_key)
-      @mutex.synchronize{
-        for mail_folder_key, queue in @queue_map
-          next if (mail_folder_key == this_mail_folder_key)
-          queue.push(server_response_message)
-        end
-      }
-      self
-    end
-  end
 end
 
 # Local Variables:
