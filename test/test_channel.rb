@@ -144,41 +144,6 @@ module RIMS::Test
       sub.idle_interrupt
       assert_equal([], sub.enum_for(:idle_wait).to_a)
     end
-
-    def test_attach_mismatched_pub_sub_pair_error
-      pub1, _ = @channel.make_pub_sub_pair(0)
-      _, sub2 = @channel.make_pub_sub_pair(0)
-      error = assert_raise(ArgumentError) { @channel.attach(pub1, sub2) }
-      assert_match(/mismatched/, error.message)
-    end
-
-    def test_attach_conflicted_subscriber_error
-      pub, sub = @channel.make_pub_sub_pair(0)
-      @channel.attach(pub, sub)
-      error = assert_raise(ArgumentError) { @channel.attach(pub, sub) }
-      assert_match(/conflicted/, error.message)
-    end
-
-    def test_detach_mismatch_pub_sub_pair_error
-      pub1, sub1 = @channel.make_pub_sub_pair(0)
-      _, sub2 = @channel.make_pub_sub_pair(0)
-      @channel.attach(pub1, sub1)
-      error = assert_raise(ArgumentError) { @channel.detach(pub1, sub2) }
-      assert_match(/mismatched/, error.message)
-    end
-
-    def test_detach_unregistered_pub_sub_pair_error
-      pub, sub = @channel.make_pub_sub_pair(0)
-      assert_raise(ArgumentError) { @channel.detach(pub, sub) }
-    end
-
-    def test_detach_mismatched_subscriber_error
-      pub, sub = @channel.make_pub_sub_pair(0)
-      @channel.attach(pub, sub)
-      dummy_sub = pub
-      error = assert_raise(RuntimeError) { @channel.detach(pub, dummy_sub) }
-      assert_match(/mismatched/, error.message)
-    end
   end
 end
 

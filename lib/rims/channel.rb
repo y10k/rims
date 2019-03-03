@@ -26,6 +26,10 @@ module RIMS
       nil
     end
 
+    # do not call this method directly, call the following method
+    # instead.
+    #   - ServerResponsePublisher#detach
+    #   - ServerResponseSubscriber#detach
     def detach(pub, sub)
       @mutex.synchronize{
         (pub.pub_sub_pair_key == sub.pub_sub_pair_key) or raise ArgumentError, 'mismatched pub-sub pair.'
@@ -41,6 +45,9 @@ module RIMS
       nil
     end
 
+    # do not call this method directly, call the following method
+    # instead.
+    #   - ServerResponsePublisher#publish
     def publish(mbox_id, pub_sub_pair_key, response_message)
       @mutex.synchronize{
         @channel[mbox_id].each_value do |sub|
@@ -55,6 +62,9 @@ module RIMS
   end
 
   class ServerResponsePublisher
+    # do not call this method directly, call the following method
+    # instead.
+    #   - ServerResponseChannel#make_pub_sub_pair
     def initialize(mbox_id, channel)
       @mbox_id = mbox_id
       @channel = channel
@@ -81,6 +91,9 @@ module RIMS
   class ServerResponseSubscriber
     extend Forwardable
 
+    # do not call this method directly, call the following method
+    # instead.
+    #   - ServerResponseChannel#make_pub_sub_pair
     def initialize(publisher, channel)
       @publisher = publisher
       @channel = channel
@@ -89,6 +102,9 @@ module RIMS
 
     def_delegator :@publisher, :pub_sub_pair_key
 
+    # do not call this method directly, call the following method
+    # instead.
+    #   - ServerResponsePublisher#publish
     def publish(response_message)
       @queue.push(response_message)
       nil
