@@ -235,6 +235,38 @@ EOF
         end
       end
 
+      def db_closed_error
+        RuntimeError
+      end
+
+      def db_closed_fetch_error
+        db_closed_error
+      end
+
+      def db_closed_store_error
+        db_closed_error
+      end
+
+      def db_closed_delete_error
+        db_closed_error
+      end
+
+      def db_closed_key_error
+        db_closed_error
+      end
+
+      def db_closed_each_key_error
+        db_closed_error
+      end
+
+      def db_closed_each_value_error
+        db_closed_error
+      end
+
+      def db_closed_each_pair_error
+        db_closed_error
+      end
+
       def setup
         @base_dir = 'kvs_test_dir'
         FileUtils.mkdir_p(@base_dir)
@@ -336,13 +368,13 @@ EOF
         assert_equal(true, db_closed?)
 
         # closed exception
-        assert_raise(RuntimeError) { @kvs['foo'] }
-        assert_raise(RuntimeError) { @kvs['foo'] = 'apple' }
-        assert_raise(RuntimeError) { @kvs.delete('foo') }
-        assert_raise(RuntimeError) { @kvs.key? 'foo' }
-        assert_raise(RuntimeError) { @kvs.each_key.to_a }
-        assert_raise(RuntimeError) { @kvs.each_value.to_a }
-        assert_raise(RuntimeError) { @kvs.each_pair.to_a }
+        assert_raise(db_closed_fetch_error) { @kvs['foo'] }
+        assert_raise(db_closed_store_error) { @kvs['foo'] = 'apple' }
+        assert_raise(db_closed_delete_error) { @kvs.delete('foo') }
+        assert_raise(db_closed_key_error) { @kvs.key? 'foo' }
+        assert_raise(db_closed_each_key_error) { @kvs.each_key.to_a }
+        assert_raise(db_closed_each_value_error) { @kvs.each_value.to_a }
+        assert_raise(db_closed_each_pair_error) { @kvs.each_pair.to_a }
       end
     end
 
