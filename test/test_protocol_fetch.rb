@@ -229,9 +229,10 @@ module RIMS::Test
         assert_fetch(1, [ "BODY[4.2.2] #{literal(@mpart_mail.parts[3].parts[1].message.parts[1].body.raw_source)}" ])
       }
 
-      assert_raise(RIMS::SyntaxError) {
+      error = assert_raise(RIMS::SyntaxError) {
         @parser.parse(make_body('BODY[MIME]'))
       }
+      assert_match(/need for section index/, error.message)
 
       parse_fetch_attribute(make_body('BODY[1.MIME]')) {
         assert_fetch(0, [ "BODY[1.MIME] #{literal(@simple_mail.header.raw_source)}" ])
@@ -965,12 +966,15 @@ module RIMS::Test
       assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 3 ]))
       assert_nil(RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2, 3 ]))
 
-      assert_raise(RIMS::SyntaxError) {
+      error = assert_raise(RIMS::SyntaxError) {
         RIMS::Protocol::FetchParser::Utils.get_body_section(@simple_mail, [ 0 ])
       }
-      assert_raise(RIMS::SyntaxError) {
+      assert_match(/not a none-zero body section number/, error.message)
+
+      error = assert_raise(RIMS::SyntaxError) {
         RIMS::Protocol::FetchParser::Utils.get_body_section(@mpart_mail, [ 4, 2, 2, 0 ])
       }
+      assert_match(/not a none-zero body section number/, error.message)
     end
 
     def test_get_body_content

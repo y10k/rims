@@ -107,10 +107,12 @@ module RIMS::Test
 
       s = @db['foo']
       @db['foo'] = s.chop
-      assert_raise(RuntimeError) { @kvs['foo'] }
+      error = assert_raise(RuntimeError) { @kvs['foo'] }
+      assert_match(/checksum error/, error.message)
 
       @db['foo'] = 'Hello world.'
-      assert_raise(RuntimeError) { @kvs['foo'] }
+      error = assert_raise(RuntimeError) { @kvs['foo'] }
+      assert_match(/checksum format error/, error.message)
     end
   end
 end

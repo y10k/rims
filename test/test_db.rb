@@ -448,7 +448,8 @@ module RIMS::Test
       assert_equal(false, (@db.msg_exist? 1))
       assert_equal(true, (@db.msg_exist? 2))
 
-      assert_raise(RuntimeError) { @db.del_msg(1) }
+      error = assert_raise(RuntimeError) { @db.del_msg(1) }
+      assert_match(/not found a message text/, error.message)
     end
   end
 
@@ -531,8 +532,10 @@ module RIMS::Test
         assert_equal(deleted, @db.msg_flag_deleted(uid))
       end
 
-      assert_raise(RuntimeError) { @db.expunge_msg(1) }
-      assert_raise(RuntimeError) { @db.expunge_msg(2) }
+      error = assert_raise(RuntimeError) { @db.expunge_msg(1) }
+      assert_match(/not found a message uid/, error.message)
+      error = assert_raise(RuntimeError) { @db.expunge_msg(2) }
+      assert_match(/not deleted flag/, error.message)
     end
   end
 
@@ -572,12 +575,13 @@ module RIMS::Test
       @cksum_kvs['baz'] = 'orange'
 
       count = 0
-      assert_raise(RuntimeError) {
+      error = assert_raise(RuntimeError) {
         @db.test_read_all{|read_error|
           assert_kind_of(RuntimeError, read_error)
           count += 1
         }
       }
+      assert_match(/checksum format error/, error.message)
       assert_equal(1, count)
 
       @cksum_kvs['foo'] = 'apple'; @kvs['foo'] = 'apple'
@@ -585,12 +589,13 @@ module RIMS::Test
       @cksum_kvs['baz'] = 'orange'; @kvs['baz'] = 'orange'
 
       count = 0
-      assert_raise(RuntimeError) {
+      error = assert_raise(RuntimeError) {
         @db.test_read_all{|read_error|
           assert_kind_of(RuntimeError, read_error)
           count += 1
         }
       }
+      assert_match(/checksum format error/, error.message)
       assert_equal(2, count)
     end
   end

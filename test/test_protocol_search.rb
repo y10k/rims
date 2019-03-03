@@ -76,10 +76,18 @@ module RIMS::Test
     end
     private :assert_search_cond
 
-    def assert_search_syntax_error(search_key_list)
-      assert_raise(RIMS::SyntaxError) {
+    def assert_search_syntax_error(search_key_list, expected_error_message=nil)
+      error = assert_raise(RIMS::SyntaxError) {
         @parser.parse(search_key_list)
       }
+      case (expected_error_message)
+      when String
+        assert_equal(expected_error_message, error.message)
+      when Regexp
+        assert_match(expected_error_message, error.message)
+      when nil
+        p error               # debug
+      end
     end
     private :assert_search_syntax_error
 
@@ -128,8 +136,8 @@ module RIMS::Test
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'BCC' ])
-      assert_search_syntax_error([ 'BCC', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'BCC' ], /need for a search string/)
+      assert_search_syntax_error([ 'BCC', [ :group, 'foo' ] ], /search string expected as <String> but was/)
     end
 
     def test_parse_before
@@ -146,9 +154,9 @@ module RIMS::Test
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'BEFORE' ])
-      assert_search_syntax_error([ 'BEFORE', '99-Nov-2013' ])
-      assert_search_syntax_error([ 'BEFORE', [ :group, '08-Nov-2013'] ])
+      assert_search_syntax_error([ 'BEFORE' ], /need for a search date/)
+      assert_search_syntax_error([ 'BEFORE', '99-Nov-2013' ], /search date is invalid/)
+      assert_search_syntax_error([ 'BEFORE', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
     end
 
     def test_parse_body
@@ -186,8 +194,8 @@ Content-Type: text/html
         assert_search_cond(3, false) # ignored text part of multipart message.
       }
 
-      assert_search_syntax_error([ 'BODY' ])
-      assert_search_syntax_error([ 'BODY', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'BODY' ], /need for a search string/)
+      assert_search_syntax_error([ 'BODY', [ :group, 'foo' ] ], /search string expected as <String> but was/)
     end
 
     def test_parse_cc
@@ -208,8 +216,8 @@ Content-Type: text/html
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'CC' ])
-      assert_search_syntax_error([ 'CC', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'CC' ], /need for a search string/)
+      assert_search_syntax_error([ 'CC', [ :group, 'foo' ] ], /search string expected as <String> but was/)
     end
 
     def test_parse_deleted
@@ -278,8 +286,8 @@ Content-Type: text/html
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'FROM' ])
-      assert_search_syntax_error([ 'FROM', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'FROM' ], /need for a search string/)
+      assert_search_syntax_error([ 'FROM', [ :group, 'foo' ] ], /search string expected as <String> but was/)
     end
 
     def test_parse_header
@@ -320,10 +328,10 @@ Content-Type: text/html
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'HEADER' ])
-      assert_search_syntax_error([ 'HEADER', 'Received' ])
-      assert_search_syntax_error([ 'HEADER', 'Received', [ :group, 'foo' ] ])
-      assert_search_syntax_error([ 'HEADER', [ :group, 'Received' ], 'foo' ])
+      assert_search_syntax_error([ 'HEADER' ], /need for a search string/)
+      assert_search_syntax_error([ 'HEADER', 'Received' ], /need for a search string/)
+      assert_search_syntax_error([ 'HEADER', 'Received', [ :group, 'foo' ] ], /search string expected as <String> but was/)
+      assert_search_syntax_error([ 'HEADER', [ :group, 'Received' ], 'foo' ], /search string expected as <String> but was/)
     end
 
     def test_parse_keyword
@@ -336,8 +344,8 @@ Content-Type: text/html
         assert_search_cond(0, false) # always false
       }
 
-      assert_search_syntax_error([ 'KEYWORD' ])
-      assert_search_syntax_error([ 'KEYWORD', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'KEYWORD' ], /need for a search string/)
+      assert_search_syntax_error([ 'KEYWORD', [ :group, 'foo' ] ], /search string expected as <String> but was/)
     end
 
     def test_parse_larger
@@ -354,9 +362,9 @@ Content-Type: text/html
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'LARGER' ])
-      assert_search_syntax_error([ 'LARGER', [ :group, '3' ] ])
-      assert_search_syntax_error([ 'LARGER', 'nonum' ])
+      assert_search_syntax_error([ 'LARGER' ], /need for a octet size/)
+      assert_search_syntax_error([ 'LARGER', [ :group, '3' ] ], /octet size is expected as numeric string but was/)
+      assert_search_syntax_error([ 'LARGER', 'nonum' ], /octet size is expected as numeric string but was/)
     end
 
     def test_parse_new
@@ -402,7 +410,7 @@ Content-Type: text/html
         assert_search_cond(2, true)
       }
 
-      assert_search_syntax_error([ 'NOT' ])
+      assert_search_syntax_error([ 'NOT' ], 'unexpected end of search key.')
     end
 
     def test_parse_old
@@ -435,9 +443,9 @@ Content-Type: text/html
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'ON' ])
-      assert_search_syntax_error([ 'ON', '99-Nov-2013' ])
-      assert_search_syntax_error([ 'ON', [ :group, '08-Nov-2013'] ])
+      assert_search_syntax_error([ 'ON' ], /need for a search date/)
+      assert_search_syntax_error([ 'ON', '99-Nov-2013' ], /search date is invalid/)
+      assert_search_syntax_error([ 'ON', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
     end
 
     def test_parse_or
@@ -464,8 +472,8 @@ Content-Type: text/html
 
       }
 
-      assert_search_syntax_error([ 'OR' ])
-      assert_search_syntax_error([ 'OR', 'ANSWERED' ])
+      assert_search_syntax_error([ 'OR' ], 'unexpected end of search key.')
+      assert_search_syntax_error([ 'OR', 'ANSWERED' ], 'unexpected end of search key.')
     end
 
     def test_parse_recent
@@ -522,9 +530,9 @@ Content-Type: text/html
         assert_search_cond(3, false)
       }
 
-      assert_search_syntax_error([ 'SENTBEFORE' ])
-      assert_search_syntax_error([ 'SENTBEFORE', '99-Nov-2013' ])
-      assert_search_syntax_error([ 'SENTBEFORE', [ :group, '08-Nov-2013'] ])
+      assert_search_syntax_error([ 'SENTBEFORE' ], /need for a search date/)
+      assert_search_syntax_error([ 'SENTBEFORE', '99-Nov-2013' ], /search date is invalid/)
+      assert_search_syntax_error([ 'SENTBEFORE', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
     end
 
     def test_parse_senton
@@ -549,9 +557,9 @@ Content-Type: text/html
         assert_search_cond(3, false)
       }
 
-      assert_search_syntax_error([ 'SENTON' ])
-      assert_search_syntax_error([ 'SENTON', '99-Nov-2013' ])
-      assert_search_syntax_error([ 'SENTON', [ :group, '08-Nov-2013'] ])
+      assert_search_syntax_error([ 'SENTON' ], /need for a search date/)
+      assert_search_syntax_error([ 'SENTON', '99-Nov-2013' ], /search date is invalid/)
+      assert_search_syntax_error([ 'SENTON', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
     end
 
     def test_parse_sentsince
@@ -576,9 +584,9 @@ Content-Type: text/html
         assert_search_cond(3, false)
       }
 
-      assert_search_syntax_error([ 'SENTSINCE' ])
-      assert_search_syntax_error([ 'SENTSINCE', '99-Nov-2013' ])
-      assert_search_syntax_error([ 'SENTSINCE', [ :group, '08-Nov-2013'] ])
+      assert_search_syntax_error([ 'SENTSINCE' ], /need for a search date/)
+      assert_search_syntax_error([ 'SENTSINCE', '99-Nov-2013' ], /search date is invalid/)
+      assert_search_syntax_error([ 'SENTSINCE', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
     end
 
     def test_parse_since
@@ -595,9 +603,9 @@ Content-Type: text/html
         assert_search_cond(2, true)
       }
 
-      assert_search_syntax_error([ 'SINCE' ])
-      assert_search_syntax_error([ 'SINCE', '99-Nov-2013' ])
-      assert_search_syntax_error([ 'SINCE', [ :group, '08-Nov-2013'] ])
+      assert_search_syntax_error([ 'SINCE' ], /need for a search date/)
+      assert_search_syntax_error([ 'SINCE', '99-Nov-2013' ], /search date is invalid/)
+      assert_search_syntax_error([ 'SINCE', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
     end
 
     def test_parse_smaller
@@ -614,9 +622,9 @@ Content-Type: text/html
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'SMALLER' ])
-      assert_search_syntax_error([ 'SMALLER', [ :group, '3' ] ])
-      assert_search_syntax_error([ 'SMALLER', 'nonum' ])
+      assert_search_syntax_error([ 'SMALLER' ], /need for a octet size/)
+      assert_search_syntax_error([ 'SMALLER', [ :group, '3' ] ], /octet size is expected as numeric string but was/)
+      assert_search_syntax_error([ 'SMALLER', 'nonum' ], /octet size is expected as numeric string but was/)
     end
 
     def test_parse_subject
@@ -637,8 +645,8 @@ Content-Type: text/html
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'SUBJECT' ])
-      assert_search_syntax_error([ 'SUBJECT', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'SUBJECT' ], /need for a search string/)
+      assert_search_syntax_error([ 'SUBJECT', [ :group, 'foo' ] ], /search string expected as <String> but was/)
     end
 
     def test_parse_text
@@ -663,8 +671,8 @@ Content-Type: text/html
         assert_search_cond(0, false)
       }
 
-      assert_search_syntax_error([ 'TEXT' ])
-      assert_search_syntax_error([ 'TEXT', [ :group, 'foo'] ])
+      assert_search_syntax_error([ 'TEXT' ], /need for a search string/)
+      assert_search_syntax_error([ 'TEXT', [ :group, 'foo'] ], /search string expected as <String> but was/)
     end
 
     def test_parse_to
@@ -685,8 +693,8 @@ Content-Type: text/html
         assert_search_cond(2, false)
       }
 
-      assert_search_syntax_error([ 'TO' ])
-      assert_search_syntax_error([ 'TO', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'TO' ], /need for a search string/)
+      assert_search_syntax_error([ 'TO', [ :group, 'foo' ] ], /search string expected as <String> but was/)
     end
 
     def test_parse_uid
@@ -789,8 +797,8 @@ Content-Type: text/html
         assert_search_cond(0, true) # always true
       }
 
-      assert_search_syntax_error([ 'UNKEYWORD' ])
-      assert_search_syntax_error([ 'UNKEYWORD', [ :group, 'foo' ] ])
+      assert_search_syntax_error([ 'UNKEYWORD' ], /need for a search string/)
+      assert_search_syntax_error([ 'UNKEYWORD', [ :group, 'foo' ] ], /search string expected as <String> but was/)
     end
 
     def test_parse_unseen
@@ -827,7 +835,7 @@ Content-Type: text/html
         assert_search_cond(2, true)
       }
 
-      assert_search_syntax_error([ 'detarame' ])
+      assert_search_syntax_error([ 'detarame' ], /unknown search key/)
     end
 
     def test_parse_group
@@ -860,7 +868,7 @@ Content-Type: text/html
         assert_search_cond(3, false)
       }
 
-      assert_search_syntax_error([ [ :block, 'ANSWERED', 'FLAGGED' ] ])
+      assert_search_syntax_error([ [ :block, 'ANSWERED', 'FLAGGED' ] ], /unknown search key/)
     end
 
     def test_parse_charset_body

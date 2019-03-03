@@ -389,9 +389,10 @@ module RIMS::Test
       assert_equal((1..50).to_set, folder.parse_msg_set('1:*', uid: false))
       assert_equal((1..99).to_set, folder.parse_msg_set('1:*', uid: true))
 
-      assert_raise(RIMS::MessageSetSyntaxError) {
+      error = assert_raise(RIMS::MessageSetSyntaxError) {
         folder.parse_msg_set('detarame')
       }
+      assert_match(/invalid message sequence format/, error.message)
     end
 
     def test_mail_folder_parse_msg_set_empty
@@ -509,9 +510,10 @@ module RIMS::Test
       assert_equal(1..10, RIMS::MailFolder.parse_msg_seq('1:10', 99))
       assert_equal(1..99, RIMS::MailFolder.parse_msg_seq('1:*', 99))
       assert_equal(99..99, RIMS::MailFolder.parse_msg_seq('*:*', 99))
-      assert_raise(RIMS::MessageSetSyntaxError) {
+      error = assert_raise(RIMS::MessageSetSyntaxError) {
         RIMS::MailFolder.parse_msg_seq('detarame', 99)
       }
+      assert_match(/invalid message sequence format/, error.message)
     end
 
     def test_parse_msg_set
@@ -525,12 +527,15 @@ module RIMS::Test
       assert_equal([ 1, 2, 3, 11, 97, 98, 99 ].to_set, RIMS::MailFolder.parse_msg_set('1:3,11,97:*', 99))
       assert_equal((1..99).to_set, RIMS::MailFolder.parse_msg_set('1:70,30:*', 99))
 
-      assert_raise(RIMS::MessageSetSyntaxError) {
+      error = assert_raise(RIMS::MessageSetSyntaxError) {
         RIMS::MailFolder.parse_msg_set('detarame', 99)
       }
-      assert_raise(RIMS::MessageSetSyntaxError) {
+      assert_match(/invalid message sequence format/, error.message)
+
+      error = assert_raise(RIMS::MessageSetSyntaxError) {
         RIMS::MailFolder.parse_msg_set('1,2,X', 99)
       }
+      assert_match(/invalid message sequence format/, error.message)
     end
   end
 
@@ -569,11 +574,12 @@ module RIMS::Test
     def test_recovery_empty
       mail_store = make_mail_store
       assert_equal(false, mail_store.abort_transaction?)
-      assert_raise(RuntimeError) {
+      error = assert_raise(RuntimeError) {
         mail_store.transaction do
           raise 'abort'
         end
       }
+      assert_equal('abort', error.message)
       assert_equal(true, mail_store.abort_transaction?)
       mail_store.close
 
@@ -594,11 +600,12 @@ module RIMS::Test
       mail_store.add_mbox('bar')
 
       assert_equal(false, mail_store.abort_transaction?)
-      assert_raise(RuntimeError) {
+      error = assert_raise(RuntimeError) {
         mail_store.transaction do
           raise 'abort'
         end
       }
+      assert_equal('abort', error.message)
       assert_equal(true, mail_store.abort_transaction?)
       mail_store.close
 

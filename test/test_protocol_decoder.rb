@@ -6472,9 +6472,10 @@ LOGOUT
       assert_equal([ 'foo', 'a mailbox ' ],
                    RIMS::Protocol::Decoder.decode_delivery_target_mailbox("b64user-mbox #{base64_username} a mailbox "))
 
-      assert_raise(RIMS::SyntaxError) {
+      error = assert_raise(RIMS::SyntaxError) {
         RIMS::Protocol::Decoder.decode_delivery_target_mailbox("unknown-encode-type #{base64_username} INBOX")
       }
+      assert_match(/unknown mailbox encode type/, error.message)
     end
 
     def test_encode_delivery_target_mailbox

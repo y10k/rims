@@ -73,7 +73,8 @@ module RIMS::Test
 
       @kvs['meta'].delete('msg_id2date-1')
       assert_instance_of(Time, @meta_db.msg_date(0))
-      assert_raise(RuntimeError) { @meta_db.msg_date(1) }
+      error = assert_raise(RuntimeError) { @meta_db.msg_date(1) }
+      assert_match(/not found a message date/, error.message)
       assert_instance_of(Time, @meta_db.msg_date(2))
 
       @meta_db.recovery_phase1_msg_scan(@msg_db, logger: @logger)
@@ -635,7 +636,8 @@ module RIMS::Test
 
       # recovery phase 2
       assert_equal({}, @meta_db.msg_mbox_uid_mapping(3))
-      assert_raise(RuntimeError) { @meta_db.msg_date(3) }
+      error = assert_raise(RuntimeError) { @meta_db.msg_date(3) }
+      assert_match(/not found a message date/, error.message)
 
       # recovery phase 3
       assert_equal(5, @meta_db.uidvalidity)
@@ -672,7 +674,8 @@ module RIMS::Test
       # recovery phase 1,8
       @msg_db.add_msg(3, 'apple')
       assert_equal({}, @meta_db.msg_mbox_uid_mapping(3))
-      assert_raise(RuntimeError) { @meta_db.msg_date(3) }
+      error = assert_raise(RuntimeError) { @meta_db.msg_date(3) }
+      assert_match(/not found a message date/, error.message)
 
       # recovery phase 2,5,8
       mbox_uid_map = Marshal.load(@kvs['meta']['msg_id2mbox-0'])

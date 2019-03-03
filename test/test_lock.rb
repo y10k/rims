@@ -34,19 +34,21 @@ module RIMS::Test
     end
 
     def test_read_lock_timeout
-      assert_raise(RIMS::ReadLockTimeoutError) {
+      error = assert_raise(RIMS::ReadLockTimeoutError) {
         @lock.write_synchronize{
           @lock.read_synchronize(0) {}
         }
       }
+      assert_equal('read-lock wait timeout', error.message)
     end
 
     def test_write_lock_timeout
-      assert_raise(RIMS::WriteLockTimeoutError) {
+      error = assert_raise(RIMS::WriteLockTimeoutError) {
         @lock.write_synchronize{
           @lock.write_synchronize(0) {}
         }
       }
+      assert_equal('write-lock wait timeout', error.message)
     end
 
     def calculate_threa_work_seconds
