@@ -1,3 +1,8 @@
+2019-03-03  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/channel.rb: refactor channel for untagged server
+	response.
+
 2019-03-02  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/channel.rb, lib/rims/mail_store.rb: untagged servere
