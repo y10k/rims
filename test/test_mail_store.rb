@@ -514,6 +514,10 @@ module RIMS::Test
         RIMS::MailFolder.parse_msg_seq('detarame', 99)
       }
       assert_match(/invalid message sequence format/, error.message)
+      error = assert_raise(RIMS::MessageSetSyntaxError) {
+        RIMS::MailFolder.parse_msg_seq('0', 99)
+      }
+      assert_match(/out of range of message sequence number/, error.message)
     end
 
     def test_parse_msg_set
@@ -536,6 +540,11 @@ module RIMS::Test
         RIMS::MailFolder.parse_msg_set('1,2,X', 99)
       }
       assert_match(/invalid message sequence format/, error.message)
+
+      error = assert_raise(RIMS::MessageSetSyntaxError) {
+        RIMS::MailFolder.parse_msg_set('0', 99)
+      }
+      assert_match(/out of range of message sequence number/, error.message)
     end
   end
 
