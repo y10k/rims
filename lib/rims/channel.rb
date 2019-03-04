@@ -10,19 +10,17 @@ module RIMS
     def make_pub_sub_pair(mbox_id)
       pub = ServerResponsePublisher.new(self, mbox_id)
       sub = ServerResponseSubscriber.new(self, mbox_id, pub.pub_sub_pair_key)
-      attach(pub, sub)
-      return pub, sub
+      return pub, attach(sub)
     end
 
-    def attach(pub, sub)
+    def attach(sub)
       @mutex.synchronize{
-        (pub.pub_sub_pair_key == sub.pub_sub_pair_key) or raise ArgumentError, 'mismatched pub-sub pair.'
-        @channel[pub.mbox_id] ||= {}
-        (@channel[pub.mbox_id].key? sub.pub_sub_pair_key) and raise ArgumentError, 'conflicted subscriber.'
-        @channel[pub.mbox_id][sub.pub_sub_pair_key] = sub
+        @channel[sub.mbox_id] ||= {}
+        (@channel[sub.mbox_id].key? sub.pub_sub_pair_key) and raise ArgumentError, 'conflicted subscriber.'
+        @channel[sub.mbox_id][sub.pub_sub_pair_key] = sub
       }
 
-      nil
+      sub
     end
     private :attach
 
