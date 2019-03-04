@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'forwardable'
-
 module RIMS
   class ServerResponseChannel
     def initialize
@@ -10,8 +8,8 @@ module RIMS
     end
 
     def make_pub_sub_pair(mbox_id)
-      pub = ServerResponsePublisher.new(mbox_id, self)
-      sub = ServerResponseSubscriber.new(pub, self)
+      pub = ServerResponsePublisher.new(self, mbox_id)
+      sub = ServerResponseSubscriber.new(self, mbox_id, pub.pub_sub_pair_key)
       return pub, sub
     end
 
@@ -30,15 +28,14 @@ module RIMS
     # instead.
     #   - ServerResponsePublisher#detach
     #   - ServerResponseSubscriber#detach
-    def detach(pub, sub)
+    def detach(sub)
       @mutex.synchronize{
-        (pub.pub_sub_pair_key == sub.pub_sub_pair_key) or raise ArgumentError, 'mismatched pub-sub pair.'
-        ((@channel.key? pub.mbox_id) && (@channel[pub.mbox_id].key? sub.pub_sub_pair_key)) or raise ArgumentError, 'unregistered pub-sub pair.'
-        (@channel[pub.mbox_id][sub.pub_sub_pair_key] == sub) or raise 'internal error: mismatched subscriber.'
+        ((@channel.key? sub.mbox_id) && (@channel[sub.mbox_id].key? sub.pub_sub_pair_key)) or raise ArgumentError, 'unregistered pub-sub pair.'
+        (@channel[sub.mbox_id][sub.pub_sub_pair_key] == sub) or raise 'internal error: mismatched subscriber.'
 
-        @channel[pub.mbox_id].delete(sub.pub_sub_pair_key)
-        if (@channel[pub.mbox_id].empty?) then
-          @channel.delete(pub.mbox_id)
+        @channel[sub.mbox_id].delete(sub.pub_sub_pair_key)
+        if (@channel[sub.mbox_id].empty?) then
+          @channel.delete(sub.mbox_id)
         end
       }
 
@@ -65,9 +62,9 @@ module RIMS
     # do not call this method directly, call the following method
     # instead.
     #   - ServerResponseChannel#make_pub_sub_pair
-    def initialize(mbox_id, channel)
-      @mbox_id = mbox_id
+    def initialize(channel, mbox_id)
       @channel = channel
+      @mbox_id = mbox_id
     end
 
     attr_reader :mbox_id
@@ -89,18 +86,18 @@ module RIMS
   end
 
   class ServerResponseSubscriber
-    extend Forwardable
-
     # do not call this method directly, call the following method
     # instead.
     #   - ServerResponseChannel#make_pub_sub_pair
-    def initialize(publisher, channel)
-      @publisher = publisher
+    def initialize(channel, mbox_id, pub_sub_pair_key)
       @channel = channel
+      @mbox_id = mbox_id
+      @pub_sub_pair_key = pub_sub_pair_key
       @queue = Thread::Queue.new
     end
 
-    def_delegator :@publisher, :pub_sub_pair_key
+    attr_reader :mbox_id
+    attr_reader :pub_sub_pair_key
 
     # do not call this method directly, call the following method
     # instead.
@@ -111,7 +108,7 @@ module RIMS
     end
 
     def detach
-      @channel.detach(@publisher, self)
+      @channel.detach(self)
       nil
     end
 
