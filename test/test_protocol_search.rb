@@ -76,7 +76,7 @@ module RIMS::Test
     end
     private :assert_search_cond
 
-    def assert_search_syntax_error(search_key_list, expected_error_message=nil)
+    def assert_search_syntax_error(search_key_list, expected_error_message)
       error = assert_raise(RIMS::SyntaxError) {
         @parser.parse(search_key_list)
       }
@@ -85,8 +85,8 @@ module RIMS::Test
         assert_equal(expected_error_message, error.message)
       when Regexp
         assert_match(expected_error_message, error.message)
-      when nil
-        p error               # debug
+      else
+        flunk
       end
     end
     private :assert_search_syntax_error
