@@ -383,7 +383,6 @@ module RIMS
 
     def attach(server_response_channel)
       @pub, @sub = server_response_channel.make_pub_sub_pair(@mbox_id)
-      server_response_channel.attach(@pub, @sub)
       self
     end
 

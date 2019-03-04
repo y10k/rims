@@ -10,6 +10,7 @@ module RIMS
     def make_pub_sub_pair(mbox_id)
       pub = ServerResponsePublisher.new(self, mbox_id)
       sub = ServerResponseSubscriber.new(self, mbox_id, pub.pub_sub_pair_key)
+      attach(pub, sub)
       return pub, sub
     end
 
@@ -23,6 +24,7 @@ module RIMS
 
       nil
     end
+    private :attach
 
     # do not call this method directly, call the following method
     # instead.

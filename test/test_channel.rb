@@ -14,10 +14,6 @@ module RIMS::Test
       pub2, sub2 = @channel.make_pub_sub_pair(0)
       pub3, sub3 = @channel.make_pub_sub_pair(0)
 
-      @channel.attach(pub1, sub1)
-      @channel.attach(pub2, sub2)
-      @channel.attach(pub3, sub3)
-
       pub1.publish('msg1')
       assert_equal(false, sub1.message?)
       assert_equal(true, sub2.message?)
@@ -43,8 +39,7 @@ module RIMS::Test
     end
 
     def test_pub_sub_fetch_no_message
-      pub, sub = @channel.make_pub_sub_pair(0)
-      @channel.attach(pub, sub)
+      _, sub = @channel.make_pub_sub_pair(0)
       assert_equal(false, sub.message?)
       assert_equal([], sub.enum_for(:fetch).to_a)
     end
@@ -53,10 +48,6 @@ module RIMS::Test
       pub1, sub1 = @channel.make_pub_sub_pair(0)
       pub2, sub2 = @channel.make_pub_sub_pair(0)
       pub3, sub3 = @channel.make_pub_sub_pair(0)
-
-      @channel.attach(pub1, sub1)
-      @channel.attach(pub2, sub2)
-      @channel.attach(pub3, sub3)
 
       pub3.detach
       sub3.detach
@@ -78,11 +69,6 @@ module RIMS::Test
       mbox1_pub1, mbox1_sub1 = @channel.make_pub_sub_pair(1)
       mbox1_pub2, mbox1_sub2 = @channel.make_pub_sub_pair(1)
 
-      @channel.attach(mbox0_pub1, mbox0_sub1)
-      @channel.attach(mbox0_pub2, mbox0_sub2)
-      @channel.attach(mbox1_pub1, mbox1_sub1)
-      @channel.attach(mbox1_pub2, mbox1_sub2)
-
       mbox0_pub1.publish('mbox0:msg1')
       mbox0_pub2.publish('mbox0:msg2')
 
@@ -101,46 +87,38 @@ module RIMS::Test
     end
 
     def test_pub_sub_idle
-      pub1, sub1 = @channel.make_pub_sub_pair(0)
-      pub2, sub2 = @channel.make_pub_sub_pair(0)
+      pub, _ = @channel.make_pub_sub_pair(0)
+      _, sub = @channel.make_pub_sub_pair(0)
 
-      @channel.attach(pub1, sub1)
-      @channel.attach(pub2, sub2)
+      pub.publish('msg1')
+      sub.idle_interrupt
+      assert_equal([ %w[ msg1 ] ], sub.enum_for(:idle_wait).to_a)
 
-      pub1.publish('msg1')
-      sub2.idle_interrupt
-      assert_equal([ %w[ msg1 ] ], sub2.enum_for(:idle_wait).to_a)
-
-      pub1.publish('msg2')
-      pub1.publish('msg3')
-      sub2.idle_interrupt
-      assert_equal([ %w[ msg2 msg3 ] ], sub2.enum_for(:idle_wait).to_a)
+      pub.publish('msg2')
+      pub.publish('msg3')
+      sub.idle_interrupt
+      assert_equal([ %w[ msg2 msg3 ] ], sub.enum_for(:idle_wait).to_a)
     end
 
     def test_pub_sub_idle_chunks
-      pub1, sub1 = @channel.make_pub_sub_pair(0)
-      pub2, sub2 = @channel.make_pub_sub_pair(0)
+      pub, _ = @channel.make_pub_sub_pair(0)
+      _, sub = @channel.make_pub_sub_pair(0)
 
-      @channel.attach(pub1, sub1)
-      @channel.attach(pub2, sub2)
+      t = Thread.new{ sub.enum_for(:idle_wait).to_a }
 
-      t = Thread.new{ sub2.enum_for(:idle_wait).to_a }
-
-      pub1.publish('msg1')
+      pub.publish('msg1')
       t.wakeup
       sleep(0.1)
 
-      pub1.publish('msg2')
-      pub1.publish('msg3')
-      sub2.idle_interrupt
+      pub.publish('msg2')
+      pub.publish('msg3')
+      sub.idle_interrupt
 
       assert_equal([ %w[ msg1 ], %w[ msg2 msg3 ] ], t.value)
     end
 
     def test_pub_sub_idle_no_message
-      pub, sub = @channel.make_pub_sub_pair(0)
-      @channel.attach(pub, sub)
-
+      _, sub = @channel.make_pub_sub_pair(0)
       sub.idle_interrupt
       assert_equal([], sub.enum_for(:idle_wait).to_a)
     end
