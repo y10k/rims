@@ -871,6 +871,11 @@ Content-Type: text/html
       assert_search_syntax_error([ [ :block, 'ANSWERED', 'FLAGGED' ] ], /unknown search key/)
     end
 
+    def test_parse_unknown
+      make_search_parser{}
+      assert_search_syntax_error([ :detarame ], /unknown search key/)
+    end
+
     def test_parse_charset_body
       make_search_parser(charset: 'utf-8') {
         add_msg("Content-Type: text/plain\r\n" +
