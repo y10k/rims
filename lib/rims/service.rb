@@ -5,6 +5,24 @@ require 'riser'
 module RIMS
   class Service
     class Configuration
+      class << self
+        def stringify_symbol(collection)
+          case (collection)
+          when Hash
+            Hash[collection.map{|key, value| [ stringify_symbol(key), stringify_symbol(value) ] }]
+          when Array
+            collection.map{|i| stringify_symbol(i) }
+          else
+            case (value = collection)
+            when Symbol
+              value.to_s
+            else
+              value
+            end
+          end
+        end
+      end
+
       def accept_polling_timeout_seconds
         0.1
       end
