@@ -2,6 +2,7 @@
 
 require 'pathname'
 require 'riser'
+require 'yaml'
 
 module RIMS
   class Service
@@ -63,6 +64,11 @@ module RIMS
         end
         self.class.update(@config, stringified_config)
 
+        self
+      end
+
+      def load_yaml(path)
+        load(YAML.load_file(path), File.dirname(path))
         self
       end
 

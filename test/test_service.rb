@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
+require 'fileutils'
 require 'pathname'
 require 'rims'
 require 'test/unit'
+require 'yaml'
 
 module RIMS::Test
   class ServiceConfigurationClassMethodTest < Test::Unit::TestCase
@@ -61,6 +63,11 @@ module RIMS::Test
   class ServiceConfigurationTest < Test::Unit::TestCase
     def setup
       @c = RIMS::Service::Configuration.new
+      @config_dir = 'config_dir'
+    end
+
+    def teardown
+      FileUtils.rm_rf(@config_dir)
     end
 
     data('relpath' => 'foo/bar',
@@ -88,6 +95,28 @@ module RIMS::Test
     def test_base_dir_not_defined_error
       error = assert_raise(KeyError) { @c.base_dir }
       assert_equal('not defined base_dir.', error.message)
+    end
+
+    def test_load_yaml_load_path
+      FileUtils.mkdir_p(@config_dir)
+      config_path = File.join(@config_dir, 'config.yml')
+      IO.write(config_path, {}.to_yaml)
+
+      @c.load_yaml(config_path)
+      assert_equal(Pathname(@config_dir), @c.base_dir)
+    end
+
+    data('relpath' => [ %q{"#{@config_dir}/foo/bar"}, 'foo/bar'  ],
+         'abspath' => [ %q{'/foo/bar'},                '/foo/bar' ])
+    def test_load_yaml_base_dir(data)
+      expected_path, base_dir = data
+
+      FileUtils.mkdir_p(@config_dir)
+      config_path = File.join(@config_dir, 'config.yml')
+      IO.write(config_path, { 'base_dir' => base_dir }.to_yaml)
+
+      @c.load_yaml(config_path)
+      assert_equal(Pathname(eval(expected_path)), @c.base_dir)
     end
   end
 end
