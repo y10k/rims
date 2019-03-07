@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'pathname'
 require 'riser'
 
 module RIMS
@@ -42,6 +43,31 @@ module RIMS
             other
           end
         end
+      end
+
+      def initialize
+        @config = {}
+      end
+
+      def load(config, load_path=nil)
+        stringified_config = self.class.stringify_symbol(config)
+        if (stringified_config.key? 'base_dir') then
+          base_dir = Pathname(stringified_config['base_dir'])
+          if (load_path && base_dir.relative?) then
+            stringified_config['base_dir'] = Pathname(load_path) + base_dir
+          else
+            stringified_config['base_dir'] = base_dir
+          end
+        elsif (load_path) then
+          stringified_config['base_dir'] = Pathname(load_path)
+        end
+        self.class.update(@config, stringified_config)
+
+        self
+      end
+
+      def base_dir
+        @config['base_dir'] or raise KeyError, 'not defined base_dir.'
       end
 
       def accept_polling_timeout_seconds

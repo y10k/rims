@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'pathname'
 require 'rims'
 require 'test/unit'
 
@@ -54,6 +55,39 @@ module RIMS::Test
     def test_update_not_hash_error
       error = assert_raise(ArgumentError) { RIMS::Service::Configuration.update({}, 'foo') }
       assert_equal('hash can only be updated with hash.', error.message)
+    end
+  end
+
+  class ServiceConfigurationTest < Test::Unit::TestCase
+    def setup
+      @c = RIMS::Service::Configuration.new
+    end
+
+    data('relpath' => 'foo/bar',
+         'abspath' => '/foo/bar')
+    def test_base_dir(path)
+      @c.load(base_dir: path)
+      assert_equal(Pathname(path), @c.base_dir)
+    end
+
+    data('relpath' => 'foo/bar',
+         'abspath' => '/foo/bar')
+    def test_load_path(path)
+      @c.load({}, path)
+      assert_equal(Pathname(path), @c.base_dir)
+    end
+
+    data('relpath' => [ '/path/foo/bar', 'foo/bar',  '/path' ],
+         'abspath' => [ '/foo/bar',      '/foo/bar', '/path' ])
+    def test_base_dir_with_load_path(data)
+      expected_path, base_dir, load_path = data
+      @c.load({ base_dir: base_dir }, load_path)
+      assert_equal(Pathname(expected_path), @c.base_dir)
+    end
+
+    def test_base_dir_not_defined_error
+      error = assert_raise(KeyError) { @c.base_dir }
+      assert_equal('not defined base_dir.', error.message)
     end
   end
 end
