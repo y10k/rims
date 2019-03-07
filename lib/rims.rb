@@ -34,6 +34,7 @@ module RIMS
   autoload :ReadWriteLock, 'rims/lock'
   autoload :Server, 'rims/server'
   autoload :ServerResponseChannel, 'rims/channel'
+  autoload :Service, 'rims/service'
   autoload :SyntaxError, 'rims/protocol'
   autoload :Test, 'rims/test'
   autoload :WriteLockError, 'rims/lock'
