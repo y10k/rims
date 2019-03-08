@@ -118,6 +118,15 @@ module RIMS::Test
       @c.load_yaml(config_path)
       assert_equal(Pathname(eval(expected_path)), @c.base_dir)
     end
+
+    def test_accept_polling_timeout_seconds
+      @c.load(server: { accept_polling_timeout_seconds: 1 })
+      assert_equal(1, @c.accept_polling_timeout_seconds)
+    end
+
+    def test_accept_polling_timeout_seconds_default
+      assert_equal(0.1, @c.accept_polling_timeout_seconds)
+    end
   end
 end
 

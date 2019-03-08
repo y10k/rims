@@ -67,6 +67,9 @@ module RIMS
         self
       end
 
+      # configuration example.
+      #   server:
+      #     accept_polling_timeout_seconds: 0.1
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -77,7 +80,7 @@ module RIMS
       end
 
       def accept_polling_timeout_seconds
-        0.1
+        @config.dig('server', 'accept_polling_timeout_seconds') || 0.1
       end
 
       def process_num
