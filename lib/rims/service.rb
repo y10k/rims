@@ -21,6 +21,27 @@ module RIMS
             end
           end
         end
+
+        def update(dest, other)
+          case (dest)
+          when Hash
+            unless (other.is_a? Hash) then
+              raise ArgumentError, 'hash can only be updated with hash.'
+            end
+            for key, value in other
+              dest[key] = update(dest[key], value)
+            end
+            dest
+          when Array
+            if (other.is_a? Array) then
+              dest.concat(other)
+            else
+              other
+            end
+          else
+            other
+          end
+        end
       end
 
       def accept_polling_timeout_seconds
