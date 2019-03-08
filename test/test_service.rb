@@ -105,7 +105,7 @@ module RIMS::Test
     end
   end
 
-  class ServiceConfigurationTest < Test::Unit::TestCase
+  class ServiceConfigurationLoadTest < Test::Unit::TestCase
     def setup
       @c = RIMS::Service::Configuration.new
       @config_dir = 'config_dir'
@@ -162,6 +162,18 @@ module RIMS::Test
 
       @c.load_yaml(config_path)
       assert_equal(Pathname(eval(expected_path)), @c.base_dir)
+    end
+  end
+
+  class ServiceConfigurationTest < Test::Unit::TestCase
+    def setup
+      @c = RIMS::Service::Configuration.new
+      @base_dir = 'config_dir'
+      @c.load(base_dir: @base_dir)
+    end
+
+    def teardown
+      FileUtils.rm_rf(@base_dir)
     end
 
     def test_require_features
