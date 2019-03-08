@@ -136,6 +136,15 @@ module RIMS::Test
     def test_thread_num_default
       assert_equal(20, @c.thread_num)
     end
+
+    def test_thread_queue_size
+      @c.load(server: { thread_queue_size: 30 })
+      assert_equal(30, @c.thread_queue_size)
+    end
+
+    def test_thread_queue_size_default
+      assert_equal(20, @c.thread_queue_size)
+    end
   end
 end
 
