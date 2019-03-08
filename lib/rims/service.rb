@@ -70,6 +70,7 @@ module RIMS
       # configuration example.
       #   server:
       #     accept_polling_timeout_seconds: 0.1
+      #     thread_num: 20
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -100,7 +101,7 @@ module RIMS
       end
 
       def thread_num
-        20
+        @config.dig('server', 'thread_num') || 20
       end
 
       def thread_queue_size

@@ -127,6 +127,15 @@ module RIMS::Test
     def test_accept_polling_timeout_seconds_default
       assert_equal(0.1, @c.accept_polling_timeout_seconds)
     end
+
+    def test_thread_num
+      @c.load(server: { thread_num: 30 })
+      assert_equal(30, @c.thread_num)
+    end
+
+    def test_thread_num_default
+      assert_equal(20, @c.thread_num)
+    end
   end
 end
 
