@@ -94,6 +94,16 @@ module RIMS
       #     thread_num: 20
       #     thread_queue_size: 20
       #     thread_queue_polling_timeout_seconds: 0.1
+      #   storage:
+      #     meta_key_value_store:
+      #       type: qdbm_depot
+      #       configuration:
+      #         bnum 1200000
+      #       use_checksum: true
+      #     text_key_value_store:
+      #       type: qdbm_curia
+      #       configuration_file: text_kvs_config.yml
+      #       use_checksum: true
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -152,6 +162,44 @@ module RIMS
 
       def thread_queue_polling_timeout_seconds
         @config.dig('server', 'thread_queue_polling_timeout_seconds') || 0.1
+      end
+
+      KeyValueStoreFactoryBuilderParams = Struct.new(:origin_type, :origin_config, :middleware_list)
+      class KeyValueStoreFactoryBuilderParams
+        def build_factory
+          builder = KeyValueStore::FactoryBuilder.new
+          builder.open{|name| origin_type.open_with_conf(name, origin_config) }
+          for middleware in middleware_list
+            builder.use(middleware)
+          end
+          builder.factory
+        end
+      end
+
+      def make_key_value_store_params(collection)
+        kvs_params = KeyValueStoreFactoryBuilderParams.new
+        kvs_params.origin_type = KeyValueStore::FactoryBuilder.get_plug_in(collection['type'] || 'gdbm')
+        kvs_params.origin_config = get_configuration(collection)
+
+        if (collection.key? 'use_checksum') then
+          use_checksum = collection['use_checksum']
+        else
+          use_checksum = true   # default
+        end
+
+        kvs_params.middleware_list = []
+        kvs_params.middleware_list << Checksum_KeyValueStore if use_checksum
+
+        kvs_params
+      end
+      private :make_key_value_store_params
+
+      def make_meta_key_value_store_params
+        make_key_value_store_params(@config.dig('storage', 'meta_key_value_store') || {})
+      end
+
+      def make_text_key_value_store_params
+        make_key_value_store_params(@config.dig('storage', 'text_key_value_store') || {})
       end
     end
 
