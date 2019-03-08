@@ -145,6 +145,15 @@ module RIMS::Test
     def test_thread_queue_size_default
       assert_equal(20, @c.thread_queue_size)
     end
+
+    def test_thread_queue_polling_timeout_seconds
+      @c.load(server: { thread_queue_polling_timeout_seconds: 1 })
+      assert_equal(1, @c.thread_queue_polling_timeout_seconds)
+    end
+
+    def test_thread_queue_polling_timeout_seconds_default
+      assert_equal(0.1, @c.thread_queue_polling_timeout_seconds)
+    end
   end
 end
 

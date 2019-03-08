@@ -72,6 +72,7 @@ module RIMS
       #     accept_polling_timeout_seconds: 0.1
       #     thread_num: 20
       #     thread_queue_size: 20
+      #     thread_queue_polling_timeout_seconds: 0.1
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -110,7 +111,7 @@ module RIMS
       end
 
       def thread_queue_polling_timeout_seconds
-        0.1
+        @config.dig('server', 'thread_queue_polling_timeout_seconds') || 0.1
       end
     end
 
