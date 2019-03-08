@@ -119,6 +119,29 @@ module RIMS::Test
       assert_equal(Pathname(eval(expected_path)), @c.base_dir)
     end
 
+    def test_require_features
+      assert(! defined? Prime)
+      assert(! ($LOADED_FEATURES.any? %r"prime"))
+
+      fork{
+        @c.load(required_features: %w[ prime ])
+        assert_equal(%w[ prime ], @c.get_required_features)
+        @c.require_features
+        assert(defined? Prime)
+        assert($LOADED_FEATURES.any? %r"prime")
+      }
+
+      Process.wait
+      assert_equal(0, $?.exitstatus)
+    end
+
+    def test_require_features_no_features
+      assert_equal([], @c.get_required_features)
+      saved_loaded_features = $LOADED_FEATURES.dup
+      @c.require_features
+      assert_equal(saved_loaded_features, $LOADED_FEATURES)
+    end
+
     def test_accept_polling_timeout_seconds
       @c.load(server: { accept_polling_timeout_seconds: 1 })
       assert_equal(1, @c.accept_polling_timeout_seconds)

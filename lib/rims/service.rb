@@ -68,6 +68,9 @@ module RIMS
       end
 
       # configuration example.
+      #   required_features:
+      #     - rims/qdbm
+      #     - rims/passwd/ldap
       #   server:
       #     accept_polling_timeout_seconds: 0.1
       #     thread_num: 20
@@ -76,6 +79,20 @@ module RIMS
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
+      end
+
+      def require_features
+        if (feature_list = @config.dig('required_features')) then
+          for feature in feature_list
+            require(feature)
+          end
+        end
+
+        nil
+      end
+
+      def get_required_features
+        @config.dig('required_features') || []
       end
 
       def base_dir
