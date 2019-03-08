@@ -58,6 +58,51 @@ module RIMS::Test
       error = assert_raise(ArgumentError) { RIMS::Service::Configuration.update({}, 'foo') }
       assert_equal('hash can only be updated with hash.', error.message)
     end
+
+    def test_get_configuration_hash
+      assert_equal({ 'foo' => 'bar' },
+                   RIMS::Service::Configuration.get_configuration({ 'configuration' => { 'foo' => 'bar' } },
+                                                                  Pathname('/path/to/nothing')))
+    end
+
+    def test_get_configuration_file_relpath
+      config_dir = 'config_dir'
+      config_file = 'config.yml'
+      FileUtils.mkdir_p(config_dir)
+      begin
+        IO.write(File.join(config_dir, config_file), { 'foo' => 'bar' }.to_yaml)
+        assert_equal({ 'foo' => 'bar' },
+                     RIMS::Service::Configuration.get_configuration({ 'configuration_file' => config_file },
+                                                                    Pathname(config_dir)))
+      ensure
+        FileUtils.rm_rf(config_dir)
+      end
+    end
+
+    def test_get_configuration_file_abspath
+      config_file = 'config.yml'
+      begin
+        IO.write(config_file, { 'foo' => 'bar' }.to_yaml)
+        assert_equal({ 'foo' => 'bar' },
+                     RIMS::Service::Configuration.get_configuration({ 'configuration_file' => File.expand_path(config_file) },
+                                                                    Pathname('/path/to/nothing')))
+      ensure
+        FileUtils.rm_f(config_file)
+      end
+    end
+
+    def test_get_configuration_file_no_config
+      assert_equal({}, RIMS::Service::Configuration.get_configuration({}, Pathname('/path/to/nothing')))
+    end
+
+    def test_get_configuration_file_conflict_error
+      error = assert_raise(KeyError) {
+        RIMS::Service::Configuration.get_configuration({ 'configuration' => { 'foo' => 'bar' },
+                                                         'configuration_file' => 'config.yml' },
+                                                       Pathname('/path/to/nothing'))
+      }
+      assert_equal('configuration conflict: configuration, configuraion_file', error.message)
+    end
   end
 
   class ServiceConfigurationTest < Test::Unit::TestCase

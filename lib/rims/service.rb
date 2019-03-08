@@ -44,6 +44,24 @@ module RIMS
             other
           end
         end
+
+        def get_configuration(collection, base_dir)
+          if ((collection.key? 'configuration') && (collection.key? 'configuration_file')) then
+            raise KeyError, 'configuration conflict: configuration, configuraion_file'
+          end
+
+          if (collection.key? 'configuration') then
+            collection['configuration']
+          elsif (collection.key? 'configuration_file') then
+            configuration_file_path = Pathname(collection['configuration_file'])
+            if (configuration_file_path.relative?) then
+              configuration_file_path = base_dir + configuration_file_path # expect base_dir to be Pathname
+            end
+            YAML.load_file(configuration_file_path.to_s)
+          else
+            {}
+          end
+        end
       end
 
       def initialize
