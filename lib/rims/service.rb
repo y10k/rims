@@ -117,6 +117,11 @@ module RIMS
         @config['base_dir'] or raise KeyError, 'not defined base_dir.'
       end
 
+      def get_configuration(collection)
+        self.class.get_configuration(collection, base_dir)
+      end
+      private :get_configuration
+
       def accept_polling_timeout_seconds
         @config.dig('server', 'accept_polling_timeout_seconds') || 0.1
       end
