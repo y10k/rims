@@ -127,6 +127,9 @@ module RIMS
   end
 end
 
+# built-in plug-in
+require 'rims/passwd'
+
 # Local Variables:
 # mode: Ruby
 # indent-tabs-mode: nil
