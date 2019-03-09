@@ -91,6 +91,12 @@ module RIMS
       #     - rims/qdbm
       #     - rims/passwd/ldap
       #   server:
+      #     listen_address:
+      #       # see `Riser::SocketAddress.parse' for address format
+      #       type: tcp
+      #       host: 0.0.0.0
+      #       port: 143
+      #       backlog: 64
       #     accept_polling_timeout_seconds: 0.1
       #     thread_num: 20
       #     thread_queue_size: 20
@@ -152,6 +158,10 @@ module RIMS
         self.class.get_configuration(collection, base_dir)
       end
       private :get_configuration
+
+      def listen_address
+        @config.dig('server', 'listen_address') || '0.0.0.0:1430'
+      end
 
       def accept_polling_timeout_seconds
         @config.dig('server', 'accept_polling_timeout_seconds') || 0.1

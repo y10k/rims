@@ -203,6 +203,22 @@ module RIMS::Test
       assert_equal(saved_loaded_features, $LOADED_FEATURES)
     end
 
+    data('string' => 'imap.example.com:143',
+         'uri'    => 'tcp://imap.example.com:143',
+         'hash'   => { 'type' =>':tcp',
+                       'host' => 'imap.example.com',
+                       'port' => 143,
+                       'backlog' => 64 })
+    def test_listen_address(data)
+      server_address = data
+      @c.load(server: { listen_address: server_address })
+      assert_equal(server_address, @c.listen_address)
+    end
+
+    def test_listen_address_default
+      assert_equal('0.0.0.0:1430', @c.listen_address)
+    end
+
     def test_accept_polling_timeout_seconds
       @c.load(server: { accept_polling_timeout_seconds: 1 })
       assert_equal(1, @c.accept_polling_timeout_seconds)
