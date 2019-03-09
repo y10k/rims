@@ -348,6 +348,24 @@ module RIMS::Test
                      middleware_list: [] },
                    @c.make_text_key_value_store_params.to_h)
     end
+
+    def test_make_key_value_store_path
+      assert_equal(Pathname(File.join(@base_dir, 'mailbox', '11', '22222222')),
+                   @c.make_key_value_store_path('mailbox', '1122222222'))
+    end
+
+    def test_make_key_value_store_path_short_mailbox_data_structure_version_error
+      error = assert_raise(ArgumentError) { @c.make_key_value_store_path('', '1122222222') }
+      assert_equal('too short mailbox data structure version.', error.message)
+    end
+
+    data('too_short' => '1',
+         'boundary'  => '12')
+    def test_make_key_value_store_path_short_unique_user_id_error(data)
+      unique_user_id = data
+      error = assert_raise(ArgumentError) { @c.make_key_value_store_path('mailbox', unique_user_id) }
+      assert_equal('too short unique user ID.', error.message)
+    end
   end
 end
 

@@ -201,6 +201,20 @@ module RIMS
       def make_text_key_value_store_params
         make_key_value_store_params(@config.dig('storage', 'text_key_value_store') || {})
       end
+
+      def make_key_value_store_path(mailbox_data_structure_version, unique_user_id)
+        if (mailbox_data_structure_version.empty?) then
+          raise ArgumentError, 'too short mailbox data structure version.'
+        end
+        if (unique_user_id.length <= 2) then
+          raise ArgumentError, 'too short unique user ID.'
+        end
+
+        bucket_dir_name = unique_user_id[0..1]
+        store_dir_name = unique_user_id[2..-1]
+
+        base_dir + mailbox_data_structure_version + bucket_dir_name + store_dir_name
+      end
     end
 
     def initialize(config)
