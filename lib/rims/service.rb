@@ -97,6 +97,7 @@ module RIMS
       #     thread_queue_polling_timeout_seconds: 0.1
       #   lock:
       #     read_lock_timeout_seconds: 30
+      #     write_lock_timeout_seconds: 30
       #   storage:
       #     meta_key_value_store:
       #       type: qdbm_depot
@@ -185,6 +186,10 @@ module RIMS
 
       def read_lock_timeout_seconds
         @config.dig('lock', 'read_lock_timeout_seconds') || 30
+      end
+
+      def write_lock_timeout_seconds
+        @config.dig('lock', 'write_lock_timeout_seconds') || 30
       end
 
       KeyValueStoreFactoryBuilderParams = Struct.new(:origin_type, :origin_config, :middleware_list)
