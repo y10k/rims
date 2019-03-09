@@ -119,6 +119,8 @@ module RIMS
       #       - type: ldap
       #         configuration:
       #           ldap_uri: ldap://ldap.example.com/ou=user,o=example,dc=nodomain?uid?one?(memberOf=cn=imap,ou=group,o=example,dc=nodomain)
+      #   authorization:
+      #     mail_delivery_user: "#postman"
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -245,6 +247,10 @@ module RIMS
         end
 
         auth
+      end
+
+      def mail_delivery_user
+        @config.dig('authorization', 'mail_delivery_user') || '#postman'
       end
     end
 

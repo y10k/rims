@@ -465,6 +465,17 @@ module RIMS::Test
       error = assert_raise(KeyError) { @c.make_authentication }
       assert_equal('not found a password source type.', error.message)
     end
+
+    def test_mail_delivery_user
+      @c.load(authorization: {
+                mail_delivery_user: 'alice'
+              })
+      assert_equal('alice', @c.mail_delivery_user)
+    end
+
+    def test_mail_delivery_user_default
+      assert_equal('#postman', @c.mail_delivery_user)
+    end
   end
 end
 
