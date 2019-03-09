@@ -257,6 +257,15 @@ module RIMS::Test
       assert_equal(30, @c.write_lock_timeout_seconds)
     end
 
+    def test_cleanup_write_lock_timeout_seconds
+      @c.load(lock: { cleanup_write_lock_timeout_seconds: 3 })
+      assert_equal(3, @c.cleanup_write_lock_timeout_seconds)
+    end
+
+    def test_cleanup_write_lock_timeout_seconds_default
+      assert_equal(1, @c.cleanup_write_lock_timeout_seconds)
+    end
+
     def test_make_meta_key_value_store_params
       assert_equal({ origin_type: RIMS::GDBM_KeyValueStore,
                      origin_config: {},
