@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+require 'etc'
+require 'json'
+require 'logger'
 require 'pathname'
 require 'riser'
 require 'socket'
@@ -285,6 +288,9 @@ module RIMS
     end
 
     def setup(server)
+      logger = Logger.new(STDOUT)
+      logger.level = Logger::DEBUG
+
       server.accept_polling_timeout_seconds          = @config.accept_polling_timeout_seconds
       server.process_num                             = @config.process_num
       server.process_queue_size                      = @config.process_queue_size
@@ -293,8 +299,116 @@ module RIMS
       server.thread_num                              = @config.thread_num
       server.thread_queue_size                       = @config.thread_queue_size
       server.thread_queue_polling_timeout_seconds    = @config.thread_queue_polling_timeout_seconds
+
+      make_kvs_factory = lambda{|kvs_params, kvs_type|
+        kvs_factory = kvs_params.build_factory
+        return lambda{|mailbox_data_structure_version, unique_user_id, db_name|
+          kvs_path = @config.make_key_value_store_path(mailbox_data_structure_version, unique_user_id)
+          unless (kvs_path.directory?) then
+            logger.debug("make a directory: #{kvs_path}") if logger.debug?
+            kvs_path.mkpath
+          end
+          db_path = kvs_path + db_name
+          logger.debug("#{kvs_type} data key-value sotre path: #{db_path}") if logger.debug?
+          kvs_factory.call(db_path.to_s)
+        }, lambda{
+          logger.info("#{kvs_type} key-value store parameter: type=#{kvs_params.origin_type}")
+          logger.info("#{kvs_type} key-value store parameter: config=#{kvs_params.origin_config.to_json}")
+          kvs_params.middleware_list.each_with_index do |middleware, i|
+            logger.info("#{kvs_type} key-value store parameter: middleware[#{i}]=#{middleware}")
+          end
+        }
+      }
+
+      kvs_meta_open, kvs_meta_log = make_kvs_factory.call(@config.make_meta_key_value_store_params, 'meta')
+      kvs_text_open, kvs_text_log = make_kvs_factory.call(@config.make_text_key_value_store_params, 'text')
+      auth = @config.make_authentication
+      mail_store_pool = MailStore.build_pool(kvs_meta_open, kvs_text_open)
+
+      server.before_start{|server_socket|
+        logger.info('start server.')
+        logger.info("listen address: #{server_socket.local_address.inspect_sockaddr}")
+        privileged_user = Etc.getpwuid(Process.euid).name rescue ''
+        logger.info("server privileged user: #{privileged_user}(#{Process.euid})")
+        privileged_group = Etc.getgrgid(Process.egid).name rescue ''
+        logger.info("server privileged group: #{privileged_group}(#{Process.egid})")
+        for feature in @config.get_required_features
+          logger.info("required feature: #{feature}")
+        end
+        logger.info("server parameter: accept_polling_timeout_seconds=#{server.accept_polling_timeout_seconds}")
+        logger.info("server parameter: process_num=#{server.process_num}")
+        logger.info("server parameter: process_queue_size=#{server.process_queue_size}")
+        logger.info("server parameter: process_queue_polling_timeout_seconds=#{server.process_queue_polling_timeout_seconds}")
+        logger.info("server parameter: process_send_io_polling_timeout_seconds=#{server.process_send_io_polling_timeout_seconds}")
+        logger.info("server parameter: thread_num=#{server.thread_num}")
+        logger.info("server parameter: thread_queue_size=#{server.thread_queue_size}")
+        logger.info("server parameter: thread_queue_polling_timeout_seconds=#{server.thread_queue_polling_timeout_seconds}")
+        logger.info("lock parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
+        logger.info("lock parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
+        logger.info("lock parameter: cleanup_write_lock_timeout_seconds=#{@config.cleanup_write_lock_timeout_seconds}")
+        kvs_meta_log.call
+        kvs_text_log.call
+        logger.info("authentication parameter: hostname=#{auth.hostname}")
+        logger.info("authorization parameter: mail_delivery_user=#{@config.mail_delivery_user}")
+      }
+      # server.at_fork{}
+      # server.at_stop{}
+      server.at_stat{|info|
+        logger.info("stat: #{info.to_json}")
+      }
+      server.preprocess{
+        auth.start_plug_in(logger)
+      }
+      server.dispatch{|socket|
+        begin
+          logger.info("accept client: #{socket.remote_address.inspect_sockaddr}")
+          decoder = Protocol::Decoder.new_decoder(mail_store_pool, auth, logger,
+                                                  mail_delivery_user: @config.mail_delivery_user,
+                                                  read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
+                                                  write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
+                                                  cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
+          Protocol::Decoder.repl(decoder, socket, Riser::WriteBufferStream.new(socket), logger)
+        rescue
+          logger.error('interrupt connection with unexpected error.')
+          logger.error($!)
+        ensure
+          Error.suppress_2nd_error_at_resource_closing(logger: logger) { socket.close }
+        end
+      }
+      server.postprocess{
+        auth.stop_plug_in(logger)
+      }
+      server.after_stop{
+        logger.info('stop server.')
+      }
+
+      nil
     end
   end
+end
+
+if ($0 == __FILE__) then
+  require 'pp' if $DEBUG
+  require 'rims'
+
+  if (ARGV.length != 1) then
+    STDERR.puts "usage: #{$0} config.yml"
+    exit(1)
+  end
+
+  config = RIMS::Service::Configuration.new
+  config.load_yaml(ARGV[0])
+  pp config if $DEBUG
+
+  server = Riser::SocketServer.new
+  service = RIMS::Service.new(config)
+  service.setup(server)
+
+  Signal.trap(:INT) { server.signal_stop_forced }
+  Signal.trap(:TERM) { server.signal_stop_graceful }
+
+  listen_address = Riser::SocketAddress.parse(config.listen_address)
+  server.start(listen_address.open_server)
 end
 
 # Local Variables:
