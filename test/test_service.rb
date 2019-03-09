@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
 require 'fileutils'
+require 'logger'
 require 'pathname'
 require 'rims'
+require 'socket'
 require 'test/unit'
 require 'yaml'
 
@@ -170,6 +172,8 @@ module RIMS::Test
       @c = RIMS::Service::Configuration.new
       @base_dir = 'config_dir'
       @c.load(base_dir: @base_dir)
+      @logger = Logger.new(STDOUT)
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::UNKNOWN
     end
 
     def teardown
@@ -365,6 +369,101 @@ module RIMS::Test
       unique_user_id = data
       error = assert_raise(ArgumentError) { @c.make_key_value_store_path('mailbox', unique_user_id) }
       assert_equal('too short unique user ID.', error.message)
+    end
+
+    authentication_users = {
+      presence: [
+        { 'user' => 'alice', 'pass' => 'open sesame' },
+        { 'user' => 'bob',   'pass' => 'Z1ON0101'    }
+      ],
+      absence: [
+        { 'user' => 'no_user', 'pass' => 'nothing' }
+      ]
+    }
+
+    data('users', authentication_users)
+    def test_make_authentication(data)
+      auth = @c.make_authentication
+      assert_equal(Socket.gethostname, auth.hostname)
+
+      auth.start_plug_in(@logger)
+      for pw in data[:presence]
+        assert_equal(false, (auth.user? pw['user']))
+        assert(! auth.authenticate_login(pw['user'], pw['pass']))
+      end
+      for pw in data[:absence]
+        assert_equal(false, (auth.user? pw['user']))
+        assert(! auth.authenticate_login(pw['user'], pw['pass']))
+      end
+      auth.stop_plug_in(@logger)
+    end
+
+    data('users', authentication_users)
+    def test_make_authentication_hostname(data)
+      @c.load(authentication: {
+                hostname: 'imap.example.com'
+              })
+      auth = @c.make_authentication
+      assert_equal('imap.example.com', auth.hostname)
+    end
+
+    data('users', authentication_users)
+    def test_make_authentication_password_source_single(data)
+      @c.load(authentication: {
+                password_sources: [
+                  { type: 'plain',
+                    configuration: data[:presence]
+                  }
+                ]
+              })
+      auth = @c.make_authentication
+
+      auth.start_plug_in(@logger)
+      for pw in data[:presence]
+        assert_equal(true, (auth.user? pw['user']))
+        assert(auth.authenticate_login(pw['user'], pw['pass']))
+        assert(! auth.authenticate_login(pw['user'], pw['pass'].succ))
+      end
+      for pw in data[:absence]
+        assert_equal(false, (auth.user? pw['user']))
+        assert(! auth.authenticate_login(pw['user'], pw['pass']))
+      end
+      auth.stop_plug_in(@logger)
+    end
+
+    data('users', authentication_users)
+    def test_make_authentication_password_source_multiple(data)
+      @c.load(authentication: {
+                password_sources: data[:presence].map{|pw|
+                  { type: 'plain',
+                    configuration: [ pw ]
+                  }
+                }
+              })
+      auth = @c.make_authentication
+
+      auth.start_plug_in(@logger)
+      for pw in data[:presence]
+        assert_equal(true, (auth.user? pw['user']))
+        assert(auth.authenticate_login(pw['user'], pw['pass']))
+        assert(! auth.authenticate_login(pw['user'], pw['pass'].succ))
+      end
+      for pw in data[:absence]
+        assert_equal(false, (auth.user? pw['user']))
+        assert(! auth.authenticate_login(pw['user'], pw['pass']))
+      end
+      auth.stop_plug_in(@logger)
+    end
+
+    data('users', authentication_users)
+    def test_make_authentication_no_type_error(data)
+      @c.load(authentication: {
+                password_sources: [
+                  { configuration: data[:presence] }
+                ]
+              })
+      error = assert_raise(KeyError) { @c.make_authentication }
+      assert_equal('not found a password source type.', error.message)
     end
   end
 end

@@ -2,6 +2,7 @@
 
 require 'pathname'
 require 'riser'
+require 'socket'
 require 'yaml'
 
 module RIMS
@@ -104,6 +105,20 @@ module RIMS
       #       type: qdbm_curia
       #       configuration_file: text_kvs_config.yml
       #       use_checksum: true
+      #   authentication:
+      #     hostname: imap.example.com
+      #     password_sources:
+      #       - type: plain
+      #         configuration:
+      #           - user: alice
+      #             pass: open sesame
+      #           - user: bob
+      #             pass: Z1ON0101
+      #       - type: hash
+      #         configuration_file: passwd_hash.yml
+      #       - type: ldap
+      #         configuration:
+      #           ldap_uri: ldap://ldap.example.com/ou=user,o=example,dc=nodomain?uid?one?(memberOf=cn=imap,ou=group,o=example,dc=nodomain)
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -214,6 +229,22 @@ module RIMS
         store_dir_name = unique_user_id[2..-1]
 
         base_dir + mailbox_data_structure_version + bucket_dir_name + store_dir_name
+      end
+
+      def make_authentication
+        hostname = @config.dig('authentication', 'hostname') || Socket.gethostname
+        auth = Authentication.new(hostname: hostname)
+
+        if (passwd_src_list = @config.dig('authentication', 'password_sources')) then
+          for passwd_src_conf in passwd_src_list
+            plug_in_name = passwd_src_conf['type'] or raise KeyError, 'not found a password source type.'
+            plug_in_config = get_configuration(passwd_src_conf)
+            passwd_src = Authentication.get_plug_in(plug_in_name, plug_in_config)
+            auth.add_plug_in(passwd_src)
+          end
+        end
+
+        auth
       end
     end
 
