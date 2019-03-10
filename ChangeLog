@@ -1,3 +1,8 @@
+2019-03-10  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/service.rb: service and configuration for
+	riser. implemented the minimum necessary to run the server.
+
 2019-03-06  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* rims.gemspec: add riser to runtime dependency.
