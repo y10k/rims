@@ -1,5 +1,10 @@
 2019-03-06  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* rims.gemspec: add riser to runtime dependency.
+	RISER is a library of Ruby Infrastructure for cooperative
+	multi-thread/multi-process SERver.  the framework of the server is
+	planned to replace with riser.
+
 	* RIMS version 0.2.2 is released.
 
 2019-03-03  TOKI Yoshinori  <toki@freedom.ne.jp>
