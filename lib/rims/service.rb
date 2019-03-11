@@ -353,6 +353,8 @@ module RIMS
     using Logger::JointPlus
 
     def setup(server)
+      @config.require_features
+
       file_logger_params = @config.make_file_logger_params
       logger = Logger.new(*file_logger_params)
 
@@ -395,6 +397,9 @@ module RIMS
 
       server.before_start{|server_socket|
         logger.info('start server.')
+        for feature in @config.get_required_features
+          logger.info("required feature: #{feature}")
+        end
         logger.info("file logging parameter: path=#{file_logger_params[0]}")
         file_logger_params[1..-2].each_with_index do |value, i|
           logger.info("file logging parameter: shift_args[#{i}]=#{value}")
@@ -410,9 +415,6 @@ module RIMS
         logger.info("server privileged user: #{privileged_user}(#{Process.euid})")
         privileged_group = Etc.getgrgid(Process.egid).name rescue ''
         logger.info("server privileged group: #{privileged_group}(#{Process.egid})")
-        for feature in @config.get_required_features
-          logger.info("required feature: #{feature}")
-        end
         logger.info("server parameter: accept_polling_timeout_seconds=#{server.accept_polling_timeout_seconds}")
         logger.info("server parameter: process_num=#{server.process_num}")
         logger.info("server parameter: process_queue_size=#{server.process_queue_size}")
