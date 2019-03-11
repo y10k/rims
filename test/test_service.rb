@@ -168,9 +168,11 @@ module RIMS::Test
   end
 
   class ServiceConfigurationTest < Test::Unit::TestCase
+    BASE_DIR = 'config_dir'
+
     def setup
       @c = RIMS::Service::Configuration.new
-      @base_dir = 'config_dir'
+      @base_dir = BASE_DIR
       @c.load(base_dir: @base_dir)
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::UNKNOWN
@@ -201,6 +203,55 @@ module RIMS::Test
       saved_loaded_features = $LOADED_FEATURES.dup
       @c.require_features
       assert_equal(saved_loaded_features, $LOADED_FEATURES)
+    end
+
+    default_rims_log = File.join(BASE_DIR, 'rims.log')
+    data('default'             => [ [ default_rims_log, { level: 'info', progname: 'rims' } ], {} ],
+         'rel_name'            => [ [ File.join(BASE_DIR, 'server.log'), { level: 'info', progname: 'rims' } ],
+                                    { logging: { file: { path: 'server.log' } } } ],
+         'abs_name'            => [ [ '/var/log/rims.log', { level: 'info', progname: 'rims' } ],
+                                    { logging: { file: { path: '/var/log/rims.log' } } } ],
+         'shift_age'           => [ [ default_rims_log, 10, { level: 'info', progname: 'rims' } ],
+                                    { logging: { file: { shift_age: 10 } } } ],
+         'shift_daily'         => [ [ default_rims_log, 'daily', { level: 'info', progname: 'rims' } ],
+                                    { logging: { file: { shift_age: 'daily' } } } ],
+         'shift_weekly'        => [ [ default_rims_log, 'weekly', { level: 'info', progname: 'rims' } ],
+                                    { logging: { file: { shift_age: 'weekly' } } } ],
+         'shift_monthly'       => [ [ default_rims_log, 'monthly', { level: 'info', progname: 'rims' } ],
+                                    { logging: { file: { shift_age: 'monthly' } } } ],
+         'shift_size'          => [ [ default_rims_log, 0, 16777216, { level: 'info', progname: 'rims' } ],
+                                    { logging: { file: { shift_size: 16777216 } } } ],
+         'level'               => [ [ default_rims_log, { level: 'debug', progname: 'rims' } ],
+                                    { logging: { file: { level: 'debug', progname: 'rims' } } } ],
+         'datetime_format'     => [ [ default_rims_log, { level: 'info', progname: 'rims', datetime_format: '%Y%m%d%H%M%S' } ],
+                                    { logging: { file: { datetime_format: '%Y%m%d%H%M%S' } } } ],
+         'shift_period_suffix' => [ [ default_rims_log, { level: 'info', progname: 'rims', shift_period_suffix: '%Y-%m-%d' } ],
+                                    { logging: { file: { shift_period_suffix: '%Y-%m-%d' } } } ],
+         'all'                 => [ [ '/var/log/rims.log',
+                                      10,
+                                      16777216,
+                                      { level: 'debug',
+                                        progname: 'rims',
+                                        datetime_format: '%Y%m%d%H%M%S',
+                                        shift_period_suffix: '%Y-%m-%d'
+                                      }
+                                    ],
+                                    { logging: {
+                                        file: {
+                                          path: '/var/log/rims.log',
+                                          shift_age: 10,
+                                          shift_size: 16777216,
+                                          level: 'debug',
+                                          datetime_format: '%Y%m%d%H%M%S',
+                                          shift_period_suffix: '%Y-%m-%d'
+                                        }
+                                      }
+                                    }
+                                  ])
+    def test_make_file_logger_params(data)
+      expected_logger_params, config = data
+      @c.load(config)
+      assert_equal(expected_logger_params, @c.make_file_logger_params)
     end
 
     data('string' => 'imap.example.com:143',

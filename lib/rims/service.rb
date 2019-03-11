@@ -93,6 +93,14 @@ module RIMS
       #   required_features:
       #     - rims/qdbm
       #     - rims/passwd/ldap
+      #   logging:
+      #     file:
+      #       path: rims.log
+      #       shift_age: 10
+      #       shift_size: 1048576
+      #       level: debug
+      #       datetime_format: %Y-%m-%d %H:%M:%S
+      #       shift_period_suffix: %Y%m%d
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
@@ -161,6 +169,37 @@ module RIMS
         self.class.get_configuration(collection, base_dir)
       end
       private :get_configuration
+
+      # return parameters for Logger.new
+      def make_file_logger_params
+        log_path = Pathname(@config.dig('logging', 'file', 'path') || 'rims.log')
+        if (log_path.relative?) then
+          log_path = base_dir + log_path
+        end
+        logger_params = [ log_path.to_s ]
+
+        shift_age = @config.dig('logging', 'file', 'shift_age')
+        shift_size = @config.dig('logging', 'file', 'shift_size')
+        if (shift_size) then
+          logger_params << (shift_age || 0)
+          logger_params << shift_size
+        elsif (shift_age) then
+          logger_params << shift_age
+        end
+
+        kw_args = {}
+        kw_args[:level] = @config.dig('logging', 'file', 'level') || 'info'
+        kw_args[:progname] = 'rims'
+        if (datetime_format = @config.dig('logging', 'file', 'datetime_format')) then
+          kw_args[:datetime_format] = datetime_format
+        end
+        if (shift_period_suffix = @config.dig('logging', 'file', 'shift_period_suffix')) then
+          kw_args[:shift_period_suffix] = shift_period_suffix
+        end
+        logger_params << kw_args
+
+        logger_params
+      end
 
       def listen_address
         @config.dig('server', 'listen_address') || '0.0.0.0:1430'
