@@ -101,6 +101,9 @@ module RIMS
       #       level: debug
       #       datetime_format: %Y-%m-%d %H:%M:%S
       #       shift_period_suffix: %Y%m%d
+      #     stdout:
+      #       level: info
+      #       datetime_format: %Y-%m-%d %H:%M:%S
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
@@ -195,6 +198,21 @@ module RIMS
         end
         if (shift_period_suffix = @config.dig('logging', 'file', 'shift_period_suffix')) then
           kw_args[:shift_period_suffix] = shift_period_suffix
+        end
+        logger_params << kw_args
+
+        logger_params
+      end
+
+      # return parameters for Logger.new
+      def make_stdout_logger_params
+        logger_params = [ STDOUT ]
+
+        kw_args = {}
+        kw_args[:level] = @config.dig('logging', 'stdout', 'level') || 'info'
+        kw_args[:progname] = 'rims'
+        if (datetime_format = @config.dig('logging', 'stdout', 'datetime_format')) then
+          kw_args[:datetime_format] = datetime_format
         end
         logger_params << kw_args
 

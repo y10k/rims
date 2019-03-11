@@ -254,6 +254,26 @@ module RIMS::Test
       assert_equal(expected_logger_params, @c.make_file_logger_params)
     end
 
+    data('default'         => [ [ STDOUT, { level: 'info', progname: 'rims' } ], {} ],
+         'level'           => [ [ STDOUT, { level: 'debug', progname: 'rims' } ],
+                                { logging: { stdout: { level: 'debug' } } } ],
+         'datetime_format' => [ [ STDOUT, { level: 'info', progname: 'rims', datetime_format: '%Y%m%d%H%M%S' } ],
+                                { logging: { stdout: { datetime_format: '%Y%m%d%H%M%S' } } } ],
+         'all'             => [ [ STDOUT, { level: 'debug', progname: 'rims', datetime_format: '%Y%m%d%H%M%S' } ],
+                                { logging: {
+                                    stdout: {
+                                      level: 'debug',
+                                      datetime_format: '%Y%m%d%H%M%S'
+                                    }
+                                  }
+                                }
+                              ])
+    def test_make_stdout_logger_params(data)
+      expected_logger_params, config = data
+      @c.load(config)
+      assert_equal(expected_logger_params, @c.make_stdout_logger_params)
+    end
+
     data('string' => 'imap.example.com:143',
          'uri'    => 'tcp://imap.example.com:143',
          'hash'   => { 'type' =>':tcp',
