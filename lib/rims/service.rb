@@ -3,6 +3,7 @@
 require 'etc'
 require 'json'
 require 'logger'
+require 'logger/joint'
 require 'pathname'
 require 'riser'
 require 'socket'
@@ -344,9 +345,14 @@ module RIMS
       @config = config
     end
 
+    using Logger::JointPlus
+
     def setup(server)
-      logger = Logger.new(STDOUT)
-      logger.level = Logger::DEBUG
+      file_logger_params = @config.make_file_logger_params
+      logger = Logger.new(*file_logger_params)
+
+      stdout_logger_params = @config.make_stdout_logger_params
+      logger += Logger.new(*stdout_logger_params)
 
       server.accept_polling_timeout_seconds          = @config.accept_polling_timeout_seconds
       server.process_num                             = @config.process_num
@@ -384,6 +390,16 @@ module RIMS
 
       server.before_start{|server_socket|
         logger.info('start server.')
+        logger.info("file logging parameter: path=#{file_logger_params[0]}")
+        file_logger_params[1..-2].each_with_index do |value, i|
+          logger.info("file logging parameter: shift_args[#{i}]=#{value}")
+        end
+        for name, value in file_logger_params[-1]
+          logger.info("file logging parameter: #{name}=#{value}")
+        end
+        for name, value in stdout_logger_params[-1]
+          logger.info("stdout logging parameter: #{name}=#{value}")
+        end
         logger.info("listen address: #{server_socket.local_address.inspect_sockaddr}")
         privileged_user = Etc.getpwuid(Process.euid).name rescue ''
         logger.info("server privileged user: #{privileged_user}(#{Process.euid})")
