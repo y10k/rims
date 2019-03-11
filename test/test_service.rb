@@ -274,56 +274,60 @@ module RIMS::Test
       assert_equal(expected_logger_params, @c.make_stdout_logger_params)
     end
 
-    data('string' => 'imap.example.com:143',
-         'uri'    => 'tcp://imap.example.com:143',
-         'hash'   => { 'type' =>':tcp',
-                       'host' => 'imap.example.com',
-                       'port' => 143,
-                       'backlog' => 64 })
+    data('default' => [ '0.0.0.0:1430',               {} ],
+         'string'  => [ 'imap.example.com:143',       { server: { listen_address: 'imap.example.com:143' } } ],
+         'uri'     => [ 'tcp://imap.example.com:143', { server: { listen_address: 'tcp://imap.example.com:143' } } ],
+         'hash'    => [ { 'type' =>':tcp',
+                          'host' => 'imap.example.com',
+                          'port' => 143,
+                          'backlog' => 64
+                        },
+                        { server: {
+                            listen_address: {
+                              'type' =>':tcp',
+                              'host' => 'imap.example.com',
+                              'port' => 143,
+                              'backlog' => 64
+                            }
+                          }
+                        }
+                      ])
     def test_listen_address(data)
-      server_address = data
-      @c.load(server: { listen_address: server_address })
-      assert_equal(server_address, @c.listen_address)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.listen_address)
     end
 
-    def test_listen_address_default
-      assert_equal('0.0.0.0:1430', @c.listen_address)
+    data('default' => [ 0.1, {} ],
+         'config'  => [ 1,   { server: { accept_polling_timeout_seconds: 1 } }])
+    def test_accept_polling_timeout_seconds(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.accept_polling_timeout_seconds)
     end
 
-    def test_accept_polling_timeout_seconds
-      @c.load(server: { accept_polling_timeout_seconds: 1 })
-      assert_equal(1, @c.accept_polling_timeout_seconds)
+    data('default' => [ 20, {} ],
+         'config'  => [ 30, { server: { thread_num: 30 } } ])
+    def test_thread_num(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.thread_num)
     end
 
-    def test_accept_polling_timeout_seconds_default
-      assert_equal(0.1, @c.accept_polling_timeout_seconds)
+    data('default' => [ 20, {} ],
+         'config'  => [ 30, { server: { thread_queue_size: 30 } }])
+    def test_thread_queue_size(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.thread_queue_size)
     end
 
-    def test_thread_num
-      @c.load(server: { thread_num: 30 })
-      assert_equal(30, @c.thread_num)
-    end
-
-    def test_thread_num_default
-      assert_equal(20, @c.thread_num)
-    end
-
-    def test_thread_queue_size
-      @c.load(server: { thread_queue_size: 30 })
-      assert_equal(30, @c.thread_queue_size)
-    end
-
-    def test_thread_queue_size_default
-      assert_equal(20, @c.thread_queue_size)
-    end
-
-    def test_thread_queue_polling_timeout_seconds
-      @c.load(server: { thread_queue_polling_timeout_seconds: 1 })
-      assert_equal(1, @c.thread_queue_polling_timeout_seconds)
-    end
-
-    def test_thread_queue_polling_timeout_seconds_default
-      assert_equal(0.1, @c.thread_queue_polling_timeout_seconds)
+    data('default' => [ 0.1, {} ],
+         'config'  => [ 1,   { server: { thread_queue_polling_timeout_seconds: 1 } } ])
+    def test_thread_queue_polling_timeout_seconds(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.thread_queue_polling_timeout_seconds)
     end
 
     def test_read_lock_timeout_seconds
