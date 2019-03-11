@@ -354,61 +354,53 @@ module RIMS::Test
       assert_equal(expected_value, @c.cleanup_write_lock_timeout_seconds)
     end
 
-    def test_make_meta_key_value_store_params
-      assert_equal({ origin_type: RIMS::GDBM_KeyValueStore,
-                     origin_config: {},
-                     middleware_list: [ RIMS::Checksum_KeyValueStore ] },
-                   @c.make_meta_key_value_store_params.to_h)
-    end
-
-    def test_make_meta_key_value_store_params_origin_type
-      @c.load(storage: {
-                meta_key_value_store: {
-                  type: 'gdbm'
-                }
-              })
-      assert_equal({ origin_type: RIMS::GDBM_KeyValueStore,
-                     origin_config: {},
-                     middleware_list: [ RIMS::Checksum_KeyValueStore ] },
-                   @c.make_meta_key_value_store_params.to_h)
-    end
-
-    def test_make_meta_key_value_store_params_origin_config
-      @c.load(storage: {
-                meta_key_value_store: {
-                  configuration: {
-                    'foo' => 'bar'
-                  }
-                }
-              })
-      assert_equal({ origin_type: RIMS::GDBM_KeyValueStore,
-                     origin_config: { 'foo' => 'bar' },
-                     middleware_list: [ RIMS::Checksum_KeyValueStore ] },
-                   @c.make_meta_key_value_store_params.to_h)
-    end
-
-    def test_make_meta_key_value_store_params_use_checksum
-      @c.load(storage: {
-                meta_key_value_store: {
-                  use_checksum: true
-                }
-              })
-      assert_equal({ origin_type: RIMS::GDBM_KeyValueStore,
-                     origin_config: {},
-                     middleware_list: [ RIMS::Checksum_KeyValueStore ] },
-                   @c.make_meta_key_value_store_params.to_h)
-    end
-
-    def test_make_meta_key_value_store_params_use_checksum_no
-      @c.load(storage: {
-                meta_key_value_store: {
-                  use_checksum: false
-                }
-              })
-      assert_equal({ origin_type: RIMS::GDBM_KeyValueStore,
-                     origin_config: {},
-                     middleware_list: [] },
-                   @c.make_meta_key_value_store_params.to_h)
+    data('default'         => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                  origin_config: {},
+                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                },
+                                {}
+                              ],
+         'origin_type'     => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                  origin_config: {},
+                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                },
+                                { storage: { meta_key_value_store: { type: 'gdbm' } } }
+                              ],
+         'origin_config'   => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                  origin_config: { 'foo' => 'bar' },
+                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                },
+                                { storage: { meta_key_value_store: { configuration: { 'foo' => 'bar' } } } }
+                              ],
+         'use_checksum'    => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                  origin_config: {},
+                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                },
+                                { storage: { meta_key_value_store: { use_checksum: true } } }
+                              ],
+         'use_checksum_no' => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                  origin_config: {},
+                                  middleware_list: []
+                                },
+                                { storage: { meta_key_value_store: { use_checksum: false } } }
+                              ],
+         'all'             => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                  origin_config: { 'foo' => 'bar' },
+                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                },
+                                { storage: {
+                                    meta_key_value_store: {
+                                      type: 'gdbm',
+                                      configuration: { 'foo' => 'bar' },
+                                      use_checksum: true
+                                    }
+                                  }
+                                }
+                              ])
+    def test_make_meta_key_value_store_params(data)
+      expected_params, config = data
+      @c.load(config)
+      assert_equal(expected_params, @c.make_meta_key_value_store_params.to_h)
     end
 
     def test_make_text_key_value_store_params
