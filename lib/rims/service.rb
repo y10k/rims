@@ -116,6 +116,7 @@ module RIMS
       #     thread_num: 20
       #     thread_queue_size: 20
       #     thread_queue_polling_timeout_seconds: 0.1
+      #     send_buffer_limit_size: 16384
       #   lock:
       #     read_lock_timeout_seconds: 30
       #     write_lock_timeout_seconds: 30
@@ -254,6 +255,10 @@ module RIMS
 
       def thread_queue_polling_timeout_seconds
         @config.dig('server', 'thread_queue_polling_timeout_seconds') || 0.1
+      end
+
+      def send_buffer_limit_size
+        @config.dig('server', 'send_buffer_limit_size') || 1024 * 16
       end
 
       def read_lock_timeout_seconds

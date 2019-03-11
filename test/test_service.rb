@@ -330,6 +330,14 @@ module RIMS::Test
       assert_equal(expected_value, @c.thread_queue_polling_timeout_seconds)
     end
 
+    data('default' => [ 1024 * 16, {} ],
+         'config'  => [ 1024 * 64, { server: { send_buffer_limit_size: 1024 * 64 } } ])
+    def test_send_buffer_limit_size(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.send_buffer_limit_size)
+    end
+
     data('default' => [ 30, {} ],
          'config'  => [ 15, { lock: { read_lock_timeout_seconds: 15 } } ])
     def test_read_lock_timeout_seconds(data)
