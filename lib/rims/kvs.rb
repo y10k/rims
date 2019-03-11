@@ -95,10 +95,6 @@ module RIMS
   end
 end
 
-# built-in plug-in
-require 'rims/gdbm_kvs'
-
-
 # Local Variables:
 # mode: Ruby
 # indent-tabs-mode: nil
