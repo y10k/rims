@@ -153,6 +153,10 @@ module RIMS
       end
 
       def require_features
+        # built-in plug-in
+        require 'rims/gdbm_kvs'
+        require 'rims/passwd'
+
         if (feature_list = @config.dig('required_features')) then
           for feature in feature_list
             require(feature)
