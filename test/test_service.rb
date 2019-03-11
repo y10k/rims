@@ -330,31 +330,28 @@ module RIMS::Test
       assert_equal(expected_value, @c.thread_queue_polling_timeout_seconds)
     end
 
-    def test_read_lock_timeout_seconds
-      @c.load(lock: { read_lock_timeout_seconds: 15 })
-      assert_equal(15, @c.read_lock_timeout_seconds)
+    data('default' => [ 30, {} ],
+         'config'  => [ 15, { lock: { read_lock_timeout_seconds: 15 } } ])
+    def test_read_lock_timeout_seconds(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.read_lock_timeout_seconds)
     end
 
-    def test_read_lock_timeout_seconds_default
-      assert_equal(30, @c.read_lock_timeout_seconds)
+    data('default' => [ 30, {} ],
+         'config'  => [ 15, { lock: { write_lock_timeout_seconds: 15 } } ])
+    def test_write_lock_timeout_seconds(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.write_lock_timeout_seconds)
     end
 
-    def test_write_lock_timeout_seconds
-      @c.load(lock: { write_lock_timeout_seconds: 15 })
-      assert_equal(15, @c.write_lock_timeout_seconds)
-    end
-
-    def test_write_lock_timeout_seconds_default
-      assert_equal(30, @c.write_lock_timeout_seconds)
-    end
-
-    def test_cleanup_write_lock_timeout_seconds
-      @c.load(lock: { cleanup_write_lock_timeout_seconds: 3 })
-      assert_equal(3, @c.cleanup_write_lock_timeout_seconds)
-    end
-
-    def test_cleanup_write_lock_timeout_seconds_default
-      assert_equal(1, @c.cleanup_write_lock_timeout_seconds)
+    data('default' => [ 1, {} ],
+         'config'  => [ 3, { lock: { cleanup_write_lock_timeout_seconds: 3 } } ])
+    def test_cleanup_write_lock_timeout_seconds(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.cleanup_write_lock_timeout_seconds)
     end
 
     def test_make_meta_key_value_store_params
