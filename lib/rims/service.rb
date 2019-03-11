@@ -421,6 +421,7 @@ module RIMS
         logger.info("server parameter: thread_num=#{server.thread_num}")
         logger.info("server parameter: thread_queue_size=#{server.thread_queue_size}")
         logger.info("server parameter: thread_queue_polling_timeout_seconds=#{server.thread_queue_polling_timeout_seconds}")
+        logger.info("server parameter: send_buffer_limit_size=#{@config.send_buffer_limit_size}")
         logger.info("lock parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
         logger.info("lock parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
         logger.info("lock parameter: cleanup_write_lock_timeout_seconds=#{@config.cleanup_write_lock_timeout_seconds}")
@@ -445,7 +446,7 @@ module RIMS
                                                   read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
                                                   write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
                                                   cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
-          Protocol::Decoder.repl(decoder, socket, Riser::WriteBufferStream.new(socket), logger)
+          Protocol::Decoder.repl(decoder, socket, Riser::WriteBufferStream.new(socket, @config.send_buffer_limit_size), logger)
         rescue
           logger.error('interrupt connection with unexpected error.')
           logger.error($!)
