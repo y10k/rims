@@ -10,6 +10,7 @@
 /load_test/post_mail/
 /pkg/
 /spec/reports/
+/test/tls/
 /tmp/
 /vendor/
 /Gemfile.lock
