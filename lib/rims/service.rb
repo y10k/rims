@@ -441,6 +441,8 @@ module RIMS
       server.thread_queue_size                       = @config.thread_queue_size
       server.thread_queue_polling_timeout_seconds    = @config.thread_queue_polling_timeout_seconds
 
+      ssl_context = @config.ssl_context
+
       make_kvs_factory = lambda{|kvs_params, kvs_type|
         kvs_factory = kvs_params.build_factory
         return lambda{|mailbox_data_structure_version, unique_user_id, db_name|
@@ -495,6 +497,68 @@ module RIMS
         logger.info("server parameter: thread_queue_size=#{server.thread_queue_size}")
         logger.info("server parameter: thread_queue_polling_timeout_seconds=#{server.thread_queue_polling_timeout_seconds}")
         logger.info("server parameter: send_buffer_limit_size=#{@config.send_buffer_limit_size}")
+        if (ssl_context) then
+          Array(ssl_context.alpn_protocols).each_with_index do |protocol, i|
+            logger.info("openssl parameter: alpn_protocols[#{i}]=#{protocol}")
+          end
+          logger.info("openssl parameter: alpn_select_cb=#{ssl_context.alpn_select_cb.inspect}") if ssl_context.alpn_select_cb
+          logger.info("openssl parameter: ca_file=#{ssl_context.ca_file}") if ssl_context.ca_file
+          logger.info("openssl parameter: ca_path=#{ssl_context.ca_path}") if ssl_context.ca_path
+          if (ssl_context.cert) then
+            ssl_context.cert.to_text.each_line do |line|
+              logger.info("openssl parameter: [cert] #{line.chomp}")
+            end
+          else
+            logger.warn('openssl parameter: not defined cert attribute.')
+          end
+          logger.info("openssl parameter: cert_store=#{ssl_context.cert_store.inspect}") if ssl_context.cert_store
+          Array(ssl_context.ciphers).each_with_index do |cipher, i|
+            logger.info("openssl parameter: ciphers[#{i}]=#{cipher.join(',')}")
+          end
+          if (ssl_context.client_ca) then
+            Array(ssl_context.client_ca).each_with_index do |cert, i|
+              cert.to_text.each_line do |line|
+                logger.info("openssl parameter: client_ca[#{i}]: #{line.chomp}")
+              end
+            end
+          end
+          logger.info("openssl parameter: client_cert_cb=#{ssl_context.client_cert_cb.inspect}") if ssl_context.client_cert_cb
+          Array(ssl_context.extra_chain_cert).each_with_index do |cert, i|
+            cert.to_text.each_line do |line|
+              logger.info("openssl parameter: extra_chain_cert[#{i}]: #{line.chomp}")
+            end
+          end
+          if (ssl_context.key) then
+            logger.info("openssl parameter: key=#{ssl_context.key.inspect}")
+            if (logger.debug?) then
+              ssl_context.key.to_text.each_line do |line|
+                logger.debug("openssl parameter: [key] #{line.chomp}")
+              end
+            end
+          else
+            logger.warn('openssl parameter: not defined key attribute.')
+          end
+          Array(ssl_context.npn_protocols).each_with_index do |protocol, i|
+            logger.info("openssl parameter: npn_protocols[#{i}]=#{protocol}")
+          end
+          logger.info("openssl parameter: npn_select_cb=#{ssl_context.npn_select_cb.inspect}") if ssl_context.npn_select_cb
+          logger.info("openssl parameter: options=0x#{'%08x' % ssl_context.options}") if ssl_context.options
+          logger.info("openssl parameter: renegotiation_cb=#{ssl_context.renegotiation_cb.inspect}") if ssl_context.renegotiation_cb
+          logger.info("openssl parameter: security_level=#{ssl_context.security_level}")
+          logger.info("openssl parameter: servername_cb=#{ssl_context.servername_cb.inspect}") if ssl_context.servername_cb
+          logger.info("openssl parameter: session_cache_mode=0x#{'%08x' % ssl_context.session_cache_mode}")
+          logger.info("openssl parameter: session_cache_size=#{ssl_context.session_cache_size }")
+          logger.info("openssl parameter: session_get_cb=#{ssl_context.session_get_cb.inspect}") if ssl_context.session_get_cb
+          logger.info("openssl parameter: session_id_context=#{ssl_context.session_id_context}") if ssl_context.session_id_context
+          logger.info("openssl parameter: session_new_cb=#{ssl_context.session_new_cb.inspect}") if ssl_context.session_new_cb
+          logger.info("openssl parameter: session_remove_cb=#{ssl_context.session_remove_cb}") if ssl_context.session_remove_cb
+          logger.info("openssl parameter: ssl_timeout=#{ssl_context.ssl_timeout}") if ssl_context.ssl_timeout
+          logger.info("openssl parameter: tmp_dh_callback=#{ssl_context.tmp_dh_callback}") if ssl_context.tmp_dh_callback
+          logger.info("openssl parameter: verify_callback=#{ssl_context.verify_callback}") if ssl_context.verify_callback
+          logger.info("openssl parameter: verify_depth=#{ssl_context.verify_depth}") if ssl_context.verify_depth
+          logger.info("openssl parameter: verify_hostname=#{ssl_context.verify_hostname}") if ssl_context.verify_hostname
+          logger.info("openssl parameter: verify_mode=0x#{'%08x' % ssl_context.verify_mode}") if ssl_context.verify_mode
+        end
         logger.info("lock parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
         logger.info("lock parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
         logger.info("lock parameter: cleanup_write_lock_timeout_seconds=#{@config.cleanup_write_lock_timeout_seconds}")
@@ -513,18 +577,40 @@ module RIMS
       }
       server.dispatch{|socket|
         begin
-          logger.info("accept client: #{socket.remote_address.inspect_sockaddr}")
+          logger.info("accept connection: #{socket.remote_address.inspect_sockaddr}")
+          if (ssl_context) then
+            ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+            logger.info("start tls: #{ssl_socket.state}")
+            ssl_socket.accept
+            logger.info("accept tls: #{ssl_socket.state}")
+            ssl_socket.sync = true
+            input = ssl_socket
+            output = Riser::WriteBufferStream.new(ssl_socket, @config.send_buffer_limit_size)
+          else
+            input = socket
+            output = Riser::WriteBufferStream.new(socket, @config.send_buffer_limit_size)
+          end
           decoder = Protocol::Decoder.new_decoder(mail_store_pool, auth, logger,
                                                   mail_delivery_user: @config.mail_delivery_user,
                                                   read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
                                                   write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
                                                   cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
-          Protocol::Decoder.repl(decoder, socket, Riser::WriteBufferStream.new(socket, @config.send_buffer_limit_size), logger)
+          Protocol::Decoder.repl(decoder, input, output, logger)
         rescue
           logger.error('interrupt connection with unexpected error.')
           logger.error($!)
         ensure
-          Error.suppress_2nd_error_at_resource_closing(logger: logger) { socket.close }
+          if (ssl_context) then
+            Error.suppress_2nd_error_at_resource_closing(logger: logger) {
+              ssl_socket.close
+              logger.info("close tls: #{ssl_socket.state}")
+            }
+          end
+          Error.suppress_2nd_error_at_resource_closing(logger: logger) {
+            remote_address = socket.remote_address
+            socket.close
+            logger.info("close connection: #{remote_address.inspect_sockaddr}")
+          }
         end
       }
       server.postprocess{
