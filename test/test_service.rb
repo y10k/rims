@@ -330,6 +330,58 @@ module RIMS::Test
       assert_equal(expected_value, @c.thread_queue_polling_timeout_seconds)
     end
 
+    tls_dir = Pathname(__FILE__).dirname / "tls"
+    TLS_SERVER_PKEY = tls_dir / 'server.priv_key'
+    TLS_SERVER_CERT = tls_dir / 'server_localhost.cert'
+
+    unless (TLS_SERVER_PKEY.file? && TLS_SERVER_CERT.file?) then
+      warn("warning: do `rake test_cert:make' to create TLS private key file and TLS certificate file for test.")
+    end
+
+    def test_ssl_context
+      FileUtils.mkdir_p(@base_dir)
+      FileUtils.cp(TLS_SERVER_PKEY.to_path, @base_dir)
+      FileUtils.cp(TLS_SERVER_CERT.to_path, @base_dir)
+
+      @c.load(openssl: {
+                ssl_context: <<-EOF
+                  _.key = PKey.read((base_dir / #{TLS_SERVER_PKEY.basename.to_path.dump}).read)
+                  _.cert = X509::Certificate.new((base_dir / #{TLS_SERVER_CERT.basename.to_path.dump}).read)
+                EOF
+              })
+
+      ssl_context = @c.ssl_context
+      assert_instance_of(OpenSSL::SSL::SSLContext, ssl_context)
+      assert_equal(OpenSSL::PKey::RSA.new(TLS_SERVER_PKEY.read).params, ssl_context.key.params)
+      assert_equal(OpenSSL::X509::Certificate.new(TLS_SERVER_CERT.read), ssl_context.cert)
+    end
+
+    def test_ssl_context_use_ssl
+      @c.load(openssl: {
+                use_ssl: true
+              })
+
+      ssl_context = @c.ssl_context
+      assert_instance_of(OpenSSL::SSL::SSLContext, ssl_context)
+      assert_nil(ssl_context.key)
+      assert_nil(ssl_context.cert)
+    end
+
+    data('default'        => {},
+         'no_ssl_context' => { openssl: {} },
+         'not_use_ssl'    => { openssl: {
+                                 use_ssl: false,
+                                 ssl_context: <<-EOF
+                                   _.key = PKey.read((base_dir / #{TLS_SERVER_PKEY.basename.to_path.dump}).read)
+                                   _.cert = X509::Certificate.new((base_dir / #{TLS_SERVER_CERT.basename.to_path.dump}).read)
+                                 EOF
+                               }
+                             })
+    def test_ssl_context_not_use_ssl(config)
+      @c.load(config)
+      assert_nil(@c.ssl_context)
+    end
+
     data('default' => [ 1024 * 16, {} ],
          'config'  => [ 1024 * 64, { server: { send_buffer_limit_size: 1024 * 64 } } ])
     def test_send_buffer_limit_size(data)

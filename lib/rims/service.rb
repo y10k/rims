@@ -117,6 +117,22 @@ module RIMS
       #     thread_queue_size: 20
       #     thread_queue_polling_timeout_seconds: 0.1
       #     send_buffer_limit_size: 16384
+      #   openssl:
+      #     use_ssl: true
+      #     ssl_context: |
+      #       # this entry is evaluated in an anonymous ruby ​​module
+      #       # including OpenSSL to initialize the SSLContext used
+      #       # for TLS connection.
+      #       # SSLContext object is stored at `_'.
+      #       # Pathname object is stored at `base_dir'.
+      #       _.cert = X509::Certificate.new((base_dir / "tls_cert" / "server_default.cert").read)
+      #       _.key = PKey.read((base_dir / "tls_secret" / "server.priv_key").read)
+      #       sni_tbl = {
+      #         "imap.example.com"  => SSLContext.new.tap{|c| c.key = _.key; c.cert = X509::Certificate.new((base_dir / "tls_cert" / "server_imap.cert").read) },
+      #         "imap2.example.com" => SSLContext.new.tap{|c| c.key = _.key; c.cert = X509::Certificate.new((base_dir / "tls_cert" / "server_imap2.cert").read) },
+      #         "imap3.example.com" => SSLContext.new.tap{|c| c.key = _.key; c.cert = X509::Certificate.new((base_dir / "tls_cert" / "server_imap3.cert").read) }
+      #       }
+      #       _.servername_cb = lambda{|ssl_socket, hostname| sni_tbl[hostname.downcase] }
       #   lock:
       #     read_lock_timeout_seconds: 30
       #     write_lock_timeout_seconds: 30
@@ -263,6 +279,57 @@ module RIMS
 
       def send_buffer_limit_size
         @config.dig('server', 'send_buffer_limit_size') || 1024 * 16
+      end
+
+      module SSLContextConfigAttribute
+        def ssl_context
+          @__ssl_context__
+        end
+
+        def base_dir
+          @__base_dir__
+        end
+
+        alias _ ssl_context
+
+        class << self
+          def new_module(ssl_context, base_dir)
+            _module = Module.new
+            _module.instance_variable_set(:@__ssl_context__, ssl_context)
+            _module.instance_variable_set(:@__base_dir__, base_dir)
+            _module.module_eval{
+              include OpenSSL
+              include OpenSSL::SSL
+              extend SSLContextConfigAttribute
+            }
+            _module
+          end
+
+          # methodized to isolate local variable scope.
+          def eval_config(_module, expr, filename='(eval_config)')
+            _module.module_eval(expr, filename)
+          end
+        end
+      end
+
+      def ssl_context
+        if (openssl_config = @config['openssl']) then
+          if (openssl_config.key? 'use_ssl') then
+            use_ssl = openssl_config['use_ssl']
+          else
+            use_ssl = openssl_config.key? 'ssl_context'
+          end
+
+          if (use_ssl) then
+            ssl_context = OpenSSL::SSL::SSLContext.new
+            if (ssl_config_expr = openssl_config['ssl_context']) then
+              anon_mod = SSLContextConfigAttribute.new_module(ssl_context, base_dir)
+              SSLContextConfigAttribute.eval_config(anon_mod, ssl_config_expr, 'ssl_context')
+            end
+
+            ssl_context
+          end
+        end
       end
 
       def read_lock_timeout_seconds

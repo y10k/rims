@@ -2,6 +2,8 @@
 
 require "rims/version"
 
+autoload :OpenSSL, 'openssl'
+
 module RIMS
   autoload :Authentication, 'rims/auth'
   autoload :BufferedWriter, 'rims/server'
