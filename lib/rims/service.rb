@@ -110,6 +110,7 @@ module RIMS
       #     debug: false
       #     status_file: rims.pid
       #     server_polling_interval_seconds: 3
+      #     server_privileged_user: nobody
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
@@ -280,6 +281,10 @@ module RIMS
       def server_restart_overlap_seconds
         # to avoid resource conflict between the new server and the old server.
         0
+      end
+
+      def server_privileged_user
+        @config.dig('daemon', 'server_privileged_user')
       end
 
       def listen_address

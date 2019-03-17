@@ -309,6 +309,15 @@ module RIMS::Test
       assert_equal(expected_value, @c.server_polling_interval_seconds)
     end
 
+    data('default' => [ nil, {} ],
+         'name'    => [ 'imap', { daemon: { server_privileged_user: 'imap' } } ],
+         'uid'     => [ 1000,   { daemon: { server_privileged_user: 1000 } } ])
+    def test_server_privileged_user(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.server_privileged_user)
+    end
+
     data('default' => [ '0.0.0.0:1430',               {} ],
          'string'  => [ 'imap.example.com:143',       { server: { listen_address: 'imap.example.com:143' } } ],
          'uri'     => [ 'tcp://imap.example.com:143', { server: { listen_address: 'tcp://imap.example.com:143' } } ],
