@@ -277,6 +277,11 @@ module RIMS
         @config.dig('daemon', 'server_polling_interval_seconds') || 3
       end
 
+      def server_restart_overlap_seconds
+        # to avoid resource conflict between the new server and the old server.
+        0
+      end
+
       def listen_address
         @config.dig('server', 'listen_address') || '0.0.0.0:1430'
       end
