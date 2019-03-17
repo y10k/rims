@@ -107,6 +107,7 @@ module RIMS
       #       datetime_format: %Y-%m-%d %H:%M:%S
       #   daemon:
       #     daemonize: true
+      #     debug: false
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
@@ -249,6 +250,15 @@ module RIMS
           daemon_config['daemonize']
         else
           true
+        end
+      end
+
+      def daemon_debug?
+        daemon_config = @config['daemon'] || {}
+        if (daemon_config.key? 'debug') then
+          daemon_config['debug']
+        else
+          false
         end
       end
 

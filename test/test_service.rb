@@ -283,6 +283,15 @@ module RIMS::Test
       assert_equal(expected_value, @c.daemonize?)
     end
 
+    data('default'   => [ false, {} ],
+         'debug'     => [ true,  { daemon: { debug: true } } ],
+         'not_debug' => [ false, { daemon: { debug: false } } ])
+    def test_daemon_debug?(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.daemon_debug?)
+    end
+
     data('default' => [ '0.0.0.0:1430',               {} ],
          'string'  => [ 'imap.example.com:143',       { server: { listen_address: 'imap.example.com:143' } } ],
          'uri'     => [ 'tcp://imap.example.com:143', { server: { listen_address: 'tcp://imap.example.com:143' } } ],
