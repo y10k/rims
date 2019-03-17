@@ -111,6 +111,7 @@ module RIMS
       #     status_file: rims.pid
       #     server_polling_interval_seconds: 3
       #     server_privileged_user: nobody
+      #     server_privileged_group: nouser
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
@@ -285,6 +286,10 @@ module RIMS
 
       def server_privileged_user
         @config.dig('daemon', 'server_privileged_user')
+      end
+
+      def server_privileged_group
+        @config.dig('daemon', 'server_privileged_group')
       end
 
       def listen_address
