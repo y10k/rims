@@ -301,6 +301,14 @@ module RIMS::Test
       assert_equal(expected_value, @c.status_file)
     end
 
+    data('default' => [ 3, {} ],
+         'config'  => [ 1, { daemon: { server_polling_interval_seconds: 1 } } ])
+    def test_server_polling_interval_seconds(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.server_polling_interval_seconds)
+    end
+
     data('default' => [ '0.0.0.0:1430',               {} ],
          'string'  => [ 'imap.example.com:143',       { server: { listen_address: 'imap.example.com:143' } } ],
          'uri'     => [ 'tcp://imap.example.com:143', { server: { listen_address: 'tcp://imap.example.com:143' } } ],

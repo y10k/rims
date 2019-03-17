@@ -109,6 +109,7 @@ module RIMS
       #     daemonize: true
       #     debug: false
       #     status_file: rims.pid
+      #     server_polling_interval_seconds: 3
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
@@ -270,6 +271,10 @@ module RIMS
           file_path = base_dir + file_path
         end
         file_path.to_path
+      end
+
+      def server_polling_interval_seconds
+        @config.dig('daemon', 'server_polling_interval_seconds') || 3
       end
 
       def listen_address
