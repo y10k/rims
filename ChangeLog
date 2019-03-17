@@ -1,3 +1,8 @@
+2019-03-18  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/service.rb: service and configuration for
+	riser. implemented the full parameters to run the server.
+
 2019-03-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/service.rb: service and configuration for
