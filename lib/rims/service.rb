@@ -476,6 +476,10 @@ module RIMS
     using Logger::JointPlus
 
     def setup(server)
+      Riser.preload
+      Riser.preload(RIMS)
+      Riser.preload(RIMS::Protocol)
+
       @config.require_features
 
       file_logger_params = @config.make_file_logger_params
