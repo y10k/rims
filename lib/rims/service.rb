@@ -250,7 +250,8 @@ module RIMS
       end
 
       def process_num
-        0                       # not yet supported multi-process server configuration.
+        # not yet supported multi-process server configuration.
+        0
       end
 
       def process_queue_size
