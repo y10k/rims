@@ -274,6 +274,15 @@ module RIMS::Test
       assert_equal(expected_logger_params, @c.make_stdout_logger_params)
     end
 
+    data('default'       => [ true,  {} ],
+         'daemonize'     => [ true,  { daemon: { daemonize: true } } ],
+         'not_daemonize' => [ false, { daemon: { daemonize: false } } ])
+    def test_daemonize?(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.daemonize?)
+    end
+
     data('default' => [ '0.0.0.0:1430',               {} ],
          'string'  => [ 'imap.example.com:143',       { server: { listen_address: 'imap.example.com:143' } } ],
          'uri'     => [ 'tcp://imap.example.com:143', { server: { listen_address: 'tcp://imap.example.com:143' } } ],

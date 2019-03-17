@@ -105,6 +105,8 @@ module RIMS
       #     stdout:
       #       level: info
       #       datetime_format: %Y-%m-%d %H:%M:%S
+      #   daemon:
+      #     daemonize: true
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
@@ -239,6 +241,15 @@ module RIMS
         logger_params << kw_args
 
         logger_params
+      end
+
+      def daemonize?
+        daemon_config = @config['daemon'] || {}
+        if (daemon_config.key? 'daemonize') then
+          daemon_config['daemonize']
+        else
+          true
+        end
       end
 
       def listen_address
