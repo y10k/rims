@@ -117,22 +117,22 @@ module RIMS::Test
       FileUtils.rm_rf(@config_dir)
     end
 
-    data('relpath' => 'foo/bar',
-         'abspath' => '/foo/bar')
+    data('rel_path' => 'foo/bar',
+         'abs_path' => '/foo/bar')
     def test_base_dir(path)
       @c.load(base_dir: path)
       assert_equal(Pathname(path), @c.base_dir)
     end
 
-    data('relpath' => 'foo/bar',
-         'abspath' => '/foo/bar')
+    data('rel_path' => 'foo/bar',
+         'abs_path' => '/foo/bar')
     def test_load_path(path)
       @c.load({}, path)
       assert_equal(Pathname(path), @c.base_dir)
     end
 
-    data('relpath' => [ '/path/foo/bar', 'foo/bar',  '/path' ],
-         'abspath' => [ '/foo/bar',      '/foo/bar', '/path' ])
+    data('rel_path' => [ '/path/foo/bar', 'foo/bar',  '/path' ],
+         'abs_path' => [ '/foo/bar',      '/foo/bar', '/path' ])
     def test_base_dir_with_load_path(data)
       expected_path, base_dir, load_path = data
       @c.load({ base_dir: base_dir }, load_path)
@@ -153,8 +153,8 @@ module RIMS::Test
       assert_equal(Pathname(@config_dir), @c.base_dir)
     end
 
-    data('relpath' => [ %q{"#{@config_dir}/foo/bar"}, 'foo/bar'  ],
-         'abspath' => [ %q{'/foo/bar'},                '/foo/bar' ])
+    data('rel_path' => [ %q{"#{@config_dir}/foo/bar"}, 'foo/bar'  ],
+         'abs_path' => [ %q{'/foo/bar'},                '/foo/bar' ])
     def test_load_yaml_base_dir(data)
       expected_path, base_dir = data
 
@@ -206,10 +206,10 @@ module RIMS::Test
     end
 
     default_rims_log = File.join(BASE_DIR, 'rims.log')
-    data('default'             => [ [ default_rims_log, { level: 'info', progname: 'rims' } ], {} ],
-         'rel_name'            => [ [ File.join(BASE_DIR, 'server.log'), { level: 'info', progname: 'rims' } ],
+    data('default'             => [ [ default_rims_log,{ level: 'info', progname: 'rims' } ], {} ],
+         'rel_path'            => [ [ File.join(BASE_DIR, 'server.log'), { level: 'info', progname: 'rims' } ],
                                     { logging: { file: { path: 'server.log' } } } ],
-         'abs_name'            => [ [ '/var/log/rims.log', { level: 'info', progname: 'rims' } ],
+         'abs_path'            => [ [ '/var/log/rims.log', { level: 'info', progname: 'rims' } ],
                                     { logging: { file: { path: '/var/log/rims.log' } } } ],
          'shift_age'           => [ [ default_rims_log, 10, { level: 'info', progname: 'rims' } ],
                                     { logging: { file: { shift_age: 10 } } } ],
