@@ -108,6 +108,7 @@ module RIMS
       #   daemon:
       #     daemonize: true
       #     debug: false
+      #     status_file: rims.pid
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
@@ -260,6 +261,15 @@ module RIMS
         else
           false
         end
+      end
+
+      def status_file
+        file_path = @config.dig('daemon', 'status_file') || 'rims.pid'
+        file_path = Pathname(file_path)
+        if (file_path.relative?) then
+          file_path = base_dir + file_path
+        end
+        file_path.to_path
       end
 
       def listen_address

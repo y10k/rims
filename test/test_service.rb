@@ -292,6 +292,15 @@ module RIMS::Test
       assert_equal(expected_value, @c.daemon_debug?)
     end
 
+    data('default'  => [ File.join(BASE_DIR, 'rims.pid'), {} ],
+         'rel_path' => [ File.join(BASE_DIR, 'status'),   { daemon: { status_file: 'status' } } ],
+         'abs_path' => [ '/var/run/rims.pid',             { daemon: { status_file: '/var/run/rims.pid' } } ])
+    def test_status_file(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.status_file)
+    end
+
     data('default' => [ '0.0.0.0:1430',               {} ],
          'string'  => [ 'imap.example.com:143',       { server: { listen_address: 'imap.example.com:143' } } ],
          'uri'     => [ 'tcp://imap.example.com:143', { server: { listen_address: 'tcp://imap.example.com:143' } } ],
