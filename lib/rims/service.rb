@@ -105,6 +105,15 @@ module RIMS
       #     stdout:
       #       level: info
       #       datetime_format: %Y-%m-%d %H:%M:%S
+      #     protocol:
+      #       # default is not output.
+      #       # to output, set the log level to info or less.
+      #       path: protocol.log
+      #       shift_age: 10
+      #       shift_size: 1048576
+      #       level: info
+      #       datetime_format: %Y-%m-%d %H:%M:%S
+      #       shift_period_suffix: %Y%m%d
       #   daemon:
       #     daemonize: true
       #     debug: false
@@ -242,6 +251,37 @@ module RIMS
         kw_args[:progname] = 'rims'
         if (datetime_format = @config.dig('logging', 'stdout', 'datetime_format')) then
           kw_args[:datetime_format] = datetime_format
+        end
+        logger_params << kw_args
+
+        logger_params
+      end
+
+      # return parameters for Logger.new
+      def make_protocol_logger_params
+        log_path = Pathname(@config.dig('logging', 'protocol', 'path') || 'protocol.log')
+        if (log_path.relative?) then
+          log_path = base_dir + log_path
+        end
+        logger_params = [ log_path.to_s ]
+
+        shift_age = @config.dig('logging', 'protocol', 'shift_age')
+        shift_size = @config.dig('logging', 'protocol', 'shift_size')
+        if (shift_size) then
+          logger_params << (shift_age || 0)
+          logger_params << shift_size
+        elsif (shift_age) then
+          logger_params << shift_age
+        end
+
+        kw_args = {}
+        kw_args[:level] = @config.dig('logging', 'protocol', 'level') || 'unknown'
+        kw_args[:progname] = 'rims'
+        if (datetime_format = @config.dig('logging', 'protocol', 'datetime_format')) then
+          kw_args[:datetime_format] = datetime_format
+        end
+        if (shift_period_suffix = @config.dig('logging', 'protocol', 'shift_period_suffix')) then
+          kw_args[:shift_period_suffix] = shift_period_suffix
         end
         logger_params << kw_args
 

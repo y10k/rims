@@ -274,6 +274,55 @@ module RIMS::Test
       assert_equal(expected_logger_params, @c.make_stdout_logger_params)
     end
 
+    default_protocol_log = File.join(BASE_DIR, 'protocol.log')
+    data('default'             => [ [ default_protocol_log, { level: 'unknown', progname: 'rims' } ], {} ],
+         'rel_path'            => [ [ File.join(BASE_DIR, 'imap.log'), { level: 'unknown', progname: 'rims' } ],
+                                    { logging: { protocol: { path: 'imap.log' } } } ],
+         'abs_path'            => [ [ '/var/log/imap.log', { level: 'unknown', progname: 'rims' } ],
+                                    { logging: { protocol: { path: '/var/log/imap.log' } } } ],
+         'shift_age'           => [ [ default_protocol_log, 10, { level: 'unknown', progname: 'rims' } ],
+                                    { logging: { protocol: { shift_age: 10 } } } ],
+         'shift_daily'         => [ [ default_protocol_log, 'daily', { level: 'unknown', progname: 'rims' } ],
+                                    { logging: { protocol: { shift_age: 'daily' } } } ],
+         'shift_weekly'        => [ [ default_protocol_log, 'weekly', { level: 'unknown', progname: 'rims' } ],
+                                    { logging: { protocol: { shift_age: 'weekly' } } } ],
+         'shift_monthly'       => [ [ default_protocol_log, 'monthly', { level: 'unknown', progname: 'rims' } ],
+                                    { logging: { protocol: { shift_age: 'monthly' } } } ],
+         'shift_size'          => [ [ default_protocol_log, 0, 16777216, { level: 'unknown', progname: 'rims' } ],
+                                    { logging: { protocol: { shift_size: 16777216 } } } ],
+         'level'               => [ [ default_protocol_log, { level: 'info', progname: 'rims' } ],
+                                    { logging: { protocol: { level: 'info' } } } ],
+         'datetime_format'     => [ [ default_protocol_log, { level: 'unknown', progname: 'rims', datetime_format: '%Y%m%d%H%M%S' } ],
+                                    { logging: { protocol: { datetime_format: '%Y%m%d%H%M%S' } } } ],
+         'shift_period_suffix' => [ [ default_protocol_log, { level: 'unknown', progname: 'rims', shift_period_suffix: '%Y-%m-%d' } ],
+                                    { logging: { protocol: { shift_period_suffix: '%Y-%m-%d' } } } ],
+         'all'                 => [ [ '/var/log/imap.log',
+                                      10,
+                                      16777216,
+                                      { level: 'info',
+                                        progname: 'rims',
+                                        datetime_format: '%Y%m%d%H%M%S',
+                                        shift_period_suffix: '%Y-%m-%d'
+                                      }
+                                    ],
+                                    { logging: {
+                                        protocol: {
+                                          path: '/var/log/imap.log',
+                                          shift_age: 10,
+                                          shift_size: 16777216,
+                                          level: 'info',
+                                          datetime_format: '%Y%m%d%H%M%S',
+                                          shift_period_suffix: '%Y-%m-%d'
+                                        }
+                                      }
+                                    }
+                                  ])
+    def test_make_protocol_logger_params(data)
+      expected_logger_params, config = data
+      @c.load(config)
+      assert_equal(expected_logger_params, @c.make_protocol_logger_params)
+    end
+
     data('default'       => [ true,  {} ],
          'daemonize'     => [ true,  { daemon: { daemonize: true } } ],
          'not_daemonize' => [ false, { daemon: { daemonize: false } } ])
