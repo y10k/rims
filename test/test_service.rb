@@ -222,7 +222,7 @@ module RIMS::Test
          'shift_size'          => [ [ default_rims_log, 0, 16777216, { level: 'info', progname: 'rims' } ],
                                     { logging: { file: { shift_size: 16777216 } } } ],
          'level'               => [ [ default_rims_log, { level: 'debug', progname: 'rims' } ],
-                                    { logging: { file: { level: 'debug', progname: 'rims' } } } ],
+                                    { logging: { file: { level: 'debug' } } } ],
          'datetime_format'     => [ [ default_rims_log, { level: 'info', progname: 'rims', datetime_format: '%Y%m%d%H%M%S' } ],
                                     { logging: { file: { datetime_format: '%Y%m%d%H%M%S' } } } ],
          'shift_period_suffix' => [ [ default_rims_log, { level: 'info', progname: 'rims', shift_period_suffix: '%Y-%m-%d' } ],
