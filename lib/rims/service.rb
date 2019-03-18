@@ -528,6 +528,9 @@ module RIMS
       stdout_logger_params = @config.make_stdout_logger_params
       logger += Logger.new(*stdout_logger_params)
 
+      protocol_logger_params = @config.make_protocol_logger_params
+      protocol_logger = Logger.new(*protocol_logger_params)
+
       server.accept_polling_timeout_seconds          = @config.accept_polling_timeout_seconds
       server.process_num                             = @config.process_num
       server.process_queue_size                      = @config.process_queue_size
@@ -578,6 +581,13 @@ module RIMS
         end
         for name, value in stdout_logger_params[-1]
           logger.info("stdout logging parameter: #{name}=#{value}")
+        end
+        logger.info("protocol logging parameter: path=#{protocol_logger_params[0]}")
+        protocol_logger_params[1..-2].each_with_index do |value, i|
+          logger.info("protocol logging parameter: shift_args[#{i}]=#{value}")
+        end
+        for name, value in protocol_logger_params[-1]
+          logger.info("protocol logging parameter: #{name}=#{value}")
         end
         logger.info("listen address: #{server_socket.local_address.inspect_sockaddr}")
         privileged_user = Etc.getpwuid(Process.euid).name rescue ''
@@ -678,24 +688,23 @@ module RIMS
             ssl_socket.accept
             logger.info("accept tls: #{ssl_socket.state}")
             ssl_socket.sync = true
-            input = ssl_socket
-            output = Riser::WriteBufferStream.new(ssl_socket, @config.send_buffer_limit_size)
+            stream = Riser::WriteBufferStream.new(ssl_socket, @config.send_buffer_limit_size)
           else
-            input = socket
-            output = Riser::WriteBufferStream.new(socket, @config.send_buffer_limit_size)
+            stream = Riser::WriteBufferStream.new(socket, @config.send_buffer_limit_size)
           end
+          stream = Riser::LoggingStream.new(stream, protocol_logger)
           decoder = Protocol::Decoder.new_decoder(mail_store_pool, auth, logger,
                                                   mail_delivery_user: @config.mail_delivery_user,
                                                   read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
                                                   write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
                                                   cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
-          Protocol::Decoder.repl(decoder, input, output, logger)
+          Protocol::Decoder.repl(decoder, stream, stream, logger)
         rescue
           logger.error('interrupt connection with unexpected error.')
           logger.error($!)
         ensure
           Error.suppress_2nd_error_at_resource_closing(logger: logger) {
-            output.flush
+            stream.flush
           }
           if (ssl_context) then
             Error.suppress_2nd_error_at_resource_closing(logger: logger) {
