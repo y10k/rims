@@ -46,7 +46,16 @@ module RIMS
 
           tag, command, *opt_args = atom_list
           logger.info("client command: #{tag} #{command}")
-          logger.debug("client command parameter: #{opt_args.inspect}") if logger.debug?
+          if (logger.debug?) then
+            case (command.upcase)
+            when 'LOGIN'
+              log_opt_args = opt_args.dup
+              log_opt_args[-1] = '********'
+            else
+              log_opt_args = opt_args
+            end
+            logger.debug("client command parameter: #{log_opt_args.inspect}")
+          end
 
           begin
             case (command.upcase)
