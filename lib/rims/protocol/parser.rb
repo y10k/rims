@@ -190,7 +190,7 @@ module RIMS
 
       def read_client_response_data_plain(inline_client_response_data_base64)
         if (inline_client_response_data_base64) then
-          @logger.debug("authenticate command: inline client response data: #{inline_client_response_data_base64}") if @logger.debug?
+          @logger.debug("authenticate command: inline client response data: #{Protocol.io_data_log(inline_client_response_data_base64)}") if @logger.debug?
           Protocol.decode_base64(inline_client_response_data_base64)
         else
           read_client_response_data

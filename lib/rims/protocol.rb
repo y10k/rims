@@ -31,13 +31,19 @@ module RIMS
     end
     module_function :compile_wildcard
 
+    IO_DATA_DUMP = false        # true for debug
+
     def io_data_log(str)
       s = '<'
       s << str.encoding.to_s
       if (str.ascii_only?) then
         s << ':ascii_only'
       end
-      s << '> ' << str.inspect
+      if (IO_DATA_DUMP) then
+        s << '> ' << str.inspect
+      else
+        s << '> ' << str.bytesize.to_s << ' octets'
+      end
     end
     module_function :io_data_log
 
