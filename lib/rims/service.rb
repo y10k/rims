@@ -567,11 +567,9 @@ module RIMS
           Array(ssl_context.ciphers).each_with_index do |cipher, i|
             logger.info("openssl parameter: ciphers[#{i}]=#{cipher.join(',')}")
           end
-          if (ssl_context.client_ca) then
-            Array(ssl_context.client_ca).each_with_index do |cert, i|
-              cert.to_text.each_line do |line|
-                logger.info("openssl parameter: client_ca[#{i}]: #{line.chomp}")
-              end
+          Array(ssl_context.client_ca).each_with_index do |cert, i|
+            cert.to_text.each_line do |line|
+              logger.info("openssl parameter: client_ca[#{i}]: #{line.chomp}")
             end
           end
           logger.info("openssl parameter: client_cert_cb=#{ssl_context.client_cert_cb.inspect}") if ssl_context.client_cert_cb
