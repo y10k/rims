@@ -120,7 +120,7 @@ module RIMS
       #     status_file: rims.pid
       #     server_polling_interval_seconds: 3
       #     server_privileged_user: nobody
-      #     server_privileged_group: nouser
+      #     server_privileged_group: nogroup
       #   server:
       #     listen_address:
       #       # see `Riser::SocketAddress.parse' for address format
