@@ -205,6 +205,22 @@ module RIMS::Test
       assert_equal(saved_loaded_features, $LOADED_FEATURES)
     end
 
+    data('default'  => [ [], {} ],
+         'config'   => [ %w[ rims/qdbm rims/passwd/ldap ],
+                         { required_features: %w[ rims/qdbm rims/passwd/ldap ] } ],
+         'compat'   => [ %w[ rims/qdbm rims/passwd/ldap ],
+                         { load_libraries: %w[ rims/qdbm rims/passwd/ldap ] } ],
+         'priority' => [ %w[ rims/qdbm ],
+                         { required_features: %w[ rims/qdbm ],
+                           load_libraries: %w[ rims/passwd/ldap ]
+                         }
+                       ])
+    def test_get_required_features(data)
+      expected_features, config = data
+      @c.load(config)
+      assert_equal(expected_features, @c.get_required_features)
+    end
+
     default_rims_log = File.join(BASE_DIR, 'rims.log')
     data('default'             => [ [ default_rims_log,{ level: 'info', progname: 'rims' } ], {} ],
          'rel_path'            => [ [ File.join(BASE_DIR, 'server.log'), { level: 'info', progname: 'rims' } ],

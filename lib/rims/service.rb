@@ -179,6 +179,11 @@ module RIMS
       #           ldap_uri: ldap://ldap.example.com/ou=user,o=example,dc=nodomain?uid?one?(memberOf=cn=imap,ou=group,o=example,dc=nodomain)
       #   authorization:
       #     mail_delivery_user: "#postman"
+      #
+      # backward compatibility for required_features.
+      #   load_libraries:
+      #     - rims/qdbm
+      #     - rims/passwd/ldap
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -189,7 +194,7 @@ module RIMS
         require 'rims/gdbm_kvs'
         require 'rims/passwd'
 
-        if (feature_list = @config.dig('required_features')) then
+        if (feature_list = get_required_features) then
           for feature in feature_list
             require(feature)
           end
@@ -199,7 +204,9 @@ module RIMS
       end
 
       def get_required_features
-        @config.dig('required_features') || []
+        @config.dig('required_features') ||
+          @config.dig('load_libraries') || # for backward compatibility
+          []
       end
 
       def base_dir
