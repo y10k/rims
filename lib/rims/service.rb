@@ -202,6 +202,11 @@ module RIMS
       #   ip_addr: 0.0.0.0
       #   ip_port: 143
       #   send_buffer_limit: 16384
+      #
+      # backward compatibility for lock.
+      #   read_lock_timeout_seconds: 30
+      #   write_lock_timeout_seconds: 30
+      #   cleanup_write_lock_timeout_seconds: 1
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -479,15 +484,21 @@ module RIMS
       end
 
       def read_lock_timeout_seconds
-        @config.dig('lock', 'read_lock_timeout_seconds') || 30
+        @config.dig('lock', 'read_lock_timeout_seconds') ||
+          @config.dig('read_lock_timeout_seconds') || # for backward compatibility
+          30
       end
 
       def write_lock_timeout_seconds
-        @config.dig('lock', 'write_lock_timeout_seconds') || 30
+        @config.dig('lock', 'write_lock_timeout_seconds') ||
+          @config.dig('write_lock_timeout_seconds') || # for backward compatibility
+          30
       end
 
       def cleanup_write_lock_timeout_seconds
-        @config.dig('lock', 'cleanup_write_lock_timeout_seconds') || 1
+        @config.dig('lock', 'cleanup_write_lock_timeout_seconds') ||
+          @config.dig('cleanup_write_lock_timeout_seconds') || # for backward compatibility
+          1
       end
 
       KeyValueStoreFactoryBuilderParams = Struct.new(:origin_type, :origin_config, :middleware_list)

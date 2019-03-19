@@ -602,24 +602,42 @@ module RIMS::Test
       assert_equal(expected_value, @c.send_buffer_limit_size)
     end
 
-    data('default' => [ 30, {} ],
-         'config'  => [ 15, { lock: { read_lock_timeout_seconds: 15 } } ])
+    data('default'  => [ 30, {} ],
+         'config'   => [ 15, { lock: { read_lock_timeout_seconds: 15 } } ],
+         'compat'   => [ 15, { read_lock_timeout_seconds: 15 } ],
+         'priority' => [ 15,
+                         { lock: { read_lock_timeout_seconds: 15 },
+                           read_lock_timeout_seconds: 20
+                         }
+                       ])
     def test_read_lock_timeout_seconds(data)
       expected_value, config = data
       @c.load(config)
       assert_equal(expected_value, @c.read_lock_timeout_seconds)
     end
 
-    data('default' => [ 30, {} ],
-         'config'  => [ 15, { lock: { write_lock_timeout_seconds: 15 } } ])
+    data('default'  => [ 30, {} ],
+         'config'   => [ 15, { lock: { write_lock_timeout_seconds: 15 } } ],
+         'compat'   => [ 15, { write_lock_timeout_seconds: 15 } ],
+         'priority' => [ 15,
+                         { lock: { write_lock_timeout_seconds: 15 },
+                           write_lock_timeout_seconds: 20,
+                         }
+                       ])
     def test_write_lock_timeout_seconds(data)
       expected_value, config = data
       @c.load(config)
       assert_equal(expected_value, @c.write_lock_timeout_seconds)
     end
 
-    data('default' => [ 1, {} ],
-         'config'  => [ 3, { lock: { cleanup_write_lock_timeout_seconds: 3 } } ])
+    data('default'  => [ 1, {} ],
+         'config'   => [ 3, { lock: { cleanup_write_lock_timeout_seconds: 3 } } ],
+         'compat'   => [ 3, { cleanup_write_lock_timeout_seconds: 3 } ],
+         'priority' => [ 3,
+                         { lock: { cleanup_write_lock_timeout_seconds: 3 },
+                           cleanup_write_lock_timeout_seconds: 5
+                         }
+                       ])
     def test_cleanup_write_lock_timeout_seconds(data)
       expected_value, config = data
       @c.load(config)
