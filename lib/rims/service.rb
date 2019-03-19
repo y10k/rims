@@ -184,6 +184,13 @@ module RIMS
       #   load_libraries:
       #     - rims/qdbm
       #     - rims/passwd/ldap
+      #
+      # backward compatibility for logging.
+      #   log_file: rims.log
+      #   log_level: debug
+      #   log_shift_age: 10
+      #   log_shift_size: 1048576
+      #   log_stdout: info
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -220,14 +227,18 @@ module RIMS
 
       # return parameters for Logger.new
       def make_file_logger_params
-        log_path = Pathname(@config.dig('logging', 'file', 'path') || 'rims.log')
+        log_path = Pathname(@config.dig('logging', 'file', 'path') ||
+                            @config.dig('log_file') || # for backward compatibility
+                            'rims.log')
         if (log_path.relative?) then
           log_path = base_dir + log_path
         end
         logger_params = [ log_path.to_s ]
 
-        shift_age = @config.dig('logging', 'file', 'shift_age')
-        shift_size = @config.dig('logging', 'file', 'shift_size')
+        shift_age = @config.dig('logging', 'file', 'shift_age') ||
+                    @config.dig('log_shift_age') # for backward compatibility
+        shift_size = @config.dig('logging', 'file', 'shift_size') ||
+                     @config.dig('log_shift_size') # for backward compatibility
         if (shift_size) then
           logger_params << (shift_age || 0)
           logger_params << shift_size
@@ -236,7 +247,9 @@ module RIMS
         end
 
         kw_args = {}
-        kw_args[:level] = @config.dig('logging', 'file', 'level') || 'info'
+        kw_args[:level] = @config.dig('logging', 'file', 'level') ||
+                          @config.dig('log_level') || # for backward compatibility
+                          'info'
         kw_args[:progname] = 'rims'
         if (datetime_format = @config.dig('logging', 'file', 'datetime_format')) then
           kw_args[:datetime_format] = datetime_format
@@ -254,7 +267,9 @@ module RIMS
         logger_params = [ STDOUT ]
 
         kw_args = {}
-        kw_args[:level] = @config.dig('logging', 'stdout', 'level') || 'info'
+        kw_args[:level] = @config.dig('logging', 'stdout', 'level') ||
+                          @config.dig('log_stdout') || # for backward compatibility
+                          'info'
         kw_args[:progname] = 'rims'
         if (datetime_format = @config.dig('logging', 'stdout', 'datetime_format')) then
           kw_args[:datetime_format] = datetime_format

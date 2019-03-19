@@ -227,8 +227,12 @@ module RIMS::Test
                                     { logging: { file: { path: 'server.log' } } } ],
          'abs_path'            => [ [ '/var/log/rims.log', { level: 'info', progname: 'rims' } ],
                                     { logging: { file: { path: '/var/log/rims.log' } } } ],
+         'compat_path'         => [ [ File.join(BASE_DIR, 'server.log'), { level: 'info', progname: 'rims' } ],
+                                    { log_file: 'server.log' } ],
          'shift_age'           => [ [ default_rims_log, 10, { level: 'info', progname: 'rims' } ],
                                     { logging: { file: { shift_age: 10 } } } ],
+         'compat_shift_age'    => [ [ default_rims_log, 10, { level: 'info', progname: 'rims' } ],
+                                    { log_shift_age: 10 } ],
          'shift_daily'         => [ [ default_rims_log, 'daily', { level: 'info', progname: 'rims' } ],
                                     { logging: { file: { shift_age: 'daily' } } } ],
          'shift_weekly'        => [ [ default_rims_log, 'weekly', { level: 'info', progname: 'rims' } ],
@@ -237,8 +241,12 @@ module RIMS::Test
                                     { logging: { file: { shift_age: 'monthly' } } } ],
          'shift_size'          => [ [ default_rims_log, 0, 16777216, { level: 'info', progname: 'rims' } ],
                                     { logging: { file: { shift_size: 16777216 } } } ],
+         'compat_shift_size'   => [ [ default_rims_log, 0, 16777216, { level: 'info', progname: 'rims' } ],
+                                    { log_shift_size: 16777216 } ],
          'level'               => [ [ default_rims_log, { level: 'debug', progname: 'rims' } ],
                                     { logging: { file: { level: 'debug' } } } ],
+         'compat_level'        => [ [ default_rims_log, { level: 'debug', progname: 'rims' } ],
+                                    { log_level: 'debug' } ],
          'datetime_format'     => [ [ default_rims_log, { level: 'info', progname: 'rims', datetime_format: '%Y%m%d%H%M%S' } ],
                                     { logging: { file: { datetime_format: '%Y%m%d%H%M%S' } } } ],
          'shift_period_suffix' => [ [ default_rims_log, { level: 'info', progname: 'rims', shift_period_suffix: '%Y-%m-%d' } ],
@@ -263,6 +271,27 @@ module RIMS::Test
                                         }
                                       }
                                     }
+                                  ],
+         'priority'            => [ [ '/var/log/rims.log',
+                                      10,
+                                      16777216,
+                                      { level: 'debug',
+                                        progname: 'rims',
+                                      }
+                                    ],
+                                    { logging: {
+                                        file: {
+                                          path: '/var/log/rims.log',
+                                          shift_age: 10,
+                                          shift_size: 16777216,
+                                          level: 'debug'
+                                        }
+                                      },
+                                      log_file: '/var/log/server.log',
+                                      log_shift_age: 7,
+                                      log_shift_size: 1048576,
+                                      log_level: 'info'
+                                    }
                                   ])
     def test_make_file_logger_params(data)
       expected_logger_params, config = data
@@ -273,6 +302,8 @@ module RIMS::Test
     data('default'         => [ [ STDOUT, { level: 'info', progname: 'rims' } ], {} ],
          'level'           => [ [ STDOUT, { level: 'debug', progname: 'rims' } ],
                                 { logging: { stdout: { level: 'debug' } } } ],
+         'compat_level'    => [ [ STDOUT, { level: 'debug', progname: 'rims' } ],
+                                { log_stdout: 'debug' } ],
          'datetime_format' => [ [ STDOUT, { level: 'info', progname: 'rims', datetime_format: '%Y%m%d%H%M%S' } ],
                                 { logging: { stdout: { datetime_format: '%Y%m%d%H%M%S' } } } ],
          'all'             => [ [ STDOUT, { level: 'debug', progname: 'rims', datetime_format: '%Y%m%d%H%M%S' } ],
@@ -282,6 +313,11 @@ module RIMS::Test
                                       datetime_format: '%Y%m%d%H%M%S'
                                     }
                                   }
+                                }
+                              ],
+         'priority'        => [ [ STDOUT, { level: 'debug', progname: 'rims' } ],
+                                { logging: { stdout: { level: 'debug' } },
+                                  log_stdout: 'info'
                                 }
                               ])
     def test_make_stdout_logger_params(data)
