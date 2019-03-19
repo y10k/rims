@@ -379,14 +379,14 @@ module RIMS::Test
     data('default' => [ '0.0.0.0:1430',               {} ],
          'string'  => [ 'imap.example.com:143',       { server: { listen_address: 'imap.example.com:143' } } ],
          'uri'     => [ 'tcp://imap.example.com:143', { server: { listen_address: 'tcp://imap.example.com:143' } } ],
-         'hash'    => [ { 'type' =>':tcp',
+         'hash'    => [ { 'type' => 'tcp',
                           'host' => 'imap.example.com',
                           'port' => 143,
                           'backlog' => 64
                         },
                         { server: {
                             listen_address: {
-                              'type' =>':tcp',
+                              'type' => 'tcp',
                               'host' => 'imap.example.com',
                               'port' => 143,
                               'backlog' => 64
