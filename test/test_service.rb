@@ -440,24 +440,64 @@ module RIMS::Test
       assert_equal(expected_value, @c.server_privileged_group)
     end
 
-    data('default' => [ '0.0.0.0:1430',               {} ],
-         'string'  => [ 'imap.example.com:143',       { server: { listen_address: 'imap.example.com:143' } } ],
-         'uri'     => [ 'tcp://imap.example.com:143', { server: { listen_address: 'tcp://imap.example.com:143' } } ],
-         'hash'    => [ { 'type' => 'tcp',
-                          'host' => 'imap.example.com',
-                          'port' => 143,
-                          'backlog' => 64
-                        },
-                        { server: {
-                            listen_address: {
-                              'type' => 'tcp',
-                              'host' => 'imap.example.com',
-                              'port' => 143,
-                              'backlog' => 64
-                            }
-                          }
-                        }
-                      ])
+    data('default'          => [ '0.0.0.0:1430', {} ],
+         'string'           => [ 'imap.example.com:143',
+                                 { server: { listen_address: 'imap.example.com:143' } } ],
+         'uri'              => [ 'tcp://imap.example.com:143',
+                                 { server: { listen_address: 'tcp://imap.example.com:143' } } ],
+         'hash'             => [ { 'type' => 'tcp',
+                                   'host'          => 'imap.example.com',
+                                   'port'          => 143,
+                                   'backlog'       => 64
+                                 },
+                                 { server: {
+                                     listen_address: {
+                                       'type'      => 'tcp',
+                                       'host'      => 'imap.example.com',
+                                       'port'      => 143,
+                                       'backlog'   => 64
+                                     }
+                                   }
+                                 }
+                               ],
+         'compat_imap_host' => [ { 'type' => 'tcp',
+                                   'host' => 'imap.example.com',
+                                   'port' => 1430
+                                 },
+                                 { imap_host: 'imap.example.com',
+                                   ip_addr: 'imap2.example.com'
+                                 }
+                               ],
+         'compat_ip_addr'   => [ { 'type' => 'tcp',
+                                   'host'   => 'imap.example.com',
+                                   'port'   => 1430
+                                 },
+                                 { ip_addr: 'imap.example.com' }
+                               ],
+         'compat_imap_port' => [ { 'type' => 'tcp',
+                                   'host' => '0.0.0.0',
+                                   'port' => 143
+                                 },
+                                 { imap_port: 143,
+                                   ip_port: 5000
+                                 }
+                               ],
+         'compat_ip_port'   =>  [ { 'type' => 'tcp',
+                                    'host'  => '0.0.0.0',
+                                    'port'  => 143
+                                  },
+                                  { ip_port: 143 }
+                                ],
+         'priority'         => [ 'imap.example.com:143',
+                                 { server: {
+                                     listen_address: 'imap.example.com:143'
+                                   },
+                                   imap_host: 'imap2.example.com',
+                                   imap_port: 5000,
+                                   ip_addr: 'imap3.example.com',
+                                   ip_port: 6000
+                                 }
+                               ])
     def test_listen_address(data)
       expected_value, config = data
       @c.load(config)
@@ -548,8 +588,14 @@ module RIMS::Test
       assert_nil(@c.ssl_context)
     end
 
-    data('default' => [ 1024 * 16, {} ],
-         'config'  => [ 1024 * 64, { server: { send_buffer_limit_size: 1024 * 64 } } ])
+    data('default'  => [ 1024 * 16, {} ],
+         'config'   => [ 1024 * 64, { server: { send_buffer_limit_size: 1024 * 64 } } ],
+         'compat'   => [ 1024 * 64, { send_buffer_limit: 1024 * 64 } ],
+         'priority' => [ 1024 * 64,
+                         { server: { send_buffer_limit_size: 1024 * 64 },
+                           send_buffer_limit: 1024 * 32
+                         }
+                       ])
     def test_send_buffer_limit_size(data)
       expected_value, config = data
       @c.load(config)

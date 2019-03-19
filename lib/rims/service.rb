@@ -195,6 +195,13 @@ module RIMS
       # backward compatibility for daemon.
       #   process_privilege_user: nobody
       #   process_privilege_group: nogroup
+      #
+      # backward compatibility for server.
+      #   imap_host: 0.0.0.0
+      #   imap_port: 143
+      #   ip_addr: 0.0.0.0
+      #   ip_port: 143
+      #   send_buffer_limit: 16384
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -361,7 +368,24 @@ module RIMS
       end
 
       def listen_address
-        @config.dig('server', 'listen_address') || '0.0.0.0:1430'
+        if (socket_address = @config.dig('server', 'listen_address')) then
+          return socket_address
+        end
+
+        # for backward compatibility
+        host = @config.dig('imap_host') || @config.dig('ip_addr')
+        port = @config.dig('imap_port') || @config.dig('ip_port')
+        if (host || port) then
+          socket_adress = {
+            'type' => 'tcp',
+            'host' => host || '0.0.0.0',
+            'port' => port || 1430
+          }
+          return socket_adress
+        end
+
+        # default
+        '0.0.0.0:1430'
       end
 
       def accept_polling_timeout_seconds
@@ -398,7 +422,9 @@ module RIMS
       end
 
       def send_buffer_limit_size
-        @config.dig('server', 'send_buffer_limit_size') || 1024 * 16
+        @config.dig('server', 'send_buffer_limit_size') ||
+          @config.dig('send_buffer_limit') || # for backward compatibility
+          1024 * 16
       end
 
       module SSLContextConfigAttribute
