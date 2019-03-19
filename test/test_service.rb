@@ -410,18 +410,30 @@ module RIMS::Test
       assert_equal(expected_value, @c.server_polling_interval_seconds)
     end
 
-    data('default' => [ nil, {} ],
-         'name'    => [ 'imap', { daemon: { server_privileged_user: 'imap' } } ],
-         'uid'     => [ 1000,   { daemon: { server_privileged_user: 1000 } } ])
+    data('default'  => [ nil, {} ],
+         'name'     => [ 'imap', { daemon: { server_privileged_user: 'imap' } } ],
+         'uid'      => [ 1000,   { daemon: { server_privileged_user: 1000 } } ],
+         'compat'   => [ 'imap', { process_privilege_user: 'imap' } ],
+         'priority' => [ 'imap',
+                         { daemon: { server_privileged_user: 'imap' },
+                           process_privilege_user: 'nobody'
+                         }
+                       ])
     def test_server_privileged_user(data)
       expected_value, config = data
       @c.load(config)
       assert_equal(expected_value, @c.server_privileged_user)
     end
 
-    data('default' => [ nil, {} ],
-         'name'    => [ 'imap', { daemon: { server_privileged_group: 'imap' } } ],
-         'gid'     => [ 1000,   { daemon: { server_privileged_group: 1000 } } ])
+    data('default'  => [ nil, {} ],
+         'name'     => [ 'imap', { daemon: { server_privileged_group: 'imap' } } ],
+         'gid'      => [ 1000,   { daemon: { server_privileged_group: 1000 } } ],
+         'compat'   => [ 'imap', { process_privilege_group: 'imap' } ],
+         'priority' => [ 'imap',
+                         { daemon: { server_privileged_group: 'imap' },
+                           process_privilege_group: 'nogroup'
+                         }
+                       ])
     def test_server_privileged_group(data)
       expected_value, config = data
       @c.load(config)

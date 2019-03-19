@@ -191,6 +191,10 @@ module RIMS
       #   log_shift_age: 10
       #   log_shift_size: 1048576
       #   log_stdout: info
+      #
+      # backward compatibility for daemon.
+      #   process_privilege_user: nobody
+      #   process_privilege_group: nogroup
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -347,11 +351,13 @@ module RIMS
       end
 
       def server_privileged_user
-        @config.dig('daemon', 'server_privileged_user')
+        @config.dig('daemon', 'server_privileged_user') ||
+          @config.dig('process_privilege_user') # for backward compatibility
       end
 
       def server_privileged_group
-        @config.dig('daemon', 'server_privileged_group')
+        @config.dig('daemon', 'server_privileged_group') ||
+          @config.dig('process_privilege_group') # for backward compatibility
       end
 
       def listen_address
