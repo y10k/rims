@@ -644,98 +644,230 @@ module RIMS::Test
       assert_equal(expected_value, @c.cleanup_write_lock_timeout_seconds)
     end
 
-    data('default'         => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: {},
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                {}
-                              ],
-         'origin_type'     => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: {},
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                { storage: { meta_key_value_store: { type: 'gdbm' } } }
-                              ],
-         'origin_config'   => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: { 'foo' => 'bar' },
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                { storage: { meta_key_value_store: { configuration: { 'foo' => 'bar' } } } }
-                              ],
-         'use_checksum'    => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: {},
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                { storage: { meta_key_value_store: { use_checksum: true } } }
-                              ],
-         'use_checksum_no' => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: {},
-                                  middleware_list: []
-                                },
-                                { storage: { meta_key_value_store: { use_checksum: false } } }
-                              ],
-         'all'             => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: { 'foo' => 'bar' },
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                { storage: {
-                                    meta_key_value_store: {
-                                      type: 'gdbm',
-                                      configuration: { 'foo' => 'bar' },
-                                      use_checksum: true
-                                    }
-                                  }
-                                }
-                              ])
+    data('default'                      => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             {}
+                                           ],
+         'origin_type'                  => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { storage: { meta_key_value_store: { type: 'gdbm' } } }
+                                           ],
+         'compat_origin_type'           => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { meta_key_value_store: { plug_in: 'gdbm' } }
+                                           ],
+         'compat_origin_type2'          =>  [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                                origin_config: {},
+                                                middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                              },
+                                              { key_value_store_type: 'gdbm' }
+                                            ],
+         'compat_origin_type_priority'  => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { meta_key_value_store: { plug_in: 'gdbm' },
+                                               key_value_store_type: 'qdbm'
+                                             }
+                                           ],
+         'origin_config'                => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: { 'foo' => 'bar' },
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { storage: { meta_key_value_store: { configuration: { 'foo' => 'bar' } } } }
+                                           ],
+         'compat_origin_config'         => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: { 'foo' => 'bar' },
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { meta_key_value_store: { configuration: { 'foo' => 'bar' } }  }
+                                           ],
+         'use_checksum'                 => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { storage: { meta_key_value_store: { use_checksum: true } } }
+                                           ],
+         'use_checksum_no'              => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: []
+                                             },
+                                             { storage: { meta_key_value_store: { use_checksum: false } } }
+                                           ],
+         'compat_use_checksum'          => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: []
+                                             },
+                                             { meta_key_value_store: { use_checksum: false } }
+                                           ],
+         'compat_use_checksum2'         => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: []
+                                             },
+                                             { use_key_value_store_checksum: false }
+                                           ],
+         'compat_use_checksum_priority' => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: []
+                                             },
+                                             { meta_key_value_store: { use_checksum: false },
+                                               use_key_value_store_checksum: true
+                                             }
+                                           ],
+         'all'                          => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: { 'foo' => 'bar' },
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { storage: {
+                                                 meta_key_value_store: {
+                                                   type: 'gdbm',
+                                                   configuration: { 'foo' => 'bar' },
+                                                   use_checksum: true
+                                                 }
+                                               }
+                                             }
+                                           ],
+         'priority'                     => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: { 'foo' => 'bar' },
+                                               middleware_list: []
+                                             },
+                                             { storage: {
+                                                 meta_key_value_store: {
+                                                   type: 'gdbm',
+                                                   configuration: { 'foo' => 'bar' },
+                                                   use_checksum: false
+                                                 }
+                                               },
+                                               meta_key_value_store: {
+                                                 plug_in: 'qdbm',
+                                                 configuration: { 'foo' => 'baz' },
+                                                 use_checksum: true
+                                               },
+                                               key_value_store_type: 'qdbm',
+                                               use_key_value_store_checksum: true
+                                             }
+                                           ])
     def test_make_meta_key_value_store_params(data)
       expected_params, config = data
       @c.load(config)
       assert_equal(expected_params, @c.make_meta_key_value_store_params.to_h)
     end
 
-    data('default'         => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: {},
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                {}
-                              ],
-         'origin_type'     => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: {},
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                { storage: { text_key_value_store: { type: 'gdbm' } } }
-                              ],
-         'origin_config'   => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: { 'foo' => 'bar' },
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                { storage: { text_key_value_store: { configuration: { 'foo' => 'bar' } } } }
-                              ],
-         'use_checksum'    => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: {},
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                { storage: { text_key_value_store: { use_checksum: true } } }
-                              ],
-         'use_checksum_no' => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: {},
-                                  middleware_list: []
-                                },
-                                { storage: { text_key_value_store: { use_checksum: false } } }
-                              ],
-         'all'             => [ { origin_type: RIMS::GDBM_KeyValueStore,
-                                  origin_config: { 'foo' => 'bar' },
-                                  middleware_list: [ RIMS::Checksum_KeyValueStore ]
-                                },
-                                { storage: {
-                                    text_key_value_store: {
-                                      type: 'gdbm',
-                                      configuration: { 'foo' => 'bar' },
-                                      use_checksum: true
-                                    }
-                                  }
-                                }
-                              ])
+    data('default'                      => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             {}
+                                           ],
+         'origin_type'                  => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { storage: { text_key_value_store: { type: 'gdbm' } } }
+                                           ],
+         'compat_origin_type'           => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { text_key_value_store: { plug_in: 'gdbm' } }
+                                           ],
+         'compat_origin_type2'          =>  [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                                origin_config: {},
+                                                middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                              },
+                                              { key_value_store_type: 'gdbm' }
+                                            ],
+         'compat_origin_type_priority'  => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { text_key_value_store: { plug_in: 'gdbm' },
+                                               key_value_store_type: 'qdbm'
+                                             }
+                                           ],
+         'origin_config'                => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: { 'foo' => 'bar' },
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { storage: { text_key_value_store: { configuration: { 'foo' => 'bar' } } } }
+                                           ],
+         'compat_origin_config'         => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: { 'foo' => 'bar' },
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { text_key_value_store: { configuration: { 'foo' => 'bar' } }  }
+                                           ],
+         'use_checksum'                 => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { storage: { text_key_value_store: { use_checksum: true } } }
+                                           ],
+         'use_checksum_no'              => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: []
+                                             },
+                                             { storage: { text_key_value_store: { use_checksum: false } } }
+                                           ],
+         'compat_use_checksum'          => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: []
+                                             },
+                                             { text_key_value_store: { use_checksum: false } }
+                                           ],
+         'compat_use_checksum2'         => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: []
+                                             },
+                                             { use_key_value_store_checksum: false }
+                                           ],
+         'compat_use_checksum_priority' => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: {},
+                                               middleware_list: []
+                                             },
+                                             { text_key_value_store: { use_checksum: false },
+                                               use_key_value_store_checksum: true
+                                             }
+                                           ],
+         'all'                          => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: { 'foo' => 'bar' },
+                                               middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                                             },
+                                             { storage: {
+                                                 text_key_value_store: {
+                                                   type: 'gdbm',
+                                                   configuration: { 'foo' => 'bar' },
+                                                   use_checksum: true
+                                                 }
+                                               }
+                                             }
+                                           ],
+         'priority'                     => [ { origin_type: RIMS::GDBM_KeyValueStore,
+                                               origin_config: { 'foo' => 'bar' },
+                                               middleware_list: []
+                                             },
+                                             { storage: {
+                                                 text_key_value_store: {
+                                                   type: 'gdbm',
+                                                   configuration: { 'foo' => 'bar' },
+                                                   use_checksum: false
+                                                 }
+                                               },
+                                               text_key_value_store: {
+                                                 plug_in: 'qdbm',
+                                                 configuration: { 'foo' => 'baz' },
+                                                 use_checksum: true
+                                               },
+                                               key_value_store_type: 'qdbm',
+                                               use_key_value_store_checksum: true
+                                             }
+                                           ])
     def test_make_text_key_value_store_params(data)
       expected_params, config = data
       @c.load(config)

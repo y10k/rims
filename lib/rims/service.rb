@@ -207,6 +207,19 @@ module RIMS
       #   read_lock_timeout_seconds: 30
       #   write_lock_timeout_seconds: 30
       #   cleanup_write_lock_timeout_seconds: 1
+      #
+      # backward compatibility for storage.
+      #   key_value_store_type: gdbm
+      #   use_key_value_store_checksum: true
+      #   meta_key_value_store:
+      #     plug_in: qdbm_depot
+      #     configuration:
+      #       bnum 1200000
+      #     use_checksum: true
+      #   text_key_value_store:
+      #     plug_in: qdbm_curia
+      #     configuration_file: text_kvs_config.yml
+      #     use_checksum: true
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
         self
@@ -515,11 +528,16 @@ module RIMS
 
       def make_key_value_store_params(collection)
         kvs_params = KeyValueStoreFactoryBuilderParams.new
-        kvs_params.origin_type = KeyValueStore::FactoryBuilder.get_plug_in(collection['type'] || 'gdbm')
+        kvs_params.origin_type = KeyValueStore::FactoryBuilder.get_plug_in(collection['type'] ||
+                                                                           collection['plug_in'] ||           # for backward compatibility
+                                                                           @config['key_value_store_type'] || # for backward compatibility
+                                                                           'gdbm')
         kvs_params.origin_config = get_configuration(collection)
 
         if (collection.key? 'use_checksum') then
           use_checksum = collection['use_checksum']
+        elsif (@config.key? 'use_key_value_store_checksum') then
+          use_checksum = @config['use_key_value_store_checksum']
         else
           use_checksum = true   # default
         end
@@ -532,11 +550,15 @@ module RIMS
       private :make_key_value_store_params
 
       def make_meta_key_value_store_params
-        make_key_value_store_params(@config.dig('storage', 'meta_key_value_store') || {})
+        make_key_value_store_params(@config.dig('storage', 'meta_key_value_store') ||
+                                    @config.dig('meta_key_value_store') || # for backward compatibility
+                                    {})
       end
 
       def make_text_key_value_store_params
-        make_key_value_store_params(@config.dig('storage', 'text_key_value_store') || {})
+        make_key_value_store_params(@config.dig('storage', 'text_key_value_store') ||
+                                    @config.dig('text_key_value_store') || # for backward compatibility
+                                    {})
       end
 
       def make_key_value_store_path(mailbox_data_structure_version, unique_user_id)
