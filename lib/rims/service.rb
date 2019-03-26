@@ -516,12 +516,6 @@ module RIMS
     using Logger::JointPlus
 
     def setup(server)
-      Riser.preload
-      Riser.preload(RIMS)
-      Riser.preload(RIMS::Protocol)
-
-      @config.require_features
-
       file_logger_params = @config.make_file_logger_params
       logger = Logger.new(*file_logger_params)
 
@@ -531,6 +525,13 @@ module RIMS
       protocol_logger_params = @config.make_protocol_logger_params
       protocol_logger = Logger.new(*protocol_logger_params)
 
+      logger.info('preload libraries.')
+      Riser.preload
+      Riser.preload(RIMS)
+      Riser.preload(RIMS::Protocol)
+      @config.require_features
+
+      logger.info('setup server.')
       server.accept_polling_timeout_seconds          = @config.accept_polling_timeout_seconds
       server.process_num                             = @config.process_num
       server.process_queue_size                      = @config.process_queue_size
