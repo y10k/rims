@@ -903,24 +903,23 @@ module RIMS::Test
     }
 
     data('users', authentication_users)
-    def test_make_authentication(data)
+    def test_make_authentication_default(data)
       auth = @c.make_authentication
       assert_equal(Socket.gethostname, auth.hostname)
 
       auth.start_plug_in(@logger)
       for pw in data[:presence]
-        assert_equal(false, (auth.user? pw['user']))
-        assert(! auth.authenticate_login(pw['user'], pw['pass']))
+        assert_equal(false, (auth.user? pw['user']), "user: #{pw['user']}")
+        assert(! auth.authenticate_login(pw['user'], pw['pass']), "user: #{pw['user']}")
       end
       for pw in data[:absence]
-        assert_equal(false, (auth.user? pw['user']))
-        assert(! auth.authenticate_login(pw['user'], pw['pass']))
+        assert_equal(false, (auth.user? pw['user']), "user: #{pw['user']}")
+        assert(! auth.authenticate_login(pw['user'], pw['pass']), "user: #{pw['user']}")
       end
       auth.stop_plug_in(@logger)
     end
 
-    data('users', authentication_users)
-    def test_make_authentication_hostname(data)
+    def test_make_authentication_hostname
       @c.load(authentication: {
                 hostname: 'imap.example.com'
               })
