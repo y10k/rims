@@ -1045,18 +1045,18 @@ module RIMS::Test
       assert_equal('not found a password source type.', error.message)
     end
 
-    data('config'   => { authorization: { mail_delivery_user: 'alice' } },
-         'compat'   => { mail_delivery_user: 'alice' },
-         'priority' => { authorization: { mail_delivery_user: 'alice' },
-                         mail_delivery_user: 'bob'
-                       })
-    def test_mail_delivery_user(config)
+    data('default'  => [ '#postman', {} ],
+         'config'   => [ 'alice', { authorization: { mail_delivery_user: 'alice' } } ],
+         'compat'   => [ 'alice', { mail_delivery_user: 'alice' } ],
+         'priority' => [ 'alice',
+                         { authorization: { mail_delivery_user: 'alice' },
+                           mail_delivery_user: 'bob'
+                         }
+                       ])
+    def test_mail_delivery_user(data)
+      expected_user, config = data
       @c.load(config)
-      assert_equal('alice', @c.mail_delivery_user)
-    end
-
-    def test_mail_delivery_user_default
-      assert_equal('#postman', @c.mail_delivery_user)
+      assert_equal(expected_user, @c.mail_delivery_user)
     end
   end
 end
