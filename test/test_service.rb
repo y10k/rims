@@ -927,50 +927,40 @@ module RIMS::Test
       assert_equal('imap.example.com', auth.hostname)
     end
 
-    data('users', authentication_users)
-    def test_make_authentication_password_source_single(data)
-      @c.load(authentication: {
-                password_sources: [
-                  { type: 'plain',
-                    configuration: data[:presence]
-                  }
-                ]
-              })
+    data('single'   => [ authentication_users,
+                         { authentication: {
+                             password_sources: [
+                               { type: 'plain',
+                                 configuration: authentication_users[:presence]
+                               }
+                             ]
+                           }
+                         }
+                       ],
+         'multiple' => [ authentication_users,
+                         { authentication: {
+                             password_sources: authentication_users[:presence].map{|pw|
+                               { type: 'plain',
+                                 configuration: [ pw ]
+                               }
+                             }
+                           }
+                         }
+                       ])
+    def test_make_authentication_password_sources(data)
+      users, config = data
+      @c.load(config)
       auth = @c.make_authentication
 
       auth.start_plug_in(@logger)
-      for pw in data[:presence]
-        assert_equal(true, (auth.user? pw['user']))
-        assert(auth.authenticate_login(pw['user'], pw['pass']))
-        assert(! auth.authenticate_login(pw['user'], pw['pass'].succ))
+      for pw in users[:presence]
+        assert_equal(true, (auth.user? pw['user']), "user: #{pw['user']}")
+        assert(auth.authenticate_login(pw['user'], pw['pass']), "user: #{pw['user']}")
+        assert(! auth.authenticate_login(pw['user'], pw['pass'].succ), "user: #{pw['user']}")
       end
-      for pw in data[:absence]
-        assert_equal(false, (auth.user? pw['user']))
-        assert(! auth.authenticate_login(pw['user'], pw['pass']))
-      end
-      auth.stop_plug_in(@logger)
-    end
-
-    data('users', authentication_users)
-    def test_make_authentication_password_source_multiple(data)
-      @c.load(authentication: {
-                password_sources: data[:presence].map{|pw|
-                  { type: 'plain',
-                    configuration: [ pw ]
-                  }
-                }
-              })
-      auth = @c.make_authentication
-
-      auth.start_plug_in(@logger)
-      for pw in data[:presence]
-        assert_equal(true, (auth.user? pw['user']))
-        assert(auth.authenticate_login(pw['user'], pw['pass']))
-        assert(! auth.authenticate_login(pw['user'], pw['pass'].succ))
-      end
-      for pw in data[:absence]
-        assert_equal(false, (auth.user? pw['user']))
-        assert(! auth.authenticate_login(pw['user'], pw['pass']))
+      for pw in users[:absence]
+        assert_equal(false, (auth.user? pw['user']), "user: #{pw['user']}")
+        assert(! auth.authenticate_login(pw['user'], pw['pass']), "user: #{pw['user']}")
       end
       auth.stop_plug_in(@logger)
     end
