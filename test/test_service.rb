@@ -919,34 +919,103 @@ module RIMS::Test
       auth.stop_plug_in(@logger)
     end
 
-    def test_make_authentication_hostname
-      @c.load(authentication: {
-                hostname: 'imap.example.com'
-              })
+    data('config'   => { authentication: { hostname: 'imap.example.com' } },
+         'compat'   => { hostname: 'imap.example.com' },
+         'priority' => { authentication: { hostname: 'imap.example.com' },
+                         hostname: 'imap2.example.com'
+                       })
+    def test_make_authentication_hostname(config)
+      @c.load(config)
       auth = @c.make_authentication
       assert_equal('imap.example.com', auth.hostname)
     end
 
-    data('single'   => [ authentication_users,
-                         { authentication: {
-                             password_sources: [
-                               { type: 'plain',
-                                 configuration: authentication_users[:presence]
-                               }
-                             ]
-                           }
-                         }
-                       ],
-         'multiple' => [ authentication_users,
-                         { authentication: {
-                             password_sources: authentication_users[:presence].map{|pw|
-                               { type: 'plain',
-                                 configuration: [ pw ]
-                               }
-                             }
-                           }
-                         }
-                       ])
+    data('single'                   => [ authentication_users,
+                                         { authentication: {
+                                             password_sources: [
+                                               { type: 'plain',
+                                                 configuration: authentication_users[:presence]
+                                               }
+                                             ]
+                                           }
+                                         }
+                                       ],
+         'multiple'                 => [ authentication_users,
+                                         { authentication: {
+                                             password_sources: authentication_users[:presence].map{|pw|
+                                               { type: 'plain',
+                                                 configuration: [ pw ]
+                                               }
+                                             }
+                                           }
+                                         }
+                                       ],
+         'compat_username'          => [ { presence: [ authentication_users[:presence][0] ],
+                                           absence: authentication_users[:absence]
+                                         },
+                                         { username: authentication_users[:presence][0]['user'],
+                                           password: authentication_users[:presence][0]['pass'],
+                                         }
+                                       ],
+         'compat_user_list'         => [ authentication_users,
+                                         { user_list: authentication_users[:presence] }
+                                       ],
+         'compat_authentication'    => [ authentication_users,
+                                         { authentication: [
+                                             { plug_in: 'plain',
+                                               configuration: authentication_users[:presence]
+                                             }
+                                           ]
+                                         }
+                                       ],
+         'compat_priored_user_list' => [ authentication_users,
+                                         { username: authentication_users[:presence][0]['user'],
+                                           password: 'random',
+                                           user_list: authentication_users[:presence],
+                                           authentication: [
+                                             { plug_in: 'plain',
+                                               configuration: authentication_users[:presence].map{|pw|
+                                                 { user: pw['user'],
+                                                   pass: 'random'
+                                                 }
+                                               }
+                                             }
+                                           ]
+                                         }
+                                       ],
+         'compat_priored_username'  => [ { presence: [ authentication_users[:presence][0] ],
+                                           absence: authentication_users[:absence]
+                                         },
+                                         { username: authentication_users[:presence][0]['user'],
+                                           password: authentication_users[:presence][0]['pass'],
+                                           authentication: [
+                                             { plug_in: 'plain',
+                                               configuration: [
+                                                 { user: authentication_users[:presence][0]['user'],
+                                                   pass: 'random'
+                                                 }
+                                               ]
+                                             }
+                                           ]
+                                         }
+                                       ],
+         'priority'                 => [ authentication_users,
+                                         { authentication: {
+                                             password_sources: [
+                                               { type: 'plain',
+                                                 configuration: authentication_users[:presence]
+                                               }
+                                             ]
+                                           },
+                                           username: authentication_users[:presence][0]['user'],
+                                           password: 'random',
+                                           user_list: authentication_users[:presence].map{|pw|
+                                             { user: pw['user'],
+                                               pass: 'random'
+                                             }
+                                           }
+                                         }
+                                       ])
     def test_make_authentication_password_sources(data)
       users, config = data
       @c.load(config)
