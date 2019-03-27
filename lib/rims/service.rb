@@ -563,7 +563,7 @@ module RIMS
         if (collection.key? 'use_checksum') then
           use_checksum = collection['use_checksum']
         elsif (@config.key? 'use_key_value_store_checksum') then
-          use_checksum = @config['use_key_value_store_checksum']
+          use_checksum = @config['use_key_value_store_checksum'] # for backward compatibility
         else
           use_checksum = true   # default
         end
