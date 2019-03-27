@@ -389,7 +389,7 @@ module RIMS
         if (file_path.relative?) then
           file_path = base_dir + file_path
         end
-        file_path.to_path
+        file_path.to_s
       end
 
       def server_polling_interval_seconds
