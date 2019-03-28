@@ -4,6 +4,7 @@ require 'logger'
 require 'net/imap'
 require 'optparse'
 require 'pp'if $DEBUG
+require 'riser'
 require 'syslog'
 require 'syslog/logger'
 require 'yaml'
@@ -403,11 +404,19 @@ module RIMS
     module_function :make_service_config
 
     def cmd_server(options, args)
-      conf = make_server_config(options)
+      build = make_service_config(options)
       options.parse!(args)
 
-      server = conf.build_server
-      server.start
+      config = build.call
+      server = Riser::SocketServer.new
+      service = RIMS::Service.new(config)
+      service.setup(server)
+
+      Signal.trap(:INT) { server.signal_stop_forced }
+      Signal.trap(:TERM) { server.signal_stop_graceful }
+
+      listen_address = Riser::SocketAddress.parse(config.listen_address)
+      server.start(listen_address.open_server)
 
       0
     end
@@ -645,12 +654,12 @@ module RIMS
                         [ [ :is_daemon,
                             true,
                             '--[no-]daemon',
-                            'Start daemon process. default is enabled.'
+                            'Obsoleted.'
                           ],
                           [ :is_syslog,
                             true,
                             '--[no-]syslog',
-                            'Syslog daemon messages. default is enabled.'
+                            'Obsoleted.'
                           ]
                         ])
       conf.help_option(add_banner: ' start/stop/restart/status [server options]')
@@ -660,73 +669,64 @@ module RIMS
       pp args if $DEBUG
 
       operation = args.shift or raise 'need for daemon operation.'
-      server_args = args.dup
       server_options = OptionParser.new
-      server_conf = make_server_config(server_options)
-      server_options.parse!(server_args)
-      stat_file_path = Daemon.make_stat_file_path(server_conf.base_dir)
-      pp server_conf if $DEBUG
+      build = make_service_config(server_options)
+      server_options.parse!(args)
+
+      svc_conf = build.call
+      pp svc_conf if $DEBUG
+
+      status_file_locked = lambda{
+        begin
+          File.open(svc_conf.status_file, File::WRONLY) {|lock_file|
+            ! lock_file.flock(File::LOCK_EX | File::LOCK_NB)
+          }
+        rescue Errno::ENOENT
+          false
+        end
+      }
 
       case (operation)
       when 'start'
-        if (conf[:is_daemon]) then
-          args += %w[ --log-stdout=quiet ]
-          Process.daemon(true)
-        end
-
-        logger = Multiplexor.new
-        unless (conf[:is_daemon]) then
-          stdout_logger = Logger.new(STDOUT)
-          def stdout_logger.close # should not be closed at child process.
-            nil
-          end
-          logger.add(stdout_logger)
-        end
-        if (conf[:is_syslog]) then
-          syslog_logger = Syslog::Logger.new('rims-daemon')
-          def syslog_logger.close # should be closed at child process.
-            Syslog.close
-          end
-          logger.add(syslog_logger)
-        end
-
-        daemon = Daemon.new(stat_file_path, logger, server_options: args)
-
-        [ [ Daemon::RELOAD_SIGNAL_LIST, proc{ daemon.reload_server } ],
-          [ Daemon::RESTART_SIGNAL_LIST, proc{ daemon.restart_server } ],
-          [ Daemon::STOP_SIGNAL_LIST, proc{ daemon.stop_server } ]
-        ].each do |signal_list, signal_command|
-          for sig_name in signal_list
-            Signal.trap(sig_name, signal_command)
-          end
-        end
-
-        daemon.run
+        Riser::Daemon.start_daemon(daemonize: svc_conf.daemonize?,
+                                   daemon_name: svc_conf.daemon_name,
+                                   daemon_debug: svc_conf.daemon_debug?,
+                                   status_file: svc_conf.status_file,
+                                   listen_address: proc{
+                                     # to reload on server restart
+                                     build.call.listen_address
+                                   },
+                                   server_polling_interval_seconds: svc_conf.server_polling_interval_seconds,
+                                   server_restart_overlap_seconds: svc_conf.server_restart_overlap_seconds,
+                                   server_privileged_user: svc_conf.server_privileged_user,
+                                   server_privileged_group: svc_conf.server_privileged_group
+                                  ) {|server|
+          c = build.call        # to reload on server restart
+          service = RIMS::Service.new(c)
+          service.setup(server, daemon: true)
+        }
       when 'stop'
-        stat_file = Daemon.new_status_file(stat_file_path)
-        stat_file.open{
-          stat_file.should_be_locked
-          pid = YAML.load(stat_file.read)['pid']
-          Process.kill(Daemon::STOP_SIGNAL, pid)
-        }
+        if (status_file_locked.call) then
+          pid = YAML.load(IO.read(svc_conf.status_file))['pid']
+          Process.kill(Riser::Daemon::SIGNAL_STOP_GRACEFUL, pid)
+        else
+          abort('No daemon.')
+        end
       when 'restart'
-        stat_file = Daemon.new_status_file(stat_file_path)
-        stat_file.open{
-          stat_file.should_be_locked
-          pid = YAML.load(stat_file.read)['pid']
-          Process.kill(Daemon::RESTART_SIGNAL, pid)
-        }
+        if (status_file_locked.call) then
+          pid = YAML.load(IO.read(svc_conf.status_file))['pid']
+          Process.kill(Riser::Daemon::SIGNAL_RESTART_GRACEFUL, pid)
+        else
+          abort('No daemon.')
+        end
       when 'status'
-        stat_file = Daemon.new_status_file(stat_file_path)
-        stat_file.open{
-          if (stat_file.locked?) then
-            puts 'daemon is running.' if conf[:verbose]
-            return 0
-          else
-            puts 'daemon is stopped.' if conf[:verbose]
-            return 1
-          end
-        }
+        if (status_file_locked.call) then
+          puts 'daemon is running.' if conf[:verbose]
+          return 0
+        else
+          puts 'daemon is stopped.' if conf[:verbose]
+          return 1
+        end
       else
         raise "unknown daemon operation: #{operation}"
       end
