@@ -374,6 +374,10 @@ module RIMS
         end
       end
 
+      def daemon_name
+        'rims'
+      end
+
       def daemon_debug?
         daemon_config = @config['daemon'] || {}
         if (daemon_config.key? 'debug') then
