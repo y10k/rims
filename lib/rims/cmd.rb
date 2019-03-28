@@ -168,6 +168,240 @@ module RIMS
     end
     module_function :make_server_config
 
+    class ServiceConfigChainBuilder
+      def initialize
+        @build = proc{ Service::Configuration.new }
+      end
+
+      def chain(&block)
+        parent = @build
+        @build = proc{ block.call(parent.call) }
+        self
+      end
+
+      def call
+        @build.call
+      end
+    end
+
+    def make_service_config(options)
+      build = ServiceConfigChainBuilder.new
+      build.chain{|c| c.load(base_dir: Dir.getwd) }
+
+      options.on('-h', '--help', 'Show this message.') do
+        puts options
+        exit
+      end
+      options.on('-f', '--config-yaml=CONFIG_FILE',
+                 "Load optional parameters from CONFIG_FILE."
+                ) do |path|
+        build.chain{|c| c.load_yaml(path) }
+      end
+      options.on('-I', '--required-feature=FEATURE',
+                 "Add required feature."
+                ) do |feature|
+        build.chain{|c| c.load(required_features: [ feature ]) }
+      end
+      options.on('-d', '--base-dir=DIR',
+                 "Directory that places log file, mailbox database, etc. default is current directory."
+                ) do |path|
+        build.chain{|c| c.load(base_dir: path) }
+      end
+      options.on('--log-file=FILE',
+                 "Name of log file. default is `rims.log'."
+                ) do |path|
+        build.chain{|c|
+          c.load(logger: {
+                   file: {
+                     path: path
+                   }
+                 })
+        }
+      end
+      options.on('-l', '--log-level=LEVEL',
+                 %w[ debug info warn error fatal unknown ],
+                 "Logging level (debug,info,warn,error,fatal,unknown). default is `info'."
+                ) do |level|
+        build.chain{|c|
+          c.load(logging: {
+                   file: {
+                     level: level
+                   }
+                 })
+        }
+      end
+      options.on('--log-shift-age=NUMBER',
+                 Integer,
+                 'Number of old log files to keep.'
+                ) do |num|
+        build.chain{|c|
+          c.load(logging: {
+                   file: {
+                     shift_age: num
+                   }
+                 })
+        }
+      end
+      options.on('--log-shift-age-daily',
+                 'Frequency of daily log rotation.'
+                ) do
+        build.chain{|c|
+          c.load(logger: {
+                   file: {
+                     shift_age: 'daily'
+                   }
+                 })
+        }
+      end
+      options.on('--log-shift-age-weekly',
+                 'Frequency of weekly log rotation.'
+                ) do
+        build.chain{|c|
+          c.load(logger: {
+                   file: {
+                     shift_age: 'weekly'
+                   }
+                 })
+        }
+      end
+      options.on('--log-shift-age-monthly',
+                 'Frequency of monthly log rotation.'
+                ) do
+        build.chain{|c|
+          c.load(logger: {
+                   file: {
+                     shift_age: 'monthly'
+                   }
+                 })
+        }
+      end
+      options.on('--log-shift-size=SIZE',
+                 Integer,
+                 'Maximum logfile size.'
+                ) do |size|
+        build.chain{|c|
+          c.load(logger: {
+                   file: {
+                     shift_size: size
+                   }
+                 })
+        }
+      end
+      options.on('-v', '--log-stdout=LEVEL',
+                 %w[ debug info warn error fatal unknown quiet ],
+                 "Stdout logging level (debug,info,warn,error,fatal,unknown,quiet). default is `info'."
+                ) do |level|
+        if (level == 'quiet') then
+          level = 'unknown'
+        end
+        build.chain{|c|
+          c.load(logging: {
+                   stdout: {
+                     level: level
+                   }
+                 })
+        }
+      end
+      options.on('--[no-]daemonize',
+                 "Daemonize server process. effective only with daemon command."
+                ) do |daemonize|
+        build.chain{|c|
+          c.load(daemon: {
+                   daemonize: daemonize
+                 })
+        }
+      end
+      options.on('--[no-]daemon-debug',
+                 "Debug daemon. effective only with daemon command."
+                ) do |debug|
+        build.chain{|c|
+          c.load(daemon: {
+                   debug: debug
+                 })
+        }
+      end
+      options.on('--status-file=FILE',
+                 "Name of status file. effective only with daemon command. default is `rims.log'."
+                ) do |path|
+        build.chain{|c|
+          c.load(daemon: {
+                   status_file: path
+                 })
+        }
+      end
+      options.on('--privilege-user=USER',
+                 "Privilege user name or ID for server process. effective only with daemon command."
+                ) do |user|
+        build.chain{|c|
+          c.load(daemon: {
+                   server_privileged_user: user
+                 })
+        }
+      end
+      options.on('--privilege-group=GROUP',
+                 "Privilege group name or ID for server process. effective only with daemon command."
+                ) do |group|
+        build.chain{|c|
+          c.load(daemon: {
+                   server_privileged_group: group
+                 })
+        }
+      end
+      options.on('--imap-host=HOSTNAME',
+                 "IMAP server hostname or IP address for the server to bind. default is `0.0.0.0'."
+                ) do |host|
+        build.chain{|c| c.load(imap_host: host) }
+      end
+      options.on('--imap-port=PORT',
+                 "IMAP server port number or service name for the server to bind. default is `1430'."
+                ) do |value|
+        if (value =~ /\A \d+ \z/x) then
+          port_number = value.to_i
+          build.chain{|c| c.load(imap_port: port_number) }
+        else
+          service_name = value
+          build.chain{|c| c.load(imap_port: service_name) }
+        end
+      end
+      options.on('--kvs-type=TYPE',
+                 "Choose the key-value store type of mailbox database. load plug-in on config.yml."
+                ) do |kvs_type|
+        build.chain{|c| c.load(key_value_store_type: kvs_type) }
+      end
+      options.on('--[no-]use-kvs-cksum',
+                 "Enable/disable data checksum at key-value store. default is enabled."
+                ) do |use_checksum|
+        build.chain{|c| c.load(use_key_value_store_checksum: use_checksum) }
+      end
+      options.on('-u', '--username=NAME',
+                 "Username to login IMAP server. required parameter to start server."
+                ) do |name|
+        build.chain{|c| c.load(username: name) }
+      end
+      options.on('-w', '--password=PASS',
+                 "Password to login IMAP server. required parameter to start server."
+                ) do |pass|
+        build.chain{|c| c.load(password: pass) }
+      end
+
+      options.on('--ip-addr=IP_ADDR',
+                 'Deplicated.'
+                ) do |ip_addr|
+        warn("warning: `--ip-addr=IP_ADDR' is deplicated option and should use `--imap-host=HOSTNAME'.")
+        build.chain{|c| c.load(ip_addr: ip_addr) }
+      end
+      options.on('--ip-port=PORT',
+                 Integer,
+                 'Deplicated.'
+                ) do |port|
+        warn("warning: `--ip-port=PORT' is deplicated option and should use `--imap-port=PORT'.")
+        build.chain{|c| c.load(ip_port: port) }
+      end
+
+      build
+    end
+    module_function :make_service_config
+
     def cmd_server(options, args)
       conf = make_server_config(options)
       options.parse!(args)
