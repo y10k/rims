@@ -672,12 +672,14 @@ module RIMS
 
     using Logger::JointPlus
 
-    def setup(server)
+    def setup(server, daemon: false)
       file_logger_params = @config.make_file_logger_params
       logger = Logger.new(*file_logger_params)
 
       stdout_logger_params = @config.make_stdout_logger_params
-      logger += Logger.new(*stdout_logger_params)
+      unless (daemon && @config.daemonize?) then
+        logger += Logger.new(*stdout_logger_params)
+      end
 
       protocol_logger_params = @config.make_protocol_logger_params
       protocol_logger = Logger.new(*protocol_logger_params)
