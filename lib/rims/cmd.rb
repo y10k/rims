@@ -72,103 +72,6 @@ module RIMS
     end
     command_function :cmd_version, 'Show software version.'
 
-    def make_server_config(options)
-      conf = RIMS::Config.new
-      conf.load(base_dir: Dir.getwd)
-
-      options.on('-h', '--help', 'Show this message.') do
-        puts options
-        exit
-      end
-      options.on('-f', '--config-yaml=CONFIG_FILE',
-                 "Load optional parameters from CONFIG_FILE.") do |path|
-        conf.load_config_yaml(path)
-      end
-      options.on('-d', '--base-dir=DIR',
-                 "Directory that places log file, mailbox database, etc. default is current directory.") do |path|
-        conf.load(base_dir: path)
-      end
-      level_list = %w[ debug info warn error fatal ]
-      stdout_list = level_list + %w[ quiet ]
-      options.on('-v', '--log-stdout=LEVEL', stdout_list,
-                 "Stdout logging level (#{stdout_list.join(' ')}). default is `info'.") do |level|
-        conf.load(log_stdout: level)
-      end
-      options.on('--log-file=FILE',
-                 "Name of log file. the directory part preceding file name is ignored. default is `imap.log'.") do |path|
-        conf.load(log_file: path)
-      end
-      options.on('-l', '--log-level=LEVEL', level_list,
-                 "Logging level (#{level_list.join(' ')}). default is `info'.") do |level|
-        conf.load(log_level: level)
-      end
-      options.on('--log-shift-age=NUMBER', Integer, 'Number of old log files to keep.') do |num|
-        conf.load(log_shift_age: num)
-      end
-      options.on('--log-shift-age-daily', 'Frequency of daily log rotation.') do
-        conf.load(log_shift_age: 'daily')
-      end
-      options.on('--log-shift-age-weekly', 'Frequency of weekly log rotation.') do
-        conf.load(log_shift_age: 'weekly')
-      end
-      options.on('--log-shift-age-monthly', 'Frequency of monthly log rotation.') do
-        conf.load(log_shift_age: 'monthly')
-      end
-      options.on('--log-shift-size=SIZE', Integer, 'Maximum logfile size.') do |size|
-        conf.load(log_shift_size: size)
-      end
-      options.on('--kvs-type=TYPE', %w[ gdbm ],
-                 "Choose the key-value store type of mailbox database. load plug-in on config.yml.") do |type|
-        conf.load(key_value_store_type: type)
-      end
-      options.on('--[no-]use-kvs-cksum',
-                 "Enable/disable data checksum at key-value store. default is enabled.") do |use|
-        conf.load(use_key_value_store_checksum: use)
-      end
-      options.on('-u', '--username=NAME',
-                 "Username to login IMAP server. required parameter to start server.") do |name|
-        conf.load(username: name)
-      end
-      options.on('-w', '--password=PASS',
-                 "Password to login IMAP server. required parameter to start server.") do |pass|
-        conf.load(password: pass)
-      end
-      options.on('--imap-host=HOSTNAME',
-                 "IMAP server hostname or IP address for the server to bind. default is `#{Server::DEFAULT[:imap_host]}'.") do |host|
-        conf.load(imap_host: host)
-      end
-      options.on('--imap-port=PORT',
-                 "IMAP server port number or service name for the server to bind. default is `#{Server::DEFAULT[:imap_port]}'.") do |value|
-        if (value =~ /\A\d+\z/) then
-          port_number = value.to_i
-          conf.load(imap_port: port_number)
-        else
-          service_name = value
-          conf.load(imap_port: service_name)
-        end
-      end
-      options.on('--privilege-user=NAME',
-                 "Privilege user name or ID for server process. default is #{Server::DEFAULT[:process_privilege_uid]}.") do |name|
-        conf.load(process_privilege_user: name)
-      end
-      options.on('--privilege-group=NAME',
-                 "Privilege group name or ID for server process. default is #{Server::DEFAULT[:process_privilege_gid]}.") do |name|
-        conf.load(process_privilege_user: name)
-      end
-
-      options.on('--ip-addr=IP_ADDR', 'obsoleted.') do |ip_addr|
-        warn("warning: `--ip-addr=IP_ADDR' is obsoleted option and should use `--imap-host=HOSTNAME'.")
-        conf.load(ip_addr: ip_addr)
-      end
-      options.on('--ip-port=PORT', Integer, 'obsoleted.') do |port|
-        warn("warning: `--ip-port=PORT' is obsoleted option and should use `--imap-port=PORT'.")
-        conf.load(ip_port: port)
-      end
-
-      conf
-    end
-    module_function :make_server_config
-
     class ServiceConfigChainBuilder
       def initialize
         @build = proc{ Service::Configuration.new }
@@ -457,8 +360,8 @@ module RIMS
       end
 
       IMAP_CONNECT_OPTION_LIST = self.make_imap_connect_option_list
-      POST_MAIL_CONNECT_OPTION_LIST = self.make_imap_connect_option_list(imap_port: Server::DEFAULT[:imap_port],
-                                                                         username: Server::DEFAULT[:mail_delivery_user])
+      POST_MAIL_CONNECT_OPTION_LIST = self.make_imap_connect_option_list(imap_port: 1430,
+                                                                         username: '#postman')
 
       IMAP_MAILBOX_OPTION_LIST = [
         [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ]
@@ -905,25 +808,26 @@ module RIMS
     command_function :cmd_unique_user_id, 'Show unique user ID from username.'
 
     def cmd_show_user_mbox(options, args)
-      conf = RIMS::Config.new
-      load_server_config = false
+      svc_conf = RIMS::Service::Configuration.new
+      load_service_config = false
 
       options.banner += ' [base directory] [username] OR -f [config.yml path] [username]'
       options.on('-f', '--config-yaml=CONFIG_FILE',
+                 String,
                  'Load optional parameters from CONFIG_FILE.') do |path|
-        conf.load_config_yaml(path)
-        load_server_config = true
+        svc_conf.load_yaml(path)
+        load_service_config = true
       end
       options.parse!(args)
 
-      unless (load_server_config) then
+      unless (load_service_config) then
         base_dir = args.shift or raise 'need for base directory.'
-        conf.load(base_dir: base_dir)
+        svc_conf.load(base_dir: base_dir)
       end
 
       username = args.shift or raise 'need for a username.'
       unique_user_id = Authentication.unique_user_id(username)
-      puts conf.make_key_value_store_path_from_base_dir(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id)
+      puts svc_conf.make_key_value_store_path(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id)
 
       0
     end
