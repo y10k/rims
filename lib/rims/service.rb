@@ -244,7 +244,7 @@ module RIMS
       #         ldap_uri: ldap://ldap.example.com/ou=user,o=example,dc=nodomain?uid?one?(memberOf=cn=imap,ou=group,o=example,dc=nodomain)
       #
       # backward compatibility for authorization.
-      #   mail_delivery_user: #postman
+      #   mail_delivery_user: "#postman"
       #
       def load_yaml(path)
         load(YAML.load_file(path), File.dirname(path))
