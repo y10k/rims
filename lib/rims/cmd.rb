@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'json'
 require 'logger'
 require 'net/imap'
 require 'optparse'
@@ -92,26 +93,33 @@ module RIMS
       build = ServiceConfigChainBuilder.new
       build.chain{|c| c.load(base_dir: Dir.getwd) }
 
+      options.summary_width = 37
+
       options.on('-h', '--help', 'Show this message.') do
         puts options
         exit
       end
       options.on('-f', '--config-yaml=CONFIG_FILE',
+                 String,
                  "Load optional parameters from CONFIG_FILE."
                 ) do |path|
         build.chain{|c| c.load_yaml(path) }
       end
       options.on('-I', '--required-feature=FEATURE',
+                 String,
                  "Add required feature."
                 ) do |feature|
+        require(feature)
         build.chain{|c| c.load(required_features: [ feature ]) }
       end
       options.on('-d', '--base-dir=DIR',
+                 String,
                  "Directory that places log file, mailbox database, etc. default is current directory."
                 ) do |path|
         build.chain{|c| c.load(base_dir: path) }
       end
       options.on('--log-file=FILE',
+                 String,
                  "Name of log file. default is `#{Service::DEFAULT_CONFIG.make_file_logger_params[0]}'."
                 ) do |path|
         build.chain{|c|
@@ -210,6 +218,89 @@ module RIMS
                  })
         }
       end
+      options.on('--protocol-log-file=FILE',
+                 String,
+                 "Name of log file. default is `#{Service::DEFAULT_CONFIG.make_protocol_logger_params[0]}'."
+                ) do |path|
+        build.chain{|c|
+          c.load(logger: {
+                   protocol: {
+                     path: path
+                   }
+                 })
+        }
+      end
+      options.on('-p', '--protocol-log-level=LEVEL',
+                 %w[ debug info warn error fatal unknown ],
+                 "Logging level (debug,info,warn,error,fatal,unknown). default is `" +
+                 Service::DEFAULT_CONFIG.make_protocol_logger_params[-1][:level] +
+                 "'."
+                ) do |level|
+        build.chain{|c|
+          c.load(logging: {
+                   protocol: {
+                     level: level
+                   }
+                 })
+        }
+      end
+      options.on('--protocol-log-shift-age=NUMBER',
+                 Integer,
+                 'Number of old log files to keep.'
+                ) do |num|
+        build.chain{|c|
+          c.load(logging: {
+                   protocol: {
+                     shift_age: num
+                   }
+                 })
+        }
+      end
+      options.on('--protocol-log-shift-age-daily',
+                 'Frequency of daily log rotation.'
+                ) do
+        build.chain{|c|
+          c.load(logger: {
+                   protocol: {
+                     shift_age: 'daily'
+                   }
+                 })
+        }
+      end
+      options.on('--protocol-log-shift-age-weekly',
+                 'Frequency of weekly log rotation.'
+                ) do
+        build.chain{|c|
+          c.load(logger: {
+                   protocol: {
+                     shift_age: 'weekly'
+                   }
+                 })
+        }
+      end
+      options.on('--protocol-log-shift-age-monthly',
+                 'Frequency of monthly log rotation.'
+                ) do
+        build.chain{|c|
+          c.load(logger: {
+                   protocol: {
+                     shift_age: 'monthly'
+                   }
+                 })
+        }
+      end
+      options.on('--protocol-log-shift-size=SIZE',
+                 Integer,
+                 'Maximum logfile size.'
+                ) do |size|
+        build.chain{|c|
+          c.load(logger: {
+                   protocol: {
+                     shift_size: size
+                   }
+                 })
+        }
+      end
       options.on('--[no-]daemonize',
                  "Daemonize server process. effective only with daemon command."
                 ) do |daemonize|
@@ -229,6 +320,7 @@ module RIMS
         }
       end
       options.on('--status-file=FILE',
+                 String,
                  "Name of status file. effective only with daemon command. default is `#{Service::DEFAULT_CONFIG.status_file}'."
                 ) do |path|
         build.chain{|c|
@@ -238,6 +330,7 @@ module RIMS
         }
       end
       options.on('--privilege-user=USER',
+                 String,
                  "Privilege user name or ID for server process. effective only with daemon command."
                 ) do |user|
         build.chain{|c|
@@ -247,6 +340,7 @@ module RIMS
         }
       end
       options.on('--privilege-group=GROUP',
+                 String,
                  "Privilege group name or ID for server process. effective only with daemon command."
                 ) do |group|
         build.chain{|c|
@@ -255,18 +349,233 @@ module RIMS
                  })
         }
       end
-      options.on('--imap-host=HOSTNAME',
-                 "IMAP server hostname or IP address for the server to bind. default is `" +
-                 Riser::SocketAddress.parse(Service::DEFAULT_CONFIG.listen_address).host +
+      options.on('-s', '--listen=HOST_PORT',
+                 String,
+                 "Listen socket address. default is `#{Service::DEFAULT_CONFIG.listen_address}'"
+                ) do |host_port|
+        build.chain{|c|
+          c.load(server: {
+                   listen_address: host_port
+                 })
+        }
+      end
+      options.on('--accept-polling-timeout=SECONDS',
+                 Float
+                ) do |seconds|
+        build.chain{|c|
+          c.load(server: {
+                   accept_polling_timeout_seconds: seconds
+                 })
+        }
+      end
+      options.on('--thread-num=NUMBER',
+                 Integer
+                ) do |num|
+        build.chain{|c|
+          c.load(server: {
+                   thread_num: num
+                 })
+        }
+      end
+      options.on('--thread-queue-size=SIZE',
+                 Integer
+                ) do |size|
+        build.chain{|c|
+          c.load(server: {
+                   thread_queue_size: size
+                 })
+        }
+      end
+      options.on('--thread-queue-polling-timeout=SECONDS',
+                 Float
+                ) do |seconds|
+        build.chain{|c|
+          c.load(server: {
+                   thread_queue_polling_timeout_seconds: seconds
+                 })
+        }
+      end
+      options.on('--send-buffer-limit=SIZE',
+                 Integer
+                ) do |size|
+        build.chain{|c|
+          c.load(server: {
+                   send_buffer_limit_size: size
+                 })
+        }
+      end
+      options.on('--read-lock-timeout=SECONDS',
+                 Float
+                ) do |seconds|
+        build.chain{|c|
+          c.load(lock: {
+                   read_lock_timeout_seconds: seconds
+                 })
+        }
+      end
+      options.on('--write-lock-timeout=SECONDS',
+                 Float
+                ) do |seconds|
+        build.chain{|c|
+          c.load(lock: {
+                   write_lock_timeout_seconds: seconds
+                 })
+        }
+      end
+      options.on('--cleanup-write-lock-timeout=SECONDS',
+                 Float
+                ) do |seconds|
+        build.chain{|c|
+          c.load(lock: {
+                   cleanup_write_lock_timeout_seconds: seconds
+                 })
+        }
+      end
+      options.on('--meta-kvs-type=TYPE',
+                 KeyValueStore::FactoryBuilder.plug_in_names,
+                 "Choose key-value store type of mailbox meta-data database. default is `" +
+                 KeyValueStore::FactoryBuilder.plug_in_names[0] +
                  "'."
+                ) do |kvs_type|
+        build.chain{|c|
+          c.load(storage: {
+                   meta_key_value_store: {
+                     type: kvs_type
+                   }
+                 })
+        }
+      end
+      options.on('--meta-kvs-config=JSON_DATA',
+                 "Configuration for key-value store of mailbox meta-data database."
+                ) do |json_data|
+        build.chain{|c|
+          c.load(storage: {
+                   meta_key_value_store: {
+                     configuration: JSON.load(json_data)
+                   }
+                 })
+        }
+      end
+      options.on('--[no-]use-meta-kvs-checksum',
+                 "Enable/disable data checksum at key-value store of mailbox meta-data database. default is " +
+                 if (Service::DEFAULT_CONFIG.make_meta_key_value_store_params.middleware_list.include? Checksum_KeyValueStore) then
+                   'enabled'
+                 else
+                   'disbled'
+                 end +
+                 "."
+                ) do |use_checksum|
+        build.chain{|c|
+          c.load(storage: {
+                   meta_key_value_store: {
+                     use_checksum: use_checksum
+                   }
+                 })
+        }
+      end
+      options.on('--text-kvs-type=TYPE',
+                 KeyValueStore::FactoryBuilder.plug_in_names,
+                 "Choose key-value store type of mailbox text-data database. default is `" +
+                 KeyValueStore::FactoryBuilder.plug_in_names[0] +
+                 "'."
+                ) do |kvs_type|
+        build.chain{|c|
+          c.load(storage: {
+                   text_key_value_store: {
+                     type: kvs_type
+                   }
+                 })
+        }
+      end
+      options.on('--text-kvs-config=JSON_DATA',
+                 "Configuration for key-value store of mailbox text-data database."
+                ) do |json_data|
+        build.chain{|c|
+          c.load(storage: {
+                   text_key_value_store: {
+                     configuration: JSON.load(json_data)
+                   }
+                 })
+        }
+      end
+      options.on('--[no-]use-text-kvs-checksum',
+                 "Enable/disable data checksum at key-value store of mailbox text-data database. default is " +
+                 if (Service::DEFAULT_CONFIG.make_text_key_value_store_params.middleware_list.include? Checksum_KeyValueStore) then
+                   'enabled'
+                 else
+                   'disbled'
+                 end +
+                 "."
+                ) do |use_checksum|
+        build.chain{|c|
+          c.load(storage: {
+                   text_key_value_store: {
+                     use_checksum: use_checksum
+                   }
+                 })
+        }
+      end
+      options.on('--auth-hostname=HOSTNAME',
+                 String,
+                 "Hostname to authenticate with cram-md5. default is `#{Service::DEFAULT_CONFIG.make_authentication.hostname}'."
+                ) do |hostname|
+        build.chain{|c|
+          c.load(authentication: {
+                   hostname: hostname
+                 })
+        }
+      end
+      options.on('--passwd-config=TYPE_JSONDATA',
+                 /([^:]+)(?::(.*))?/,
+                 "Password source type (#{Authentication.plug_in_names.join(',')}) and configuration. format is `[type]:[json_data]'."
+                ) do |_, type, json_data|
+        build.chain{|c|
+          c.load(authentication: {
+                   password_sources: [
+                     { type: type,
+                       configuration: JSON.load(json_data)
+                     }
+                   ]
+                 })
+        }
+      end
+      options.on('--passwd-file=TYPE_FILE',
+                 /([^:]+):(.+)/,
+                 "Password source type (#{Authentication.plug_in_names.join(',')}) and configuration file. format is `[type]:[file]'."
+                ) do |_, type, path|
+        build.chain{|c|
+          c.load(authentication: {
+                   password_sources: [
+                     { type: type,
+                       configuration_file: path
+                     }
+                   ]
+                 })
+        }
+      end
+      options.on('--mail-delivery-user=USERNAME',
+                 String,
+                 "Username authorized to deliver messages to any mailbox. default is `#{Service::DEFAULT_CONFIG.mail_delivery_user}'"
+                ) do |username|
+        build.chain{|c|
+          c.load(authorization: {
+                   mail_delivery_user: username
+                 })
+        }
+      end
+
+      options.on('--imap-host=HOSTNAME',
+                 String,
+                 'Deplicated.'
                 ) do |host|
+        warn("warning: `--imap-host=HOSTNAME' is deplicated option and should use `--listen=HOST_PORT'.")
         build.chain{|c| c.load(imap_host: host) }
       end
       options.on('--imap-port=PORT',
-                 "IMAP server port number or service name for the server to bind. default is `" +
-                 Riser::SocketAddress.parse(Service::DEFAULT_CONFIG.listen_address).port.to_s +
-                 "'."
+                 String,
+                 'Deplicated.'
                 ) do |value|
+        warn("warning: `--imap-port=PORT' is deplicated option and should use `--listen=HOST_PORT'.")
         if (value =~ /\A \d+ \z/x) then
           port_number = value.to_i
           build.chain{|c| c.load(imap_port: port_number) }
@@ -275,39 +584,46 @@ module RIMS
           build.chain{|c| c.load(imap_port: service_name) }
         end
       end
-      options.on('--kvs-type=TYPE',
-                 "Choose the key-value store type of mailbox database. load plug-in on config.yml."
-                ) do |kvs_type|
-        build.chain{|c| c.load(key_value_store_type: kvs_type) }
-      end
-      options.on('--[no-]use-kvs-cksum',
-                 "Enable/disable data checksum at key-value store. default is ."
-                ) do |use_checksum|
-        build.chain{|c| c.load(use_key_value_store_checksum: use_checksum) }
-      end
-      options.on('-u', '--username=NAME',
-                 "Username to login IMAP server. required parameter to start server."
-                ) do |name|
-        build.chain{|c| c.load(username: name) }
-      end
-      options.on('-w', '--password=PASS',
-                 "Password to login IMAP server. required parameter to start server."
-                ) do |pass|
-        build.chain{|c| c.load(password: pass) }
-      end
-
       options.on('--ip-addr=IP_ADDR',
+                 String,
                  'Deplicated.'
                 ) do |ip_addr|
-        warn("warning: `--ip-addr=IP_ADDR' is deplicated option and should use `--imap-host=HOSTNAME'.")
+        warn("warning: `--ip-addr=IP_ADDR' is deplicated option and should use `--listen=HOST_PORT'.")
         build.chain{|c| c.load(ip_addr: ip_addr) }
       end
       options.on('--ip-port=PORT',
                  Integer,
                  'Deplicated.'
                 ) do |port|
-        warn("warning: `--ip-port=PORT' is deplicated option and should use `--imap-port=PORT'.")
+        warn("warning: `--ip-port=PORT' is deplicated option and should use `--listen=HOST_PORT'.")
         build.chain{|c| c.load(ip_port: port) }
+      end
+      options.on('--kvs-type=TYPE',
+                 KeyValueStore::FactoryBuilder.plug_in_names,
+                 'Deplicated.'
+                ) do |kvs_type|
+        warn("warning: `--kvs-type=TYPE' is deplicated option and should use `--meta-kvs-type=TYPE' or `--text-kvs-type=TYPE'.")
+        build.chain{|c| c.load(key_value_store_type: kvs_type) }
+      end
+      options.on('--[no-]use-kvs-cksum',
+                 'Deplicated.'
+                ) do |use_checksum|
+        warn("warning: `--[no-]use-kvs-cksum' is deplicated option and should use `--[no-]use-meta-kvs-checksum' or `--[no-]use-text-kvs-checksum'.")
+        build.chain{|c| c.load(use_key_value_store_checksum: use_checksum) }
+      end
+      options.on('-u', '--username=NAME',
+                 String,
+                 'Deplicated.'
+                ) do |name|
+        warn("warning: `--username=NAME' is deplicated option and should use `--passwd-config=TYPE_JSONDATA' or `--passwd-file=TYPE_FILE'.")
+        build.chain{|c| c.load(username: name) }
+      end
+      options.on('-w', '--password=PASS',
+                 String,
+                 'Deplicated.'
+                ) do |pass|
+        warn("warning: `--password=PASS' is deplicated option and should use `--passwd-config=TYPE_JSONDATA' or `--passwd-file=TYPE_FILE'.")
+        build.chain{|c| c.load(password: pass) }
       end
 
       build
