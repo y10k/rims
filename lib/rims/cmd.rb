@@ -920,8 +920,7 @@ module RIMS
         end
       }
 
-      case (operation)
-      when 'start'
+      start_daemon = lambda{
         Riser::Daemon.start_daemon(daemonize: svc_conf.daemonize?,
                                    daemon_name: svc_conf.daemon_name,
                                    daemon_debug: svc_conf.daemon_debug?,
@@ -939,6 +938,11 @@ module RIMS
           service = RIMS::Service.new(c)
           service.setup(server, daemon: true)
         }
+      }
+
+      case (operation)
+      when 'start'
+        start_daemon.call
       when 'stop'
         if (status_file_locked.call) then
           pid = YAML.load(IO.read(svc_conf.status_file))['pid']
@@ -951,7 +955,7 @@ module RIMS
           pid = YAML.load(IO.read(svc_conf.status_file))['pid']
           Process.kill(Riser::Daemon::SIGNAL_RESTART_GRACEFUL, pid)
         else
-          abort('No daemon.')
+          start_daemon.call
         end
       when 'status'
         if (status_file_locked.call) then
