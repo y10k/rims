@@ -50,7 +50,7 @@ module RIMS
           end
         end
 
-        def get_configuration(collection, base_dir)
+        def get_configuration(collection, base_dir=nil)
           if ((collection.key? 'configuration') && (collection.key? 'configuration_file')) then
             raise KeyError, 'configuration conflict: configuration, configuraion_file'
           end
@@ -60,6 +60,7 @@ module RIMS
           elsif (collection.key? 'configuration_file') then
             configuration_file_path = Pathname(collection['configuration_file'])
             if (configuration_file_path.relative?) then
+              base_dir or raise ArgumentError, 'need for base_dir.'
               configuration_file_path = base_dir + configuration_file_path # expect base_dir to be Pathname
             end
             YAML.load_file(configuration_file_path.to_s)
@@ -276,7 +277,11 @@ module RIMS
       end
 
       def get_configuration(collection)
-        self.class.get_configuration(collection, base_dir)
+        if (@config.key? 'base_dir') then # to avoid an error with DEFAULT_CONFIG
+          self.class.get_configuration(collection, base_dir)
+        else
+          self.class.get_configuration(collection)
+        end
       end
       private :get_configuration
 
@@ -286,7 +291,9 @@ module RIMS
                             @config.dig('log_file') || # for backward compatibility
                             'rims.log')
         if (log_path.relative?) then
-          log_path = base_dir + log_path
+          if (@config.key? 'base_dir') then # to avoid an error with DEFAULT_CONFIG
+            log_path = base_dir + log_path
+          end
         end
         logger_params = [ log_path.to_s ]
 
@@ -338,7 +345,9 @@ module RIMS
       def make_protocol_logger_params
         log_path = Pathname(@config.dig('logging', 'protocol', 'path') || 'protocol.log')
         if (log_path.relative?) then
-          log_path = base_dir + log_path
+          if (@config.key? 'base_dir') then # to avoid an error with DEFAULT_CONFIG
+            log_path = base_dir + log_path
+          end
         end
         logger_params = [ log_path.to_s ]
 
@@ -391,7 +400,9 @@ module RIMS
         file_path = @config.dig('daemon', 'status_file') || 'rims.pid'
         file_path = Pathname(file_path)
         if (file_path.relative?) then
-          file_path = base_dir + file_path
+          if (@config.key? 'base_dir') then # to avoid an error with DEFAULT_CONFIG
+            file_path = base_dir + file_path
+          end
         end
         file_path.to_s
       end
@@ -664,6 +675,12 @@ module RIMS
           @config.dig('mail_delivery_user') || # for backward compatibility
           '#postman'
       end
+    end
+
+    DEFAULT_CONFIG = Configuration.new
+    class << DEFAULT_CONFIG
+      undef load
+      undef load_yaml
     end
 
     def initialize(config)

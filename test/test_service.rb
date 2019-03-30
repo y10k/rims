@@ -105,6 +105,13 @@ module RIMS::Test
       }
       assert_equal('configuration conflict: configuration, configuraion_file', error.message)
     end
+
+    def test_get_configuration_file_no_base_dir_error
+      error = assert_raise(ArgumentError) {
+        RIMS::Service::Configuration.get_configuration({ 'configuration_file' => 'config.yml' })
+      }
+      assert_equal('need for base_dir.', error.message)
+    end
   end
 
   class ServiceConfigurationLoadTest < Test::Unit::TestCase
@@ -164,6 +171,51 @@ module RIMS::Test
 
       @c.load_yaml(config_path)
       assert_equal(Pathname(eval(expected_path)), @c.base_dir)
+    end
+
+    def test_default_config
+      assert_raise(NoMethodError) { RIMS::Service::DEFAULT_CONFIG.load({}) }
+      assert_raise(NoMethodError) { RIMS::Service::DEFAULT_CONFIG.load_yaml('config.yml') }
+      assert_equal([], RIMS::Service::DEFAULT_CONFIG.get_required_features)
+      assert_raise(KeyError) { RIMS::Service::DEFAULT_CONFIG.base_dir }
+      assert_equal([ 'rims.log', { level: 'info', progname: 'rims'} ], RIMS::Service::DEFAULT_CONFIG.make_file_logger_params)
+      assert_equal([ STDOUT, { level: 'info', progname: 'rims' } ], RIMS::Service::DEFAULT_CONFIG.make_stdout_logger_params)
+      assert_equal([ 'protocol.log', { level: 'unknown', progname: 'rims' } ], RIMS::Service::DEFAULT_CONFIG.make_protocol_logger_params)
+      assert_equal(true, RIMS::Service::DEFAULT_CONFIG.daemonize?)
+      assert_equal('rims', RIMS::Service::DEFAULT_CONFIG.daemon_name)
+      assert_equal(false, RIMS::Service::DEFAULT_CONFIG.daemon_debug?)
+      assert_equal('rims.pid', RIMS::Service::DEFAULT_CONFIG.status_file)
+      assert_equal(3, RIMS::Service::DEFAULT_CONFIG.server_polling_interval_seconds)
+      assert_equal(0, RIMS::Service::DEFAULT_CONFIG.server_restart_overlap_seconds)
+      assert_nil(RIMS::Service::DEFAULT_CONFIG.server_privileged_user)
+      assert_nil(RIMS::Service::DEFAULT_CONFIG.server_privileged_group)
+      assert_equal('0.0.0.0:1430', RIMS::Service::DEFAULT_CONFIG.listen_address)
+      assert_equal(0.1, RIMS::Service::DEFAULT_CONFIG.accept_polling_timeout_seconds)
+      assert_equal(0, RIMS::Service::DEFAULT_CONFIG.process_num)
+      assert_equal(20, RIMS::Service::DEFAULT_CONFIG.process_queue_size)
+      assert_equal(0.1, RIMS::Service::DEFAULT_CONFIG.process_queue_polling_timeout_seconds)
+      assert_equal(0.1, RIMS::Service::DEFAULT_CONFIG.process_send_io_polling_timeout_seconds)
+      assert_equal(20, RIMS::Service::DEFAULT_CONFIG.thread_num)
+      assert_equal(20, RIMS::Service::DEFAULT_CONFIG.thread_queue_size)
+      assert_equal(0.1, RIMS::Service::DEFAULT_CONFIG.thread_queue_polling_timeout_seconds)
+      assert_equal(1024 * 16, RIMS::Service::DEFAULT_CONFIG.send_buffer_limit_size)
+      assert_nil(RIMS::Service::DEFAULT_CONFIG.ssl_context)
+      assert_equal(30, RIMS::Service::DEFAULT_CONFIG.read_lock_timeout_seconds)
+      assert_equal(30, RIMS::Service::DEFAULT_CONFIG.write_lock_timeout_seconds)
+      assert_equal(1, RIMS::Service::DEFAULT_CONFIG.cleanup_write_lock_timeout_seconds)
+      assert_equal({ origin_type: RIMS::GDBM_KeyValueStore,
+                     origin_config: {},
+                     middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                   },
+                   RIMS::Service::DEFAULT_CONFIG.make_meta_key_value_store_params.to_h)
+      assert_equal({ origin_type: RIMS::GDBM_KeyValueStore,
+                     origin_config: {},
+                     middleware_list: [ RIMS::Checksum_KeyValueStore ]
+                   },
+                   RIMS::Service::DEFAULT_CONFIG.make_text_key_value_store_params.to_h)
+      assert_raise(KeyError) { RIMS::Service::DEFAULT_CONFIG.make_key_value_store_path('path', 'abcd') }
+      assert_equal(Socket.gethostname, RIMS::Service::DEFAULT_CONFIG.make_authentication.hostname)
+      assert_equal('#postman', RIMS::Service::DEFAULT_CONFIG.mail_delivery_user)
     end
   end
 

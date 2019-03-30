@@ -112,7 +112,7 @@ module RIMS
         build.chain{|c| c.load(base_dir: path) }
       end
       options.on('--log-file=FILE',
-                 "Name of log file. default is `rims.log'."
+                 "Name of log file. default is `#{Service::DEFAULT_CONFIG.make_file_logger_params[0]}'."
                 ) do |path|
         build.chain{|c|
           c.load(logger: {
@@ -124,7 +124,9 @@ module RIMS
       end
       options.on('-l', '--log-level=LEVEL',
                  %w[ debug info warn error fatal unknown ],
-                 "Logging level (debug,info,warn,error,fatal,unknown). default is `info'."
+                 "Logging level (debug,info,warn,error,fatal,unknown). default is `" +
+                 Service::DEFAULT_CONFIG.make_file_logger_params[-1][:level] +
+                 "'."
                 ) do |level|
         build.chain{|c|
           c.load(logging: {
@@ -193,7 +195,9 @@ module RIMS
       end
       options.on('-v', '--log-stdout=LEVEL',
                  %w[ debug info warn error fatal unknown quiet ],
-                 "Stdout logging level (debug,info,warn,error,fatal,unknown,quiet). default is `info'."
+                 "Stdout logging level (debug,info,warn,error,fatal,unknown,quiet). default is `" +
+                 Service::DEFAULT_CONFIG.make_stdout_logger_params[-1][:level] +
+                 "'."
                 ) do |level|
         if (level == 'quiet') then
           level = 'unknown'
@@ -225,7 +229,7 @@ module RIMS
         }
       end
       options.on('--status-file=FILE',
-                 "Name of status file. effective only with daemon command. default is `rims.log'."
+                 "Name of status file. effective only with daemon command. default is `#{Service::DEFAULT_CONFIG.status_file}'."
                 ) do |path|
         build.chain{|c|
           c.load(daemon: {
@@ -252,12 +256,16 @@ module RIMS
         }
       end
       options.on('--imap-host=HOSTNAME',
-                 "IMAP server hostname or IP address for the server to bind. default is `0.0.0.0'."
+                 "IMAP server hostname or IP address for the server to bind. default is `" +
+                 Riser::SocketAddress.parse(Service::DEFAULT_CONFIG.listen_address).host +
+                 "'."
                 ) do |host|
         build.chain{|c| c.load(imap_host: host) }
       end
       options.on('--imap-port=PORT',
-                 "IMAP server port number or service name for the server to bind. default is `1430'."
+                 "IMAP server port number or service name for the server to bind. default is `" +
+                 Riser::SocketAddress.parse(Service::DEFAULT_CONFIG.listen_address).port.to_s +
+                 "'."
                 ) do |value|
         if (value =~ /\A \d+ \z/x) then
           port_number = value.to_i
@@ -273,7 +281,7 @@ module RIMS
         build.chain{|c| c.load(key_value_store_type: kvs_type) }
       end
       options.on('--[no-]use-kvs-cksum',
-                 "Enable/disable data checksum at key-value store. default is enabled."
+                 "Enable/disable data checksum at key-value store. default is ."
                 ) do |use_checksum|
         build.chain{|c| c.load(use_key_value_store_checksum: use_checksum) }
       end
@@ -360,8 +368,8 @@ module RIMS
       end
 
       IMAP_CONNECT_OPTION_LIST = self.make_imap_connect_option_list
-      POST_MAIL_CONNECT_OPTION_LIST = self.make_imap_connect_option_list(imap_port: 1430,
-                                                                         username: '#postman')
+      POST_MAIL_CONNECT_OPTION_LIST = self.make_imap_connect_option_list(imap_port: Riser::SocketAddress.parse(Service::DEFAULT_CONFIG.listen_address).port,
+                                                                         username: Service::DEFAULT_CONFIG.mail_delivery_user)
 
       IMAP_MAILBOX_OPTION_LIST = [
         [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ]

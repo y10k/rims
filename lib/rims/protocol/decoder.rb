@@ -254,7 +254,7 @@ module RIMS
 
     class InitialDecoder < Decoder
       def initialize(mail_store_pool, auth, logger,
-                     mail_delivery_user: '#postman',
+                     mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user,
                      write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                      **next_decoder_optional)
         super(auth, logger)
