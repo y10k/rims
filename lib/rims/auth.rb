@@ -40,6 +40,10 @@ module RIMS
         klass = PLUG_IN[name] or raise KeyError, "not found a password source plug-in: #{name}"
         klass.build_from_conf(config)
       end
+
+      def plug_in_names
+        PLUG_IN.keys
+      end
     end
 
     def initialize(hostname: 'rims',
