@@ -879,12 +879,12 @@ module RIMS
     def cmd_daemon(options, args)
       conf = Config.new(options,
                         [ [ :is_daemon,
-                            true,
+                            nil,
                             '--[no-]daemon',
                             'Obsoleted.'
                           ],
                           [ :is_syslog,
-                            true,
+                            nil,
                             '--[no-]syslog',
                             'Obsoleted.'
                           ]
@@ -899,6 +899,13 @@ module RIMS
       server_options = OptionParser.new
       build = make_service_config(server_options)
       server_options.parse!(args)
+
+      unless (conf[:is_daemon].nil?) then
+        warn("warning: `--[no-]daemon' is obsoleted option and no effect. use server option `--[no-]daemonize'.")
+      end
+      unless (conf[:is_syslog].nil?) then
+        warn("warning: `--[no-]syslog' is obsoleted option and no effect.")
+      end
 
       svc_conf = build.call
       pp svc_conf if $DEBUG
