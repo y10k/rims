@@ -678,6 +678,11 @@ module RIMS
     end
 
     DEFAULT_CONFIG = Configuration.new
+
+    # default features
+    DEFAULT_CONFIG.require_features
+
+    # for read-only
     class << DEFAULT_CONFIG
       undef load
       undef load_yaml
