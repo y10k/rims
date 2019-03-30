@@ -878,7 +878,12 @@ module RIMS
 
     def cmd_daemon(options, args)
       conf = Config.new(options,
-                        [ [ :is_daemon,
+                        [ [ :use_status_code,
+                            true,
+                            '--[no-]status-code',
+                            "Return the result of `status' operation as an exit code."
+                          ],
+                          [ :is_daemon,
                             nil,
                             '--[no-]daemon',
                             'Obsoleted.'
@@ -960,10 +965,10 @@ module RIMS
       when 'status'
         if (status_file_locked.call) then
           puts 'daemon is running.' if conf[:verbose]
-          return 0
+          return 0 if conf[:use_status_code]
         else
           puts 'daemon is stopped.' if conf[:verbose]
-          return 1
+          return 1 if conf[:use_status_code]
         end
       else
         raise "unknown daemon operation: #{operation}"
