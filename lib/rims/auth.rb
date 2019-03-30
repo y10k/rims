@@ -49,8 +49,7 @@ module RIMS
       @time_source = time_source
       @random_string_source = random_string_source
       @capability = %w[ PLAIN CRAM-MD5 ]
-      @plain_src = Password::PlainSource.new
-      @passwd_src_list = [ @plain_src ]
+      @passwd_src_list = []
     end
 
     attr_reader :hostname
@@ -77,11 +76,6 @@ module RIMS
         logger.info("stop password source plug-in: #{passwd_src.class}")
         passwd_src.stop
       end
-    end
-
-    def entry(username, password)
-      @plain_src.entry(username, password)
-      self
     end
 
     def user?(username)

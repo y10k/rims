@@ -135,8 +135,10 @@ module RIMS::Test
 
       @auth = RIMS::Authentication.new(time_source: make_pseudo_time_source(src_time),
                                        random_string_source: make_pseudo_random_string_source(random_seed))
-      @auth.entry('foo', 'open_sesame')
-      @auth.entry('#postman', 'password_of_mail_delivery_user')
+      @pw = RIMS::Password::PlainSource.new
+      @pw.entry('foo', 'open_sesame')
+      @pw.entry('#postman', 'password_of_mail_delivery_user')
+      @auth.add_plug_in(@pw)
 
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL

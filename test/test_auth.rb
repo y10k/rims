@@ -20,7 +20,9 @@ module RIMS::Test
 
       @auth = RIMS::Authentication.new(time_source: make_pseudo_time_source(src_time),
                                        random_string_source: make_pseudo_random_string_source(random_seed))
-      @auth.entry(@username, @password)
+      @pw = RIMS::Password::PlainSource.new
+      @pw.entry(@username, @password)
+      @auth.add_plug_in(@pw)
     end
 
     def test_unique_user_id
