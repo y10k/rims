@@ -154,6 +154,117 @@ module RIMS::Test
         end
       }
     end
+
+    def test_daemon_status_stopped
+      stdout, stderr, status = Open3.capture3('rims', 'daemon', 'status', '-d', @base_dir.to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      assert_match(/stopped/, stdout)
+      assert_equal('', stderr)
+      assert_equal(1, status.exitstatus)
+
+      %w[ -v --verbose ].each do |option|
+        stdout, stderr, status = Open3.capture3('rims', 'daemon', option, 'status', '-d', @base_dir.to_s, "status verbose option: #{option}")
+        pp [ stdout, stderr, status ] if $DEBUG
+        assert_match(/stopped/, stdout)
+        assert_equal('', stderr)
+        assert_equal(1, status.exitstatus)
+      end
+
+      %w[ -q --quiet ].each do |option|
+        stdout, stderr, status = Open3.capture3('rims', 'daemon', option, 'status', '-d', @base_dir.to_s, "status quiet option: #{option}")
+        pp [ stdout, stderr, status ] if $DEBUG
+        assert_equal('', stdout)
+        assert_equal('', stderr)
+        assert_equal(1, status.exitstatus)
+      end
+
+      stdout, stderr, status = Open3.capture3('rims', 'daemon', '--status-code', 'status', '-d', @base_dir.to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      assert_match(/stopped/, stdout)
+      assert_equal('', stderr)
+      assert_equal(1, status.exitstatus)
+
+      stdout, stderr, status = Open3.capture3('rims', 'daemon', '--no-status-code', 'status', '-d', @base_dir.to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      assert_match(/stopped/, stdout)
+      assert_equal('', stderr)
+      assert_equal(0, status.exitstatus)
+    end
+
+    def test_daemon_run
+      # need for riser 0.1.7 or later to close stdin/stdout/stderr of daemon process
+      stdout, stderr, status = Open3.capture3('rims', 'daemon', 'start', '-d', @base_dir.to_s, '--passwd-config=plain:[{"user":"foo","pass":"foo"}]')
+      pp [ stdout, stderr, status ] if $DEBUG
+      assert_equal('', stdout)
+      assert_equal('', stderr)
+      assert_equal(0, status.exitstatus)
+
+      begin
+        begin
+          imap = timeout(10) {
+            begin
+              Net::IMAP.new('localhost', 1430)
+            rescue SystemCallError
+              sleep(0.1)
+              retry
+            end
+          }
+
+          imap.noop
+          imap.login('foo', 'foo')
+          imap.noop
+          imap.append('INBOX', 'HALO')
+          imap.select('INBOX')
+          imap.noop
+          assert_equal([ 1 ], imap.search([ '*' ]))
+          fetch_data = imap.fetch(1, %w[ RFC822 ])
+          assert_equal([ 'HALO' ], fetch_data.map{|f| f.attr['RFC822'] })
+          imap.logout
+        ensure
+          imap.disconnect
+        end
+
+        stdout, stderr, status = Open3.capture3('rims', 'daemon', 'status', '-d', @base_dir.to_s)
+        pp [ stdout, stderr, status ] if $DEBUG
+        assert_match(/running/, stdout)
+        assert_equal('', stderr)
+        assert_equal(0, status.exitstatus)
+
+        %w[ -v --verbose ].each do |option|
+          stdout, stderr, status = Open3.capture3('rims', 'daemon', option, 'status', '-d', @base_dir.to_s, "status verbose option: #{option}")
+          pp [ stdout, stderr, status ] if $DEBUG
+          assert_match(/running/, stdout)
+          assert_equal('', stderr)
+          assert_equal(0, status.exitstatus)
+        end
+
+        %w[ -q --quiet ].each do |option|
+          stdout, stderr, status = Open3.capture3('rims', 'daemon', option, 'status', '-d', @base_dir.to_s, "status quiet option: #{option}")
+          pp [ stdout, stderr, status ] if $DEBUG
+          assert_equal('', stdout)
+          assert_equal('', stderr)
+          assert_equal(0, status.exitstatus)
+        end
+
+        stdout, stderr, status = Open3.capture3('rims', 'daemon', '--status-code', 'status', '-d', @base_dir.to_s)
+        pp [ stdout, stderr, status ] if $DEBUG
+        assert_match(/running/, stdout)
+        assert_equal('', stderr)
+        assert_equal(0, status.exitstatus)
+
+        stdout, stderr, status = Open3.capture3('rims', 'daemon', '--no-status-code', 'status', '-d', @base_dir.to_s)
+        pp [ stdout, stderr, status ] if $DEBUG
+        assert_match(/running/, stdout)
+        assert_equal('', stderr)
+        assert_equal(0, status.exitstatus)
+      ensure
+        stdout, stderr, status = Open3.capture3('rims', 'daemon', 'stop', '-d', @base_dir.to_s)
+        pp [ stdout, stderr, status ] if $DEBUG
+      end
+      assert_equal('', stdout)
+      assert_equal('', stderr)
+      assert_equal(0, status.exitstatus)
+    end
   end
 end
 
