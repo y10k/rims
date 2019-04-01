@@ -51,6 +51,15 @@ module RIMS::Test
       assert_equal('', stderr)
     end
 
+    def test_version
+      stdout, stderr, status = Open3.capture3('rims', 'version')
+      pp [ stdout, stderr, status ] if $DEBUG
+
+      assert_equal(0, status.exitstatus)
+      assert_include(stdout, RIMS::VERSION)
+      assert_equal('', stderr)
+    end
+
     data('-f'                               => [ %W[ -f #{BASE_DIR}/config.yml ] ],
          '--config-yaml'                    => [ %W[ --config-yaml #{BASE_DIR}/config.yml ] ],
          '-I'                               => [ %W[ -f #{BASE_DIR}/config.yml -I prime ] ],
