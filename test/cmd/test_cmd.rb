@@ -24,6 +24,33 @@ module RIMS::Test
       @base_dir.rmtree
     end
 
+    def test_rims_no_args
+      stdout, stderr, status = Open3.capture3('rims')
+      pp [ stdout, stderr, status ] if $DEBUG
+
+      assert_equal(1, status.exitstatus)
+      assert(! stdout.empty?)
+      assert_equal('', stderr)
+    end
+
+    def test_help
+      stdout, stderr, status = Open3.capture3('rims', 'help')
+      pp [ stdout, stderr, status ] if $DEBUG
+
+      assert_equal(0, status.exitstatus)
+      assert(! stdout.empty?)
+      assert_not_match(/debug/, stdout)
+      assert_equal('', stderr)
+
+      stdout, stderr, status = Open3.capture3('rims', 'help', '--show-debug-command')
+      pp [ stdout, stderr, status ] if $DEBUG
+
+      assert_equal(0, status.exitstatus)
+      assert(! stdout.empty?)
+      assert_match(/debug/, stdout)
+      assert_equal('', stderr)
+    end
+
     data('-f'                               => [ %W[ -f #{BASE_DIR}/config.yml ] ],
          '--config-yaml'                    => [ %W[ --config-yaml #{BASE_DIR}/config.yml ] ],
          '-I'                               => [ %W[ -f #{BASE_DIR}/config.yml -I prime ] ],
