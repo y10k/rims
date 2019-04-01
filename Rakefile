@@ -12,6 +12,18 @@ Rake::TestTask.new do |task|
   end
 end
 
+Rake::TestTask.new(:test_cmd) do |task|
+  task.description = 'Run tests for rims command'
+  task.pattern = 'test/cmd/test*.rb'
+  task.options = '-v'
+  if ((ENV.key? 'RUBY_DEBUG') && (! ENV['RUBY_DEBUG'].empty?)) then
+    task.ruby_opts << '-d'
+  end
+end
+
+desc 'Run all tests'
+task :test_all => [ :test, :test_cmd ]
+
 Rake::RDocTask.new do |rd|
   rd.rdoc_files.include('lib/**/*.rb')
 end
