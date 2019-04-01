@@ -16,7 +16,7 @@ Rake::RDocTask.new do |rd|
   rd.rdoc_files.include('lib/**/*.rb')
 end
 
-desc 'Build README.html from markdown source.'
+desc 'Build README.html from markdown source'
 task :readme => %w[ README.html ]
 
 file 'README.html' => [ 'README.md' ] do
@@ -30,7 +30,7 @@ namespace :test_cert do
   directory tls_dir.to_path
   CLOBBER.include tls_dir.to_path
 
-  desc 'delete TLS certificate files for test'
+  desc 'Delete TLS certificate files for test'
   task :delete do
     rm_rf tls_dir.to_path
   end
@@ -66,10 +66,10 @@ namespace :test_cert do
     sh "openssl x509 -req -CA #{ca_cert} -CAkey #{ca_priv_key} -CAcreateserial -sha256 -days 3650 <#{server_localhost_cert_sign_req} >#{server_localhost_cert}"
   end
 
-  desc 'make TLS certificate files for test'
+  desc 'Make TLS certificate files for test'
   task :make => [ ca_priv_key, ca_cert, server_priv_key, server_localhost_cert ].map(&:to_path)
 
-  desc 'show TLS certificate files for test'
+  desc 'Show TLS certificate files for test'
   task :show => :make do
     sh "openssl rsa -text -noout <#{ca_priv_key}"
     sh "openssl req -text -noout <#{ca_cert_sign_req}"
