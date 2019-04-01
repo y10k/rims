@@ -48,20 +48,20 @@ module RIMS
       end
       options.parse!(args)
 
-      STDERR.puts "usage: #{File.basename($0)} command options"
-      STDERR.puts ""
-      STDERR.puts "commands:"
+      puts "usage: #{File.basename($0)} command options"
+      puts ""
+      puts "commands:"
       w = CMDs.keys.map{|k| k.length }.max + 4
       fmt = "    %- #{w}s%s"
       CMDs.each do |cmd_name, cmd_entry|
         if ((! show_debug_command) && (cmd_name =~ /^debug/)) then
           next
         end
-        STDERR.puts format(fmt, cmd_name, cmd_entry[:description])
+        puts format(fmt, cmd_name, cmd_entry[:description])
       end
-      STDERR.puts ""
-      STDERR.puts "command help options:"
-      STDERR.puts "    -h, --help"
+      puts ""
+      puts "command help options:"
+      puts "    -h, --help"
       0
     end
     command_function :cmd_help, "Show this message."
