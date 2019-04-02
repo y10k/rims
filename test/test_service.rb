@@ -592,7 +592,7 @@ module RIMS::Test
     TLS_SERVER_PKEY = tls_dir / 'server.priv_key'
     TLS_SERVER_CERT = tls_dir / 'server_localhost.cert'
 
-    unless (TLS_SERVER_PKEY.file? && TLS_SERVER_CERT.file?) then
+    unless ([ TLS_SERVER_PKEY, TLS_SERVER_CERT ].all?(&:file?)) then
       warn("warning: do `rake test_cert:make' to create TLS private key file and TLS certificate file for test.")
     end
 
