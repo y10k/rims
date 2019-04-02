@@ -10,6 +10,14 @@ require 'syslog'
 require 'syslog/logger'
 require 'yaml'
 
+OptionParser.accept(JSON) do |json_data, *_|
+  begin
+    JSON.load(json_data)
+  rescue
+    raise OptionParser::InvalidArgument, json_data
+  end
+end
+
 module RIMS
   module Cmd
     CMDs = {}
@@ -446,12 +454,13 @@ module RIMS
         }
       end
       options.on('--meta-kvs-config=JSON_DATA',
+                 JSON,
                  "Configuration for key-value store of mailbox meta-data database."
                 ) do |json_data|
         build.chain{|c|
           c.load(storage: {
                    meta_key_value_store: {
-                     configuration: JSON.load(json_data)
+                     configuration: json_data
                    }
                  })
         }
@@ -488,12 +497,13 @@ module RIMS
         }
       end
       options.on('--text-kvs-config=JSON_DATA',
+                 JSON,
                  "Configuration for key-value store of mailbox text-data database."
                 ) do |json_data|
         build.chain{|c|
           c.load(storage: {
                    text_key_value_store: {
-                     configuration: JSON.load(json_data)
+                     configuration: json_data
                    }
                  })
         }
