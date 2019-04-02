@@ -229,22 +229,21 @@ module RIMS::Test
     def test_daemon_run
       # need for riser 0.1.7 or later to close stdin/stdout/stderr of daemon process
       stdout, stderr, status = Open3.capture3('rims', 'daemon', 'start', '-d', @base_dir.to_s, '--passwd-config=plain:[{"user":"foo","pass":"foo"}]')
-      pp [ stdout, stderr, status ] if $DEBUG
-      assert_equal('', stdout)
-      assert_equal('', stderr)
-      assert_equal(0, status.exitstatus)
-
       begin
-        begin
-          imap = timeout(10) {
-            begin
-              Net::IMAP.new('localhost', 1430)
-            rescue SystemCallError
-              sleep(0.1)
-              retry
-            end
-          }
+        pp [ stdout, stderr, status ] if $DEBUG
+        assert_equal('', stdout)
+        assert_equal('', stderr)
+        assert_equal(0, status.exitstatus)
 
+        imap = timeout(10) {
+          begin
+            Net::IMAP.new('localhost', 1430)
+          rescue SystemCallError
+            sleep(0.1)
+            retry
+          end
+        }
+        begin
           imap.noop
           imap.login('foo', 'foo')
           imap.noop
@@ -252,8 +251,8 @@ module RIMS::Test
           imap.select('INBOX')
           imap.noop
           assert_equal([ 1 ], imap.search([ '*' ]))
-          fetch_data = imap.fetch(1, %w[ RFC822 ])
-          assert_equal([ 'HALO' ], fetch_data.map{|f| f.attr['RFC822'] })
+          fetch_list = imap.fetch(1, %w[ RFC822 ])
+          assert_equal([ 'HALO' ], fetch_list.map{|f| f.attr['RFC822'] })
           imap.logout
         ensure
           imap.disconnect
