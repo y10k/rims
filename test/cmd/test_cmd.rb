@@ -137,28 +137,27 @@ module RIMS::Test
                                        }.to_yaml)
 
       Open3.popen3('rims', 'server', *options) {|stdin, stdout, stderr, wait_thread|
-        stdout_thread = Thread.new{
-          result = stdout.read
-          pp [ :stdout, result ] if $DEBUG
-          result
-        }
-        stderr_thread = Thread.new{
-          result = stderr.read
-          pp [ :stderr, result ] if $DEBUG
-          result
-        }
-
         begin
-          begin
-            imap = timeout(10) {
-              begin
-                Net::IMAP.new('localhost', 1430)
-              rescue SystemCallError
-                sleep(0.1)
-                retry
-              end
-            }
+          stdout_thread = Thread.new{
+            result = stdout.read
+            puts [ :stdout, result ].pretty_inspect if $DEBUG
+            result
+          }
+          stderr_thread = Thread.new{
+            result = stderr.read
+            puts [ :stderr, result ].pretty_inspect if $DEBUG
+            result
+          }
 
+          imap = timeout(10) {
+            begin
+              Net::IMAP.new('localhost', 1430)
+            rescue SystemCallError
+              sleep(0.1)
+              retry
+            end
+          }
+          begin
             imap.noop
             imap.login('foo', 'foo')
             imap.noop
@@ -166,8 +165,8 @@ module RIMS::Test
             imap.select('INBOX')
             imap.noop
             assert_equal([ 1 ], imap.search([ '*' ]))
-            fetch_data = imap.fetch(1, %w[ RFC822 ])
-            assert_equal([ 'HALO' ], fetch_data.map{|f| f.attr['RFC822'] })
+            fetch_list = imap.fetch(1, %w[ RFC822 ])
+            assert_equal([ 'HALO' ], fetch_list.map{|f| f.attr['RFC822'] })
             imap.logout
           ensure
             imap.disconnect
