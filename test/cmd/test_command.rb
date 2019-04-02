@@ -176,8 +176,8 @@ module RIMS::Test
           end
         ensure
           Process.kill(:TERM, wait_thread.pid)
-          stdout_result = stdout_thread.value
-          stderr_result = stderr_thread.value
+          stdout_result = stdout_thread.value if stdout_thread
+          stderr_result = stderr_thread.value if stderr_thread
         end
 
         server_status = wait_thread.value
