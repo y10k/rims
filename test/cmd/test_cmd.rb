@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 
+require 'fileutils'
 require 'net/imap'
 require 'open3'
 require 'pathname'
 require 'pp' if $DEBUG
 require 'rims'
+require 'set'
 require 'test/unit'
+require 'time'
 require 'timeout'
 require 'yaml'
 
@@ -298,6 +301,192 @@ module RIMS::Test
       assert_equal('', stdout)
       assert_equal('', stderr)
       assert_equal(0, status.exitstatus)
+    end
+
+    tls_dir = Pathname(__FILE__).parent.parent / "tls"
+    TLS_CA_CERT     = tls_dir / 'ca.cert'
+    TLS_SERVER_CERT = tls_dir / 'server_localhost.cert'
+    TLS_SERVER_PKEY = tls_dir / 'server.priv_key'
+
+    unless ([ TLS_CA_CERT, TLS_SERVER_CERT, TLS_SERVER_PKEY ].all?(&:file?)) then
+      warn("warning: do `rake test_cert:make' to create TLS private key file and TLS certificate file for test.")
+    end
+
+    def run_server(use_ssl: false)
+      config = {
+        'logging' => {
+          'file' => { 'level' => 'debug' },
+          'stdout' => { 'level' => 'debug' },
+          'protocol' => { 'level' => 'info' }
+        },
+        'server' => {
+          'listen' => 'localhost:1430'
+        },
+        'authentication' => {
+          'password_sources' => [
+            { 'type' => 'plain',
+              'configuration' => [
+                { 'user' => 'foo', 'pass' => 'foo' },
+                { 'user' => '#postman', 'pass' => '#postman' }
+              ]
+            }
+          ]
+        },
+        'authorization' => {
+          'mail_delivery_user' => '#postman'
+        }
+      }
+
+      if (use_ssl) then
+        FileUtils.cp(TLS_SERVER_PKEY.to_s, @base_dir.to_s)
+        FileUtils.cp(TLS_SERVER_CERT.to_s, @base_dir.to_s)
+        config['openssl'] = {
+          'ssl_context' => %Q{
+            _.cert = X509::Certificate.new((base_dir / #{TLS_SERVER_CERT.basename.to_s.dump}).read)
+            _.key = PKey.read((base_dir / #{TLS_SERVER_PKEY.basename.to_s.dump}).read)
+          }
+        }
+      end
+
+      config_path = @base_dir + 'config.yml'
+      config_path.write(config.to_yaml)
+
+      Open3.popen3('rims', 'server', '-f', config_path.to_s) {|stdin, stdout, stderr, wait_thread|
+        stdout_thread = Thread.new{
+          result = stdout.read
+          puts [ :stdout, result ].pretty_inspect if $DEBUG
+          result
+        }
+        stderr_thread = Thread.new{
+          result = stderr.read
+          puts [ :stderr, result ].pretty_inspect if $DEBUG
+          result
+        }
+
+        begin
+          imap = timeout(10) {
+            begin
+              Net::IMAP.new('localhost', 1430, use_ssl, TLS_CA_CERT.to_s)
+            rescue SystemCallError
+              sleep(0.1)
+              retry
+            end
+          }
+          begin
+            imap.noop
+            ret_val = yield(imap)
+            imap.logout
+          ensure
+            imap.disconnect
+          end
+        ensure
+          Process.kill(:TERM, wait_thread.pid)
+          stdout_thread.join
+          stderr_thread.join
+        end
+
+        server_status = wait_thread.value
+        pp server_status if $DEBUG
+        assert_equal(0, server_status.exitstatus)
+
+        ret_val
+      }
+    end
+    private :run_server
+
+    data('-f'                         => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml ] ],
+         '--config-yaml'              => [ false, 10, %W[ --config-yaml=#{BASE_DIR}/postman.yml ] ],
+         '-v'                         => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml -v ] ],
+         '--verbose'                  => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --verbose ] ],
+         '--no-verbose'               => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-verbose ] ],
+         '-n'                         => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml -n localhost ] ],
+         '--host'                     => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --host=localhost ] ],
+         '-o'                         => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml -o 1430 ] ],
+         '--port'                     => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --port=1430 ] ],
+         '-s,--ca-cert'               => [ true,  10, %W[ -f #{BASE_DIR}/postman.yml -s --ca-cert=#{TLS_CA_CERT} ] ],
+         '-s,--ssl-params'            => [ true,  10, %W[ -f #{BASE_DIR}/postman.yml -s --ssl-params={"ca_file":#{TLS_CA_CERT.to_s.dump}} ] ],
+         '--use-ssl,--ca-cert'        => [ true,  10, %W[ -f #{BASE_DIR}/postman.yml --use-ssl --ca-cert=#{TLS_CA_CERT} ] ],
+         '--use-ssl,--ssl-params'     => [ true,  10, %W[ -f #{BASE_DIR}/postman.yml --use-ssl --ssl-params={"ca_file":#{TLS_CA_CERT.to_s.dump}} ] ],
+         '--no-use-ssl'               => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-use-ssl ] ],
+         '-u'                         => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml -u #postman ] ],
+         '--username'                 => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --username #postman ] ],
+         '-w'                         => [ false, 10, %W[ -w #postman ] ],
+         '--password'                 => [ false, 10, %W[ --password=#postman ] ],
+         '--auth-type=login'          => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --auth-type=login ] ],
+         '--auth-type=plain'          => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --auth-type=plain ] ],
+         '--auth-type=cram-md5'       => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --auth-type=cram-md5 ] ],
+         '-m'                         => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml -m INBOX ] ],
+         '--mailbox'                  => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --mailbox=INBOX ] ],
+         '--store-flag-answered'      => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --store-flag-answered ], [ :Answered ] ],
+         '--store-flag-flagged'       => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --store-flag-flagged  ], [ :Flagged  ] ],
+         '--store-flag-deleted'       => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --store-flag-deleted  ], [ :Deleted  ] ],
+         '--store-flag-seen'          => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --store-flag-seen     ], [ :Seen     ] ],
+         '--store-flag-draft'         => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --store-flag-draft    ], [ :Draft    ] ],
+         '--store-flag-all'           => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --store-flag-answered
+                                                                                     --store-flag-flagged
+                                                                                     --store-flag-deleted
+                                                                                     --store-flag-seen
+                                                                                     --store-flag-draft ], [ :Answered, :Flagged, :Deleted, :Seen, :Draft ] ],
+         '--no-store-flag-answered'   => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-store-flag-answered ], [] ],
+         '--no-store-flag-flagged'    => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-store-flag-flagged  ], [] ],
+         '--no-store-flag-deleted'    => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-store-flag-deleted  ], [] ],
+         '--no-store-flag-seen'       => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-store-flag-seen     ], [] ],
+         '--no-store-flag-draft'      => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-store-flag-draft    ], [] ],
+         '--look-for-date=servertime' => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --look-for-date=servertime ], [] ],
+         '--look-for-date=localtime'  => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --look-for-date=localtime ], [] ],
+         '--look-for-date=filetime'   => [ false, Time.parse('Mon, 01 Apr 2019 12:00:00 +0900'), %W[ -f #{BASE_DIR}/postman.yml --look-for-date=filetime ], [] ],
+         '--look-for-date=mailheader' => [ false, Time.parse('Mon, 01 Apr 2019 09:00:00 +0900'), %W[ -f #{BASE_DIR}/postman.yml --look-for-date=mailheader ], [] ],
+         '--imap-debug'               => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --imap-debug ] ],
+         '--no-imap-debug'            => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-imap-debug ] ],
+        )
+    def test_post_mail(data)
+      use_ssl, expected_date, options, expected_flags = data
+
+      config = @base_dir + 'postman.yml'
+      config.write({ 'password' => '#postman' }.to_yaml)
+
+      message = <<-'EOF'
+From: foo@mail.example.com
+To: bar@mail.example.com
+Subject: HALO
+Date: Mon, 01 Apr 2019 09:00:00 +0900
+
+Hello world.
+      EOF
+
+      message_path = @base_dir + 'message.txt'
+      message_path.write(message)
+
+      t = Time.parse('Mon, 01 Apr 2019 12:00:00 +0900')
+      message_path.utime(t, t)
+
+      run_server(use_ssl: use_ssl) {|imap|
+        stdout, stderr, status = Open3.capture3('rims', 'post-mail', *options, 'foo', message_path.to_s)
+        pp [ stdout, stderr, status ] if $DEBUG
+        assert_equal(0, status.exitstatus)
+
+        imap.login('foo', 'foo')
+        imap.examine('INBOX')   # for read-only
+        fetch_list = imap.fetch(1, %w[ RFC822 INTERNALDATE FLAGS ])
+        assert_equal(1, fetch_list.length)
+        assert_equal(message, fetch_list[0].attr['RFC822'])
+
+        internal_date = Time.parse(fetch_list[0].attr['INTERNALDATE'])
+        case (expected_date)
+        when Time
+          assert_equal(expected_date, internal_date)
+        when Integer
+          t = Time.now
+          delta_t = expected_date
+          assert(((t - delta_t)..t).cover? internal_date)
+        else
+          flunk
+        end
+
+        flags = [ :Recent ].to_set
+        flags += expected_flags if expected_flags
+        assert_equal(flags, fetch_list[0].attr['FLAGS'].to_set)
+      }
     end
   end
 end
