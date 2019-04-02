@@ -113,7 +113,7 @@ module RIMS
                 ) do |path|
         build.chain{|c| c.load_yaml(path) }
       end
-      options.on('-I', '--required-feature=FEATURE',
+      options.on('-r', '--required-feature=FEATURE',
                  String,
                  "Add required feature."
                 ) do |feature|

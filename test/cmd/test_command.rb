@@ -65,7 +65,7 @@ module RIMS::Test
 
     data('-f'                               => [ %W[ -f #{BASE_DIR}/config.yml ] ],
          '--config-yaml'                    => [ %W[ --config-yaml #{BASE_DIR}/config.yml ] ],
-         '-I'                               => [ %W[ -f #{BASE_DIR}/config.yml -I prime ] ],
+         '-r'                               => [ %W[ -f #{BASE_DIR}/config.yml -r prime ] ],
          '--required-feature'               => [ %W[ -f #{BASE_DIR}/config.yml --required-feature=prime ] ],
          '-d,--passwd-file'                 => [ %W[ -d #{BASE_DIR} --passwd-file=plain:passwd.yml ] ],
          '--base-dir,--passwd-file'         => [ %W[ --base-dir=#{BASE_DIR} --passwd-file=plain:passwd.yml ] ],
