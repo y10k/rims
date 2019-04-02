@@ -885,10 +885,12 @@ module RIMS
           logger.error('interrupt connection with unexpected error.')
           logger.error($!)
         ensure
-          Error.suppress_2nd_error_at_resource_closing(logger: logger) {
-            stream.flush
-          }
-          if (ssl_context) then
+          if (stream) then
+            Error.suppress_2nd_error_at_resource_closing(logger: logger) {
+              stream.flush
+            }
+          end
+          if (ssl_socket) then
             Error.suppress_2nd_error_at_resource_closing(logger: logger) {
               ssl_socket.close
               logger.info("close tls: #{ssl_socket.state}")
