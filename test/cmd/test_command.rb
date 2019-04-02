@@ -314,56 +314,57 @@ module RIMS::Test
 
     def run_server(use_ssl: false)
       config = {
-        'logging' => {
-          'file' => { 'level' => 'debug' },
-          'stdout' => { 'level' => 'debug' },
-          'protocol' => { 'level' => 'info' }
+        logging: {
+          file: { level: 'debug' },
+          stdout: { level: 'debug' },
+          protocol: { level: 'info' }
         },
-        'server' => {
-          'listen' => 'localhost:1430'
+        server: {
+          listen: 'localhost:1430'
         },
-        'authentication' => {
-          'password_sources' => [
-            { 'type' => 'plain',
-              'configuration' => [
-                { 'user' => 'foo', 'pass' => 'foo' },
-                { 'user' => '#postman', 'pass' => '#postman' }
+        authentication: {
+          password_sources: [
+            { type: 'plain',
+              configuration: [
+                { user: 'foo', pass: 'foo' },
+                { user: '#postman', pass: '#postman' }
               ]
             }
           ]
         },
-        'authorization' => {
-          'mail_delivery_user' => '#postman'
+        authorization: {
+          mail_delivery_user: '#postman'
         }
       }
 
       if (use_ssl) then
         FileUtils.cp(TLS_SERVER_PKEY.to_s, @base_dir.to_s)
         FileUtils.cp(TLS_SERVER_CERT.to_s, @base_dir.to_s)
-        config['openssl'] = {
-          'ssl_context' => %Q{
-            _.cert = X509::Certificate.new((base_dir / #{TLS_SERVER_CERT.basename.to_s.dump}).read)
-            _.key = PKey.read((base_dir / #{TLS_SERVER_PKEY.basename.to_s.dump}).read)
-          }
-        }
+        config.update({ openssl: {
+                          ssl_context: %Q{
+                            _.cert = X509::Certificate.new((base_dir / #{TLS_SERVER_CERT.basename.to_s.dump}).read)
+                            _.key = PKey.read((base_dir / #{TLS_SERVER_PKEY.basename.to_s.dump}).read)
+                          }
+                        }
+                      })
       end
 
       config_path = @base_dir + 'config.yml'
-      config_path.write(config.to_yaml)
+      config_path.write(RIMS::Service::Configuration.stringify_symbol(config).to_yaml)
 
       Open3.popen3('rims', 'server', '-f', config_path.to_s) {|stdin, stdout, stderr, wait_thread|
-        stdout_thread = Thread.new{
-          result = stdout.read
-          puts [ :stdout, result ].pretty_inspect if $DEBUG
-          result
-        }
-        stderr_thread = Thread.new{
-          result = stderr.read
-          puts [ :stderr, result ].pretty_inspect if $DEBUG
-          result
-        }
-
         begin
+          stdout_thread = Thread.new{
+            result = stdout.read
+            puts [ :stdout, result ].pretty_inspect if $DEBUG
+            result
+          }
+          stderr_thread = Thread.new{
+            result = stderr.read
+            puts [ :stderr, result ].pretty_inspect if $DEBUG
+            result
+          }
+
           imap = timeout(10) {
             begin
               Net::IMAP.new('localhost', 1430, use_ssl, TLS_CA_CERT.to_s)
@@ -381,8 +382,8 @@ module RIMS::Test
           end
         ensure
           Process.kill(:TERM, wait_thread.pid)
-          stdout_thread.join
-          stderr_thread.join
+          stdout_thread.join if stdout_thread
+          stderr_thread.join if stderr_thread
         end
 
         server_status = wait_thread.value
