@@ -13,7 +13,7 @@ require 'timeout'
 require 'yaml'
 
 module RIMS::Test
-  class CmdTest < Test::Unit::TestCase
+  class CommandTest < Test::Unit::TestCase
     include Timeout
 
     BASE_DIR = 'cmd_base_dir'
