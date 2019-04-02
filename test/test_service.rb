@@ -17,9 +17,9 @@ module RIMS::Test
          'array_hash' => [ [ { 'foo' => 'bar' } ], [ { foo: :bar } ] ])
     def test_stringify_symbol(data)
       expected, conversion_target = data
-      conversion_target_copy = Marshal.restore(Marshal.dump(conversion_target))
+      saved_conversion_target = Marshal.restore(Marshal.dump(conversion_target))
       assert_equal(expected, RIMS::Service::Configuration.stringify_symbol(conversion_target))
-      assert_equal(conversion_target_copy, conversion_target)
+      assert_equal(saved_conversion_target, conversion_target)
     end
 
     data('string'     => 'foo',
@@ -29,8 +29,9 @@ module RIMS::Test
          'hash_array' => { 'foo' => [ 'bar', 1 ] },
          'array_hash' => [ { 'foo' => 'bar' }, 1 ])
     def test_stringify_symbol_not_converted(data)
-      data_copy = Marshal.restore(Marshal.dump(data))
-      assert_equal(data_copy, RIMS::Service::Configuration.stringify_symbol(data))
+      saved_data = Marshal.restore(Marshal.dump(data))
+      assert_equal(saved_data, RIMS::Service::Configuration.stringify_symbol(data))
+      assert_equal(saved_data, data)
     end
 
     data('value'              => [ 'bar',                          'foo',                  'bar'                 ],
