@@ -709,7 +709,7 @@ module RIMS
         @options = options
         @option_list = option_list
         @conf = {}
-        for key, value, *option_description in option_list
+        for key, value, *_option_description in option_list
           @conf[key] = value
         end
       end
@@ -1202,9 +1202,9 @@ Options:
 
       case (args.length)
       when 0
-        passwd, *optional = YAML.load_stream(STDIN)
+        passwd, *_optional = YAML.load_stream(STDIN)
       when 1
-        passwd, *optional = File.open(args[0]) {|f| YAML.load_stream(f) }
+        passwd, *_optional = File.open(args[0]) {|f| YAML.load_stream(f) }
       else
         raise ArgumentError, 'too many input files.'
       end
