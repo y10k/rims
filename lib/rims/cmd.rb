@@ -701,6 +701,38 @@ module RIMS
         ]
       ]
 
+      def self.symbolize_string_key(collection)
+        case (collection)
+        when Hash
+          Hash[collection.map{|key, value|
+                 [ symbolize_string_key(key),
+                   case (value)
+                   when Hash, Array
+                     symbolize_string_key(value)
+                   else
+                     value
+                   end
+                 ]
+               }]
+        when Array
+          collection.map{|value|
+            case (value)
+            when Hash, Array
+              symbolize_string_key(value)
+            else
+              value
+            end
+          }
+        else
+          case (value = collection)
+          when String
+            value.to_sym
+          else
+            value
+          end
+        end
+      end
+
       def initialize(options, option_list)
         @options = options
         @option_list = option_list
