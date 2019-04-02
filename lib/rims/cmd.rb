@@ -1028,7 +1028,7 @@ module RIMS
     def each_message(args, verbose: false)
       if (args.empty?) then
         msg_txt = STDIN.read
-        yield(msg_txt)
+        yield(msg_txt, nil)
         return 0
       else
         error_count = 0
@@ -1036,7 +1036,7 @@ module RIMS
           puts "progress: #{i + 1}/#{args.length}" if verbose
           begin
             msg_txt = IO.read(filename, mode: 'rb', encoding: 'ascii-8bit')
-            yield(msg_txt)
+            yield(msg_txt, filename)
           rescue
             error_count += 1
             puts "failed to append message: #{filename}"
@@ -1083,8 +1083,8 @@ module RIMS
         unless (imap.capability.find{|c| c == 'X-RIMS-MAIL-DELIVERY-USER' }) then
           warn('warning: This IMAP server might not support RIMS mail delivery protocol.')
         end
-        each_message(args) do |msg_txt|
-          t = conf.look_for_date(msg_txt)
+        each_message(args) do |msg_txt, filename|
+          t = conf.look_for_date(msg_txt, filename)
           encoded_mbox_name = Protocol::Decoder.encode_delivery_target_mailbox(post_user, conf[:mailbox])
           imap_append(imap, encoded_mbox_name, msg_txt, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
         end
@@ -1111,8 +1111,8 @@ module RIMS
 
       store_flags = conf.make_imap_store_flags
       conf.imap_connect{|imap|
-        each_message(args) do |msg_txt|
-          t = conf.look_for_date(msg_txt)
+        each_message(args) do |msg_txt, filename|
+          t = conf.look_for_date(msg_txt, filename)
           imap_append(imap, conf[:mailbox], msg_txt, store_flags: store_flags, date_time: t, verbose: conf[:verbose])
         end
       }
