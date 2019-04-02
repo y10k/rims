@@ -678,10 +678,12 @@ module RIMS
       ]
 
       def self.make_imap_connect_option_list(imap_host: 'localhost', imap_port: 143, imap_ssl: false, auth_type: 'login', username: nil)
-        [ [ :imap_host, imap_host, '-n', '--host=HOSTNAME',                   "Hostname or IP address to connect IMAP server. default is `#{imap_host}'." ],
-          [ :imap_port, imap_port, '-o', '--port=PORT', Integer,              "Server port number or service name to connect IMAP server. default is #{imap_port}." ],
-          [ :imap_ssl,  imap_ssl,  '-s', '--[no-]use-ssl',                    "Enable SSL/TLS connection. default is #{imap_ssl ? 'enabled' : 'disabled'}." ],
-          [ :username,  username,  '-u', '--username=NAME',                   "Username to login IMAP server. " +
+        [ [ :imap_host,  imap_host, '-n', '--host=HOSTNAME',                  "Hostname or IP address to connect IMAP server. default is `#{imap_host}'." ],
+          [ :imap_port,  imap_port, '-o', '--port=PORT', Integer,             "Server port number or service name to connect IMAP server. default is #{imap_port}." ],
+          [ :imap_ssl,   imap_ssl,  '-s', '--[no-]use-ssl',                   "Enable SSL/TLS connection. default is #{imap_ssl ? 'enabled' : 'disabled'}." ],
+          [ :ca_cert,    nil,              '--ca-cert=PATH',                  "CA cert file or directory." ],
+          [ :ssl_params, {},               '--ssl-params=JSON_DATA', JSON,    "SSLContext#set_params as parameters." ],
+          [ :username,   username,  '-u', '--username=NAME',                  "Username to login IMAP server. " +
                                                                               (username ? "default is `#{username}'." : "required parameter to connect server.") ],
           [ :password,  nil,       '-w', '--password=PASS',                   "Password to login IMAP server. required parameter to connect server." ],
           [ :auth_type, auth_type, '--auth-type=METHOD', IMAP_AUTH_TYPE_LIST, "Choose authentication method type (#{IMAP_AUTH_TYPE_LIST.join(' ')}). " +
@@ -791,9 +793,9 @@ module RIMS
       def load_config_option
         @options.on('-f', '--config-yaml=CONFIG_FILE',
                     "Load optional parameters from CONFIG_FILE.") do |path|
-          for name, value in YAML.load_file(path)
-            @conf[name.to_sym] = value
-          end
+          config = YAML.load_file(path)
+          symbolized_config = self.class.symbolize_string_key(config)
+          @conf.update(symbolized_config)
         end
 
         self
@@ -846,7 +848,24 @@ module RIMS
           raise 'need for username and password.'
         end
 
-        imap = Net::IMAP.new(@conf[:imap_host], port: @conf[:imap_port], ssl: @conf[:imap_ssl])
+        args = [ @conf[:imap_host] ]
+        if (@conf[:imap_ssl]) then
+          if (@conf[:ssl_params].empty?) then
+            args << @conf[:imap_port]
+            args << @conf[:imap_ssl]
+            args << @conf[:ca_cert]
+          else
+            kw_args = {
+              port: @conf[:imap_port],
+              ssl: @conf[:ssl_params]
+            }
+            args << kw_args
+          end
+        else
+          args << @conf[:imap_port]
+        end
+
+        imap = Net::IMAP.new(*args)
         begin
           if (@conf[:verbose]) then
             puts "server greeting: #{imap_res2str(imap.greeting)}"
