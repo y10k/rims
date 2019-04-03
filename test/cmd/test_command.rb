@@ -488,6 +488,101 @@ Hello world.
         assert_equal(flags, fetch_list[0].attr['FLAGS'].to_set)
       }
     end
+
+    data('-f'                           => [ false, 10, %W[ -f #{BASE_DIR}/append.yml ] ],
+         '--config-yaml'                => [ false, 10, %W[ --config-yaml=#{BASE_DIR}/append.yml ] ],
+         '-v'                           => [ false, 10, %W[ -f #{BASE_DIR}/append.yml -v ] ],
+         '--verbose'                    => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --verbose ] ],
+         '--no-verbose'                 => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --no-verbose ] ],
+         '-n'                           => [ false, 10, %W[ -f #{BASE_DIR}/append.yml -n localhost ] ],
+         '--host'                       => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --host=localhost ] ],
+         '-o'                           => [ false, 10, %W[ -f #{BASE_DIR}/append.yml -o 1430 ] ],
+         '--port'                       => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --port=1430 ] ],
+         '-s,--ca-cert'                 => [ true,  10, %W[ -f #{BASE_DIR}/append.yml -s --ca-cert=#{TLS_CA_CERT} ] ],
+         '-s,--ssl-params'              => [ true,  10, %W[ -f #{BASE_DIR}/append.yml -s --ssl-params={"ca_file":#{TLS_CA_CERT.to_s.dump}} ] ],
+         '--use-ssl,--ca-cert'          => [ true,  10, %W[ -f #{BASE_DIR}/append.yml --use-ssl --ca-cert=#{TLS_CA_CERT} ] ],
+         '--use-ssl,--ssl-params'       => [ true,  10, %W[ -f #{BASE_DIR}/append.yml --use-ssl --ssl-params={"ca_file":#{TLS_CA_CERT.to_s.dump}} ] ],
+         '--no-use-ssl'                 => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --no-use-ssl ] ],
+         '-u,-w,-o'                     => [ false, 10, %W[ -u foo -w foo -o 1430 ] ],
+         '--username,--password,--port' => [ false, 10, %W[ --username=foo --password=foo --port=1430 ] ],
+         '--auth-type=login'            => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --auth-type=login ] ],
+         '--auth-type=plain'            => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --auth-type=plain ] ],
+         '--auth-type=cram-md5'         => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --auth-type=cram-md5 ] ],
+         '-m'                           => [ false, 10, %W[ -f #{BASE_DIR}/append.yml -m INBOX ] ],
+         '--mailbox'                    => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --mailbox=INBOX ] ],
+         '--store-flag-answered'        => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --store-flag-answered ], [ :Answered ] ],
+         '--store-flag-flagged'         => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --store-flag-flagged  ], [ :Flagged  ] ],
+         '--store-flag-deleted'         => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --store-flag-deleted  ], [ :Deleted  ] ],
+         '--store-flag-seen'            => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --store-flag-seen     ], [ :Seen     ] ],
+         '--store-flag-draft'           => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --store-flag-draft    ], [ :Draft    ] ],
+         '--store-flag-all'             => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --store-flag-answered
+                                                                                      --store-flag-flagged
+                                                                                      --store-flag-deleted
+                                                                                      --store-flag-seen
+                                                                                      --store-flag-draft ], [ :Answered, :Flagged, :Deleted, :Seen, :Draft ] ],
+         '--no-store-flag-answered'     => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --no-store-flag-answered ], [] ],
+         '--no-store-flag-flagged'      => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --no-store-flag-flagged  ], [] ],
+         '--no-store-flag-deleted'      => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --no-store-flag-deleted  ], [] ],
+         '--no-store-flag-seen'         => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --no-store-flag-seen     ], [] ],
+         '--no-store-flag-draft'        => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --no-store-flag-draft    ], [] ],
+         '--look-for-date=servertime'   => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --look-for-date=servertime ] ],
+         '--look-for-date=localtime'    => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --look-for-date=localtime ] ],
+         '--look-for-date=filetime'     => [ false, Time.parse('Mon, 01 Apr 2019 12:00:00 +0900'), %W[ -f #{BASE_DIR}/append.yml --look-for-date=filetime ] ],
+         '--look-for-date=mailheader'   => [ false, Time.parse('Mon, 01 Apr 2019 09:00:00 +0900'), %W[ -f #{BASE_DIR}/append.yml --look-for-date=mailheader ] ],
+         '--imap-debug'                 => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --imap-debug ] ],
+         '--no-imap-debug'              => [ false, 10, %W[ -f #{BASE_DIR}/append.yml --no-imap-debug ] ])
+    def test_imap_append(data)
+      use_ssl, expected_date, options, expected_flags = data
+
+      config = @base_dir + 'append.yml'
+      config.write({ 'imap_port' => 1430,
+                     'username' => 'foo',
+                     'password' => 'foo'
+                   }.to_yaml)
+
+      message = <<-'EOF'
+From: foo@mail.example.com
+To: bar@mail.example.com
+Subject: HALO
+Date: Mon, 01 Apr 2019 09:00:00 +0900
+
+Hello world.
+      EOF
+
+      message_path = @base_dir + 'message.txt'
+      message_path.write(message)
+
+      t = Time.parse('Mon, 01 Apr 2019 12:00:00 +0900')
+      message_path.utime(t, t)
+
+      run_server(use_ssl: use_ssl) {|imap|
+        stdout, stderr, status = Open3.capture3('rims', 'imap-append', *options, message_path.to_s)
+        pp [ stdout, stderr, status ] if $DEBUG
+        assert_equal(0, status.exitstatus)
+
+        imap.login('foo', 'foo')
+        imap.examine('INBOX')   # for read-only
+        fetch_list = imap.fetch(1, %w[ RFC822 INTERNALDATE FLAGS ])
+        assert_equal(1, fetch_list.length)
+        assert_equal(message, fetch_list[0].attr['RFC822'])
+
+        internal_date = Time.parse(fetch_list[0].attr['INTERNALDATE'])
+        case (expected_date)
+        when Time
+          assert_equal(expected_date, internal_date)
+        when Integer
+          t = Time.now
+          delta_t = expected_date
+          assert(((t - delta_t)..t).cover? internal_date)
+        else
+          flunk
+        end
+
+        flags = [ :Recent ].to_set
+        flags += expected_flags if expected_flags
+        assert_equal(flags, fetch_list[0].attr['FLAGS'].to_set)
+      }
+    end
   end
 end
 
