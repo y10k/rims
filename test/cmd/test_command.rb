@@ -433,13 +433,12 @@ module RIMS::Test
          '--no-store-flag-deleted'    => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-store-flag-deleted  ], [] ],
          '--no-store-flag-seen'       => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-store-flag-seen     ], [] ],
          '--no-store-flag-draft'      => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-store-flag-draft    ], [] ],
-         '--look-for-date=servertime' => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --look-for-date=servertime ], [] ],
-         '--look-for-date=localtime'  => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --look-for-date=localtime ], [] ],
-         '--look-for-date=filetime'   => [ false, Time.parse('Mon, 01 Apr 2019 12:00:00 +0900'), %W[ -f #{BASE_DIR}/postman.yml --look-for-date=filetime ], [] ],
-         '--look-for-date=mailheader' => [ false, Time.parse('Mon, 01 Apr 2019 09:00:00 +0900'), %W[ -f #{BASE_DIR}/postman.yml --look-for-date=mailheader ], [] ],
+         '--look-for-date=servertime' => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --look-for-date=servertime ] ],
+         '--look-for-date=localtime'  => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --look-for-date=localtime ] ],
+         '--look-for-date=filetime'   => [ false, Time.parse('Mon, 01 Apr 2019 12:00:00 +0900'), %W[ -f #{BASE_DIR}/postman.yml --look-for-date=filetime ] ],
+         '--look-for-date=mailheader' => [ false, Time.parse('Mon, 01 Apr 2019 09:00:00 +0900'), %W[ -f #{BASE_DIR}/postman.yml --look-for-date=mailheader ] ],
          '--imap-debug'               => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --imap-debug ] ],
-         '--no-imap-debug'            => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-imap-debug ] ],
-        )
+         '--no-imap-debug'            => [ false, 10, %W[ -f #{BASE_DIR}/postman.yml --no-imap-debug ] ])
     def test_post_mail(data)
       use_ssl, expected_date, options, expected_flags = data
 
