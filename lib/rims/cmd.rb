@@ -805,6 +805,7 @@ module RIMS
 
       def load_config_option
         @options.on('-f', '--config-yaml=CONFIG_FILE',
+                    String,
                     "Load optional parameters from CONFIG_FILE.") do |path|
           config = YAML.load_file(path)
           symbolized_config = self.class.symbolize_string_key(config)
