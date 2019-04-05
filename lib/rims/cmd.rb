@@ -829,12 +829,27 @@ module RIMS
 
       def key_value_store_option
         @conf[:key_value_store_type] = GDBM_KeyValueStore
-        @options.on('--kvs-type=TYPE', 'Choose the key-value store type.') do |kvs_type|
+        @options.on('--kvs-type=TYPE',
+                    KeyValueStore::FactoryBuilder.plug_in_names,
+                    "Choose key-value store type of mailbox database" +
+                    if (KeyValueStore::FactoryBuilder.plug_in_names.length > 1) then
+                      ' (' + KeyValueStore::FactoryBuilder.plug_in_names.join(' ') + ')'
+                    else
+                      ''
+                    end +
+                    ". default is `" +
+                    KeyValueStore::FactoryBuilder.plug_in_names[0] +
+                    "'."
+                   ) do |kvs_type|
           @conf[:key_value_store_type] = KeyValueStore::FactoryBuilder.get_plug_in(kvs_type)
         end
 
         @conf[:use_key_value_store_checksum] = true
-        @options.on('--[no-]use-kvs-cksum', 'Enable/disable data checksum at key-value store. default is enabled.') do |use_checksum|
+        @options.on('--[no-]use-kvs-checksum', 'Enable/disable data checksum at key-value store. default is enabled.') do |use_checksum|
+          @conf[:use_key_value_store_checksum] = use_checksum
+        end
+        @options.on('--[no-]use-kvs-cksum', 'Deplicated.') do |use_checksum|
+          warn("warning: `--[no-]use-kvs-cksum' is deplicated option and should use `--[no-]use-kvs-checksum'.")
           @conf[:use_key_value_store_checksum] = use_checksum
         end
 
