@@ -102,6 +102,7 @@ module RIMS
       build.chain{|c| c.load(base_dir: Dir.getwd) }
 
       options.summary_width = 37
+      log_level_list = %w[ debug info warn error fatal unknown ]
 
       options.on('-h', '--help', 'Show this message.') do
         puts options
@@ -139,8 +140,8 @@ module RIMS
         }
       end
       options.on('-l', '--log-level=LEVEL',
-                 %w[ debug info warn error fatal unknown ],
-                 "Logging level (debug,info,warn,error,fatal,unknown). default is `" +
+                 log_level_list,
+                 "Logging level (#{log_level_list.join(' ')}). default is `" +
                  Service::DEFAULT_CONFIG.make_file_logger_params[-1][:level] +
                  "'."
                 ) do |level|
@@ -210,8 +211,8 @@ module RIMS
         }
       end
       options.on('-v', '--log-stdout=LEVEL',
-                 %w[ debug info warn error fatal unknown quiet ],
-                 "Stdout logging level (debug,info,warn,error,fatal,unknown,quiet). default is `" +
+                 log_level_list + %w[  quiet ],
+                 "Stdout logging level (#{(log_level_list + %w[ quiet ]).join(' ')}). default is `" +
                  Service::DEFAULT_CONFIG.make_stdout_logger_params[-1][:level] +
                  "'."
                 ) do |level|
@@ -239,8 +240,8 @@ module RIMS
         }
       end
       options.on('-p', '--protocol-log-level=LEVEL',
-                 %w[ debug info warn error fatal unknown ],
-                 "Logging level (debug,info,warn,error,fatal,unknown). default is `" +
+                 log_level_list,
+                 "Logging level (#{log_level_list.join(' ')}). default is `" +
                  Service::DEFAULT_CONFIG.make_protocol_logger_params[-1][:level] +
                  "'."
                 ) do |level|
