@@ -442,7 +442,13 @@ module RIMS
       end
       options.on('--meta-kvs-type=TYPE',
                  KeyValueStore::FactoryBuilder.plug_in_names,
-                 "Choose key-value store type of mailbox meta-data database. default is `" +
+                 "Choose key-value store type of mailbox meta-data database" +
+                 if (KeyValueStore::FactoryBuilder.plug_in_names.length > 1) then
+                   ' (' + KeyValueStore::FactoryBuilder.plug_in_names.join(' ') + ')'
+                 else
+                   ''
+                 end +
+                 ". default is `" +
                  KeyValueStore::FactoryBuilder.plug_in_names[0] +
                  "'."
                 ) do |kvs_type|
@@ -485,7 +491,13 @@ module RIMS
       end
       options.on('--text-kvs-type=TYPE',
                  KeyValueStore::FactoryBuilder.plug_in_names,
-                 "Choose key-value store type of mailbox text-data database. default is `" +
+                 "Choose key-value store type of mailbox text-data database" +
+                 if (KeyValueStore::FactoryBuilder.plug_in_names.length > 1) then
+                   ' (' + KeyValueStore::FactoryBuilder.plug_in_names.join(' ') + ')'
+                 else
+                   ''
+                 end +
+                 ". default is `" +
                  KeyValueStore::FactoryBuilder.plug_in_names[0] +
                  "'."
                 ) do |kvs_type|
