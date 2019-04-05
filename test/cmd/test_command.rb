@@ -585,6 +585,290 @@ Hello world.
         assert_equal(flags, fetch_list[0].attr['FLAGS'].to_set)
       }
     end
+
+    data('default'                    => [ true,  true,  false, %w[] ],
+         '-r'                         => [ true,  true,  false, %w[ -r prime ] ],
+         '--required-feature'         => [ true,  true,  false, %w[ --required-feature=prime ] ],
+         '--kvs-type'                 => [ true,  true,  false, %w[ --kvs-type=gdbm ] ],
+         '--use-kvs-checksum'         => [ true,  true,  false, %w[ --use-kvs-checksum ] ],
+         '--no-use-kvs-checksum'      => [ true,  true,  false, %w[ --no-use-kvs-checksum ],
+                                           { storage:
+                                               { meta_key_value_store:
+                                                   { use_checksum:
+                                                       false
+                                                   }
+                                               }
+                                           }
+                                         ],
+         '-v'                         => [ true,  true,  false, %w[ -v ] ],
+         '--verbose'                  => [ true,  true,  false, %w[ --verbose ] ],
+         '--no-verbose'               => [ false, true,  false, %w[ --no-verbose ] ],
+         '--quiet'                    => [ false, true,  false, %w[ --quiet ] ],
+         '--no-quiet'                 => [ true,  true,  false, %w[ --no-quiet ] ],
+         '--return-flag-exit-code'    => [ true,  true,  false, %w[ --return-flag-exit-code ] ],
+         '--no-return-flag-exit-code' => [ true,  false, false, %w[ --no-return-flag-exit-code ] ],
+
+         # deplicated options
+         'deplicated:--load-library'     => [ true, true, true, %w[ --load-library=prime ] ],
+         'deplicated:--use-kvs-cksum'    => [ true, true, true, %w[ --use-kvs-cksum ] ],
+         'deplicated:--no-use-kvs-cksum' => [ true, true, true, %w[ --no-use-kvs-cksum ],
+                                              { storage:
+                                                  { meta_key_value_store:
+                                                      { use_checksum:
+                                                          false
+                                                      }
+                                                  }
+                                              }
+                                            ])
+    def test_mbox_dirty_flag_true(data)
+      expected_stdout, expected_status, deplicated, options, config = data
+
+      run_server(optional: config || {}) {|imap|
+        imap.login('foo', 'foo')
+        imap.select('INBOX')
+      }
+
+      svc_conf = RIMS::Service::Configuration.new
+      svc_conf.load(base_dir: @base_dir.to_s)
+      foo_mbox_path = svc_conf.make_key_value_store_path(RIMS::MAILBOX_DATA_STRUCTURE_VERSION,
+                                                         RIMS::Authentication.unique_user_id('foo'))
+
+      stdout, stderr, status = Open3.capture3('rims', 'mbox-dirty-flag', '--quiet', '--enable-dirty-flag', foo_mbox_path.to_s)
+      assert_equal('', stdout)
+      assert_equal('', stderr)
+      assert_equal(1, status.exitstatus)
+
+      stdout, stderr, status = Open3.capture3('rims', 'mbox-dirty-flag', *options, foo_mbox_path.to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      if (expected_stdout) then
+        assert_match(/dirty flag is true/, stdout)
+      else
+        assert_equal('', stdout)
+      end
+      if (deplicated) then
+        assert_match(/warning/, stderr)
+      else
+        assert_equal('', stderr)
+      end
+      if (expected_status) then
+        assert_equal(1, status.exitstatus)
+      else
+        assert_equal(0, status.exitstatus)
+      end
+    end
+
+    data('default'                    => [ true,  true,  false, %w[] ],
+         '-r'                         => [ true,  true,  false, %w[ -r prime ] ],
+         '--required-feature'         => [ true,  true,  false, %w[ --required-feature=prime ] ],
+         '--kvs-type'                 => [ true,  true,  false, %w[ --kvs-type=gdbm ] ],
+         '--use-kvs-checksum'         => [ true,  true,  false, %w[ --use-kvs-checksum ] ],
+         '--no-use-kvs-checksum'      => [ true,  true,  false, %w[ --no-use-kvs-checksum ],
+                                           { storage:
+                                               { meta_key_value_store:
+                                                   { use_checksum:
+                                                       false
+                                                   }
+                                               }
+                                           }
+                                         ],
+         '-v'                         => [ true,  true,  false, %w[ -v ] ],
+         '--verbose'                  => [ true,  true,  false, %w[ --verbose ] ],
+         '--no-verbose'               => [ false, true,  false, %w[ --no-verbose ] ],
+         '--quiet'                    => [ false, true,  false, %w[ --quiet ] ],
+         '--no-quiet'                 => [ true,  true,  false, %w[ --no-quiet ] ],
+         '--return-flag-exit-code'    => [ true,  true,  false, %w[ --return-flag-exit-code ] ],
+         '--no-return-flag-exit-code' => [ true,  false, false, %w[ --no-return-flag-exit-code ] ],
+
+         # deplicated options
+         'deplicated:--load-library'     => [ true, true, true, %w[ --load-library=prime ] ],
+         'deplicated:--use-kvs-cksum'    => [ true, true, true, %w[ --use-kvs-cksum ] ],
+         'deplicated:--no-use-kvs-cksum' => [ true, true, true, %w[ --no-use-kvs-cksum ],
+                                              { storage:
+                                                  { meta_key_value_store:
+                                                      { use_checksum:
+                                                          false
+                                                      }
+                                                  }
+                                              }
+                                            ])
+    def test_mbox_dirty_flag_false(data)
+      expected_stdout, expected_status, deplicated, options, config = data
+
+      run_server(optional: config || {}) {|imap|
+        imap.login('foo', 'foo')
+        imap.select('INBOX')
+      }
+
+      svc_conf = RIMS::Service::Configuration.new
+      svc_conf.load(base_dir: @base_dir.to_s)
+      foo_mbox_path = svc_conf.make_key_value_store_path(RIMS::MAILBOX_DATA_STRUCTURE_VERSION,
+                                                         RIMS::Authentication.unique_user_id('foo'))
+
+      stdout, stderr, status = Open3.capture3('rims', 'mbox-dirty-flag', *options, foo_mbox_path.to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      if (expected_stdout) then
+        assert_match(/dirty flag is false/, stdout)
+      else
+        assert_equal('', stdout)
+      end
+      if (deplicated) then
+        assert_match(/warning/, stderr)
+      else
+        assert_equal('', stderr)
+      end
+      if (expected_status) then
+        assert_equal(0, status.exitstatus)
+      else
+        assert_equal(0, status.exitstatus)
+      end
+    end
+
+    data('default'                    => [ true,  true,  false, %w[] ],
+         '-r'                         => [ true,  true,  false, %w[ -r prime ] ],
+         '--required-feature'         => [ true,  true,  false, %w[ --required-feature=prime ] ],
+         '--kvs-type'                 => [ true,  true,  false, %w[ --kvs-type=gdbm ] ],
+         '--use-kvs-checksum'         => [ true,  true,  false, %w[ --use-kvs-checksum ] ],
+         '--no-use-kvs-checksum'      => [ true,  true,  false, %w[ --no-use-kvs-checksum ],
+                                           { storage:
+                                               { meta_key_value_store:
+                                                   { use_checksum:
+                                                       false
+                                                   }
+                                               }
+                                           }
+                                         ],
+         '-v'                         => [ true,  true,  false, %w[ -v ] ],
+         '--verbose'                  => [ true,  true,  false, %w[ --verbose ] ],
+         '--no-verbose'               => [ false, true,  false, %w[ --no-verbose ] ],
+         '--quiet'                    => [ false, true,  false, %w[ --quiet ] ],
+         '--no-quiet'                 => [ true,  true,  false, %w[ --no-quiet ] ],
+         '--return-flag-exit-code'    => [ true,  true,  false, %w[ --return-flag-exit-code ] ],
+         '--no-return-flag-exit-code' => [ true,  false, false, %w[ --no-return-flag-exit-code ] ],
+
+         # deplicated options
+         'deplicated:--load-library'     => [ true, true, true, %w[ --load-library=prime ] ],
+         'deplicated:--use-kvs-cksum'    => [ true, true, true, %w[ --use-kvs-cksum ] ],
+         'deplicated:--no-use-kvs-cksum' => [ true, true, true, %w[ --no-use-kvs-cksum ],
+                                              { storage:
+                                                  { meta_key_value_store:
+                                                      { use_checksum:
+                                                          false
+                                                      }
+                                                  }
+                                              }
+                                            ])
+    def test_mbox_dirty_flag_enable(data)
+      expected_stdout, expected_status, deplicated, options, config = data
+
+      run_server(optional: config || {}) {|imap|
+        imap.login('foo', 'foo')
+        imap.select('INBOX')
+      }
+
+      svc_conf = RIMS::Service::Configuration.new
+      svc_conf.load(base_dir: @base_dir.to_s)
+      foo_mbox_path = svc_conf.make_key_value_store_path(RIMS::MAILBOX_DATA_STRUCTURE_VERSION,
+                                                         RIMS::Authentication.unique_user_id('foo'))
+
+      stdout, stderr, status = Open3.capture3('rims', 'mbox-dirty-flag', '--enable-dirty-flag', *options, foo_mbox_path.to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      if (expected_stdout) then
+        assert_match(/dirty flag is true/, stdout)
+      else
+        assert_equal('', stdout)
+      end
+      if (deplicated) then
+        assert_match(/warning/, stderr)
+      else
+        assert_equal('', stderr)
+      end
+      if (expected_status) then
+        assert_equal(1, status.exitstatus)
+      else
+        assert_equal(0, status.exitstatus)
+      end
+
+      stdout, stderr, status = Open3.capture3('rims', 'mbox-dirty-flag', '--quiet', '--return-flag-exit-code', foo_mbox_path.to_s)
+      assert_equal('', stdout)
+      assert_equal('', stderr)
+      assert_equal(1, status.exitstatus)
+    end
+
+    data('default'                    => [ true,  true,  false, %w[] ],
+         '-r'                         => [ true,  true,  false, %w[ -r prime ] ],
+         '--required-feature'         => [ true,  true,  false, %w[ --required-feature=prime ] ],
+         '--kvs-type'                 => [ true,  true,  false, %w[ --kvs-type=gdbm ] ],
+         '--use-kvs-checksum'         => [ true,  true,  false, %w[ --use-kvs-checksum ] ],
+         '--no-use-kvs-checksum'      => [ true,  true,  false, %w[ --no-use-kvs-checksum ],
+                                           { storage:
+                                               { meta_key_value_store:
+                                                   { use_checksum:
+                                                       false
+                                                   }
+                                               }
+                                           }
+                                         ],
+         '-v'                         => [ true,  true,  false, %w[ -v ] ],
+         '--verbose'                  => [ true,  true,  false, %w[ --verbose ] ],
+         '--no-verbose'               => [ false, true,  false, %w[ --no-verbose ] ],
+         '--quiet'                    => [ false, true,  false, %w[ --quiet ] ],
+         '--no-quiet'                 => [ true,  true,  false, %w[ --no-quiet ] ],
+         '--return-flag-exit-code'    => [ true,  true,  false, %w[ --return-flag-exit-code ] ],
+         '--no-return-flag-exit-code' => [ true,  false, false, %w[ --no-return-flag-exit-code ] ],
+
+         # deplicated options
+         'deplicated:--load-library'     => [ true, true, true, %w[ --load-library=prime ] ],
+         'deplicated:--use-kvs-cksum'    => [ true, true, true, %w[ --use-kvs-cksum ] ],
+         'deplicated:--no-use-kvs-cksum' => [ true, true, true, %w[ --no-use-kvs-cksum ],
+                                              { storage:
+                                                  { meta_key_value_store:
+                                                      { use_checksum:
+                                                          false
+                                                      }
+                                                  }
+                                              }
+                                            ])
+    def test_mbox_dirty_flag_disable(data)
+      expected_stdout, expected_status, deplicated, options, config = data
+
+      run_server(optional: config || {}) {|imap|
+        imap.login('foo', 'foo')
+        imap.select('INBOX')
+      }
+
+      svc_conf = RIMS::Service::Configuration.new
+      svc_conf.load(base_dir: @base_dir.to_s)
+      foo_mbox_path = svc_conf.make_key_value_store_path(RIMS::MAILBOX_DATA_STRUCTURE_VERSION,
+                                                         RIMS::Authentication.unique_user_id('foo'))
+
+      stdout, stderr, status = Open3.capture3('rims', 'mbox-dirty-flag', '--quiet', '--return-flag-exit-code', '--enable-dirty-flag', foo_mbox_path.to_s)
+      assert_equal('', stdout)
+      assert_equal('', stderr)
+      assert_equal(1, status.exitstatus)
+
+      stdout, stderr, status = Open3.capture3('rims', 'mbox-dirty-flag', '--disable-dirty-flag', *options, foo_mbox_path.to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      if (expected_stdout) then
+        assert_match(/dirty flag is false/, stdout)
+      else
+        assert_equal('', stdout)
+      end
+      if (deplicated) then
+        assert_match(/warning/, stderr)
+      else
+        assert_equal('', stderr)
+      end
+      if (expected_status) then
+        assert_equal(0, status.exitstatus)
+      else
+        assert_equal(0, status.exitstatus)
+      end
+
+      stdout, stderr, status = Open3.capture3('rims', 'mbox-dirty-flag', '--quiet', '--return-flag-exit-code', foo_mbox_path.to_s)
+      assert_equal('', stdout)
+      assert_equal('', stderr)
+      assert_equal(0, status.exitstatus)
+    end
   end
 end
 
