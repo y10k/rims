@@ -869,6 +869,16 @@ Hello world.
       assert_equal('', stderr)
       assert_equal(0, status.exitstatus)
     end
+
+    data('alice' => %w[ 2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90 alice ],
+         'bob'   => %w[ 81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9 bob ])
+    def test_unique_user_id(data)
+      expected_id, username = data
+      stdout, stderr, status = Open3.capture3('rims', 'unique-user-id', username)
+      assert_equal(expected_id, stdout.chomp)
+      assert_equal('', stderr)
+      assert_equal(0, status.exitstatus)
+    end
   end
 end
 
