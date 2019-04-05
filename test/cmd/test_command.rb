@@ -879,6 +879,25 @@ Hello world.
       assert_equal('', stderr)
       assert_equal(0, status.exitstatus)
     end
+
+    data('-f'            => %W[ -f #{BASE_DIR}/config.yml ],
+         '--config-yaml' => %W[ --config-yaml=#{BASE_DIR}/config.yml ],
+         'base_dir'      => [ BASE_DIR ])
+    def test_show_user_mbox(args)
+      config_path = @base_dir + 'config.yml'
+      config_path.write({}.to_yaml)
+
+      svc_conf = RIMS::Service::Configuration.new
+      svc_conf.load(base_dir: @base_dir.to_s)
+      foo_mbox_path = svc_conf.make_key_value_store_path(RIMS::MAILBOX_DATA_STRUCTURE_VERSION,
+                                                         RIMS::Authentication.unique_user_id('foo'))
+
+      stdout, stderr, status = Open3.capture3('rims', 'show-user-mbox', *args, 'foo')
+      pp [ stdout, stderr, status ] if $DEBUG
+      assert_equal(foo_mbox_path.to_s, stdout.chomp)
+      assert_equal('', stderr)
+      assert_equal(0, status.exitstatus)
+    end
   end
 end
 
