@@ -709,7 +709,7 @@ module RIMS
                                                                     username: Service::DEFAULT_CONFIG.mail_delivery_user)
 
       IMAP_MAILBOX_OPTION_LIST = [
-        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', "Set mailbox name to append messages. default is `INBOX'." ]
+        [ :mailbox, 'INBOX', '-m', '--mailbox=NAME', String, "Set mailbox name to append messages. default is `INBOX'." ]
       ]
 
       IMAP_STORE_FLAG_OPTION_LIST = [
