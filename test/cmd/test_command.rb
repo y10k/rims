@@ -312,7 +312,7 @@ module RIMS::Test
       warn("warning: do `rake test_cert:make' to create TLS private key file and TLS certificate file for test.")
     end
 
-    def run_server(use_ssl: false)
+    def run_server(use_ssl: false, optional: {})
       config = {
         logging: {
           file: { level: 'debug' },
@@ -348,6 +348,8 @@ module RIMS::Test
                         }
                       })
       end
+
+      config.update(optional)
 
       config_path = @base_dir + 'config.yml'
       config_path.write(RIMS::Service::Configuration.stringify_symbol(config).to_yaml)
