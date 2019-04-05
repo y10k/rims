@@ -815,8 +815,12 @@ module RIMS
         self
       end
 
-      def load_library_option
-        @options.on('-r', '--load-library=LIBRARY', 'require LIBRARY.') do |library|
+      def required_feature_option
+        @options.on('-r', '--required-feature=FEATURE', String, 'Add required feature.') do |feature|
+          require(feature)
+        end
+        @options.on('--load-library=LIBRARY', String, 'Deplicated.') do |library|
+          warn("warning: `--load-library=LIBRARY' is deplicated option and should use `--required-feature=FEATURE'.")
           require(library)
         end
 
@@ -1158,7 +1162,7 @@ module RIMS
       ]
 
       conf = Config.new(options, option_list)
-      conf.load_library_option
+      conf.required_feature_option
       conf.key_value_store_option
       conf.help_option(add_banner: ' [mailbox directory]')
       conf.quiet_option
@@ -1303,7 +1307,7 @@ Options:
       ]
 
       conf = Config.new(options, option_list)
-      conf.load_library_option
+      conf.required_feature_option
       conf.key_value_store_option
       conf.help_option(add_banner: ' [DB_NAME]')
       conf.setup_option_list
