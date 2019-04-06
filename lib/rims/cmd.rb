@@ -1265,7 +1265,7 @@ module RIMS
 
     def cmd_pass_hash(options, args)
       option_list = [
-        [ :hash_type, 'SHA256', '--hash-type=DIGEST', 'Password hash type (ex SHA256, MD5, etc). default is SHA256.' ],
+        [ :hash_type, 'SHA256', '--hash-type=DIGEST', String, 'Password hash type (ex SHA256, MD5, etc). default is SHA256.' ],
         [ :stretch_count, 10000, '--stretch-count=COUNT', Integer, 'Count to stretch password hash. default is 10000.' ],
         [ :salt_size, 16, '--salt-size=OCTETS', Integer, 'Size of salt string. default is 16 octets.' ]
       ]
