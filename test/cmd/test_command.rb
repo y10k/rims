@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'fileutils'
+require 'logger'
 require 'net/imap'
 require 'open3'
 require 'pathname'
@@ -897,6 +898,36 @@ Hello world.
       assert_equal(foo_mbox_path.to_s, stdout.chomp)
       assert_equal('', stderr)
       assert_equal(0, status.exitstatus)
+    end
+
+    data('default' => %w[],
+         'MD5'     => %w[ --hash-type=MD5 ],
+         'RMD160'  => %w[ --hash-type=RMD160 ],
+         'SHA256'  => %w[ --hash-type=SHA256 ],
+         'SHA512'  => %w[ --hash-type=SHA512 ],
+         'strech'  => %w[ --stretch-count=100000 ],
+         'salt'    => %w[ --salt-size=1024 ])
+    def test_pass_hash(options)
+      passwd_path = @base_dir + 'passwd_plain.yml'
+      passwd_path.write([ { 'user' => 'foo', 'pass' => 'open sesame' } ].to_yaml)
+
+      stdout, stderr, status = Open3.capture3('rims', 'pass-hash', *options, passwd_path.to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      assert_equal('', stderr)
+      assert_equal(0, status.exitstatus)
+
+      passwd_hash = YAML.load(stdout)
+      hash_src = RIMS::Password::HashSource.build_from_conf(passwd_hash)
+      auth = RIMS::Authentication.new
+      auth.add_plug_in(hash_src)
+
+      logger = Logger.new(STDOUT)
+      logger.level = ($DEBUG) ? :debug : :unknown
+
+      auth.start_plug_in(logger)
+      assert_equal(true, (auth.user? 'foo'))
+      assert(auth.authenticate_login('foo', 'open sesame'))
+      auth.stop_plug_in(logger)
     end
   end
 end
