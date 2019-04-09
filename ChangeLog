@@ -1,3 +1,8 @@
+2019-04-06  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* the server framework is replaced to riser and delete old server
+	framework.
+
 2019-03-26  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/service.rb: service and configuration for
