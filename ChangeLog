@@ -1,3 +1,7 @@
+2019-04-09  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* test/cmd/test_command.rb: command test.
+
 2019-04-06  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* the server framework is replaced to riser and delete old server
