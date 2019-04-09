@@ -929,6 +929,67 @@ Hello world.
       assert(auth.authenticate_login('foo', 'open sesame'))
       auth.stop_plug_in(logger)
     end
+
+    data('default'               => [ true,  false, %w[] ],
+         '-r'                    => [ true,  false, %w[ -r prime ] ],
+         '--required-feature'    => [ true,  false, %w[ --required-feature=prime ] ],
+         '--kvs-type'            => [ true,  false, %w[ --kvs-type=gdbm ] ],
+         '--use-kvs-checksum'    => [ true,  false, %w[ --use-kvs-checksum ] ],
+         '--no-use-kvs-checksum' => [ true,  false, %w[ --no-use-kvs-checksum ],
+                                      { storage: {
+                                          meta_key_value_store: {
+                                            use_checksum: false
+                                          }
+                                        }
+                                      }
+                                    ],
+         '--match-key:match'     => [ true,  false, %w[ --match-key=uid ] ],
+         '--match-key:no_match'  => [ false, false, %w[ --match-key=nothing ] ],
+         '--dump-size'           => [ true,  false, %w[ --dump-size ] ],
+         '--no-dump-size'        => [ true,  false, %w[ --no-dump-size ] ],
+         '--dump-value'          => [ true,  false, %w[ --dump-value ] ],
+         '--no-dump-value'       => [ true,  false, %w[ --no-dump-value ] ],
+         '--marshal-restore'     => [ true,  false, %w[ --marshal-restore ] ],
+         '--no-marshal-restore'  => [ true,  false, %w[ --no-marshal-restore ] ],
+
+         # deplicated options
+         'deplicated:--load-library'     => [ true, true, %w[ --load-library=prime ] ],
+         'deplicated:--use-kvs-cksum'    => [ true, true, %w[ --use-kvs-cksum ] ],
+         'deplicated:--no-use-kvs-cksum' => [ true, true, %w[ --no-use-kvs-cksum ],
+                                              { storage: {
+                                                  meta_key_value_store: {
+                                                    use_checksum: false
+                                                  }
+                                                }
+                                              }
+                                            ])
+    def test_debug_dump_kvs(data)
+      expected_stdout, deplicated, options, config = data
+
+      run_server(optional: config || {}) {|imap|
+        imap.login('foo', 'foo')
+        imap.select('INBOX')
+      }
+
+      svc_conf = RIMS::Service::Configuration.new
+      svc_conf.load(base_dir: @base_dir.to_s)
+      foo_mbox_path = svc_conf.make_key_value_store_path(RIMS::MAILBOX_DATA_STRUCTURE_VERSION,
+                                                         RIMS::Authentication.unique_user_id('foo'))
+
+      stdout, stderr, status = Open3.capture3('rims', 'debug-dump-kvs', *options, (foo_mbox_path + 'meta').to_s)
+      pp [ stdout, stderr, status ] if $DEBUG
+      if (expected_stdout) then
+        assert(! stdout.empty?)
+      else
+        assert_equal('', stdout)
+      end
+      if (deplicated) then
+        assert_match(/warning/, stderr)
+      else
+        assert_equal('', stderr)
+      end
+      assert_equal(0, status.exitstatus)
+    end
   end
 end
 
