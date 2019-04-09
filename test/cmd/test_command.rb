@@ -60,7 +60,7 @@ module RIMS::Test
       pp [ stdout, stderr, status ] if $DEBUG
 
       assert_equal(0, status.exitstatus)
-      assert_include(stdout, RIMS::VERSION)
+      assert_equal(RIMS::VERSION, stdout.chomp)
       assert_equal('', stderr)
     end
 
