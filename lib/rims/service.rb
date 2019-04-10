@@ -866,7 +866,8 @@ module RIMS
           begin
             begin
               begin
-                logger.info("accept connection: #{socket.remote_address.inspect_sockaddr}")
+                remote_address = socket.remote_address # the place where the remote socket is most likely not closed is here
+                logger.info("accept connection: #{remote_address.inspect_sockaddr}")
                 if (ssl_context) then
                   ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
                   logger.info("start tls: #{ssl_socket.state}")
@@ -896,9 +897,12 @@ module RIMS
               end
             end
           ensure
-            remote_address = socket.remote_address
             socket.close
-            logger.info("close connection: #{remote_address.inspect_sockaddr}")
+            if (remote_address) then
+              logger.info("close connection: #{remote_address.inspect_sockaddr}")
+            else
+              logger.info('close connection.')
+            end
           end
         rescue
           logger.error('interrupt connection with unexpected error.')
