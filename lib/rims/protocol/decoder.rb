@@ -152,7 +152,7 @@ module RIMS
 
         nil
       ensure
-        Error.suppress_2nd_error_at_resource_closing(logger: logger) { decoder.cleanup }
+        decoder.cleanup
       end
 
       def initialize(auth, logger)

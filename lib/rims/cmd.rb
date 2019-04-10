@@ -918,7 +918,7 @@ module RIMS
 
           yield(imap)
         ensure
-          Error.suppress_2nd_error_at_resource_closing{ imap.logout }
+          imap.logout
         end
       end
 
@@ -1219,7 +1219,7 @@ module RIMS
           0
         end
       ensure
-        Error.suppress_2nd_error_at_resource_closing{ meta_db.close }
+        meta_db.close
       end
     end
     command_function :cmd_mbox_dirty_flag, 'Show/enable/disable dirty flag of mailbox database.'
@@ -1364,7 +1364,7 @@ Options:
           puts entry
         end
       ensure
-        Error.suppress_2nd_error_at_resource_closing{ db.close }
+        db.close
       end
 
       0
