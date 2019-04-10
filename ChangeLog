@@ -1,3 +1,8 @@
+2019-04-10  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb, lib/rims/lock.rb, lib/rims/protocol/decoder.rb,
+	lib/rims/service.rb: trace all unexpected errors.
+
 2019-04-09  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* test/cmd/test_command.rb: command test.
