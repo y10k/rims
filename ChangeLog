@@ -1,5 +1,7 @@
 2019-04-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* RIMS version 0.2.3 is released.
+
 	* lib/rims/cmd.rb, lib/rims/lock.rb, lib/rims/protocol/decoder.rb,
 	lib/rims/service.rb: trace all unexpected errors.
 
