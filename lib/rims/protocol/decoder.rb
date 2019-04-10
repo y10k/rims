@@ -37,7 +37,9 @@ module RIMS
             atom_list = request_reader.read_command
           rescue
             logger.error('invalid client command.')
-            logger.error($!)
+            Error.trace_error_chain($!) do |exception|
+              logger.error(exception)
+            end
             response_write.call([ "* BAD client command syntax error\r\n" ])
             next
           end
@@ -135,7 +137,9 @@ module RIMS
             end
           rescue
             logger.error('unexpected error.')
-            logger.error($!)
+            Error.trace_error_chain($!) do |exception|
+              logger.error(exception)
+            end
             response_write.call([ "#{tag} BAD unexpected error\r\n" ])
           end
 
@@ -167,7 +171,9 @@ module RIMS
           rescue
             raise if ($!.class.name =~ /AssertionFailedError/)
             @logger.error('internal server error.')
-            @logger.error($!)
+            Error.trace_error_chain($!) do |exception|
+              @logger.error(exception)
+            end
             res << "#{tag} BAD internal server error\r\n"
           end
         }
@@ -192,7 +198,9 @@ module RIMS
         rescue
           raise if ($!.class.name =~ /AssertionFailedError/)
           @logger.error('internal server error.')
-          @logger.error($!)
+          Error.trace_error_chain($!) do |exception|
+            @logger.error(exception)
+          end
           yield([ "#{tag} BAD internal server error\r\n" ])
         end
       end

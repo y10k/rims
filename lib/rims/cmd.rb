@@ -1092,10 +1092,12 @@ module RIMS
           rescue
             error_count += 1
             puts "failed to append message: #{filename}"
-            puts "error: #{$!}"
-            if ($DEBUG) then
-              for frame in $!.backtrace
-                puts frame
+            Error.trace_error_chain($!) do |exception|
+              puts "error: #{exception}"
+              if ($DEBUG) then
+                for frame in exception.backtrace
+                  puts frame
+                end
               end
             end
           end

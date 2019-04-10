@@ -863,44 +863,48 @@ module RIMS
       }
       server.dispatch{|socket|
         begin
-          logger.info("accept connection: #{socket.remote_address.inspect_sockaddr}")
-          if (ssl_context) then
-            ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
-            logger.info("start tls: #{ssl_socket.state}")
-            ssl_socket.accept
-            logger.info("accept tls: #{ssl_socket.state}")
-            ssl_socket.sync = true
-            stream = Riser::WriteBufferStream.new(ssl_socket, @config.send_buffer_limit_size)
-          else
-            stream = Riser::WriteBufferStream.new(socket, @config.send_buffer_limit_size)
-          end
-          stream = Riser::LoggingStream.new(stream, protocol_logger)
-          decoder = Protocol::Decoder.new_decoder(mail_store_pool, auth, logger,
-                                                  mail_delivery_user: @config.mail_delivery_user,
-                                                  read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
-                                                  write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
-                                                  cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
-          Protocol::Decoder.repl(decoder, stream, stream, logger)
-        rescue
-          logger.error('interrupt connection with unexpected error.')
-          logger.error($!)
-        ensure
-          if (stream) then
-            Error.suppress_2nd_error_at_resource_closing(logger: logger) {
-              stream.flush
-            }
-          end
-          if (ssl_socket) then
-            Error.suppress_2nd_error_at_resource_closing(logger: logger) {
-              ssl_socket.close
-              logger.info("close tls: #{ssl_socket.state}")
-            }
-          end
-          Error.suppress_2nd_error_at_resource_closing(logger: logger) {
+          begin
+            begin
+              begin
+                logger.info("accept connection: #{socket.remote_address.inspect_sockaddr}")
+                if (ssl_context) then
+                  ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+                  logger.info("start tls: #{ssl_socket.state}")
+                  ssl_socket.accept
+                  logger.info("accept tls: #{ssl_socket.state}")
+                  ssl_socket.sync = true
+                  stream = Riser::WriteBufferStream.new(ssl_socket, @config.send_buffer_limit_size)
+                else
+                  stream = Riser::WriteBufferStream.new(socket, @config.send_buffer_limit_size)
+                end
+                stream = Riser::LoggingStream.new(stream, protocol_logger)
+                decoder = Protocol::Decoder.new_decoder(mail_store_pool, auth, logger,
+                                                        mail_delivery_user: @config.mail_delivery_user,
+                                                        read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
+                                                        write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
+                                                        cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
+                Protocol::Decoder.repl(decoder, stream, stream, logger)
+              ensure
+                if (stream) then
+                  stream.flush
+                end
+              end
+            ensure
+              if (ssl_socket) then
+                ssl_socket.close
+                logger.info("close tls: #{ssl_socket.state}")
+              end
+            end
+          ensure
             remote_address = socket.remote_address
             socket.close
             logger.info("close connection: #{remote_address.inspect_sockaddr}")
-          }
+          end
+        rescue
+          logger.error('interrupt connection with unexpected error.')
+          Error.trace_error_chain($!) do |exception|
+            logger.error(exception)
+          end
         end
       }
       server.postprocess{

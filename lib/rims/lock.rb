@@ -136,7 +136,10 @@ module RIMS
             retry
           rescue
             logger.error('unexpected error at a detached thread and give up to retry write-lock timeout error.')
-            logger.error($!)
+            Error.trace_error_chain($!) do |exception|
+              logger.error(exception)
+            end
+
             $!
           end
         }
