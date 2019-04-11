@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 module RIMS
-  VERSION = '0.2.3'
+  VERSION = '0.2.4'
   MAILBOX_DATA_STRUCTURE_VERSION = 'mailbox.2'
 end
 
