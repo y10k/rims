@@ -62,6 +62,8 @@ module RIMS
     autoload :AuthenticationReader, 'rims/protocol/parser'
     autoload :SearchParser, 'rims/protocol/parser'
     autoload :FetchParser, 'rims/protocol/parser'
+    autoload :ConnectionLimits, 'rims/protocol/connection'
+    autoload :ConnectionTimer, 'rims/protocol/connection'
     autoload :Decoder, 'rims/protocol/decoder'
 
     def body(symbol: nil, option: nil, section: nil, section_list: nil, partial_origin: nil, partial_size: nil)
