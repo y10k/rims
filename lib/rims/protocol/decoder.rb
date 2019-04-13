@@ -11,6 +11,13 @@ module RIMS
         InitialDecoder.new(*args, **opts)
       end
 
+      IMAP_CMDs = {}
+      UID_CMDs = {}
+
+      def self.imap_command_normalize(name)
+        name.upcase
+      end
+
       def self.repl(decoder, input, output, logger)
         response_write = proc{|res|
           begin
@@ -47,9 +54,10 @@ module RIMS
           break unless atom_list
 
           tag, command, *opt_args = atom_list
+          normalized_command = imap_command_normalize(command)
           logger.info("client command: #{tag} #{command}")
           if (logger.debug?) then
-            case (command.upcase)
+            case (normalized_command)
             when 'LOGIN'
               log_opt_args = opt_args.dup
               log_opt_args[-1] = '********'
@@ -60,76 +68,29 @@ module RIMS
           end
 
           begin
-            case (command.upcase)
-            when 'CAPABILITY'
-              decoder.capability(tag, *opt_args) {|res| response_write.call(res) }
-            when 'NOOP'
-              decoder.noop(tag, *opt_args) {|res| response_write.call(res) }
-            when 'LOGOUT'
-              decoder.logout(tag, *opt_args) {|res| response_write.call(res) }
-            when 'AUTHENTICATE'
-              decoder.authenticate(tag, input, output, *opt_args) {|res| response_write.call(res) }
-            when 'LOGIN'
-              decoder.login(tag, *opt_args) {|res| response_write.call(res) }
-            when 'SELECT'
-              decoder.select(tag, *opt_args) {|res| response_write.call(res) }
-            when 'EXAMINE'
-              decoder.examine(tag, *opt_args) {|res| response_write.call(res) }
-            when 'CREATE'
-              decoder.create(tag, *opt_args) {|res| response_write.call(res) }
-            when 'DELETE'
-              decoder.delete(tag, *opt_args) {|res| response_write.call(res) }
-            when 'RENAME'
-              decoder.rename(tag, *opt_args) {|res| response_write.call(res) }
-            when 'SUBSCRIBE'
-              decoder.subscribe(tag, *opt_args) {|res| response_write.call(res) }
-            when 'UNSUBSCRIBE'
-              decoder.unsubscribe(tag, *opt_args) {|res| response_write.call(res) }
-            when 'LIST'
-              decoder.list(tag, *opt_args) {|res| response_write.call(res) }
-            when 'LSUB'
-              decoder.lsub(tag, *opt_args) {|res| response_write.call(res) }
-            when 'STATUS'
-              decoder.status(tag, *opt_args) {|res| response_write.call(res) }
-            when 'APPEND'
-              decoder.append(tag, *opt_args) {|res| response_write.call(res) }
-            when 'CHECK'
-              decoder.check(tag, *opt_args) {|res| response_write.call(res) }
-            when 'CLOSE'
-              decoder.close(tag, *opt_args) {|res| response_write.call(res) }
-            when 'EXPUNGE'
-              decoder.expunge(tag, *opt_args) {|res| response_write.call(res) }
-            when 'SEARCH'
-              decoder.search(tag, *opt_args) {|res| response_write.call(res) }
-            when 'FETCH'
-              decoder.fetch(tag, *opt_args) {|res| response_write.call(res) }
-            when 'STORE'
-              decoder.store(tag, *opt_args) {|res| response_write.call(res) }
-            when 'COPY'
-              decoder.copy(tag, *opt_args) {|res| response_write.call(res) }
-            when 'IDLE'
-              decoder.idle(tag, input, output, *opt_args) {|res| response_write.call(res) }
-            when 'UID'
-              unless (opt_args.empty?) then
-                uid_command, *uid_args = opt_args
-                logger.info("uid command: #{uid_command}")
-                logger.debug("uid parameter: #{uid_args}") if logger.debug?
-                case (uid_command.upcase)
-                when 'SEARCH'
-                  decoder.search(tag, *uid_args, uid: true) {|res| response_write.call(res) }
-                when 'FETCH'
-                  decoder.fetch(tag, *uid_args, uid: true) {|res| response_write.call(res) }
-                when 'STORE'
-                  decoder.store(tag, *uid_args, uid: true) {|res| response_write.call(res) }
-                when 'COPY'
-                  decoder.copy(tag, *uid_args, uid: true) {|res| response_write.call(res) }
+            if (name = IMAP_CMDs[normalized_command]) then
+              case (name)
+              when :uid
+                unless (opt_args.empty?) then
+                  uid_command, *uid_args = opt_args
+                  logger.info("uid command: #{uid_command}")
+                  logger.debug("uid parameter: #{uid_args}") if logger.debug?
+                  if (uid_name = UID_CMDs[imap_command_normalize(uid_command)]) then
+                    decoder.__send__(uid_name, tag, *uid_args, uid: true) {|res| response_write.call(res) }
+                  else
+                    logger.error("unknown uid command: #{uid_command}")
+                    response_write.call([ "#{tag} BAD unknown uid command\r\n" ])
+                  end
                 else
-                  logger.error("unknown uid command: #{uid_command}")
-                  response_write.call([ "#{tag} BAD unknown uid command\r\n" ])
+                  logger.error('empty uid parameter.')
+                  response_write.call([ "#{tag} BAD empty uid parameter\r\n" ])
                 end
+              when :authenticate
+                decoder.authenticate(tag, input, output, *opt_args) {|res| response_write.call(res) }
+              when :idle
+                decoder.idle(tag, input, output, *opt_args) {|res| response_write.call(res) }
               else
-                logger.error('empty uid parameter.')
-                response_write.call([ "#{tag} BAD empty uid parameter\r\n" ])
+                decoder.__send__(name, tag, *opt_args) {|res| response_write.call(res) }
               end
             else
               logger.error("unknown command: #{command}")
@@ -143,7 +104,7 @@ module RIMS
             response_write.call([ "#{tag} BAD unexpected error\r\n" ])
           end
 
-          if (command.upcase == 'LOGOUT') then
+          if (normalized_command == 'LOGOUT') then
             break
           end
 
@@ -207,15 +168,54 @@ module RIMS
       private :guard_error
 
       class << self
+        def to_imap_command(name)
+          imap_command_normalize(name.to_s)
+        end
+        private :to_imap_command
+
+        def kw_params(method)
+          params = method.parameters
+          params.find_all{|arg_type, arg_name|
+            case (arg_type)
+            when :key, :keyreq
+              true
+            else
+              false
+            end
+          }.map{|arg_type, arg_name|
+            arg_name
+          }
+        end
+        private :kw_params
+
         def imap_command(name)
+          name = name.to_sym
+
+          cmd = to_imap_command(name)
+          IMAP_CMDs[cmd] = name
+
+          method = instance_method(name)
+          if (kw_params(method).find(:uid)) then
+            IMAP_CMDs['UID'] = :uid
+            UID_CMDs[cmd] = name
+          end
+
           orig_name = "_#{name}".to_sym
           alias_method orig_name, name
           define_method name, lambda{|tag, *args, **name_args, &block|
             guard_error(tag, orig_name, *args, **name_args, &block)
           }
-          name.to_sym
+
+          name
         end
         private :imap_command
+
+        def should_be_imap_command(name)
+          unless (IMAP_CMDs.key? to_imap_command(name)) then
+            raise ArgumentError, "not an IMAP command: #{name}"
+          end
+        end
+        private :should_be_imap_command
 
         def fetch_mail_store_holder_and_on_demand_recovery(mail_store_pool, username,
                                                            write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
@@ -595,6 +595,7 @@ module RIMS
 
       class << self
         def imap_command_authenticated(name, **guard_optional)
+          should_be_imap_command(name)
           orig_name = "_#{name}".to_sym
           alias_method orig_name, name
           define_method name, lambda{|tag, *args, **name_args, &block|
@@ -605,6 +606,7 @@ module RIMS
         private :imap_command_authenticated
 
         def imap_command_selected(name, **guard_optional)
+          should_be_imap_command(name)
           orig_name = "_#{name}".to_sym
           alias_method orig_name, name
           define_method name, lambda{|tag, *args, **name_args, &block|
