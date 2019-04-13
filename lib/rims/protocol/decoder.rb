@@ -31,7 +31,7 @@ module RIMS
 
         decoder.ok_greeting{|res| response_write.call(res) }
 
-        request_reader = Protocol::RequestReader.new(input, output, logger)
+        request_reader = RequestReader.new(input, output, logger)
         loop do
           begin
             atom_list = request_reader.read_command
@@ -971,7 +971,7 @@ module RIMS
       def search(tag, *cond_args, uid: false)
         should_be_alive_folder
         @folder.reload if @folder.updated?
-        parser = Protocol::SearchParser.new(get_mail_store, @folder)
+        parser = SearchParser.new(get_mail_store, @folder)
 
         if (! cond_args.empty? && cond_args[0].upcase == 'CHARSET') then
           cond_args.shift
@@ -1037,7 +1037,7 @@ module RIMS
           end
         end
 
-        parser = Protocol::FetchParser.new(get_mail_store, @folder)
+        parser = FetchParser.new(get_mail_store, @folder)
         fetch = parser.parse(data_item_group)
 
         yield response_stream(tag) {|res|
