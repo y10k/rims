@@ -1203,8 +1203,8 @@ module RIMS
         server_response_thread = Thread.new{
           @logger.info('idle server response thread start... ')
           @folder.server_response_idle_wait{|server_response_list|
-            @logger.debug("idle server response: #{server_response}") if @logger.debug?
             for server_response in server_response_list
+              @logger.debug("idle server response: #{server_response}") if @logger.debug?
               server_output_stream.write(server_response)
             end
             server_output_stream.flush
