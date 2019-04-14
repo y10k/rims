@@ -4171,11 +4171,11 @@ module RIMS::Test
 
     def test_command_loop_empty
       assert_imap_command_loop(''.b, autotag: false) {|assert|
-	assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
       }
 
       assert_imap_command_loop("\n\t\n \r\n ".b, autotag: false) {|assert|
-	assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
       }
     end
 
