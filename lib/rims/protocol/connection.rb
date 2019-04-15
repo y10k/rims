@@ -20,6 +20,14 @@ module RIMS
       def command_wait_timeout_seconds=(value)
         @mutex.synchronize{ @command_wait_timeout_seconds = value }
       end
+
+      def to_h
+        Hash[
+          [ :read_polling_interval_seconds,
+            :command_wait_timeout_seconds
+          ].map{|n| [ n, __send__(n) ] }
+        ]
+      end
     end
 
     class ConnectionTimer

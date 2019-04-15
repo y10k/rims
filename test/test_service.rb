@@ -655,6 +655,28 @@ module RIMS::Test
       assert_equal(expected_value, @c.send_buffer_limit_size)
     end
 
+    data('default' => [ { read_polling_interval_seconds: 1,
+                          command_wait_timeout_seconds: 60 * 30
+                        },
+                        {}
+                      ],
+         'config'  => [ { read_polling_interval_seconds: 5,
+                          command_wait_timeout_seconds: 60 * 60
+                        },
+                        { connection: {
+                            read_polling_interval_seconds: 5,
+                            command_wait_timeout_seconds: 60 * 60
+                          }
+                        }
+                      ])
+    def test_connection_limits(data)
+      expected_values, config = data
+      @c.load(config)
+      limits = @c.connection_limits
+      assert_instance_of(RIMS::Protocol::ConnectionLimits, limits)
+      assert_equal(expected_values, limits.to_h)
+    end
+
     data('default'  => [ 30, {} ],
          'config'   => [ 15, { lock: { read_lock_timeout_seconds: 15 } } ],
          'compat'   => [ 15, { read_lock_timeout_seconds: 15 } ],

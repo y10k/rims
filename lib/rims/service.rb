@@ -150,6 +150,9 @@ module RIMS
       #         "imap3.example.com" => SSLContext.new.tap{|c| c.key = _.key; c.cert = X509::Certificate.new((base_dir / "tls_cert" / "server_imap3.cert").read) }
       #       }
       #       _.servername_cb = lambda{|ssl_socket, hostname| sni_tbl[hostname.downcase] }
+      #   connection:
+      #     read_polling_interval_seconds: 1
+      #     command_wait_timeout_seconds: 1800
       #   lock:
       #     read_lock_timeout_seconds: 30
       #     write_lock_timeout_seconds: 30
@@ -537,6 +540,11 @@ module RIMS
         end
       end
 
+      def connection_limits
+        Protocol::ConnectionLimits.new(@config.dig('connection', 'read_polling_interval_seconds') || 1,
+                                       @config.dig('connection', 'command_wait_timeout_seconds') || 60 * 30)
+      end
+
       def read_lock_timeout_seconds
         @config.dig('lock', 'read_lock_timeout_seconds') ||
           @config.dig('read_lock_timeout_seconds') || # for backward compatibility
@@ -723,8 +731,7 @@ module RIMS
       server.thread_queue_polling_timeout_seconds    = @config.thread_queue_polling_timeout_seconds
 
       ssl_context = @config.ssl_context
-
-      conn_limits = Protocol::ConnectionLimits.new(1, 60 * 30)
+      conn_limits = @config.connection_limits
 
       make_kvs_factory = lambda{|kvs_params, kvs_type|
         kvs_factory = kvs_params.build_factory
@@ -847,6 +854,8 @@ module RIMS
           logger.info("openssl parameter: verify_hostname=#{ssl_context.verify_hostname}") if ssl_context.verify_hostname
           logger.info("openssl parameter: verify_mode=0x#{'%08x' % ssl_context.verify_mode}") if ssl_context.verify_mode
         end
+        logger.info("connection parameter: read_polling_interval_seconds=#{conn_limits.read_polling_interval_seconds}")
+        logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
         logger.info("lock parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
         logger.info("lock parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
         logger.info("lock parameter: cleanup_write_lock_timeout_seconds=#{@config.cleanup_write_lock_timeout_seconds}")
