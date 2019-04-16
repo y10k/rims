@@ -408,7 +408,7 @@ module RIMS
                  Integer
                 ) do |size|
         build.chain{|c|
-          c.load(server: {
+          c.load(connection: {
                    send_buffer_limit_size: size
                  })
         }

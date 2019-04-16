@@ -642,10 +642,10 @@ module RIMS::Test
     end
 
     data('default'  => [ 1024 * 16, {} ],
-         'config'   => [ 1024 * 64, { server: { send_buffer_limit_size: 1024 * 64 } } ],
+         'config'   => [ 1024 * 64, { connection: { send_buffer_limit_size: 1024 * 64 } } ],
          'compat'   => [ 1024 * 64, { send_buffer_limit: 1024 * 64 } ],
          'priority' => [ 1024 * 64,
-                         { server: { send_buffer_limit_size: 1024 * 64 },
+                         { connection: { send_buffer_limit_size: 1024 * 64 },
                            send_buffer_limit: 1024 * 32
                          }
                        ])

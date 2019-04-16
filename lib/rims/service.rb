@@ -133,7 +133,6 @@ module RIMS
       #     thread_num: 20
       #     thread_queue_size: 20
       #     thread_queue_polling_timeout_seconds: 0.1
-      #     send_buffer_limit_size: 16384
       #   openssl:
       #     use_ssl: true
       #     ssl_context: |
@@ -151,6 +150,7 @@ module RIMS
       #       }
       #       _.servername_cb = lambda{|ssl_socket, hostname| sni_tbl[hostname.downcase] }
       #   connection:
+      #     send_buffer_limit_size: 16384
       #     read_polling_interval_seconds: 1
       #     command_wait_timeout_seconds: 1800
       #   lock:
@@ -483,12 +483,6 @@ module RIMS
         @config.dig('server', 'thread_queue_polling_timeout_seconds') || 0.1
       end
 
-      def send_buffer_limit_size
-        @config.dig('server', 'send_buffer_limit_size') ||
-          @config.dig('send_buffer_limit') || # for backward compatibility
-          1024 * 16
-      end
-
       module SSLContextConfigAttribute
         def ssl_context
           @__ssl_context__
@@ -538,6 +532,12 @@ module RIMS
             ssl_context
           end
         end
+      end
+
+      def send_buffer_limit_size
+        @config.dig('connection', 'send_buffer_limit_size') ||
+          @config.dig('send_buffer_limit') || # for backward compatibility
+          1024 * 16
       end
 
       def connection_limits
@@ -793,7 +793,6 @@ module RIMS
         logger.info("server parameter: thread_num=#{server.thread_num}")
         logger.info("server parameter: thread_queue_size=#{server.thread_queue_size}")
         logger.info("server parameter: thread_queue_polling_timeout_seconds=#{server.thread_queue_polling_timeout_seconds}")
-        logger.info("server parameter: send_buffer_limit_size=#{@config.send_buffer_limit_size}")
         if (ssl_context) then
           Array(ssl_context.alpn_protocols).each_with_index do |protocol, i|
             logger.info("openssl parameter: alpn_protocols[#{i}]=#{protocol}")
@@ -854,6 +853,7 @@ module RIMS
           logger.info("openssl parameter: verify_hostname=#{ssl_context.verify_hostname}") if ssl_context.verify_hostname
           logger.info("openssl parameter: verify_mode=0x#{'%08x' % ssl_context.verify_mode}") if ssl_context.verify_mode
         end
+        logger.info("connection parameter: send_buffer_limit_size=#{@config.send_buffer_limit_size}")
         logger.info("connection parameter: read_polling_interval_seconds=#{conn_limits.read_polling_interval_seconds}")
         logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
         logger.info("lock parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
