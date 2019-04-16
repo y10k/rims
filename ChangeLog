@@ -1,3 +1,10 @@
+2019-04-13  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol/decoder.rb
+	(RIMS::Protocol::UserMailboxDecoder#idle): fix a bug of idle
+	command that uninitialized variable had been logged as debug
+	message.
+
 2019-04-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.2.3 is released.
