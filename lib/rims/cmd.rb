@@ -413,6 +413,24 @@ module RIMS
                  })
         }
       end
+      options.on('--read-polling-interval=SECONDS',
+                 Float
+                ) do |seconds|
+        build.chain{|c|
+          c.load(connection: {
+                   read_polling_interval_seconds: seconds
+                 })
+        }
+      end
+      options.on('--command-wait-timeout=SECONDS',
+                 Float
+                ) do |seconds|
+        build.chain{|c|
+          c.load(connection: {
+                   command_wait_timeout_seconds: seconds
+                 })
+        }
+      end
       options.on('--read-lock-timeout=SECONDS',
                  Float
                 ) do |seconds|
