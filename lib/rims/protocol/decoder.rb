@@ -1226,7 +1226,6 @@ module RIMS
             end
             server_output_stream.flush
           }
-          server_output_stream.flush
           @logger.info('idle server response thread terminated.')
         }
 
