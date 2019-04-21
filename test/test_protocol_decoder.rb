@@ -165,7 +165,7 @@ module RIMS::Test
     end
     private :tag!
 
-    def assert_imap_command(cmd_method_symbol, *cmd_str_args, crlf_at_eol: true, client_input_text: nil, server_output_expected: nil, **cmd_opts)
+    def assert_imap_command(cmd_method_symbol, cmd_str_args='', crlf_at_eol: true, client_input_text: nil, server_output_expected: nil, **cmd_opts)
       tag!
       block_call = 0
 
@@ -197,15 +197,25 @@ module RIMS::Test
     end
     private :assert_imap_command
 
+    def parse_string_args(cmd_str_args)
+      reader = RIMS::Protocol::RequestReader.new(StringIO.new(cmd_str_args + "\r\n", 'r'), StringIO.new('', 'w'), @logger)
+      if (atom_list = reader.read_line) then
+        reader.parse(atom_list)
+      else
+        []
+      end
+    end
+    private :parse_string_args
+
     def execute_imap_command(cmd_method_symbol, tag, cmd_str_args)
-      @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args) {|response_lines|
+      @decoder.__send__(cmd_method_symbol, tag, *parse_string_args(cmd_str_args)) {|response_lines|
         yield(response_lines.each)
       }
     end
     private :execute_imap_command
 
     def execute_imap_command_with_options(cmd_method_symbol, tag, cmd_str_args, cmd_opts)
-      @decoder.__send__(cmd_method_symbol, tag, *cmd_str_args, **cmd_opts) {|response_lines|
+      @decoder.__send__(cmd_method_symbol, tag, *parse_string_args(cmd_str_args), **cmd_opts) {|response_lines|
         yield(response_lines.each)
       }
     end
@@ -220,7 +230,7 @@ module RIMS::Test
         inout_args << RIMS::Protocol::ConnectionTimer.new(@limits, input)
       end
 
-      ret_val = @decoder.__send__(cmd_method_symbol, tag, *inout_args, *cmd_str_args) {|response_lines|
+      ret_val = @decoder.__send__(cmd_method_symbol, tag, *inout_args, *parse_string_args(cmd_str_args)) {|response_lines|
         yield(response_lines.each)
       }
 
@@ -448,24 +458,21 @@ module RIMS::Test
     def test_authenticate_plain_inline
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:authenticate, 'plain',
-                          client_plain_response_base64('foo', 'detarame'),
+      assert_imap_command(:authenticate, "plain #{client_plain_response_base64('foo', 'detarame')}",
                           client_input_text: '') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:authenticate, 'plain',
-                          client_plain_response_base64('foo', 'open_sesame'),
+      assert_imap_command(:authenticate, "plain #{client_plain_response_base64('foo', 'open_sesame')}",
                           client_input_text: '') {|assert|
         assert.equal("#{tag} OK AUTHENTICATE plain success")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:authenticate, 'plain',
-                          client_plain_response_base64('foo', 'open_sesame'),
+      assert_imap_command(:authenticate, "plain #{client_plain_response_base64('foo', 'open_sesame')}",
                           client_input_text: '') {|assert|
         assert.match(/^#{tag} NO /)
       }
@@ -557,19 +564,19 @@ module RIMS::Test
     def test_login
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'detarame') {|assert|
+      assert_imap_command(:login, 'foo detarame') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.match(/^#{tag} NO/)
       }
 
@@ -612,7 +619,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -654,7 +661,7 @@ module RIMS::Test
     def test_select_utf7_mbox_name
       utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -705,7 +712,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -747,7 +754,7 @@ module RIMS::Test
     def test_examine_utf7_mbox_name
       utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -778,7 +785,7 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -806,7 +813,7 @@ module RIMS::Test
     end
 
     def test_create_utf7_mbox_name
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -843,7 +850,7 @@ module RIMS::Test
         assert_mbox_exists('foo')
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -889,7 +896,7 @@ module RIMS::Test
         @mail_store.add_mbox(UTF8_MBOX_NAME)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -919,7 +926,7 @@ module RIMS::Test
       }
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:rename, 'foo', 'bar') {|assert|
+      assert_imap_command(:rename, 'foo bar') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -928,7 +935,7 @@ module RIMS::Test
       }
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -937,7 +944,7 @@ module RIMS::Test
       }
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:rename, 'foo', 'bar') {|assert|
+      assert_imap_command(:rename, 'foo bar') {|assert|
         assert.equal("#{tag} OK RENAME completed")
       }
 
@@ -945,7 +952,7 @@ module RIMS::Test
         assert_equal([ nil, mbox_id ], get_mbox_id_list('foo', 'bar'))
       }
 
-      assert_imap_command(:rename, 'nobox', 'baz') {|assert|
+      assert_imap_command(:rename, 'nobox baz') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -953,7 +960,7 @@ module RIMS::Test
         assert_equal([ @inbox_id, nil ], get_mbox_id_list('INBOX', 'baz'))
       }
 
-      assert_imap_command(:rename, 'INBOX', 'baz') {|assert|
+      assert_imap_command(:rename, 'INBOX baz') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -962,7 +969,7 @@ module RIMS::Test
         assert_equal([ mbox_id, @inbox_id ], get_mbox_id_list('bar', 'INBOX'))
       }
 
-      assert_imap_command(:rename, 'bar', 'inbox') {|assert|
+      assert_imap_command(:rename, 'bar inbox') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -979,7 +986,7 @@ module RIMS::Test
     def test_rename_utf7_mbox_name
       mbox_id = open_mail_store{ @mail_store.add_mbox('foo') }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -987,7 +994,7 @@ module RIMS::Test
         assert_equal([ mbox_id, nil ], get_mbox_id_list('foo', UTF8_MBOX_NAME))
       }
 
-      assert_imap_command(:rename, 'foo', UTF7_MBOX_NAME) {|assert|
+      assert_imap_command(:rename, "foo #{UTF7_MBOX_NAME}") {|assert|
         assert.equal("#{tag} OK RENAME completed")
       }
 
@@ -996,7 +1003,7 @@ module RIMS::Test
         assert_equal([ mbox_id, nil ], get_mbox_id_list(UTF8_MBOX_NAME, 'bar'))
       }
 
-      assert_imap_command(:rename, UTF7_MBOX_NAME, 'bar') {|assert|
+      assert_imap_command(:rename, "#{UTF7_MBOX_NAME} bar") {|assert|
         assert.equal("#{tag} OK RENAME completed")
       }
 
@@ -1019,7 +1026,7 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1039,7 +1046,7 @@ module RIMS::Test
         @mail_store.add_mbox(UTF8_MBOX_NAME)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1062,7 +1069,7 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1076,28 +1083,28 @@ module RIMS::Test
     def test_list
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:list, '', '') {|assert|
+      assert_imap_command(:list, '"" ""') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:list, '', '') {|assert|
+      assert_imap_command(:list, '"" ""') {|assert|
         assert.equal('* LIST (\Noselect) NIL ""')
         assert.equal("#{tag} OK LIST completed")
       }
 
-      assert_imap_command(:list, '', 'nobox') {|assert|
+      assert_imap_command(:list, '"" nobox') {|assert|
         assert.equal("#{tag} OK LIST completed")
       }
 
-      assert_imap_command(:list, '', '*') {|assert|
+      assert_imap_command(:list, '"" *') {|assert|
         assert.equal('* LIST (\Noinferiors \Unmarked) NIL "INBOX"')
         assert.equal("#{tag} OK LIST completed")
       }
@@ -1106,7 +1113,7 @@ module RIMS::Test
         add_msg('')
       }
 
-      assert_imap_command(:list, '', '*') {|assert|
+      assert_imap_command(:list, '"" *') {|assert|
         assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
         assert.equal("#{tag} OK LIST completed")
       }
@@ -1115,18 +1122,18 @@ module RIMS::Test
         @mail_store.add_mbox('foo')
       }
 
-      assert_imap_command(:list, '', '*') {|assert|
+      assert_imap_command(:list, '"" *') {|assert|
         assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
         assert.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
         assert.equal("#{tag} OK LIST completed")
       }
 
-      assert_imap_command(:list, '', 'f*') {|assert|
+      assert_imap_command(:list, '"" f*') {|assert|
         assert.equal('* LIST (\Noinferiors \Unmarked) NIL "foo"')
         assert.equal("#{tag} OK LIST completed")
       }
 
-      assert_imap_command(:list, 'IN', '*') {|assert|
+      assert_imap_command(:list, 'IN *') {|assert|
         assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
         assert.equal("#{tag} OK LIST completed")
       }
@@ -1142,20 +1149,16 @@ module RIMS::Test
         @mail_store.add_mbox(UTF8_MBOX_NAME)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_imap_command(:list,
-                          encode_utf7(UTF8_MBOX_NAME[0..6]),
-                          '*' + encode_utf7(UTF8_MBOX_NAME[12..14]) + '*') {|assert|
+      assert_imap_command(:list, "#{encode_utf7(UTF8_MBOX_NAME[0..6])} *#{encode_utf7(UTF8_MBOX_NAME[12..14])}*") {|assert|
         assert.equal(%Q'* LIST (\\Noinferiors \\Unmarked) NIL "#{UTF7_MBOX_NAME}"')
         assert.equal("#{tag} OK LIST completed")
       }
 
-      assert_imap_command(:list,
-                          encode_utf7(UTF8_MBOX_NAME[0..13]),
-                          '*' + encode_utf7(UTF8_MBOX_NAME[16]) + '*') {|assert|
+      assert_imap_command(:list, "#{encode_utf7(UTF8_MBOX_NAME[0..13])} *#{encode_utf7(UTF8_MBOX_NAME[16])}*") {|assert|
         assert.equal(%Q'* LIST (\\Noinferiors \\Unmarked) NIL "#{UTF7_MBOX_NAME}"')
         assert.equal("#{tag} OK LIST completed")
       }
@@ -1169,28 +1172,28 @@ module RIMS::Test
     def test_status
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:status, 'nobox', [ :group, 'MESSAGES' ]) {|assert|
+      assert_imap_command(:status, 'nobox (MESSAGES)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:status, 'nobox', [ :group, 'MESSAGES' ]) {|assert|
+      assert_imap_command(:status, 'nobox (MESSAGES)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES)') {|assert|
         assert.equal('* STATUS "INBOX" (MESSAGES 0)')
         assert.equal("#{tag} OK STATUS completed")
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 0 RECENT 0 UIDNEXT 1 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
         assert.equal("#{tag} OK STATUS completed")
       }
@@ -1199,7 +1202,7 @@ module RIMS::Test
         add_msg('')
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 1 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
         assert.equal("#{tag} OK STATUS completed")
       }
@@ -1208,7 +1211,7 @@ module RIMS::Test
         set_msg_flag(1, 'recent', false)
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
         assert.equal("#{tag} OK STATUS completed")
       }
@@ -1217,7 +1220,7 @@ module RIMS::Test
         set_msg_flag(1, 'seen', true)
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 2 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
         assert.equal("#{tag} OK STATUS completed")
       }
@@ -1226,7 +1229,7 @@ module RIMS::Test
         add_msg('')
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 2 RECENT 1 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 1)")
         assert.equal("#{tag} OK STATUS completed")
       }
@@ -1235,16 +1238,16 @@ module RIMS::Test
         expunge(2)
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
         assert.equal("* STATUS \"INBOX\" (MESSAGES 1 RECENT 0 UIDNEXT 3 UIDVALIDITY #{@inbox_id} UNSEEN 0)")
         assert.equal("#{tag} OK STATUS completed")
       }
 
-      assert_imap_command(:status, 'INBOX', 'MESSAGES') {|assert|
+      assert_imap_command(:status, 'INBOX MESSAGES') {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'DETARAME' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (DETARAME)') {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
@@ -1257,11 +1260,11 @@ module RIMS::Test
     def test_status_utf7_mbox_name
       mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_imap_command(:status, UTF7_MBOX_NAME, [ :group, 'UIDVALIDITY', 'MESSAGES', 'RECENT', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, "#{UTF7_MBOX_NAME} (UIDVALIDITY MESSAGES RECENT UNSEEN)") {|assert|
         assert.equal(%Q'* STATUS "#{UTF7_MBOX_NAME}" (UIDVALIDITY #{mbox_id} MESSAGES 0 RECENT 0 UNSEEN 0)')
         assert.equal("#{tag} OK STATUS completed")
       }
@@ -1275,19 +1278,19 @@ module RIMS::Test
     def test_lsub_dummy
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:lsub, '', '*') {|assert|
+      assert_imap_command(:lsub, '"" *') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:lsub, '', '*') {|assert|
+      assert_imap_command(:lsub, '"" *') {|assert|
         assert.equal('* LSUB (\Noinferiors \Unmarked) NIL "INBOX"')
         assert.equal("#{tag} OK LSUB completed")
       }
@@ -1298,13 +1301,11 @@ module RIMS::Test
         @mail_store.add_mbox(UTF8_MBOX_NAME)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
-      assert_imap_command(:lsub,
-                          encode_utf7(UTF8_MBOX_NAME[0..6]),
-                          '*' + encode_utf7(UTF8_MBOX_NAME[12..14]) + '*') {|assert|
+      assert_imap_command(:lsub, "#{encode_utf7(UTF8_MBOX_NAME[0..6])} *#{encode_utf7(UTF8_MBOX_NAME[12..14])}*") {|assert|
         assert.equal(%Q'* LSUB (\\Noinferiors \\Unmarked) NIL "#{UTF7_MBOX_NAME}"')
         assert.equal("#{tag} OK LSUB completed")
       }
@@ -1318,7 +1319,7 @@ module RIMS::Test
     def test_append
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:append, 'INBOX', 'a') {|assert|
+      assert_imap_command(:append, 'INBOX a') {|assert|
         assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
       }
 
@@ -1328,13 +1329,13 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
 
-      assert_imap_command(:append, 'INBOX', 'a') {|assert|
+      assert_imap_command(:append, 'INBOX a') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
 
@@ -1344,7 +1345,7 @@ module RIMS::Test
         assert_msg_flags(1, recent: true)
       }
 
-      assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'b') {|assert|
+      assert_imap_command(:append, 'INBOX (\Answered \Flagged \Deleted \Seen \Draft) b') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
 
@@ -1354,7 +1355,7 @@ module RIMS::Test
         assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
       }
 
-      assert_imap_command(:append, 'INBOX', '19-Nov-1975 12:34:56 +0900', 'c') {|assert|
+      assert_imap_command(:append, 'INBOX "19-Nov-1975 12:34:56 +0900" c') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
 
@@ -1365,7 +1366,7 @@ module RIMS::Test
         assert_msg_flags(3, recent: true)
       }
 
-      assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'd') {|assert|
+      assert_imap_command(:append, 'INBOX (\Answered \Flagged \Deleted \Seen \Draft) "19-Nov-1975 12:34:56 +0900" d') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
 
@@ -1376,7 +1377,7 @@ module RIMS::Test
         assert_msg_flags(4, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
       }
 
-      assert_imap_command(:append, 'INBOX', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', :NIL, 'x') {|assert|
+      assert_imap_command(:append, 'INBOX (\Answered \Flagged \Deleted \Seen \Draft) "19-Nov-1975 12:34:56 +0900" NIL x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
@@ -1384,7 +1385,7 @@ module RIMS::Test
         assert_msg_uid(1, 2, 3, 4)
       }
 
-      assert_imap_command(:append, 'INBOX', '19-Nov-1975 12:34:56 +0900', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], 'x') {|assert|
+      assert_imap_command(:append, 'INBOX "19-Nov-1975 12:34:56 +0900" (\Answered \Flagged \Deleted \Seen \Draft) x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
@@ -1392,7 +1393,7 @@ module RIMS::Test
         assert_msg_uid(1, 2, 3, 4)
       }
 
-      assert_imap_command(:append, 'INBOX', [ :group, '\Recent' ], 'x') {|assert|
+      assert_imap_command(:append, 'INBOX (\Recent) x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
@@ -1400,7 +1401,7 @@ module RIMS::Test
         assert_msg_uid(1, 2, 3, 4)
       }
 
-      assert_imap_command(:append, 'INBOX', 'bad date-time', 'x') {|assert|
+      assert_imap_command(:append, 'INBOX "bad date-time" x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
@@ -1408,7 +1409,7 @@ module RIMS::Test
         assert_msg_uid(1, 2, 3, 4)
       }
 
-      assert_imap_command(:append, 'nobox', 'x') {|assert|
+      assert_imap_command(:append, 'nobox x') {|assert|
         assert.match(/^#{tag} NO \[TRYCREATE\]/)
       }
 
@@ -1425,7 +1426,7 @@ module RIMS::Test
     def test_append_utf7_mbox_name
       utf8_name_mbox_id = open_mail_store{ @mail_store.add_mbox(UTF8_MBOX_NAME) }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1433,7 +1434,7 @@ module RIMS::Test
         assert_msg_uid(mbox_id: utf8_name_mbox_id)
       }
 
-      assert_imap_command(:append, UTF7_MBOX_NAME, 'Hello world.') {|assert|
+      assert_imap_command(:append, %Q'#{UTF7_MBOX_NAME} "Hello world."') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
 
@@ -1459,7 +1460,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1517,7 +1518,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1597,7 +1598,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1658,7 +1659,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1796,7 +1797,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1842,7 +1843,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -1896,12 +1897,12 @@ module RIMS::Test
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'OR FROM alice FROM bob BODY apple', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 3').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'OR', 'FROM', 'alice', 'FROM', 'bob', 'BODY', 'apple', uid: true, crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'OR FROM alice FROM bob BODY apple', uid: true, crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 5').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
@@ -1919,13 +1920,13 @@ module RIMS::Test
       }
 
       # first message sequence set operation is shortcut for accessing folder message list.
-      assert_imap_command(:search, 'UID', '3', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'UID 3', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 2').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       # first message sequence set operation is shortcut for accessing folder message list.
-      assert_imap_command(:search, 'UID', '3', uid: true, crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'UID 3', uid: true, crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 3').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
@@ -1970,21 +1971,21 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL') {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 ALL') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL') {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 ALL') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -1996,22 +1997,23 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 ALL', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal(' 4').equal(' 5').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'BODY', 'foo', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 BODY foo', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'BODY', 'bar', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 BODY bar', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'BODY', "\u306F\u306B\u307B".b, crlf_at_eol: false) {|assert|
+      utf8_msg = "\u306F\u306B\u307B"
+      assert_imap_command(:search, "CHARSET utf-8 BODY {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b, crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 4').equal(' 5').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
@@ -2049,21 +2051,21 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL') {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 ALL') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL') {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 ALL') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -2075,27 +2077,28 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'ALL', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 ALL', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal(' 4').equal(' 5').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'TEXT', 'foo', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 TEXT foo', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'TEXT', 'bar', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 TEXT bar', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 2').equal(' 3').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'TEXT', 'baz', crlf_at_eol: false) {|assert|
+      assert_imap_command(:search, 'CHARSET utf-8 TEXT baz', crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command(:search, 'CHARSET', 'utf-8', 'TEXT', "\u306F\u306B\u307B".b, crlf_at_eol: false) {|assert|
+      utf8_msg = "\u306F\u306B\u307B"
+      assert_imap_command(:search, "CHARSET utf-8 TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b, crlf_at_eol: false) {|assert|
         assert.equal('* SEARCH').equal(' 4').equal(' 5').equal("\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
@@ -2119,18 +2122,18 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+      assert_imap_command(:fetch, '1:* FAST') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+      assert_imap_command(:fetch, '1:* FAST') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -2142,19 +2145,19 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+      assert_imap_command(:fetch, '1:* FAST') {|assert|
         assert.strenc_equal(%Q'* 1 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE #{@simple_mail.raw_source.bytesize})'.b)
         assert.strenc_equal(%Q'* 2 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_imap_command(:fetch, '1:*', [ :group, 'FAST' ]) {|assert|
+      assert_imap_command(:fetch, '1:* (FAST)') {|assert|
         assert.strenc_equal(%Q'* 1 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE #{@simple_mail.raw_source.bytesize})'.b)
         assert.strenc_equal(%Q'* 2 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_imap_command(:fetch, '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]) {|assert|
+      assert_imap_command(:fetch, '1:* (FLAGS RFC822.HEADER UID)') {|assert|
         assert.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@simple_mail.header.raw_source)} UID 2)".b)
         assert.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@mpart_mail.header.raw_source)} UID 3)".b)
         assert.equal("#{tag} OK FETCH completed")
@@ -2165,7 +2168,7 @@ module RIMS::Test
         assert_msg_flags(3, seen: false, recent: true)
       }
 
-      assert_imap_command(:fetch, '1', 'RFC822') {|assert|
+      assert_imap_command(:fetch, '1 RFC822') {|assert|
         assert.strenc_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
@@ -2175,7 +2178,7 @@ module RIMS::Test
         assert_msg_flags(3, seen: false, recent: true)
       }
 
-      assert_imap_command(:fetch, '2', make_body('BODY.PEEK[1]')) {|assert|
+      assert_imap_command(:fetch, '2 BODY.PEEK[1]') {|assert|
         assert.strenc_equal(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
@@ -2185,7 +2188,7 @@ module RIMS::Test
         assert_msg_flags(3, seen: false, recent: true)
       }
 
-      assert_imap_command(:fetch, '2', 'RFC822', uid: true) {|assert|
+      assert_imap_command(:fetch, '2 RFC822', uid: true) {|assert|
         assert.strenc_equal("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
@@ -2195,7 +2198,7 @@ module RIMS::Test
         assert_msg_flags(3, seen: false, recent: true)
       }
 
-      assert_imap_command(:fetch, '3', [ :group, 'UID', make_body('BODY.PEEK[1]') ], uid: true) {|assert|
+      assert_imap_command(:fetch, '3 (UID BODY.PEEK[1])', uid: true) {|assert|
         assert.strenc_equal(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
@@ -2224,18 +2227,18 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+      assert_imap_command(:fetch, '1:* FAST') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+      assert_imap_command(:fetch, '1:* FAST') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -2247,19 +2250,19 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_imap_command(:fetch, '1:*', 'FAST') {|assert|
+      assert_imap_command(:fetch, '1:* FAST') {|assert|
         assert.strenc_equal(%Q'* 1 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE #{@simple_mail.raw_source.bytesize})'.b)
         assert.strenc_equal(%Q'* 2 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_imap_command(:fetch, '1:*', [ :group, 'FAST' ]) {|assert|
+      assert_imap_command(:fetch, '1:* (FAST)') {|assert|
         assert.strenc_equal(%Q'* 1 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 06:47:50 +0900" RFC822.SIZE #{@simple_mail.raw_source.bytesize})'.b)
         assert.strenc_equal(%Q'* 2 FETCH (FLAGS (\\Recent) INTERNALDATE "08-Nov-2013 19:31:03 +0900" RFC822.SIZE #{@mpart_mail.raw_source.bytesize})'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
-      assert_imap_command(:fetch, '1:*', [ :group, 'FLAGS', 'RFC822.HEADER', 'UID' ]) {|assert|
+      assert_imap_command(:fetch, '1:* (FLAGS RFC822.HEADER UID)') {|assert|
         assert.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@simple_mail.header.raw_source)} UID 2)".b)
         assert.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@mpart_mail.header.raw_source)} UID 3)".b)
         assert.equal("#{tag} OK FETCH completed")
@@ -2270,7 +2273,7 @@ module RIMS::Test
         assert_msg_flags(3, seen: false, recent: true)
       }
 
-      assert_imap_command(:fetch, '1', 'RFC822') {|assert|
+      assert_imap_command(:fetch, '1 RFC822') {|assert|
         assert.strenc_equal("* 1 FETCH (RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
@@ -2280,7 +2283,7 @@ module RIMS::Test
         assert_msg_flags(3, seen: false, recent: true)
       }
 
-      assert_imap_command(:fetch, '2', make_body('BODY.PEEK[1]')) {|assert|
+      assert_imap_command(:fetch, '2 BODY.PEEK[1]') {|assert|
         assert.strenc_equal(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
@@ -2290,7 +2293,7 @@ module RIMS::Test
         assert_msg_flags(3, seen: false, recent: true)
       }
 
-      assert_imap_command(:fetch, '2', 'RFC822', uid: true) {|assert|
+      assert_imap_command(:fetch, '2 RFC822', uid: true) {|assert|
         assert.strenc_equal("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
@@ -2300,7 +2303,7 @@ module RIMS::Test
         assert_msg_flags(3, seen: false, recent: true)
       }
 
-      assert_imap_command(:fetch, '3', [ :group, 'UID', make_body('BODY.PEEK[1]') ], uid: true) {|assert|
+      assert_imap_command(:fetch, '3 (UID BODY.PEEK[1])', uid: true) {|assert|
         assert.strenc_equal(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
@@ -2337,18 +2340,18 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -2371,7 +2374,7 @@ module RIMS::Test
         assert_mbox_flag_num(recent: 5)
       }
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
@@ -2387,7 +2390,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, recent: 5)
       }
 
-      assert_imap_command(:store, '1:2', '+FLAGS', [ :group, '\Flagged' ]) {|assert|
+      assert_imap_command(:store, '1:2 +FLAGS (\Flagged)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Flagged \Recent))')
         assert.equal("#{tag} OK STORE completed")
@@ -2404,7 +2407,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
       }
 
-      assert_imap_command(:store, '1:3', '+FLAGS', [ :group, '\Deleted' ]) {|assert|
+      assert_imap_command(:store, '1:3 +FLAGS (\Deleted)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Deleted \Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Flagged \Deleted \Recent))')
         assert.equal('* 3 FETCH (FLAGS (\Deleted \Recent))')
@@ -2422,7 +2425,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
       }
 
-      assert_imap_command(:store, '1:4', '+FLAGS', [ :group, '\Seen' ]) {|assert|
+      assert_imap_command(:store, '1:4 +FLAGS (\Seen)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Deleted \Seen \Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Flagged \Deleted \Seen \Recent))')
         assert.equal('* 3 FETCH (FLAGS (\Deleted \Seen \Recent))')
@@ -2441,7 +2444,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
       }
 
-      assert_imap_command(:store, '1:5', '+FLAGS', [ :group, '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1:5 +FLAGS (\Draft)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal('* 3 FETCH (FLAGS (\Deleted \Seen \Draft \Recent))')
@@ -2461,7 +2464,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:*', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1:* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal('* 3 FETCH (FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
@@ -2481,7 +2484,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered' ]) {|assert|
+      assert_imap_command(:store, '1 -FLAGS (\Answered)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
@@ -2497,7 +2500,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:2', '-FLAGS', [ :group, '\Flagged' ]) {|assert|
+      assert_imap_command(:store, '1:2 -FLAGS (\Flagged)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Deleted \Seen \Draft \Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Answered \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
@@ -2514,7 +2517,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:3', '-FLAGS', [ :group, '\Deleted' ]) {|assert|
+      assert_imap_command(:store, '1:3 -FLAGS (\Deleted)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Seen \Draft \Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Answered \Seen \Draft \Recent))')
         assert.equal('* 3 FETCH (FLAGS (\Answered \Flagged \Seen \Draft \Recent))')
@@ -2532,7 +2535,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:4', '-FLAGS', [ :group, '\Seen' ]) {|assert|
+      assert_imap_command(:store, '1:4 -FLAGS (\Seen)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Draft \Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Answered \Draft \Recent))')
         assert.equal('* 3 FETCH (FLAGS (\Answered \Flagged \Draft \Recent))')
@@ -2551,7 +2554,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:5', '-FLAGS', [ :group, '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1:5 -FLAGS (\Draft)') {|assert|
         assert.equal('* 1 FETCH (FLAGS (\Recent))')
         assert.equal('* 2 FETCH (FLAGS (\Answered \Recent))')
         assert.equal('* 3 FETCH (FLAGS (\Answered \Flagged \Recent))')
@@ -2598,18 +2601,18 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS.SILENT (\Answered)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS.SILENT (\Answered)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -2632,7 +2635,7 @@ module RIMS::Test
         assert_mbox_flag_num(recent: 5)
       }
 
-      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS.SILENT (\Answered)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2647,7 +2650,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, recent: 5)
       }
 
-      assert_imap_command(:store, '1:2', '+FLAGS.SILENT', [ :group, '\Flagged' ]) {|assert|
+      assert_imap_command(:store, '1:2 +FLAGS.SILENT (\Flagged)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2662,7 +2665,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
       }
 
-      assert_imap_command(:store, '1:3', '+FLAGS.SILENT', [ :group, '\Deleted' ]) {|assert|
+      assert_imap_command(:store, '1:3 +FLAGS.SILENT (\Deleted)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2677,7 +2680,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
       }
 
-      assert_imap_command(:store, '1:4', '+FLAGS.SILENT', [ :group, '\Seen' ]) {|assert|
+      assert_imap_command(:store, '1:4 +FLAGS.SILENT (\Seen)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2692,7 +2695,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
       }
 
-      assert_imap_command(:store, '1:5', '+FLAGS.SILENT', [ :group, '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1:5 +FLAGS.SILENT (\Draft)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2707,7 +2710,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:*', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1:* FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2722,7 +2725,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered' ]) {|assert|
+      assert_imap_command(:store, '1 -FLAGS.SILENT (\Answered)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2737,7 +2740,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:2', '-FLAGS.SILENT', [ :group, '\Flagged' ]) {|assert|
+      assert_imap_command(:store, '1:2 -FLAGS.SILENT (\Flagged)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2752,7 +2755,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:3', '-FLAGS.SILENT', [ :group, '\Deleted' ]) {|assert|
+      assert_imap_command(:store, '1:3 -FLAGS.SILENT (\Deleted)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2767,7 +2770,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:4', '-FLAGS.SILENT', [ :group, '\Seen' ]) {|assert|
+      assert_imap_command(:store, '1:4 -FLAGS.SILENT (\Seen)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2782,7 +2785,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:5', '-FLAGS.SILENT', [ :group, '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1:5 -FLAGS.SILENT (\Draft)') {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -2824,18 +2827,18 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -2858,7 +2861,7 @@ module RIMS::Test
         assert_mbox_flag_num(recent: 5)
       }
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
@@ -2874,7 +2877,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3', '+FLAGS', [ :group, '\Flagged' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3 +FLAGS (\Flagged)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Recent))')
         assert.equal("#{tag} OK STORE completed")
@@ -2891,7 +2894,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5', '+FLAGS', [ :group, '\Deleted' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5 +FLAGS (\Deleted)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Recent))')
         assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Recent))')
@@ -2909,7 +2912,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5,7', '+FLAGS', [ :group, '\Seen' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5,7 +FLAGS (\Seen)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Seen \Recent))')
         assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Seen \Recent))')
@@ -2928,7 +2931,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5,7,9', '+FLAGS', [ :group, '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5,7,9 +FLAGS (\Draft)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal('* 3 FETCH (UID 5 FLAGS (\Deleted \Seen \Draft \Recent))')
@@ -2948,7 +2951,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:*', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1:* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Deleted \Seen \Draft \Recent))')
@@ -2968,7 +2971,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 -FLAGS (\Answered)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Flagged \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
       }
@@ -2984,7 +2987,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3', '-FLAGS', [ :group, '\Flagged' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3 -FLAGS (\Flagged)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Deleted \Seen \Draft \Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Deleted \Seen \Draft \Recent))')
         assert.equal("#{tag} OK STORE completed")
@@ -3001,7 +3004,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5', '-FLAGS', [ :group, '\Deleted' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5 -FLAGS (\Deleted)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Seen \Draft \Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Seen \Draft \Recent))')
         assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Seen \Draft \Recent))')
@@ -3019,7 +3022,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5,7', '-FLAGS', [ :group, '\Seen' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5,7 -FLAGS (\Seen)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Draft \Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Draft \Recent))')
         assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Draft \Recent))')
@@ -3038,7 +3041,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5,7,9', '-FLAGS', [ :group, '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5,7,9 -FLAGS (\Draft)', uid: true) {|assert|
         assert.equal('* 1 FETCH (UID 1 FLAGS (\Recent))')
         assert.equal('* 2 FETCH (UID 3 FLAGS (\Answered \Recent))')
         assert.equal('* 3 FETCH (UID 5 FLAGS (\Answered \Flagged \Recent))')
@@ -3085,18 +3088,18 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 +FLAGS.SILENT (\Answered)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 +FLAGS.SILENT (\Answered)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3119,7 +3122,7 @@ module RIMS::Test
         assert_mbox_flag_num(recent: 5)
       }
 
-      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 +FLAGS.SILENT (\Answered)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3134,7 +3137,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3', '+FLAGS.SILENT', [ :group, '\Flagged' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3 +FLAGS.SILENT (\Flagged)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3149,7 +3152,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5', '+FLAGS.SILENT', [ :group, '\Deleted' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5 +FLAGS.SILENT (\Deleted)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3164,7 +3167,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5,7', '+FLAGS.SILENT', [ :group, '\Seen' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5,7 +FLAGS.SILENT (\Seen)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3179,7 +3182,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5,7,9', '+FLAGS.SILENT', [ :group, '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5,7,9 +FLAGS.SILENT (\Draft)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3194,7 +3197,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 1, flagged: 2, deleted: 3, seen: 4, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1:*', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1:* FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3209,7 +3212,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 5, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 -FLAGS.SILENT (\Answered)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3224,7 +3227,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 5, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3', '-FLAGS.SILENT', [ :group, '\Flagged' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3 -FLAGS.SILENT (\Flagged)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3239,7 +3242,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 5, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5', '-FLAGS.SILENT', [ :group, '\Deleted' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5 -FLAGS.SILENT (\Deleted)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3254,7 +3257,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 5, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5,7', '-FLAGS.SILENT', [ :group, '\Seen' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5,7 -FLAGS.SILENT (\Seen)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3269,7 +3272,7 @@ module RIMS::Test
         assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 5, recent: 5)
       }
 
-      assert_imap_command(:store, '1,3,5,7,9', '-FLAGS.SILENT', [ :group, '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1,3,5,7,9 -FLAGS.SILENT (\Draft)', uid: true) {|assert|
         assert.equal("#{tag} OK STORE completed")
       }
 
@@ -3303,7 +3306,7 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3311,7 +3314,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -3322,7 +3325,7 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3338,7 +3341,7 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3346,7 +3349,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted',  '\Seen','\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3354,7 +3357,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3362,7 +3365,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3370,7 +3373,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3378,7 +3381,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 -FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3386,7 +3389,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3394,7 +3397,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', 'FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3402,7 +3405,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', '-FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3410,7 +3413,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', '+FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3418,7 +3421,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', 'FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3426,7 +3429,7 @@ module RIMS::Test
         assert_msg_flags(1, answered: false, flagged: true, deleted: false, seen: true, draft: false, recent: true)
       }
 
-      assert_imap_command(:store, '1', '-FLAGS.SILENT', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], uid: true) {|assert|
+      assert_imap_command(:store, '1 -FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
         assert.match(/^#{tag} NO /)
       }
 
@@ -3477,21 +3480,21 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:copy, '2:4', 'WORK') {|assert|
+      assert_imap_command(:copy, '2:4 WORK') {|assert|
         assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
       }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:copy, '2:4', 'WORK') {|assert|
+      assert_imap_command(:copy, '2:4 WORK') {|assert|
         assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
       }
 
@@ -3527,7 +3530,7 @@ module RIMS::Test
         assert_msg_text(                      mbox_id: work_id)
       }
 
-      assert_imap_command(:copy, '2:4', 'WORK') {|assert|
+      assert_imap_command(:copy, '2:4 WORK') {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
@@ -3556,7 +3559,7 @@ module RIMS::Test
       }
 
       # duplicted message copy
-      assert_imap_command(:copy, '2:4', 'WORK') {|assert|
+      assert_imap_command(:copy, '2:4 WORK') {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
@@ -3585,7 +3588,7 @@ module RIMS::Test
       }
 
       # copy of empty messge set
-      assert_imap_command(:copy, '100', 'WORK') {|assert|
+      assert_imap_command(:copy, '100 WORK') {|assert|
         assert.match(/#{tag} OK COPY completed/)
       }
 
@@ -3613,7 +3616,7 @@ module RIMS::Test
         assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
       }
 
-      assert_imap_command(:copy, '1:*', 'nobox') {|assert|
+      assert_imap_command(:copy, '1:* nobox') {|assert|
         assert.match(/^#{tag} NO \[TRYCREATE\]/)
       }
 
@@ -3660,21 +3663,21 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:copy, '3,5,7', 'WORK', uid: true) {|assert|
+      assert_imap_command(:copy, '3,5,7 WORK', uid: true) {|assert|
         assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
       }
 
       assert_equal(false, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
       assert_equal(true, @decoder.auth?)
       assert_equal(false, @decoder.selected?)
 
-      assert_imap_command(:copy, '3,5,7', 'WORK', uid: true) {|assert|
+      assert_imap_command(:copy, '3,5,7 WORK', uid: true) {|assert|
         assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
       }
 
@@ -3710,7 +3713,7 @@ module RIMS::Test
         assert_msg_text(                      mbox_id: work_id)
       }
 
-      assert_imap_command(:copy, '3,5,7', 'WORK', uid: true) {|assert|
+      assert_imap_command(:copy, '3,5,7 WORK', uid: true) {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
@@ -3739,7 +3742,7 @@ module RIMS::Test
       }
 
       # duplicted message copy
-      assert_imap_command(:copy, '3,5,7', 'WORK', uid: true) {|assert|
+      assert_imap_command(:copy, '3,5,7 WORK', uid: true) {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+,\d+,\d+ \d+,\d+,\d+\] COPY completed/)
       }
 
@@ -3768,7 +3771,7 @@ module RIMS::Test
       }
 
       # copy of empty messge set
-      assert_imap_command(:copy, '100', 'WORK', uid: true) {|assert|
+      assert_imap_command(:copy, '100 WORK', uid: true) {|assert|
         assert.match(/#{tag} OK COPY completed/)
       }
 
@@ -3796,7 +3799,7 @@ module RIMS::Test
         assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
       }
 
-      assert_imap_command(:copy, '1:*', 'nobox', uid: true) {|assert|
+      assert_imap_command(:copy, '1:* nobox', uid: true) {|assert|
         assert.match(/^#{tag} NO \[TRYCREATE\]/)
       }
 
@@ -3816,7 +3819,7 @@ module RIMS::Test
         assert_msg_uid(mbox_id: utf8_name_mbox_id)
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -3830,7 +3833,7 @@ module RIMS::Test
         assert_msg_uid(mbox_id: utf8_name_mbox_id)
       }
 
-      assert_imap_command(:copy, '1', UTF7_MBOX_NAME) {|assert|
+      assert_imap_command(:copy, "1 #{UTF7_MBOX_NAME}") {|assert|
         assert.match(/#{tag} OK \[COPYUID \d+ \d+ \d+\] COPY completed/)
       }
 
@@ -3858,7 +3861,7 @@ module RIMS::Test
         assert.equal("#{tag} OK NOOP completed")
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -3921,7 +3924,7 @@ module RIMS::Test
         assert.equal("#{tag} NO not authenticated")
       }
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -3995,7 +3998,7 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.match(/^\* OK \[ALERT\] start user data recovery/)
         assert.match(/^\* OK completed user data recovery/)
         assert.equal("#{tag} OK LOGIN completed")
@@ -4019,7 +4022,7 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, '#postman', 'password_of_mail_delivery_user') {|assert|
+      assert_imap_command(:login, '#postman password_of_mail_delivery_user') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -4046,7 +4049,7 @@ module RIMS::Test
         assert.match(/#{tag} NO not allowed command/)
       }
 
-      assert_imap_command(:rename, 'foo', 'bar') {|assert|
+      assert_imap_command(:rename, 'foo bar') {|assert|
         assert.match(/#{tag} NO not allowed command/)
       }
 
@@ -4058,15 +4061,15 @@ module RIMS::Test
         assert.match(/#{tag} NO not allowed command/)
       }
 
-      assert_imap_command(:list, '', '*') {|assert|
+      assert_imap_command(:list, '"" *') {|assert|
         assert.match(/#{tag} NO not allowed command/)
       }
 
-      assert_imap_command(:lsub, '', '*') {|assert|
+      assert_imap_command(:lsub, '"" *') {|assert|
         assert.match(/#{tag} NO not allowed command/)
       }
 
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
         assert.match(/#{tag} NO not allowed command/)
       }
 
@@ -4086,22 +4089,22 @@ module RIMS::Test
         assert.match(/#{tag} NO not allowed command/)
       }
 
-      assert_imap_command(:fetch, '*', 'RFC822') {|assert|
+      assert_imap_command(:fetch, '* RFC822') {|assert|
         assert.match(/#{tag} NO not allowed command/)
       }
 
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ]) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
         assert.match(/#{tag} NO not allowed command/)
       }
 
-      assert_imap_command(:copy, '*', 'foo') {|assert|
+      assert_imap_command(:copy, '* foo') {|assert|
         assert.match(/#{tag} NO not allowed command/)
       }
 
       base64_foo = RIMS::Protocol.encode_base64('foo')
       base64_nouser = RIMS::Protocol.encode_base64('nouser')
 
-      assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", 'a') {|assert|
+      assert_imap_command(:append, %Q'"b64user-mbox #{base64_foo} INBOX" a') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
 
@@ -4111,7 +4114,7 @@ module RIMS::Test
         assert_msg_flags(1, recent: true)
       }
 
-      assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", [ :group, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ], '19-Nov-1975 12:34:56 +0900', 'b') {|assert|
+      assert_imap_command(:append, %Q'"b64user-mbox #{base64_foo} INBOX" (\\Answered \\Flagged \\Deleted \\Seen \\Draft) "19-Nov-1975 12:34:56 +0900" b') {|assert|
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
       }
 
@@ -4122,7 +4125,7 @@ module RIMS::Test
         assert_msg_flags(2, answered: true, flagged: true, deleted: true, seen: true, draft: true, recent: true)
       }
 
-      assert_imap_command(:append, "b64user-mbox #{base64_foo} nobox", 'x') {|assert|
+      assert_imap_command(:append, %Q'"b64user-mbox #{base64_foo} nobox" x') {|assert|
         assert.match(/^#{tag} NO \[TRYCREATE\]/)
       }
 
@@ -4130,7 +4133,7 @@ module RIMS::Test
         assert_msg_uid(1, 2)
       }
 
-      assert_imap_command(:append, "b64user-mbox #{base64_nouser} INBOX", 'x') {|assert|
+      assert_imap_command(:append, %Q'"b64user-mbox #{base64_nouser} INBOX" x') {|assert|
         assert.match(/^#{tag} NO not found a user/)
       }
 
@@ -4138,7 +4141,7 @@ module RIMS::Test
         assert_msg_uid(1, 2)
       }
 
-      assert_imap_command(:append, "unknown-encode-type #{base64_foo} INBOX", 'x') {|assert|
+      assert_imap_command(:append, %Q'"unknown-encode-type #{base64_foo} INBOX" x') {|assert|
         assert.match(/^#{tag} BAD /)
       }
 
@@ -4166,7 +4169,7 @@ module RIMS::Test
 
       assert_equal(false, @decoder.auth?)
 
-      assert_imap_command(:login, '#postman', 'password_of_mail_delivery_user') {|assert|
+      assert_imap_command(:login, '#postman password_of_mail_delivery_user') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -4179,7 +4182,7 @@ module RIMS::Test
 
       base64_foo = RIMS::Protocol.encode_base64('foo')
 
-      assert_imap_command(:append, "b64user-mbox #{base64_foo} INBOX", 'a') {|assert|
+      assert_imap_command(:append, %Q'"b64user-mbox #{base64_foo} INBOX" a') {|assert|
         assert.match(/^\* OK \[ALERT\] start user data recovery/)
         assert.match(/^\* OK completed user data recovery/)
         assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
@@ -6332,7 +6335,7 @@ LOGOUT
     end
 
     def test_untagged_server_response
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
@@ -6391,7 +6394,7 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command(:rename, 'foo', 'bar') {|assert|
+      assert_imap_command(:rename, 'foo bar') {|assert|
         assert.equal("* #{n} EXISTS")
         assert.equal("* #{n} RECENT")
         assert.equal("#{tag} OK RENAME completed")
@@ -6423,7 +6426,7 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command(:list, '', '*') {|assert|
+      assert_imap_command(:list, '"" *') {|assert|
         assert.equal("* #{n} EXISTS")
         assert.equal("* #{n} RECENT")
         assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
@@ -6432,7 +6435,7 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command(:lsub, '', '*') {|assert|
+      assert_imap_command(:lsub, '"" *') {|assert|
         assert.equal("* #{n} EXISTS")
         assert.equal("* #{n} RECENT")
         assert.equal('* LSUB (\Noinferiors \Marked) NIL "INBOX"')
@@ -6441,7 +6444,7 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command(:status, 'INBOX', [ :group, 'MESSAGES', 'RECENT', 'UIDNEXT', 'UIDVALIDITY', 'UNSEEN' ]) {|assert|
+      assert_imap_command(:status, 'INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
         assert.equal("* #{n} EXISTS")
         assert.equal("* #{n} RECENT")
         assert.equal("* STATUS \"INBOX\" (MESSAGES #{n} RECENT #{n} UIDNEXT #{(n+1).succ} UIDVALIDITY #{@inbox_id} UNSEEN #{n})")
@@ -6450,7 +6453,7 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command(:append, 'INBOX', 'test') {|assert|
+      assert_imap_command(:append, 'INBOX test') {|assert|
         assert.equal("* #{n} EXISTS")
         assert.equal("* #{n} RECENT")
         assert.equal("* #{n+1} EXISTS")
@@ -6485,7 +6488,7 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command(:fetch, '1', make_body('BODY.PEEK[]')) {|assert|
+      assert_imap_command(:fetch, '1 BODY.PEEK[]') {|assert|
         assert.equal("* #{n} EXISTS")
         assert.equal("* #{n} RECENT")
         assert.equal(%Q'* 1 FETCH (BODY[] "test")')
@@ -6494,7 +6497,7 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command(:store, '1', '+FLAGS', [ :group, '\Flagged']) {|assert|
+      assert_imap_command(:store, '1 +FLAGS (\Flagged)') {|assert|
         assert.equal("* #{n} EXISTS")
         assert.equal("* #{n} RECENT")
         assert.equal('* 1 FETCH (FLAGS (\Flagged \Recent))')
@@ -6503,7 +6506,7 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command(:copy, '1', 'INBOX') {|assert|
+      assert_imap_command(:copy, '1 INBOX') {|assert|
         assert.equal("* #{n} EXISTS")
         assert.equal("* #{n} RECENT")
         assert.equal("* #{n+1} EXISTS")
@@ -6533,7 +6536,7 @@ LOGOUT
     end
 
     def test_idle_untagged_server_response
-      assert_imap_command(:login, 'foo', 'open_sesame') {|assert|
+      assert_imap_command(:login, 'foo open_sesame') {|assert|
         assert.equal("#{tag} OK LOGIN completed")
       }
 
