@@ -165,38 +165,6 @@ module RIMS::Test
     end
     private :tag!
 
-    def assert_imap_command(cmd_method_symbol, cmd_str_args='', crlf_at_eol: true, client_input_text: nil, server_output_expected: nil, **cmd_opts)
-      tag!
-      block_call = 0
-
-      case (cmd_method_symbol)
-      when :authenticate, :idle
-        assert(cmd_opts.empty?)
-        execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text, server_output_expected) {|response_lines|
-          block_call += 1
-          assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
-        }
-      else
-        if (cmd_opts.empty?) then
-          execute_imap_command(cmd_method_symbol, tag, cmd_str_args) {|response_lines|
-            block_call += 1
-            assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
-          }
-        else
-          execute_imap_command_with_options(cmd_method_symbol, tag, cmd_str_args, cmd_opts) {|response_lines|
-            block_call += 1
-            assert_imap_response(response_lines, crlf_at_eol: crlf_at_eol) {|assert| yield(assert) }
-          }
-        end
-      end
-
-      assert_equal(1, block_call, 'IMAP command block should be called only once.')
-      @decoder = @decoder.next_decoder
-
-      nil
-    end
-    private :assert_imap_command
-
     def parse_string_args(cmd_str_args)
       reader = RIMS::Protocol::RequestReader.new(StringIO.new(cmd_str_args + "\r\n", 'r'), StringIO.new('', 'w'), @logger)
       if (atom_list = reader.read_line) then
@@ -207,44 +175,45 @@ module RIMS::Test
     end
     private :parse_string_args
 
-    def execute_imap_command(cmd_method_symbol, tag, cmd_str_args)
-      @decoder.__send__(cmd_method_symbol, tag, *parse_string_args(cmd_str_args)) {|response_lines|
-        yield(response_lines.each)
-      }
-    end
-    private :execute_imap_command
+    def assert_imap_command(cmd_method_symbol, cmd_str_args='', crlf_at_eol: true, client_input_text: nil, server_output_expected: nil, uid: nil)
+      tag!
+      block_call = 0
 
-    def execute_imap_command_with_options(cmd_method_symbol, tag, cmd_str_args, cmd_opts)
-      @decoder.__send__(cmd_method_symbol, tag, *parse_string_args(cmd_str_args), **cmd_opts) {|response_lines|
-        yield(response_lines.each)
-      }
-    end
-    private :execute_imap_command_with_options
-
-    def execute_imap_command_with_inout(cmd_method_symbol, tag, cmd_str_args, client_input_text, server_output_expected)
-      input = StringIO.new(client_input_text, 'r')
-      output = StringIO.new('', 'w')
-
-      inout_args = [ input, output ]
+      cmd_args = []
+      if (client_input_text) then
+        input = StringIO.new(client_input_text, 'r')
+        output = StringIO.new('', 'w')
+        cmd_args << input << output
+      end
       if (cmd_method_symbol == :idle) then
-        inout_args << RIMS::Protocol::ConnectionTimer.new(@limits, input)
+        cmd_args << RIMS::Protocol::ConnectionTimer.new(@limits, input)
+      end
+      cmd_args.concat(parse_string_args(cmd_str_args))
+      unless (uid.nil?) then
+        cmd_args << { uid: uid }
       end
 
-      ret_val = @decoder.__send__(cmd_method_symbol, tag, *inout_args, *parse_string_args(cmd_str_args)) {|response_lines|
-        yield(response_lines.each)
+      @decoder.__send__(cmd_method_symbol, tag, *cmd_args) {|response_lines|
+        block_call += 1
+        assert_imap_response(response_lines.each, crlf_at_eol: crlf_at_eol) {|assert|
+          yield(assert)
+        }
       }
 
       if (server_output_expected) then
+        output or raise ArgumentError, 'need for client_input_text parameter.'
         assert_equal(server_output_expected, output.string, 'server response on output stream')
       end
-
-      if ($DEBUG) then
-        pp input.string, output.string
+      if (client_input_text) then
+        pp input.string, output.string if $DEBUG
       end
 
-      ret_val
+      assert_equal(1, block_call, 'IMAP command block should be called only once.')
+      @decoder = @decoder.next_decoder
+
+      nil
     end
-    private :execute_imap_command_with_inout
+    private :assert_imap_command
 
     def assert_imap_command_loop(client_command_list_text, autotag: true)
       if (autotag) then
