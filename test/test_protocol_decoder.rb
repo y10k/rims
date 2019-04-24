@@ -165,19 +165,22 @@ module RIMS::Test
     private :tag!
 
     def parse_imap_command(tag, imap_command_message)
-      reader = RIMS::Protocol::RequestReader.new(StringIO.new("#{tag} #{imap_command_message}\r\n", 'r'), StringIO.new('', 'w'), @logger)
+      cmd_client_output = StringIO.new('', 'w')
+      reader = RIMS::Protocol::RequestReader.new(StringIO.new("#{tag} #{imap_command_message}\r\n", 'r'), cmd_client_output, @logger)
       _, cmd_name, *cmd_args = reader.read_command
-      return cmd_name, cmd_args
+      return cmd_name, cmd_args, cmd_client_output.string
     end
     private :parse_imap_command
 
-    def assert_imap_command(imap_command_message, client_input_text: nil, server_output_expected: nil, uid: nil)
+    def assert_imap_command(imap_command_message, client_input_text: nil, uid: nil)
       tag!
       block_call = 0
 
-      cmd_name, cmd_args = parse_imap_command(tag, imap_command_message)
+      cmd_name, cmd_args, cmd_client_output = parse_imap_command(tag, imap_command_message)
       cmd_id = RIMS::Protocol::Decoder::IMAP_CMDs[cmd_name.upcase] or flunk("not a imap command: #{cmd_name}")
 
+      input = nil
+      output = nil
       if (client_input_text) then
         input = StringIO.new(client_input_text, 'r')
         output = StringIO.new('', 'w')
@@ -192,7 +195,10 @@ module RIMS::Test
       pp [ :debug_imap_command, imap_command_message, cmd_id, cmd_args ] if $DEBUG
       @decoder.__send__(cmd_id, tag, *cmd_args) {|responses|
         block_call += 1
-        response_message = ''.b
+        response_message = cmd_client_output.b
+        if (output) then
+          response_message << output.string
+        end
         for response in responses
           response_message << response
         end
@@ -201,10 +207,6 @@ module RIMS::Test
         }
       }
 
-      if (server_output_expected) then
-        output or raise ArgumentError, 'need for client_input_text parameter.'
-        assert_equal(server_output_expected, output.string, 'server response on output stream')
-      end
       if (client_input_text) then
         pp input.string, output.string if $DEBUG
       end
@@ -461,11 +463,13 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command('AUTHENTICATE plain', client_input_text: "*\r\n") {|assert|
+        assert.equal('+ ')
         assert.match(/^#{tag} BAD /)
       }
 
       assert_imap_command('AUTHENTICATE plain',
                           client_input_text: client_plain_response_base64('foo', 'detarame') + "\r\n") {|assert|
+        assert.equal('+ ')
         assert.match(/^#{tag} NO /)
       }
 
@@ -473,6 +477,7 @@ module RIMS::Test
 
       assert_imap_command('AUTHENTICATE plain',
                           client_input_text: client_plain_response_base64('foo', 'open_sesame') + "\r\n") {|assert|
+        assert.equal('+ ')
         assert.equal("#{tag} OK AUTHENTICATE plain success")
       }
 
@@ -502,11 +507,13 @@ module RIMS::Test
       assert_equal(false, @decoder.auth?)
 
       assert_imap_command('AUTHENTICATE cram-md5', client_input_text: "*\r\n") {|assert|
+        assert.equal("+ #{server_client_data_base64_pair_list[0][0]}")
         assert.match(/^#{tag} BAD /)
       }
 
       assert_imap_command('AUTHENTICATE cram-md5',
                           client_input_text: server_client_data_base64_pair_list[1][1] + "\r\n") {|assert|
+        assert.equal("+ #{server_client_data_base64_pair_list[1][0]}")
         assert.match(/^#{tag} NO /)
       }
 
@@ -514,6 +521,7 @@ module RIMS::Test
 
       assert_imap_command('AUTHENTICATE cram-md5',
                           client_input_text: server_client_data_base64_pair_list[2][1] + "\r\n") {|assert|
+        assert.equal("+ #{server_client_data_base64_pair_list[2][0]}")
         assert.equal("#{tag} OK AUTHENTICATE cram-md5 success")
       }
 
@@ -1984,6 +1992,7 @@ module RIMS::Test
 
       utf8_msg = "\u306F\u306B\u307B"
       assert_imap_command("SEARCH CHARSET utf-8 BODY {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert.equal('+ continue')
         assert.equal("* SEARCH 4 5\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
@@ -2069,6 +2078,7 @@ module RIMS::Test
 
       utf8_msg = "\u306F\u306B\u307B"
       assert_imap_command("SEARCH CHARSET utf-8 TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert.equal('+ continue')
         assert.equal("* SEARCH 4 5\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
@@ -3914,18 +3924,22 @@ module RIMS::Test
       assert_equal(true, @decoder.selected?)
 
       assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
+        assert.equal('+ continue')
         assert.equal("#{tag} OK IDLE terminated")
       }
 
       assert_imap_command('IDLE', client_input_text: "done\r\n") {|assert|
+        assert.equal('+ continue')
         assert.equal("#{tag} OK IDLE terminated")
       }
 
       assert_imap_command('IDLE', client_input_text: "detarame\r\n") {|assert|
+        assert.equal('+ continue')
         assert.equal("#{tag} BAD unexpected client response")
       }
 
       assert_imap_command('IDLE', client_input_text: '') {|assert|
+        assert.equal('+ continue')
         assert.equal("#{tag} BAD unexpected client connection close")
       }
 
@@ -3949,6 +3963,7 @@ module RIMS::Test
       assert_equal(true, @decoder.selected?)
 
       assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
+        assert.equal('+ continue')
         assert.equal("#{tag} OK IDLE terminated")
       }
 
@@ -6535,25 +6550,25 @@ LOGOUT
       assert_equal(true, another_decoder.selected?)
 
       another_decoder.append('tag', 'INBOX', [ :group, '\Deleted' ], 'test', &another_writer)
-      assert_imap_command('IDLE', client_input_text: "DONE\r\n", server_output_expected:
-                          "+ continue\r\n" +
-                          "* 1 EXISTS\r\n" +
-                          "* 1 RECENT\r\n") {|assert|
+      assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
+        assert.equal_lines("+ continue\r\n" +
+                           "* 1 EXISTS\r\n" +
+                           "* 1 RECENT\r\n")
         assert.equal("#{tag} OK IDLE terminated")
       }
 
       another_decoder.copy('tag', '1', 'INBOX', &another_writer)
-      assert_imap_command('IDLE', client_input_text: "DONE\r\n", server_output_expected:
-                          "+ continue\r\n" +
-                          "* 2 EXISTS\r\n" +
-                          "* 2 RECENT\r\n") {|assert|
+      assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
+        assert.equal_lines("+ continue\r\n" +
+                           "* 2 EXISTS\r\n" +
+                           "* 2 RECENT\r\n")
         assert.equal("#{tag} OK IDLE terminated")
       }
 
       another_decoder.expunge('tag', &another_writer)
-      assert_imap_command('IDLE', client_input_text: "DONE\r\n", server_output_expected:
-                          "+ continue\r\n" +
-                          "* 1 EXPUNGE\r\n") {|assert|
+      assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
+        assert.equal_lines("+ continue\r\n" +
+                           "* 1 EXPUNGE\r\n")
         assert.equal("#{tag} OK IDLE terminated")
       }
 
@@ -6569,9 +6584,9 @@ LOGOUT
       }
 
       another_decoder.close('tag', &another_writer)
-      assert_imap_command('IDLE', client_input_text: "DONE\r\n", server_output_expected:
-                          "+ continue\r\n" +
-                          "* 1 EXPUNGE\r\n") {|assert|
+      assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
+        assert.equal_lines("+ continue\r\n" +
+                           "* 1 EXPUNGE\r\n")
         assert.equal("#{tag} OK IDLE terminated")
       }
 
