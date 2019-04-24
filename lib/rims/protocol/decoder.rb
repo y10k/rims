@@ -7,6 +7,9 @@ require 'time'
 module RIMS
   module Protocol
     class Decoder
+      # to use `StringIO' as mock in unit test
+      using Riser::CompatibleStringIO
+
       def self.new_decoder(*args, **opts)
         InitialDecoder.new(*args, **opts)
       end
@@ -18,7 +21,7 @@ module RIMS
         name.upcase
       end
 
-      def self.repl(decoder, input, output, logger)
+      def self.repl(decoder, limits, input, output, logger)
         response_write = proc{|res|
           begin
             last_line = nil
@@ -38,8 +41,12 @@ module RIMS
 
         decoder.ok_greeting{|res| response_write.call(res) }
 
+        conn_timer = ConnectionTimer.new(limits, input.to_io)
         request_reader = RequestReader.new(input, output, logger)
-        loop do
+
+        until (conn_timer.command_wait_timeout?)
+          conn_timer.command_wait or break
+
           begin
             atom_list = request_reader.read_command
           rescue
@@ -88,7 +95,7 @@ module RIMS
               when :authenticate
                 decoder.authenticate(tag, input, output, *opt_args) {|res| response_write.call(res) }
               when :idle
-                decoder.idle(tag, input, output, *opt_args) {|res| response_write.call(res) }
+                decoder.idle(tag, input, output, conn_timer, *opt_args) {|res| response_write.call(res) }
               else
                 decoder.__send__(name, tag, *opt_args) {|res| response_write.call(res) }
               end
@@ -109,6 +116,14 @@ module RIMS
           end
 
           decoder = decoder.next_decoder
+        end
+
+        if (conn_timer.command_wait_timeout?) then
+          if (limits.command_wait_timeout_seconds > 0) then
+            response_write.call([ "* BYE server autologout: idle for too long\r\n" ])
+          else
+            response_write.call([ "* BYE server autologout: shutdown\r\n" ])
+          end
         end
 
         nil
@@ -452,7 +467,7 @@ module RIMS
       end
       imap_command :copy
 
-      def idle(tag, client_input_stream, server_output_stream)
+      def idle(tag, client_input_stream, server_output_stream, connection_timer)
         yield(not_authenticated_response(tag))
       end
       imap_command :idle
@@ -1197,7 +1212,7 @@ module RIMS
       end
       imap_command_selected :copy, exclusive: true
 
-      def idle(tag, client_input_stream, server_output_stream)
+      def idle(tag, client_input_stream, server_output_stream, connection_timer)
         @logger.info('idle start...')
         server_output_stream.write("+ continue\r\n")
         server_output_stream.flush
@@ -1216,6 +1231,7 @@ module RIMS
         }
 
         begin
+          connection_timer.command_wait or return
           line = client_input_stream.gets
         ensure
           @folder.server_response_idle_interrupt
@@ -1474,7 +1490,7 @@ module RIMS
       end
       imap_command :copy
 
-      def idle(tag, client_input_stream, server_output_stream)
+      def idle(tag, client_input_stream, server_output_stream, connection_timer)
         yield(not_allowed_command_response(tag))
       end
       imap_command :idle

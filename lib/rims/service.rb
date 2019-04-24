@@ -724,6 +724,8 @@ module RIMS
 
       ssl_context = @config.ssl_context
 
+      conn_limits = Protocol::ConnectionLimits.new(1, 60 * 30)
+
       make_kvs_factory = lambda{|kvs_params, kvs_type|
         kvs_factory = kvs_params.build_factory
         return lambda{|mailbox_data_structure_version, unique_user_id, db_name|
@@ -854,7 +856,15 @@ module RIMS
         logger.info("authorization parameter: mail_delivery_user=#{@config.mail_delivery_user}")
       }
       # server.at_fork{}
-      # server.at_stop{}
+      server.at_stop{|stop_state|
+        case (stop_state)
+        when :graceful
+          logger.info('autologout mmediately.')
+          conn_limits.command_wait_timeout_seconds = 0
+        when :forced
+          logger.info('forced shutdown.')
+        end
+      }
       server.at_stat{|info|
         logger.info("stat: #{info.to_json}")
       }
@@ -884,7 +894,7 @@ module RIMS
                                                         read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
                                                         write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
                                                         cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
-                Protocol::Decoder.repl(decoder, stream, stream, logger)
+                Protocol::Decoder.repl(decoder, conn_limits, stream, stream, logger)
               ensure
                 if (stream) then
                   stream.flush

@@ -5,6 +5,7 @@ require 'net/imap'
 require 'pp' if $DEBUG
 require 'rims'
 require 'riser'
+require 'socket'
 require 'stringio'
 require 'test/unit'
 require 'time'
@@ -143,6 +144,7 @@ module RIMS::Test
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
 
+      @limits = RIMS::Protocol::ConnectionLimits.new(0.001, 60 * 30)
       @decoder = make_decoder
       @tag = 'T000'
     end
@@ -213,7 +215,12 @@ module RIMS::Test
       input = StringIO.new(client_input_text, 'r')
       output = StringIO.new('', 'w')
 
-      ret_val = @decoder.__send__(cmd_method_symbol, tag, input, output, *cmd_str_args) {|response_lines|
+      inout_args = [ input, output ]
+      if (cmd_method_symbol == :idle) then
+        inout_args << RIMS::Protocol::ConnectionTimer.new(@limits, input)
+      end
+
+      ret_val = @decoder.__send__(cmd_method_symbol, tag, *inout_args, *cmd_str_args) {|response_lines|
         yield(response_lines.each)
       }
 
@@ -242,7 +249,7 @@ module RIMS::Test
       input = StringIO.new(client_command_list_text, 'r')
       output = StringIO.new('', 'w')
 
-      RIMS::Protocol::Decoder.repl(@decoder, input, Riser::WriteBufferStream.new(output), @logger)
+      RIMS::Protocol::Decoder.repl(@decoder, @limits, input, Riser::WriteBufferStream.new(output), @logger)
       response_lines = output.string.each_line
 
       assert_imap_response(response_lines) {|assert|
@@ -250,6 +257,29 @@ module RIMS::Test
       }
     end
     private :assert_imap_command_loop
+
+    def assert_imap_command_loop_io # :yields: command_writer, assert
+      server_io, client_io = UNIXSocket.socketpair
+      begin
+        server_thread = Thread.start{
+          stream = Riser::WriteBufferStream.new(server_io)
+          stream = Riser::LoggingStream.new(stream, @logger)
+          begin
+            RIMS::Protocol::Decoder.repl(@decoder, @limits, stream, stream, @logger)
+          ensure
+            server_io.close
+          end
+        }
+        response_lines = client_io.each_line
+        assert_imap_response(response_lines) {|assert|
+          yield(client_io, assert)
+        }
+      ensure
+        client_io.close unless client_io.closed?
+        server_thread.join if server_thread
+      end
+    end
+    private :assert_imap_command_loop_io
 
     def client_plain_response_base64(authentication_id, plain_password)
       response_txt = [ authentication_id, authentication_id, plain_password ].join("\0")
@@ -6188,6 +6218,116 @@ LOGOUT
         assert.match(/^#{tag!} OK \[APPENDUID \d+ \d+\] APPEND completed/)
         assert.match(/^\* BYE /)
         assert.equal("#{tag!} OK LOGOUT completed")
+      }
+    end
+
+    def test_command_loop_autologout_not_authenticated_idle_too_long
+      @limits.command_wait_timeout_seconds = 0.1
+      assert_imap_command_loop_io{|cmd_writer, assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("* BYE server autologout: idle for too long")
+      }
+    end
+
+    def test_command_loop_autologout_not_authenticated_shutdown
+      @limits.command_wait_timeout_seconds = 0
+      assert_imap_command_loop_io{|cmd_writer, assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        assert.equal("* BYE server autologout: shutdown")
+      }
+    end
+
+    def test_command_loop_autologout_authenticated_idle_too_long
+      assert_imap_command_loop_io{|cmd_writer, assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+
+        cmd_writer << "#{tag!} LOGIN foo open_sesame\r\n"
+        assert.equal("#{tag} OK LOGIN completed")
+
+        @limits.command_wait_timeout_seconds = 0.1
+        assert.equal("* BYE server autologout: idle for too long")
+      }
+    end
+
+    def test_command_loop_autologout_authenticated_shutdown
+      assert_imap_command_loop_io{|cmd_writer, assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+
+        cmd_writer << "#{tag!} LOGIN foo open_sesame\r\n"
+        assert.equal("#{tag} OK LOGIN completed")
+
+        @limits.command_wait_timeout_seconds = 0
+        assert.equal("* BYE server autologout: shutdown")
+      }
+    end
+
+    def test_command_loop_autologout_selected_idle_too_long
+      assert_imap_command_loop_io{|cmd_writer, assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+
+        cmd_writer << "#{tag!} LOGIN foo open_sesame\r\n"
+        assert.equal("#{tag} OK LOGIN completed")
+
+        cmd_writer << "#{tag!} SELECT INBOX\r\n"
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+
+        @limits.command_wait_timeout_seconds = 0.1
+        assert.equal("* BYE server autologout: idle for too long")
+      }
+    end
+
+    def test_command_loop_autologout_selected_shutdown
+      assert_imap_command_loop_io{|cmd_writer, assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+
+        cmd_writer << "#{tag!} LOGIN foo open_sesame\r\n"
+        assert.equal("#{tag} OK LOGIN completed")
+
+        cmd_writer << "#{tag!} SELECT INBOX\r\n"
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+
+        @limits.command_wait_timeout_seconds = 0
+        assert.equal("* BYE server autologout: shutdown")
+      }
+    end
+
+    def test_command_loop_autologout_idling_idle_too_long
+      assert_imap_command_loop_io{|cmd_writer, assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+
+        cmd_writer << "#{tag!} LOGIN foo open_sesame\r\n"
+        assert.equal("#{tag} OK LOGIN completed")
+
+        cmd_writer << "#{tag!} SELECT INBOX\r\n"
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+
+        cmd_writer << "#{tag!} IDLE\r\n"
+        assert.equal("+ continue\r\n")
+
+        @limits.command_wait_timeout_seconds = 0.1
+        assert.equal("* BYE server autologout: idle for too long")
+      }
+    end
+
+    def test_command_loop_autologout_idling_shutdown
+      assert_imap_command_loop_io{|cmd_writer, assert|
+        assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+
+        cmd_writer << "#{tag!} LOGIN foo open_sesame\r\n"
+        assert.equal("#{tag} OK LOGIN completed")
+
+        cmd_writer << "#{tag!} SELECT INBOX\r\n"
+        assert.skip_while{|line| line =~ /^\* /}
+        assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+
+        cmd_writer << "#{tag!} IDLE\r\n"
+        assert.equal("+ continue\r\n")
+
+        @limits.command_wait_timeout_seconds = 0
+        assert.equal("* BYE server autologout: shutdown")
       }
     end
 
