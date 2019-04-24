@@ -32,9 +32,8 @@ module RIMS::Test
     class IMAPResponseAssertionDSL
       include Test::Unit::Assertions
 
-      def initialize(response_lines, crlf_at_eol: true)
+      def initialize(response_lines)
         @lines = response_lines
-        @crlf_at_eol = crlf_at_eol
       end
 
       def fetch_line(peek_next_line: false)
@@ -54,14 +53,14 @@ module RIMS::Test
       end
 
       def equal(expected_string, peek_next_line: false)
-        expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n\z/)
+        expected_string += "\r\n" if (expected_string !~ /\n\z/)
         line = fetch_line(peek_next_line: peek_next_line)
         assert_equal(expected_string, line)
         self
       end
 
       def strenc_equal(expected_string, peek_next_line: false)
-        expected_string += "\r\n" if (@crlf_at_eol && expected_string !~ /\n\z/)
+        expected_string += "\r\n" if (expected_string !~ /\n\z/)
         line = fetch_line(peek_next_line: peek_next_line)
         assert_equal(expected_string.encoding, line.encoding)
         assert_equal(expected_string, line)
@@ -71,14 +70,14 @@ module RIMS::Test
       def match(expected_regexp, peek_next_line: false)
         line = fetch_line(peek_next_line: peek_next_line)
         assert_match(expected_regexp, line)
-        assert_match(/\r\n\z/, line) if @crlf_at_eol
+        assert_match(/\r\n\z/, line)
         self
       end
 
       def no_match(expected_regexp, peek_next_line: false)
         line = fetch_line(peek_next_line: peek_next_line)
         assert_not_nil(expected_regexp, line)
-        assert_match(/\r\n\z/, line) if @crlf_at_eol
+        assert_match(/\r\n\z/, line)
         self
       end
 
@@ -90,8 +89,8 @@ module RIMS::Test
       end
     end
 
-    def assert_imap_response(response_lines, crlf_at_eol: true)
-      dsl = IMAPResponseAssertionDSL.new(response_lines, crlf_at_eol: crlf_at_eol)
+    def assert_imap_response(response_lines)
+      dsl = IMAPResponseAssertionDSL.new(response_lines)
       yield(dsl)
       assert_raise(StopIteration) { response_lines.next }
 
@@ -172,7 +171,7 @@ module RIMS::Test
     end
     private :parse_imap_command
 
-    def assert_imap_command(imap_command_message, crlf_at_eol: true, client_input_text: nil, server_output_expected: nil, uid: nil)
+    def assert_imap_command(imap_command_message, client_input_text: nil, server_output_expected: nil, uid: nil)
       tag!
       block_call = 0
 
@@ -191,9 +190,13 @@ module RIMS::Test
       end
 
       pp [ :debug_imap_command, imap_command_message, cmd_id, cmd_args ] if $DEBUG
-      @decoder.__send__(cmd_id, tag, *cmd_args) {|response_lines|
+      @decoder.__send__(cmd_id, tag, *cmd_args) {|responses|
         block_call += 1
-        assert_imap_response(response_lines.each, crlf_at_eol: crlf_at_eol) {|assert|
+        response_message = ''.b
+        for response in responses
+          response_message << response
+        end
+        assert_imap_response(StringIO.new(response_message, 'r').each_line) {|assert|
           yield(assert)
         }
       }
@@ -1829,8 +1832,8 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_imap_command('SEARCH ALL', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal("\r\n")
+      assert_imap_command('SEARCH ALL') {|assert|
+        assert.equal("* SEARCH\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
@@ -1854,47 +1857,47 @@ module RIMS::Test
         assert_equal([ 1, 3, 5 ], @mail_store.each_msg_uid(@inbox_id).to_a)
       }
 
-      assert_imap_command('SEARCH ALL', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
+      assert_imap_command('SEARCH ALL') {|assert|
+        assert.equal("* SEARCH 1 2 3\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command('SEARCH ALL', uid: true, crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 1').equal(' 3').equal(' 5').equal("\r\n")
+      assert_imap_command('SEARCH ALL', uid: true) {|assert|
+        assert.equal("* SEARCH 1 3 5\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command('SEARCH OR FROM alice FROM bob BODY apple', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 1').equal(' 3').equal("\r\n")
+      assert_imap_command('SEARCH OR FROM alice FROM bob BODY apple') {|assert|
+        assert.equal("* SEARCH 1 3\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command('SEARCH OR FROM alice FROM bob BODY apple', uid: true, crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 1').equal(' 5').equal("\r\n")
-        assert.equal("#{tag} OK SEARCH completed\r\n")
-      }
-
-      # first message sequence set operation is shortcut for accessing folder message list.
-      assert_imap_command('SEARCH 2', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 2').equal("\r\n")
+      assert_imap_command('SEARCH OR FROM alice FROM bob BODY apple', uid: true) {|assert|
+        assert.equal("* SEARCH 1 5\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       # first message sequence set operation is shortcut for accessing folder message list.
-      assert_imap_command('SEARCH 2', uid: true, crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 3').equal("\r\n")
+      assert_imap_command('SEARCH 2') {|assert|
+        assert.equal("* SEARCH 2\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       # first message sequence set operation is shortcut for accessing folder message list.
-      assert_imap_command('SEARCH UID 3', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 2').equal("\r\n")
+      assert_imap_command('SEARCH 2', uid: true) {|assert|
+        assert.equal("* SEARCH 3\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       # first message sequence set operation is shortcut for accessing folder message list.
-      assert_imap_command('SEARCH UID 3', uid: true, crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 3').equal("\r\n")
+      assert_imap_command('SEARCH UID 3') {|assert|
+        assert.equal("* SEARCH 2\r\n")
+        assert.equal("#{tag} OK SEARCH completed\r\n")
+      }
+
+      # first message sequence set operation is shortcut for accessing folder message list.
+      assert_imap_command('SEARCH UID 3', uid: true) {|assert|
+        assert.equal("* SEARCH 3\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
@@ -1964,24 +1967,24 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_imap_command('SEARCH CHARSET utf-8 ALL', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal(' 4').equal(' 5').equal("\r\n")
+      assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
+        assert.equal("* SEARCH 1 2 3 4 5\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command('SEARCH CHARSET utf-8 BODY foo', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
+      assert_imap_command('SEARCH CHARSET utf-8 BODY foo') {|assert|
+        assert.equal("* SEARCH 1 2 3\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command('SEARCH CHARSET utf-8 BODY bar', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal("\r\n")
+      assert_imap_command('SEARCH CHARSET utf-8 BODY bar') {|assert|
+        assert.equal("* SEARCH\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       utf8_msg = "\u306F\u306B\u307B"
-      assert_imap_command("SEARCH CHARSET utf-8 BODY {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b, crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 4').equal(' 5').equal("\r\n")
+      assert_imap_command("SEARCH CHARSET utf-8 BODY {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert.equal("* SEARCH 4 5\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
@@ -2044,29 +2047,29 @@ module RIMS::Test
       assert_equal(true, @decoder.auth?)
       assert_equal(true, @decoder.selected?)
 
-      assert_imap_command('SEARCH CHARSET utf-8 ALL', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal(' 4').equal(' 5').equal("\r\n")
+      assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
+        assert.equal("* SEARCH 1 2 3 4 5\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command('SEARCH CHARSET utf-8 TEXT foo', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 1').equal(' 2').equal(' 3').equal("\r\n")
+      assert_imap_command('SEARCH CHARSET utf-8 TEXT foo') {|assert|
+        assert.equal("* SEARCH 1 2 3\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command('SEARCH CHARSET utf-8 TEXT bar', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 2').equal(' 3').equal("\r\n")
+      assert_imap_command('SEARCH CHARSET utf-8 TEXT bar') {|assert|
+        assert.equal("* SEARCH 2 3\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
-      assert_imap_command('SEARCH CHARSET utf-8 TEXT baz', crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal("\r\n")
+      assert_imap_command('SEARCH CHARSET utf-8 TEXT baz') {|assert|
+        assert.equal("* SEARCH\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
       utf8_msg = "\u306F\u306B\u307B"
-      assert_imap_command("SEARCH CHARSET utf-8 TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b, crlf_at_eol: false) {|assert|
-        assert.equal('* SEARCH').equal(' 4').equal(' 5').equal("\r\n")
+      assert_imap_command("SEARCH CHARSET utf-8 TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert.equal("* SEARCH 4 5\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
 
@@ -2125,8 +2128,8 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 1:* (FLAGS RFC822.HEADER UID)') {|assert|
-        assert.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@simple_mail.header.raw_source)} UID 2)".b)
-        assert.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@mpart_mail.header.raw_source)} UID 3)".b)
+        assert.equal_lines("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@simple_mail.header.raw_source)} UID 2)".b)
+        assert.equal_lines("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@mpart_mail.header.raw_source)} UID 3)".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2136,7 +2139,7 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 1 RFC822') {|assert|
-        assert.strenc_equal("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 #{literal(@simple_mail.raw_source)})".b)
+        assert.equal_lines("* 1 FETCH (FLAGS (\\Seen \\Recent) RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2146,7 +2149,7 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 2 BODY.PEEK[1]') {|assert|
-        assert.strenc_equal(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
+        assert.equal_lines(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2156,7 +2159,7 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 2 RFC822', uid: true) {|assert|
-        assert.strenc_equal("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
+        assert.equal_lines("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2166,7 +2169,7 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 3 (UID BODY.PEEK[1])', uid: true) {|assert|
-        assert.strenc_equal(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
+        assert.equal_lines(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2230,8 +2233,8 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 1:* (FLAGS RFC822.HEADER UID)') {|assert|
-        assert.strenc_equal("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@simple_mail.header.raw_source)} UID 2)".b)
-        assert.strenc_equal("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@mpart_mail.header.raw_source)} UID 3)".b)
+        assert.equal_lines("* 1 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@simple_mail.header.raw_source)} UID 2)".b)
+        assert.equal_lines("* 2 FETCH (FLAGS (\\Recent) RFC822.HEADER #{literal(@mpart_mail.header.raw_source)} UID 3)".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2241,7 +2244,7 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 1 RFC822') {|assert|
-        assert.strenc_equal("* 1 FETCH (RFC822 #{literal(@simple_mail.raw_source)})".b)
+        assert.equal_lines("* 1 FETCH (RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2251,7 +2254,7 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 2 BODY.PEEK[1]') {|assert|
-        assert.strenc_equal(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
+        assert.equal_lines(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2261,7 +2264,7 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 2 RFC822', uid: true) {|assert|
-        assert.strenc_equal("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
+        assert.equal_lines("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -2271,7 +2274,7 @@ module RIMS::Test
       }
 
       assert_imap_command('FETCH 3 (UID BODY.PEEK[1])', uid: true) {|assert|
-        assert.strenc_equal(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
+        assert.equal_lines(%Q'* 2 FETCH (UID 3 BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
         assert.equal("#{tag} OK FETCH completed")
       }
 
@@ -6446,10 +6449,10 @@ LOGOUT
       n += 1
 
       another_decoder.append('tag', 'INBOX', 'test', &another_writer)
-      assert_imap_command('SEARCH *', crlf_at_eol: false) {|assert|
+      assert_imap_command('SEARCH *') {|assert|
         assert.equal("* #{n} EXISTS\r\n")
         assert.equal("* #{n} RECENT\r\n")
-        assert.equal('* SEARCH').equal(" #{n}").equal("\r\n")
+        assert.equal("* SEARCH #{n}\r\n")
         assert.equal("#{tag} OK SEARCH completed\r\n")
       }
       n += 1
