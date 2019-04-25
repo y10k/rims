@@ -91,12 +91,81 @@ module RIMS::Test
     end
 
     class IMAPCommandDecodeEngine
+      include Test::Unit::Assertions
+
+      def initialize(decoder, limits, logger)
+        @decoder = decoder
+        @limits = limits
+        @logger = logger
+      end
+
       def evaluate
-        yield
+        begin
+          yield
+        ensure
+          @decoder.cleanup
+        end
       end
 
       def stream_test?
         false
+      end
+
+      def fetch_untagged_response
+        flunk('not a stream test.')
+      end
+
+      def parse_imap_command(tag, imap_command_message)
+        cmd_client_output = StringIO.new('', 'w')
+        reader = RIMS::Protocol::RequestReader.new(StringIO.new("#{tag} #{imap_command_message}\r\n", 'r'), cmd_client_output, @logger)
+        _, cmd_name, *cmd_args = reader.read_command
+        return cmd_name, cmd_args, cmd_client_output.string
+      end
+      private :parse_imap_command
+
+      def execute_imap_command(tag, imap_command_message, client_input_text: nil, uid: nil)
+        cmd_name, cmd_args, cmd_client_output = parse_imap_command(tag, imap_command_message)
+        normalized_cmd_name = RIMS::Protocol::Decoder.imap_command_normalize(cmd_name)
+        cmd_id = RIMS::Protocol::Decoder::IMAP_CMDs[normalized_cmd_name] or flunk("not a imap command: #{cmd_name}")
+
+        input = nil
+        output = nil
+        if (client_input_text) then
+          input = StringIO.new(client_input_text, 'r')
+          output = StringIO.new('', 'w')
+          inout_args = [ input, output ]
+          inout_args << RIMS::Protocol::ConnectionTimer.new(@limits, input) if (cmd_id == :idle)
+          cmd_args = inout_args + cmd_args
+        end
+        unless (uid.nil?) then
+          cmd_args += [ { uid: uid } ]
+        end
+
+        block_call = 0
+        ret_val = nil
+
+        pp [ :debug_imap_command, imap_command_message, cmd_id, cmd_args ] if $DEBUG
+        @decoder.__send__(cmd_id, tag, *cmd_args) {|responses|
+          block_call += 1
+          response_message = cmd_client_output.b
+          if (output) then
+            response_message << output.string
+          end
+          for response in responses
+            response_message << response
+          end
+          response_lines = StringIO.new(response_message, 'r').each_line
+          ret_val = yield(response_lines)
+          assert_raise(StopIteration) { response_lines.next }
+        }
+        if (client_input_text) then
+          pp input.string, output.string if $DEBUG
+        end
+        assert_equal(1, block_call, 'IMAP command block should be called only once.')
+
+        @decoder = @decoder.next_decoder
+
+        ret_val
       end
     end
 
@@ -122,7 +191,7 @@ module RIMS::Test
                 @server_io.close
               end
             }
-            yield
+            ret_val = yield
           ensure
             @client_io.close_write
             server_thread.join if server_thread
@@ -131,6 +200,8 @@ module RIMS::Test
         ensure
           @client_io.close unless @client_io.closed?
         end
+
+        ret_val
       end
 
       def stream_test?
@@ -140,9 +211,25 @@ module RIMS::Test
       def client_input
         @client_io
       end
+      private :client_input
 
       def server_output
         @client_io
+      end
+      private :server_output
+
+      def fetch_untagged_response
+        yield(server_output.each_line)
+      end
+
+      def execute_imap_command(tag, imap_command_message, client_input_text: nil, uid: nil)
+        if (uid) then
+          client_input << "#{tag} UID #{imap_command_message}\r\n"
+        else
+          client_input << "#{tag} #{imap_command_message}\r\n"
+        end
+        client_input << client_input_text if client_input_text
+        yield(server_output.each_line)
       end
     end
 
@@ -168,7 +255,7 @@ module RIMS::Test
     private :make_decoder
 
     def use_imap_command_decode_engine
-      @engine = IMAPCommandDecodeEngine.new
+      @engine = IMAPCommandDecodeEngine.new(@decoder, @limits, @logger)
     end
     private :use_imap_command_decode_engine
 
@@ -239,90 +326,29 @@ module RIMS::Test
     def assert_imap_response(response_lines)
       dsl = IMAPResponseAssertionDSL.new(response_lines)
       yield(dsl)
-      assert_raise(StopIteration) { response_lines.next } if command_test?
-
-      nil
     end
     private :assert_imap_response
 
-    def parse_imap_command(tag, imap_command_message)
-      cmd_client_output = StringIO.new('', 'w')
-      reader = RIMS::Protocol::RequestReader.new(StringIO.new("#{tag} #{imap_command_message}\r\n", 'r'), cmd_client_output, @logger)
-      _, cmd_name, *cmd_args = reader.read_command
-      return cmd_name, cmd_args, cmd_client_output.string
-    end
-    private :parse_imap_command
-
     def assert_untagged_response
-      if (stream_test?) then
-        assert_imap_response(@engine.server_output.each_line) {|assert|
+      @engine.fetch_untagged_response{|response_lines|
+        assert_imap_response(response_lines) {|assert|
           yield(assert)
         }
-      else
-        flunk
-      end
+      }
     end
     private :assert_untagged_response
 
-    def assert_imap_command(imap_command_message, client_input_text: nil, uid: nil)
+    def assert_imap_command(imap_command_message, **kw_args)
       tag!
 
-      if (stream_test?) then
-        if (uid) then
-          @engine.client_input << "#{tag} UID #{imap_command_message}\r\n"
-        else
-          @engine.client_input << "#{tag} #{imap_command_message}\r\n"
-        end
-        @engine.client_input << client_input_text if client_input_text
-        assert_imap_response(@engine.server_output.each_line) {|assert|
+      ret_val = @engine.execute_imap_command(tag, imap_command_message, **kw_args) {|response_lines|
+        assert_imap_response(response_lines) {|assert|
           yield(assert)
         }
-      elsif (command_test?) then
-        block_call = 0
+      }
+      @decoder = @decoder.next_decoder if command_test?
 
-        cmd_name, cmd_args, cmd_client_output = parse_imap_command(tag, imap_command_message)
-        normalized_cmd_name = RIMS::Protocol::Decoder.imap_command_normalize(cmd_name)
-        cmd_id = RIMS::Protocol::Decoder::IMAP_CMDs[normalized_cmd_name] or flunk("not a imap command: #{cmd_name}")
-
-        input = nil
-        output = nil
-        if (client_input_text) then
-          input = StringIO.new(client_input_text, 'r')
-          output = StringIO.new('', 'w')
-          inout_args = [ input, output ]
-          inout_args << RIMS::Protocol::ConnectionTimer.new(@limits, input) if (cmd_id == :idle)
-          cmd_args = inout_args + cmd_args
-        end
-        unless (uid.nil?) then
-          cmd_args += [ { uid: uid } ]
-        end
-
-        pp [ :debug_imap_command, imap_command_message, cmd_id, cmd_args ] if $DEBUG
-        @decoder.__send__(cmd_id, tag, *cmd_args) {|responses|
-          block_call += 1
-          response_message = cmd_client_output.b
-          if (output) then
-            response_message << output.string
-          end
-          for response in responses
-            response_message << response
-          end
-          assert_imap_response(StringIO.new(response_message, 'r').each_line) {|assert|
-            yield(assert)
-          }
-        }
-
-        if (client_input_text) then
-          pp input.string, output.string if $DEBUG
-        end
-
-        assert_equal(1, block_call, 'IMAP command block should be called only once.')
-      else
-        flunk
-      end
-      @decoder = @decoder.next_decoder
-
-      nil
+      ret_val
     end
     private :assert_imap_command
 
