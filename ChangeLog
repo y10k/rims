@@ -1,5 +1,7 @@
 2019-04-25  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* RIMS version 0.2.4 is released.
+
 	* test/test_protocol_decoder.rb: integrated individual IMAP
 	command test and IMAP command stream test.
 
