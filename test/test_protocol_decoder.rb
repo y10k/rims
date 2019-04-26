@@ -308,7 +308,6 @@ module RIMS::Test
     end
 
     def teardown
-      @decoder.cleanup
       assert(@mail_store_pool.empty?)
       pp @kvs if $DEBUG
     end
