@@ -133,7 +133,13 @@ module RIMS::Test
         if (client_input_text) then
           input = StringIO.new(client_input_text, 'r')
           output = StringIO.new('', 'w')
-          inout_args = [ input, output ]
+          input_gets = input.method(:gets)
+          output_write = lambda{|res|
+            for line in res
+              output << line
+            end
+          }
+          inout_args = [ input_gets, output_write ]
           inout_args << RIMS::Protocol::ConnectionTimer.new(@limits, input) if (cmd_id == :idle)
           cmd_args = inout_args + cmd_args
         end

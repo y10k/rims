@@ -30,7 +30,14 @@ module RIMS::Test
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
 
-      @reader = RIMS::Protocol::AuthenticationReader.new(@auth, @input, @output, @logger)
+      input_gets = @input.method(:gets)
+      output_write = lambda{|res|
+        for line in res
+          @output << line
+        end
+      }
+
+      @reader = RIMS::Protocol::AuthenticationReader.new(@auth, input_gets, output_write, @logger)
     end
 
     def assert_input_output_stream(input_txt, expected_output_txt)

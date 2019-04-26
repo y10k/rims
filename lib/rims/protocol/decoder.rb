@@ -22,15 +22,21 @@ module RIMS
       end
 
       def self.repl(decoder, limits, input, output, logger)
+        input_gets = input.method(:gets)
+        output_write = lambda{|res|
+          last_line = nil
+          for data in res
+            logger.debug("response data: #{Protocol.io_data_log(data)}") if logger.debug?
+            output << data
+            last_line = data
+          end
+          output.flush
+
+          last_line
+        }
         response_write = proc{|res|
           begin
-            last_line = nil
-            for data in res
-              logger.debug("response data: #{Protocol.io_data_log(data)}") if logger.debug?
-              output << data
-              last_line = data
-            end
-            output.flush
+            last_line = output_write.call(res)
             logger.info("server response: #{last_line.strip}")
           rescue
             logger.error('response write error.')
@@ -93,9 +99,9 @@ module RIMS
                   response_write.call([ "#{tag} BAD empty uid parameter\r\n" ])
                 end
               when :authenticate
-                decoder.authenticate(tag, input, output, *opt_args) {|res| response_write.call(res) }
+                decoder.authenticate(tag, input_gets, output_write, *opt_args) {|res| response_write.call(res) }
               when :idle
-                decoder.idle(tag, input, output, conn_timer, *opt_args) {|res| response_write.call(res) }
+                decoder.idle(tag, input_gets, output_write, conn_timer, *opt_args) {|res| response_write.call(res) }
               else
                 decoder.__send__(name, tag, *opt_args) {|res| response_write.call(res) }
               end
@@ -344,9 +350,9 @@ module RIMS
       end
       private :accept_authentication
 
-      def authenticate(tag, client_response_input_stream, server_challenge_output_stream,
+      def authenticate(tag, client_response_input_gets, server_challenge_output_write,
                        auth_type, inline_client_response_data_base64=nil)
-        auth_reader = AuthenticationReader.new(@auth, client_response_input_stream, server_challenge_output_stream, @logger)
+        auth_reader = AuthenticationReader.new(@auth, client_response_input_gets, server_challenge_output_write, @logger)
         if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
           if (username != :*) then
             yield response_stream(tag) {|res|
@@ -467,14 +473,14 @@ module RIMS
       end
       imap_command :copy
 
-      def idle(tag, client_input_stream, server_output_stream, connection_timer)
+      def idle(tag, client_input_gets, server_output_write, connection_timer)
         yield(not_authenticated_response(tag))
       end
       imap_command :idle
     end
 
     class AuthenticatedDecoder < Decoder
-      def authenticate(tag, client_response_input_stream, server_challenge_output_stream,
+      def authenticate(tag, client_response_input_gets, server_challenge_output_write,
                        auth_type, inline_client_response_data_base64=nil, &block)
         yield([ "#{tag} NO duplicated authentication\r\n" ])
       end
@@ -1212,26 +1218,24 @@ module RIMS
       end
       imap_command_selected :copy, exclusive: true
 
-      def idle(tag, client_input_stream, server_output_stream, connection_timer)
+      def idle(tag, client_input_gets, server_output_write, connection_timer)
         @logger.info('idle start...')
-        server_output_stream.write("+ continue\r\n")
-        server_output_stream.flush
+        server_output_write.call([ "+ continue\r\n" ])
 
         server_response_thread = Thread.new{
           @logger.info('idle server response thread start... ')
           @folder.server_response_idle_wait{|server_response_list|
             for server_response in server_response_list
               @logger.debug("idle server response: #{server_response}") if @logger.debug?
-              server_output_stream.write(server_response)
             end
-            server_output_stream.flush
+            server_output_write.call(server_response_list)
           }
           @logger.info('idle server response thread terminated.')
         }
 
         begin
           connection_timer.command_wait or return
-          line = client_input_stream.gets
+          line = client_input_gets.call
         ensure
           @folder.server_response_idle_interrupt
           server_response_thread.join
@@ -1489,7 +1493,7 @@ module RIMS
       end
       imap_command :copy
 
-      def idle(tag, client_input_stream, server_output_stream, connection_timer)
+      def idle(tag, client_input_gets, server_output_write, connection_timer)
         yield(not_allowed_command_response(tag))
       end
       imap_command :idle

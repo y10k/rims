@@ -132,10 +132,10 @@ module RIMS
     end
 
     class AuthenticationReader
-      def initialize(auth, input, output, logger)
+      def initialize(auth, input_gets, output_write, logger)
         @auth = auth
-        @input = input
-        @output = output
+        @input_gets = input_gets
+        @output_write = output_write
         @logger = logger
       end
 
@@ -168,15 +168,13 @@ module RIMS
         if (server_challenge_data) then
           server_challenge_data_base64 = Protocol.encode_base64(server_challenge_data)
           @logger.debug("authenticate command: server challenge data: #{Protocol.io_data_log(server_challenge_data_base64)}") if @logger.debug?
-          @output.write("+ #{server_challenge_data_base64}\r\n")
-          @output.flush
+          @output_write.call([ "+ #{server_challenge_data_base64}\r\n" ])
         else
           @logger.debug("authenticate command: server challenge data is nil.") if @logger.debug?
-          @output.write("+ \r\n")
-          @output.flush
+          @output_write.call([ "+ \r\n" ])
         end
 
-        if (client_response_data_base64 = @input.gets) then
+        if (client_response_data_base64 = @input_gets.call) then
           client_response_data_base64.strip!
           @logger.debug("authenticate command: client response data: #{Protocol.io_data_log(client_response_data_base64)}") if @logger.debug?
           if (client_response_data_base64 == '*') then
