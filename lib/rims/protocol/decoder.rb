@@ -335,7 +335,7 @@ module RIMS
         case (username)
         when @mail_delivery_user
           @logger.info("mail delivery user: #{username}")
-          MailDeliveryDecoder.new(@mail_store_pool, @auth, @logger,
+          MailDeliveryDecoder.new(self, @mail_store_pool, @auth, @logger,
                                   write_lock_timeout_seconds: @write_lock_timeout_seconds,
                                   **@next_decoder_optional)
         else
@@ -1272,11 +1272,12 @@ module RIMS
     end
 
     class MailDeliveryDecoder < AuthenticatedDecoder
-      def initialize(mail_store_pool, auth, logger,
+      def initialize(parent_decoder, mail_store_pool, auth, logger,
                      write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                      cleanup_write_lock_timeout_seconds: 1,
                      **mailbox_decoder_optional)
         super(auth, logger)
+        @parent_decoder = parent_decoder
         @mail_store_pool = mail_store_pool
         @auth = auth
         @write_lock_timeout_seconds = write_lock_timeout_seconds
@@ -1327,6 +1328,12 @@ module RIMS
         release_user_mail_store_holder
         @mail_store_pool = nil unless @mail_store_pool.nil?
         @auth = nil unless @auth.nil?
+
+        unless (@parent_decoder.nil?) then
+          @parent_decoder.cleanup
+          @parent_decoder = nil
+        end
+
         nil
       end
 
