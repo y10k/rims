@@ -140,7 +140,10 @@ module RIMS
       def initialize(auth, logger)
         @auth = auth
         @logger = logger
+        @next_decoder = self
       end
+
+      attr_reader :next_decoder
 
       def response_stream(tag)
         Enumerator.new{|res|
@@ -282,10 +285,6 @@ module RIMS
         yield(res)
       end
       imap_command :capability
-
-      def next_decoder
-        self
-      end
     end
 
     class InitialDecoder < Decoder
@@ -294,7 +293,6 @@ module RIMS
                      write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                      **next_decoder_optional)
         super(auth, logger)
-        @next_decoder = self
         @mail_store_pool = mail_store_pool
         @folder = nil
         @auth = auth
@@ -302,8 +300,6 @@ module RIMS
         @write_lock_timeout_seconds = write_lock_timeout_seconds
         @next_decoder_optional = next_decoder_optional
       end
-
-      attr_reader :next_decoder
 
       def auth?
         false
