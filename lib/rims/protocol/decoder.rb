@@ -262,6 +262,13 @@ module RIMS
         end
       end
 
+      def make_logout_response(tag)
+        [ "* BYE server logout\r\n",
+          "#{tag} OK LOGOUT completed\r\n"
+        ]
+      end
+      private :make_logout_response
+
       def ok_greeting
         yield([ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ])
       end
@@ -322,10 +329,7 @@ module RIMS
 
       def logout(tag)
         cleanup
-        res = []
-        res << "* BYE server logout\r\n"
-        res << "#{tag} OK LOGOUT completed\r\n"
-        yield(res)
+        yield(make_logout_response(tag))
       end
       imap_command :logout
 
@@ -656,10 +660,7 @@ module RIMS
 
       def logout(tag)
         cleanup
-        res = []
-        res << "* BYE server logout\r\n"
-        res << "#{tag} OK LOGOUT completed\r\n"
-        yield(res)
+        yield(make_logout_response(tag))
       end
       imap_command :logout
 
@@ -1335,10 +1336,7 @@ module RIMS
 
       def logout(tag)
         cleanup
-        res = []
-        res << "* BYE server logout\r\n"
-        res << "#{tag} OK LOGOUT completed\r\n"
-        yield(res)
+        yield(make_logout_response(tag))
       end
       imap_command :logout
 
