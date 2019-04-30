@@ -324,14 +324,12 @@ module RIMS
       imap_command :noop
 
       def logout(tag)
-        cleanup
+        @next_decoder = LogoutDecoder.new(self)
         yield(make_logout_response(tag))
       end
       imap_command :logout
 
       def accept_authentication(username)
-        cleanup
-
         case (username)
         when @mail_delivery_user
           @logger.info("mail delivery user: #{username}")
@@ -475,6 +473,154 @@ module RIMS
 
       def idle(tag, client_input_gets, server_output_write, connection_timer)
         yield(make_not_authenticated_response(tag))
+      end
+      imap_command :idle
+    end
+
+    class LogoutDecoder < Decoder
+      def initialize(parent_decoder)
+        @parent_decoder = parent_decoder
+      end
+
+      def next_decoder
+        self
+      end
+
+      def auth?
+        false
+      end
+
+      def selected?
+        false
+      end
+
+      def cleanup
+        unless (@parent_decoder.nil?) then
+          @parent_decoder.cleanup
+          @parent_decoder = nil
+        end
+
+        nil
+      end
+
+      def capability(tag)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :capability
+
+      def noop(tag)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :noop
+
+      def logout(tag)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :logout
+
+      def authenticate(tag, client_response_input_gets, server_challenge_output_write,
+                       auth_type, inline_client_response_data_base64=nil)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :authenticate
+
+      def login(tag, username, password)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :login
+
+      def select(tag, mbox_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :select
+
+      def examine(tag, mbox_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :examine
+
+      def create(tag, mbox_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :create
+
+      def delete(tag, mbox_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :delete
+
+      def rename(tag, src_name, dst_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :rename
+
+      def subscribe(tag, mbox_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :subscribe
+
+      def unsubscribe(tag, mbox_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :unsubscribe
+
+      def list(tag, ref_name, mbox_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :list
+
+      def lsub(tag, ref_name, mbox_name)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :lsub
+
+      def status(tag, mbox_name, data_item_group)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :status
+
+      def append(tag, mbox_name, *opt_args, msg_text)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :append
+
+      def check(tag)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :check
+
+      def close(tag)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :close
+
+      def expunge(tag)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :expunge
+
+      def search(tag, *cond_args, uid: false)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :search
+
+      def fetch(tag, msg_set, data_item_group, uid: false)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :fetch
+
+      def store(tag, msg_set, data_item_name, data_item_value, uid: false)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :store
+
+      def copy(tag, msg_set, mbox_name, uid: false)
+        raise ProtocolError, 'invalid command in logout state.'
+      end
+      imap_command :copy
+
+      def idle(tag, client_input_gets, server_output_write, connection_timer)
+        raise ProtocolError, 'invalid command in logout state.'
       end
       imap_command :idle
     end
@@ -655,7 +801,8 @@ module RIMS
       imap_command :noop
 
       def logout(tag)
-        cleanup
+        close_folder
+        @next_decoder = LogoutDecoder.new(self)
         yield(make_logout_response(tag))
       end
       imap_command :logout
@@ -1338,7 +1485,7 @@ module RIMS
       end
 
       def logout(tag)
-        cleanup
+        @next_decoder = LogoutDecoder.new(self)
         yield(make_logout_response(tag))
       end
       imap_command :logout
