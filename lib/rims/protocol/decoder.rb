@@ -825,7 +825,7 @@ module RIMS
         @folder = nil
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          @folder = get_mail_store.select_mbox(id)
+          @folder = get_mail_store.open_folder(id)
           folder_open_msgs do |msg|
             res << msg
           end
@@ -842,7 +842,7 @@ module RIMS
         @folder = nil
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          @folder = get_mail_store.examine_mbox(id)
+          @folder = get_mail_store.open_folder(id, read_only: true)
           folder_open_msgs do |msg|
             res << msg
           end
@@ -1025,7 +1025,7 @@ module RIMS
         all_msgs = get_mail_store.mbox_msg_num(mbox_id)
         recent_msgs = get_mail_store.mbox_flag_num(mbox_id, 'recent')
 
-        f = get_mail_store.examine_mbox(mbox_id)
+        f = get_mail_store.open_folder(mbox_id, read_only: true)
         begin
           f.server_response_multicast_push("* #{all_msgs} EXISTS\r\n")
           f.server_response_multicast_push("* #{recent_msgs} RECENT\r\n")

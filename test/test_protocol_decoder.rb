@@ -5491,7 +5491,7 @@ module RIMS::Test
         n += 2
 
         open_mail_store{
-          f = @mail_store.examine_mbox(@inbox_id)
+          f = @mail_store.open_folder(@inbox_id, read_only: true)
           begin
             uid_list = @mail_store.each_msg_uid(@inbox_id).to_a
             last_uid = uid_list.min
@@ -5571,7 +5571,7 @@ module RIMS::Test
         }
 
         open_mail_store{
-          f = @mail_store.examine_mbox(@inbox_id)
+          f = @mail_store.open_folder(@inbox_id, read_only: true)
           begin
             uid_list = @mail_store.each_msg_uid(@inbox_id).to_a
             last_uid = uid_list.min

@@ -329,7 +329,7 @@ module RIMS::Test
 
     def test_mail_folder
       mbox_id = @mail_store.add_mbox('INBOX')
-      folder = @mail_store.select_mbox(mbox_id)
+      folder = @mail_store.open_folder(mbox_id)
       assert_equal(mbox_id, folder.mbox_id)
       assert_equal(false, folder.read_only)
       assert_equal(true, folder.updated?)
@@ -371,7 +371,7 @@ module RIMS::Test
       end
       @mail_store.expunge_mbox(mbox_id)
 
-      folder = @mail_store.select_mbox(mbox_id).reload
+      folder = @mail_store.open_folder(mbox_id).reload
 
       assert_equal([ 1 ].to_set, folder.parse_msg_set('1'))
       assert_equal([ 1 ].to_set, folder.parse_msg_set('1', uid: false))
@@ -398,7 +398,7 @@ module RIMS::Test
     def test_mail_folder_parse_msg_set_empty
       mbox_id = @mail_store.add_mbox('INBOX')
       assert_equal([], @mail_store.each_msg_uid(mbox_id).to_a)
-      folder = @mail_store.select_mbox(mbox_id).reload
+      folder = @mail_store.open_folder(mbox_id).reload
 
       assert_equal([ 1 ].to_set, folder.parse_msg_set('1'))
       assert_equal([ 1 ].to_set, folder.parse_msg_set('1', uid: false))
@@ -424,7 +424,7 @@ module RIMS::Test
       @mail_store.add_msg(mbox_id, 'g') # 7
       @mail_store.add_msg(mbox_id, 'h') # 8 deleted
 
-      folder = @mail_store.select_mbox(mbox_id).reload
+      folder = @mail_store.open_folder(mbox_id).reload
       assert_equal(8, folder.each_msg.count)
 
       client_msg_list = folder.each_msg.to_a

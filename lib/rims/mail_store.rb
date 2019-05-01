@@ -348,14 +348,9 @@ module RIMS
       }
     end
 
-    def select_mbox(mbox_id)
+    def open_folder(mbox_id, read_only: false)
       @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
-      MailFolder.new(mbox_id, self).attach(@channel)
-    end
-
-    def examine_mbox(mbox_id)
-      @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
-      MailFolder.new(mbox_id, self, read_only: true).attach(@channel)
+      MailFolder.new(mbox_id, self, read_only: read_only).attach(@channel)
     end
 
     def self.build_pool(kvs_meta_open, kvs_text_open)
