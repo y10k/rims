@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'forwardable'
 require 'logger'
 require 'net/imap'
 require 'time'
@@ -639,6 +640,45 @@ module RIMS
     end
 
     class UserMailboxDecoder < AuthenticatedDecoder
+      class Engine
+        extend Forwardable
+
+        def initialize(mail_store_holder, logger,
+                       read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
+                       write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS)
+          @mail_store_holder = mail_store_holder
+          @mail_store = @mail_store_holder.mail_store
+          @logger = logger
+          @read_lock_timeout_seconds = read_lock_timeout_seconds
+          @write_lock_timeout_seconds = write_lock_timeout_seconds
+          @folders = {}
+        end
+
+        def_delegators :@mail_store, :read_synchronize, :write_synchronize
+
+        def open_folder(mbox_id, read_only: false)
+          folder = @mail_store.open_folder(mbox_id, read_only: read_only)
+          token = folder.object_id
+          if (@folders.key? token) then
+            raise "internal error: duplicated folder token: #{token}"
+          end
+          @folders[token] = folder
+
+          token
+        end
+        private :open_folder
+
+        def close_folder(token, &block)
+          folder = @folders.delete(token) or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+          folder.reload if folder.updated?
+          folder.close(&block)
+          @mail_store.sync
+
+          nil
+        end
+        private :close_folder
+      end
+
       def initialize(parent_decoder, mail_store_holder, auth, logger,
                      read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                      write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
@@ -650,6 +690,10 @@ module RIMS
         @write_lock_timeout_seconds = write_lock_timeout_seconds
         @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
         @folder = nil
+
+        @engine = Engine.new(@mail_store_holder, @logger,
+                             read_lock_timeout_seconds: @read_lock_timeout_seconds,
+                             write_lock_timeout_seconds: @write_lock_timeout_seconds)
       end
 
       def get_mail_store
