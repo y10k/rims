@@ -809,6 +809,7 @@ module RIMS
         @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
         @folder = nil
 
+        @token = nil
         @engine = Engine.new(@mail_store_holder, @logger,
                              read_lock_timeout_seconds: @read_lock_timeout_seconds,
                              write_lock_timeout_seconds: @write_lock_timeout_seconds,
@@ -845,23 +846,21 @@ module RIMS
       private :close_folder
 
       def cleanup
-        unless (@mail_store_holder.nil?) then
+        # preserved
+        @mail_store_holder = nil
+
+        unless (@engine.nil?) then
           begin
-            @mail_store_holder.write_synchronize(@cleanup_write_lock_timeout_seconds) {
-              close_folder
-              @mail_store_holder.mail_store.sync
-            }
-          rescue WriteLockTimeoutError
-            @logger.warn("give up to close folder becaue of write-lock timeout over #{@write_lock_timeout_seconds} seconds")
-            @folder = nil
+            @engine.cleanup(@token)
+          ensure
+            @token = nil
           end
-          tmp_mail_store_holder = @mail_store_holder
-          ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
-            tmp_mail_store_holder.return_pool{
-              @logger.info("close mail store: #{tmp_mail_store_holder.unique_user_id}")
-            }
-          }
-          @mail_store_holder = nil
+
+          begin
+            @engine.destroy
+          ensure
+            @engine = nil
+          end
         end
 
         unless (@parent_decoder.nil?) then
@@ -970,50 +969,39 @@ module RIMS
       end
       imap_command :logout
 
-      def folder_open_msgs
-        all_msgs = get_mail_store.mbox_msg_num(@folder.mbox_id)
-        recent_msgs = get_mail_store.mbox_flag_num(@folder.mbox_id, 'recent')
-        unseen_msgs = all_msgs - get_mail_store.mbox_flag_num(@folder.mbox_id, 'seen')
-        yield("* #{all_msgs} EXISTS\r\n")
-        yield("* #{recent_msgs} RECENT\r\n")
-        yield("* OK [UNSEEN #{unseen_msgs}]\r\n")
-        yield("* OK [UIDVALIDITY #{@folder.mbox_id}]\r\n")
-        yield("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n")
-        nil
-      end
-      private :folder_open_msgs
-
       def select(tag, mbox_name)
-        res = []
+        # conserved
         @folder = nil
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
           @folder = get_mail_store.open_folder(id)
-          folder_open_msgs do |msg|
-            res << msg
-          end
-          res << "#{tag} OK [READ-WRITE] SELECT completed\r\n"
-        else
-          res << "#{tag} NO not found a mailbox\r\n"
         end
-        yield(res)
+
+        ret_val = nil
+        old_token = @token
+        @token = @engine.select(old_token, tag, mbox_name) {|res|
+          ret_val = yield(res)
+        }
+
+        ret_val
       end
       imap_command_authenticated :select
 
       def examine(tag, mbox_name)
-        res = []
+        # conserved
         @folder = nil
         mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
         if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
           @folder = get_mail_store.open_folder(id, read_only: true)
-          folder_open_msgs do |msg|
-            res << msg
-          end
-          res << "#{tag} OK [READ-ONLY] EXAMINE completed\r\n"
-        else
-          res << "#{tag} NO not found a mailbox\r\n"
         end
-        yield(res)
+
+        ret_val = nil
+        old_token = @token
+        @token = @engine.examine(old_token, tag, mbox_name) {|res|
+          ret_val = yield(res)
+        }
+
+        ret_val
       end
       imap_command_authenticated :examine
 
@@ -1268,15 +1256,18 @@ module RIMS
       imap_command_selected :check, exclusive: true
 
       def close(tag, &block)
+        # conserved
+        @folder = nil
+
+        old_token = @token
+        @token = nil
+
         yield response_stream(tag) {|res|
-          @folder.server_response_fetch{|r| res << r }
-          close_folder do |msg_num|
-            r = "* #{msg_num} EXPUNGE\r\n"
-            res << r
-            @folder.server_response_multicast_push(r)
-          end
-          get_mail_store.sync
-          res << "#{tag} OK CLOSE completed\r\n"
+          @engine.close(old_token, tag) {|bulk_res|
+            for r in bulk_res
+              res << r
+            end
+          }
         }
       end
       imap_command_selected :close, exclusive: true
