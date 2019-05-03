@@ -710,6 +710,22 @@ module RIMS
           nil
         end
 
+        def noop(token, tag)
+          res = []
+          if (token) then
+            folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+            begin
+              read_synchronize(@read_lock_timeout_seconds) {
+                folder.server_response_fetch{|r| res << r } if folder.server_response?
+              }
+            rescue ReadLockTimeoutError
+              @logger.warn("give up to get folder status because of read-lock timeout over #{@read_lock_timeout_seconds} seconds")
+            end
+          end
+          res << "#{tag} OK NOOP completed\r\n"
+          yield(res)
+        end
+
         def folder_open_msgs(token)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           all_msgs = @mail_store.mbox_msg_num(folder.mbox_id)
@@ -946,19 +962,8 @@ module RIMS
         private :imap_command_selected
       end
 
-      def noop(tag)
-        res = []
-        if (auth? && selected?) then
-          begin
-            @mail_store_holder.read_synchronize(@read_lock_timeout_seconds) {
-              @folder.server_response_fetch{|r| res << r } if @folder.server_response?
-            }
-          rescue ReadLockTimeoutError
-            @logger.warn("give up to get folder status because of read-lock timeout over #{@read_lock_timeout_seconds} seconds")
-          end
-        end
-        res << "#{tag} OK NOOP completed\r\n"
-        yield(res)
+      def noop(tag, &block)
+        @engine.noop(@token, tag, &block)
       end
       imap_command :noop
 
