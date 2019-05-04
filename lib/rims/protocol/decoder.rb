@@ -874,6 +874,64 @@ module RIMS
           yield(res)
         end
 
+        def list_mbox(ref_name, mbox_name)
+          ref_name_utf8 = Net::IMAP.decode_utf7(ref_name)
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+
+          mbox_filter = Protocol.compile_wildcard(mbox_name_utf8)
+          mbox_list = @mail_store.each_mbox_id.map{|id| [ id, @mail_store.mbox_name(id) ] }
+          mbox_list.keep_if{|id, name| name.start_with? ref_name_utf8 }
+          mbox_list.keep_if{|id, name| name[(ref_name_utf8.length)..-1] =~ mbox_filter }
+
+          for id, name_utf8 in mbox_list
+            name = Net::IMAP.encode_utf7(name_utf8)
+            attrs = '\Noinferiors'
+            if (@mail_store.mbox_flag_num(id, 'recent') > 0) then
+              attrs << ' \Marked'
+            else
+              attrs << ' \Unmarked'
+            end
+            yield("(#{attrs}) NIL #{Protocol.quote(name)}")
+          end
+
+          nil
+        end
+        private :list_mbox
+
+        def list(token, tag, ref_name, mbox_name)
+          res = []
+          if (token) then
+            folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+            folder.server_response_fetch{|r| res << r }
+          end
+          if (mbox_name.empty?) then
+            res << "* LIST (\\Noselect) NIL \"\"\r\n"
+          else
+            list_mbox(ref_name, mbox_name) do |mbox_entry|
+              res << "* LIST #{mbox_entry}\r\n"
+            end
+          end
+          res << "#{tag} OK LIST completed\r\n"
+          yield(res)
+        end
+
+        def lsub(token, tag, ref_name, mbox_name)
+          res = []
+          if (token) then
+            folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+            folder.server_response_fetch{|r| res << r }
+          end
+          if (mbox_name.empty?) then
+            res << "* LSUB (\\Noselect) NIL \"\"\r\n"
+          else
+            list_mbox(ref_name, mbox_name) do |mbox_entry|
+              res << "* LSUB #{mbox_entry}\r\n"
+            end
+          end
+          res << "#{tag} OK LSUB completed\r\n"
+          yield(res)
+        end
+
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
 
@@ -1131,57 +1189,13 @@ module RIMS
       end
       imap_command_authenticated :unsubscribe
 
-      def list_mbox(ref_name, mbox_name)
-        ref_name_utf8 = Net::IMAP.decode_utf7(ref_name)
-        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-
-        mbox_filter = Protocol.compile_wildcard(mbox_name_utf8)
-        mbox_list = get_mail_store.each_mbox_id.map{|id| [ id, get_mail_store.mbox_name(id) ] }
-        mbox_list.keep_if{|id, name| name.start_with? ref_name_utf8 }
-        mbox_list.keep_if{|id, name| name[(ref_name_utf8.length)..-1] =~ mbox_filter }
-
-        for id, name_utf8 in mbox_list
-          name = Net::IMAP.encode_utf7(name_utf8)
-          attrs = '\Noinferiors'
-          if (get_mail_store.mbox_flag_num(id, 'recent') > 0) then
-            attrs << ' \Marked'
-          else
-            attrs << ' \Unmarked'
-          end
-          yield("(#{attrs}) NIL #{Protocol.quote(name)}")
-        end
-
-        nil
-      end
-      private :list_mbox
-
-      def list(tag, ref_name, mbox_name)
-        res = []
-        @folder.server_response_fetch{|r| res << r } if selected?
-        if (mbox_name.empty?) then
-          res << "* LIST (\\Noselect) NIL \"\"\r\n"
-        else
-          list_mbox(ref_name, mbox_name) do |mbox_entry|
-            res << "* LIST #{mbox_entry}\r\n"
-          end
-        end
-        res << "#{tag} OK LIST completed\r\n"
-        yield(res)
+      def list(tag, ref_name, mbox_name, &block)
+        @engine.list(@token, tag, ref_name, mbox_name, &block)
       end
       imap_command_authenticated :list
 
-      def lsub(tag, ref_name, mbox_name)
-        res = []
-        @folder.server_response_fetch{|r| res << r } if selected?
-        if (mbox_name.empty?) then
-          res << "* LSUB (\\Noselect) NIL \"\"\r\n"
-        else
-          list_mbox(ref_name, mbox_name) do |mbox_entry|
-            res << "* LSUB #{mbox_entry}\r\n"
-          end
-        end
-        res << "#{tag} OK LSUB completed\r\n"
-        yield(res)
+      def lsub(tag, ref_name, mbox_name, &block)
+        @engine.lsub(@token, tag, ref_name, mbox_name, &block)
       end
       imap_command_authenticated :lsub
 
