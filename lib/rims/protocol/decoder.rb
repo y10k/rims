@@ -932,6 +932,45 @@ module RIMS
           yield(res)
         end
 
+        def status(token, tag, mbox_name, data_item_group)
+          res = []
+          if (token) then
+            folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+            folder.server_response_fetch{|r| res << r }
+          end
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store.mbox_id(mbox_name_utf8)) then
+            unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
+              raise SyntaxError, 'second arugment is not a group list.'
+            end
+
+            values = []
+            for item in data_item_group[1..-1]
+              case (item.upcase)
+              when 'MESSAGES'
+                values << 'MESSAGES' << @mail_store.mbox_msg_num(id)
+              when 'RECENT'
+                values << 'RECENT' << @mail_store.mbox_flag_num(id, 'recent')
+              when 'UIDNEXT'
+                values << 'UIDNEXT' << @mail_store.uid(id)
+              when 'UIDVALIDITY'
+                values << 'UIDVALIDITY' << id
+              when 'UNSEEN'
+                unseen_flags = @mail_store.mbox_msg_num(id) - @mail_store.mbox_flag_num(id, 'seen')
+                values << 'UNSEEN' << unseen_flags
+              else
+                raise SyntaxError, "unknown status data: #{item}"
+              end
+            end
+
+            res << "* STATUS #{Protocol.quote(mbox_name)} (#{values.join(' ')})\r\n"
+            res << "#{tag} OK STATUS completed\r\n"
+          else
+            res << "#{tag} NO not found a mailbox\r\n"
+          end
+          yield(res)
+        end
+
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
 
@@ -1199,40 +1238,8 @@ module RIMS
       end
       imap_command_authenticated :lsub
 
-      def status(tag, mbox_name, data_item_group)
-        res = []
-        @folder.server_response_fetch{|r| res << r } if selected?
-        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-        if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          unless ((data_item_group.is_a? Array) && (data_item_group[0] == :group)) then
-            raise SyntaxError, 'second arugment is not a group list.'
-          end
-
-          values = []
-          for item in data_item_group[1..-1]
-            case (item.upcase)
-            when 'MESSAGES'
-              values << 'MESSAGES' << get_mail_store.mbox_msg_num(id)
-            when 'RECENT'
-              values << 'RECENT' << get_mail_store.mbox_flag_num(id, 'recent')
-            when 'UIDNEXT'
-              values << 'UIDNEXT' << get_mail_store.uid(id)
-            when 'UIDVALIDITY'
-              values << 'UIDVALIDITY' << id
-            when 'UNSEEN'
-              unseen_flags = get_mail_store.mbox_msg_num(id) - get_mail_store.mbox_flag_num(id, 'seen')
-              values << 'UNSEEN' << unseen_flags
-            else
-              raise SyntaxError, "unknown status data: #{item}"
-            end
-          end
-
-          res << "* STATUS #{Protocol.quote(mbox_name)} (#{values.join(' ')})\r\n"
-          res << "#{tag} OK STATUS completed\r\n"
-        else
-          res << "#{tag} NO not found a mailbox\r\n"
-        end
-        yield(res)
+      def status(tag, mbox_name, data_item_group, &block)
+        @engine.status(@token, tag, mbox_name, data_item_group, &block)
       end
       imap_command_authenticated :status
 
