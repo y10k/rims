@@ -786,6 +786,22 @@ module RIMS
           new_token
         end
 
+        def create(token, tag, mbox_name)
+          res = []
+          if (token) then
+            folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+            folder.server_response_fetch{|r| res << r }
+          end
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (@mail_store.mbox_id(mbox_name_utf8)) then
+            res << "#{tag} NO duplicated mailbox\r\n"
+          else
+            @mail_store.add_mbox(mbox_name_utf8)
+            res << "#{tag} OK CREATE completed\r\n"
+          end
+          yield(res)
+        end
+
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
 
@@ -1018,17 +1034,8 @@ module RIMS
       end
       imap_command_authenticated :examine
 
-      def create(tag, mbox_name)
-        res = []
-        @folder.server_response_fetch{|r| res << r } if selected?
-        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-        if (get_mail_store.mbox_id(mbox_name_utf8)) then
-          res << "#{tag} NO duplicated mailbox\r\n"
-        else
-          get_mail_store.add_mbox(mbox_name_utf8)
-          res << "#{tag} OK CREATE completed\r\n"
-        end
-        yield(res)
+      def create(tag, mbox_name, &block)
+        @engine.create(@token, tag, mbox_name, &block)
       end
       imap_command_authenticated :create, exclusive: true
 
