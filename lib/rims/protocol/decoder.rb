@@ -822,6 +822,28 @@ module RIMS
           yield(res)
         end
 
+        def rename(token, tag, src_name, dst_name)
+          res = []
+          if (token) then
+            folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+            folder.server_response_fetch{|r| res << r }
+          end
+          src_name_utf8 = Net::IMAP.decode_utf7(src_name)
+          dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
+          unless (id = @mail_store.mbox_id(src_name_utf8)) then
+            return yield(res << "#{tag} NO not found a mailbox\r\n")
+          end
+          if (id == @mail_store.mbox_id('INBOX')) then
+            return yield(res << "#{tag} NO not rename inbox\r\n")
+          end
+          if (@mail_store.mbox_id(dst_name_utf8)) then
+            return yield(res << "#{tag} NO duplicated mailbox\r\n")
+          end
+          @mail_store.rename_mbox(id, dst_name_utf8)
+          res << "#{tag} OK RENAME completed\r\n"
+          yield(res)
+        end
+
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
 
@@ -1064,22 +1086,8 @@ module RIMS
       end
       imap_command_authenticated :delete, exclusive: true
 
-      def rename(tag, src_name, dst_name)
-        res = []
-        @folder.server_response_fetch{|r| res << r } if selected?
-        src_name_utf8 = Net::IMAP.decode_utf7(src_name)
-        dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
-        unless (id = get_mail_store.mbox_id(src_name_utf8)) then
-          return yield(res << "#{tag} NO not found a mailbox\r\n")
-        end
-        if (id == get_mail_store.mbox_id('INBOX')) then
-          return yield(res << "#{tag} NO not rename inbox\r\n")
-        end
-        if (get_mail_store.mbox_id(dst_name_utf8)) then
-          return yield(res << "#{tag} NO duplicated mailbox\r\n")
-        end
-        get_mail_store.rename_mbox(id, dst_name_utf8)
-        return yield(res << "#{tag} OK RENAME completed\r\n")
+      def rename(tag, src_name, dst_name, &block)
+        @engine.rename(@token, tag, src_name, dst_name, &block)
       end
       imap_command_authenticated :rename, exclusive: true
 
