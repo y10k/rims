@@ -802,6 +802,26 @@ module RIMS
           yield(res)
         end
 
+        def delete(token, tag, mbox_name)
+          res = []
+          if (token) then
+            folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+            folder.server_response_fetch{|r| res << r }
+          end
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (id = @mail_store.mbox_id(mbox_name_utf8)) then
+            if (id != @mail_store.mbox_id('INBOX')) then
+              @mail_store.del_mbox(id)
+              res << "#{tag} OK DELETE completed\r\n"
+            else
+              res << "#{tag} NO not delete inbox\r\n"
+            end
+          else
+            res << "#{tag} NO not found a mailbox\r\n"
+          end
+          yield(res)
+        end
+
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
 
@@ -1039,21 +1059,8 @@ module RIMS
       end
       imap_command_authenticated :create, exclusive: true
 
-      def delete(tag, mbox_name)
-        res = []
-        @folder.server_response_fetch{|r| res << r } if selected?
-        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-        if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          if (id != get_mail_store.mbox_id('INBOX')) then
-            get_mail_store.del_mbox(id)
-            res << "#{tag} OK DELETE completed\r\n"
-          else
-            res << "#{tag} NO not delete inbox\r\n"
-          end
-        else
-          res << "#{tag} NO not found a mailbox\r\n"
-        end
-        yield(res)
+      def delete(tag, mbox_name, &block)
+        @engine.delete(@token, tag, mbox_name, &block)
       end
       imap_command_authenticated :delete, exclusive: true
 
