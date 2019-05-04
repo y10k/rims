@@ -968,7 +968,15 @@ module RIMS
       imap_command :noop
 
       def logout(tag)
-        close_folder
+        # conserved
+        @folder = nil
+
+        if (@token) then
+          old_token = @token
+          @token = nil
+          @engine.cleanup(old_token)
+        end
+
         @next_decoder = LogoutDecoder.new(self)
         yield(make_logout_response(tag))
       end
