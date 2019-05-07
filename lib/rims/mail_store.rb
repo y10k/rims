@@ -376,6 +376,8 @@ module RIMS
       @uid_map = nil
     end
 
+    attr_reader :mbox_id
+
     def attach(server_response_channel)
       @pub, @sub = server_response_channel.make_pub_sub_pair(@mbox_id)
       self
@@ -409,8 +411,6 @@ module RIMS
     def updated?
       @mail_store.cnum != @cnum
     end
-
-    attr_reader :mbox_id
 
     def [](msg_idx)
       @msg_list[msg_idx]
