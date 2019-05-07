@@ -971,6 +971,86 @@ module RIMS
           yield(res)
         end
 
+        def mailbox_size_server_response_multicast_push(mbox_id)
+          all_msgs = @mail_store.mbox_msg_num(mbox_id)
+          recent_msgs = @mail_store.mbox_flag_num(mbox_id, 'recent')
+
+          f = @mail_store.open_folder(mbox_id, read_only: true)
+          begin
+            f.server_response_multicast_push("* #{all_msgs} EXISTS\r\n")
+            f.server_response_multicast_push("* #{recent_msgs} RECENT\r\n")
+          ensure
+            f.close
+          end
+
+          nil
+        end
+        private :mailbox_size_server_response_multicast_push
+
+        def append(token, tag, mbox_name, *opt_args, msg_text)
+          res = []
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          if (mbox_id = @mail_store.mbox_id(mbox_name_utf8)) then
+            msg_flags = []
+            msg_date = Time.now
+
+            if ((! opt_args.empty?) && (opt_args[0].is_a? Array)) then
+              opt_flags = opt_args.shift
+              if (opt_flags[0] != :group) then
+                raise SyntaxError, 'bad flag list.'
+              end
+              for flag_atom in opt_flags[1..-1]
+                case (flag_atom.upcase)
+                when '\ANSWERED'
+                  msg_flags << 'answered'
+                when '\FLAGGED'
+                  msg_flags << 'flagged'
+                when '\DELETED'
+                  msg_flags << 'deleted'
+                when '\SEEN'
+                  msg_flags << 'seen'
+                when '\DRAFT'
+                  msg_flags << 'draft'
+                else
+                  raise SyntaxError, "invalid flag: #{flag_atom}"
+                end
+              end
+            end
+
+            if ((! opt_args.empty?) && (opt_args[0].is_a? String)) then
+              begin
+                msg_date = Time.parse(opt_args.shift)
+              rescue ArgumentError
+                raise SyntaxError, $!.message
+              end
+            end
+
+            unless (opt_args.empty?) then
+              raise SyntaxError, "unknown option: #{opt_args.inspect}"
+            end
+
+            uid = @mail_store.add_msg(mbox_id, msg_text, msg_date)
+            for flag_name in msg_flags
+              @mail_store.set_msg_flag(mbox_id, uid, flag_name, true)
+            end
+
+            mailbox_size_server_response_multicast_push(mbox_id)
+            if (token) then
+              folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+              folder.server_response_fetch{|r| res << r }
+            end
+
+            res << "#{tag} OK [APPENDUID #{mbox_id} #{uid}] APPEND completed\r\n"
+          else
+            if (token) then
+              folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+              folder.server_response_fetch{|r| res << r }
+            end
+            res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
+          end
+          yield(res)
+        end
+
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
 
@@ -994,6 +1074,40 @@ module RIMS
           end
 
           res << "#{tag} OK CLOSE completed\r\n"
+          yield(res)
+        end
+
+        def copy(token, tag, msg_set, mbox_name, uid: false)
+          folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+          folder.should_be_alive
+          folder.reload if folder.updated?
+
+          res = []
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+          msg_set = folder.parse_msg_set(msg_set, uid: uid)
+
+          if (mbox_id = @mail_store.mbox_id(mbox_name_utf8)) then
+            msg_list = folder.msg_find_all(msg_set, uid: uid)
+
+            src_uids = []
+            dst_uids = []
+            for msg in msg_list
+              src_uids << msg.uid
+              dst_uids << @mail_store.copy_msg(msg.uid, folder.mbox_id, mbox_id)
+            end
+
+            if (msg_list.size > 0) then
+              mailbox_size_server_response_multicast_push(mbox_id)
+              folder.server_response_fetch{|r| res << r }
+              res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
+            else
+              folder.server_response_fetch{|r| res << r }
+              res << "#{tag} OK COPY completed\r\n"
+            end
+          else
+            folder.server_response_fetch{|r| res << r }
+            res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
+          end
           yield(res)
         end
       end
@@ -1243,77 +1357,8 @@ module RIMS
       end
       imap_command_authenticated :status
 
-      def mailbox_size_server_response_multicast_push(mbox_id)
-        all_msgs = get_mail_store.mbox_msg_num(mbox_id)
-        recent_msgs = get_mail_store.mbox_flag_num(mbox_id, 'recent')
-
-        f = get_mail_store.open_folder(mbox_id, read_only: true)
-        begin
-          f.server_response_multicast_push("* #{all_msgs} EXISTS\r\n")
-          f.server_response_multicast_push("* #{recent_msgs} RECENT\r\n")
-        ensure
-          f.close
-        end
-
-        nil
-      end
-      private :mailbox_size_server_response_multicast_push
-
-      def append(tag, mbox_name, *opt_args, msg_text)
-        res = []
-        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-        if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          msg_flags = []
-          msg_date = Time.now
-
-          if ((! opt_args.empty?) && (opt_args[0].is_a? Array)) then
-            opt_flags = opt_args.shift
-            if (opt_flags[0] != :group) then
-              raise SyntaxError, 'bad flag list.'
-            end
-            for flag_atom in opt_flags[1..-1]
-              case (flag_atom.upcase)
-              when '\ANSWERED'
-                msg_flags << 'answered'
-              when '\FLAGGED'
-                msg_flags << 'flagged'
-              when '\DELETED'
-                msg_flags << 'deleted'
-              when '\SEEN'
-                msg_flags << 'seen'
-              when '\DRAFT'
-                msg_flags << 'draft'
-              else
-                raise SyntaxError, "invalid flag: #{flag_atom}"
-              end
-            end
-          end
-
-          if ((! opt_args.empty?) && (opt_args[0].is_a? String)) then
-            begin
-              msg_date = Time.parse(opt_args.shift)
-            rescue ArgumentError
-              raise SyntaxError, $!.message
-            end
-          end
-
-          unless (opt_args.empty?) then
-            raise SyntaxError, "unknown option: #{opt_args.inspect}"
-          end
-
-          uid = get_mail_store.add_msg(mbox_id, msg_text, msg_date)
-          for flag_name in msg_flags
-            get_mail_store.set_msg_flag(mbox_id, uid, flag_name, true)
-          end
-          mailbox_size_server_response_multicast_push(mbox_id)
-
-          @folder.server_response_fetch{|r| res << r } if selected?
-          res << "#{tag} OK [APPENDUID #{mbox_id} #{uid}] APPEND completed\r\n"
-        else
-          @folder.server_response_fetch{|r| res << r } if selected?
-          res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
-        end
-        yield(res)
+      def append(tag, mbox_name, *opt_args, msg_text, &block)
+        @engine.append(@token, tag, mbox_name, *opt_args, msg_text, &block)
       end
       imap_command_authenticated :append, exclusive: true
 
@@ -1553,37 +1598,8 @@ module RIMS
       end
       imap_command_selected :store, exclusive: true
 
-      def copy(tag, msg_set, mbox_name, uid: false)
-        should_be_alive_folder
-        @folder.reload if @folder.updated?
-
-        res = []
-        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-
-        if (mbox_id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          msg_list = @folder.msg_find_all(msg_set, uid: uid)
-
-          src_uids = []
-          dst_uids = []
-          for msg in msg_list
-            src_uids << msg.uid
-            dst_uids << get_mail_store.copy_msg(msg.uid, @folder.mbox_id, mbox_id)
-          end
-
-          if msg_list.size > 0
-            mailbox_size_server_response_multicast_push(mbox_id)
-            @folder.server_response_fetch{|r| res << r }
-            res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
-          else
-            @folder.server_response_fetch{|r| res << r }
-            res << "#{tag} OK COPY completed\r\n"
-          end
-        else
-          @folder.server_response_fetch{|r| res << r }
-          res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
-        end
-        yield(res)
+      def copy(tag, msg_set, mbox_name, uid: false, &block)
+        @engine.copy(@token, tag, msg_set, mbox_name, uid: uid, &block)
       end
       imap_command_selected :copy, exclusive: true
 
