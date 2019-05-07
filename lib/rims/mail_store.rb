@@ -378,6 +378,14 @@ module RIMS
 
     attr_reader :mbox_id
 
+    def alive?
+      ! @mail_store.mbox_name(@mbox_id).nil?
+    end
+
+    def should_be_alive
+      alive? or raise "deleted folder: #{@mbox_id}"
+    end
+
     def attach(server_response_channel)
       @pub, @sub = server_response_channel.make_pub_sub_pair(@mbox_id)
       self

@@ -441,6 +441,25 @@ module RIMS::Test
       assert_equal(folder.each_msg.map(&:uid), client_msg_list.map(&:uid))
     end
 
+    def test_folder_alive?
+      mbox_id = @mail_store.add_mbox('INBOX')
+      folder = @mail_store.open_folder(mbox_id).reload
+      assert_equal(true, folder.alive?)
+
+      @mail_store.del_mbox(mbox_id)
+      assert_equal(false, folder.alive?)
+    end
+
+    def test_folder_should_be_alive
+      mbox_id = @mail_store.add_mbox('INBOX')
+      folder = @mail_store.open_folder(mbox_id).reload
+      folder.should_be_alive
+
+      @mail_store.del_mbox(mbox_id)
+      error = assert_raise(RuntimeError) { folder.should_be_alive }
+      assert_match(/deleted folder:/, error.message)
+    end
+
     def test_close_open
       mbox_id1 = @mail_store.add_mbox('INBOX')
       msg_uid1 = @mail_store.add_msg(mbox_id1, 'foo', Time.local(2014, 5, 6, 12, 34, 56))

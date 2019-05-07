@@ -666,7 +666,7 @@ module RIMS
       end
 
       def alive_folder?
-        get_mail_store.mbox_name(@folder.mbox_id) != nil
+        @folder.alive?
       end
       private :alive_folder?
 
@@ -710,7 +710,7 @@ module RIMS
       end
 
       def should_be_alive_folder
-        alive_folder? or raise "deleted folder: #{@folder.mbox_id}"
+        @folder.should_be_alive
       end
       private :should_be_alive_folder
 
