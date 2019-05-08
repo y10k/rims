@@ -1377,6 +1377,51 @@ module RIMS
           end
           yield(res)
         end
+
+        def idle(token, tag, client_input_gets, server_output_write, connection_timer)
+          folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+          folder.should_be_alive
+
+          @logger.info('idle start...')
+          server_output_write.call([ "+ continue\r\n" ])
+
+          server_response_thread = Thread.new{
+            @logger.info('idle server response thread start... ')
+            folder.server_response_idle_wait{|server_response_list|
+              for server_response in server_response_list
+                @logger.debug("idle server response: #{server_response}") if @logger.debug?
+              end
+              server_output_write.call(server_response_list)
+            }
+            @logger.info('idle server response thread terminated.')
+          }
+
+          begin
+            connection_timer.command_wait or return
+            line = client_input_gets.call
+          ensure
+            folder.server_response_idle_interrupt
+            server_response_thread.join
+          end
+
+          res = []
+          if (line) then
+            line.chomp!("\n")
+            line.chomp!("\r")
+            if (line.upcase == "DONE") then
+              @logger.info('idle terminated.')
+              res << "#{tag} OK IDLE terminated\r\n"
+            else
+              @logger.warn('unexpected client response and idle terminated.')
+              @logger.debug("unexpected client response data: #{line}")
+              res << "#{tag} BAD unexpected client response\r\n"
+            end
+          else
+            @logger.warn('unexpected client connection close and idle terminated.')
+            res << "#{tag} BAD unexpected client connection close\r\n"
+          end
+          yield(res)
+        end
       end
 
       def initialize(parent_decoder, mail_store_holder, auth, logger,
@@ -1700,46 +1745,8 @@ module RIMS
       end
       imap_command_selected :copy, exclusive: true
 
-      def idle(tag, client_input_gets, server_output_write, connection_timer)
-        @logger.info('idle start...')
-        server_output_write.call([ "+ continue\r\n" ])
-
-        server_response_thread = Thread.new{
-          @logger.info('idle server response thread start... ')
-          @folder.server_response_idle_wait{|server_response_list|
-            for server_response in server_response_list
-              @logger.debug("idle server response: #{server_response}") if @logger.debug?
-            end
-            server_output_write.call(server_response_list)
-          }
-          @logger.info('idle server response thread terminated.')
-        }
-
-        begin
-          connection_timer.command_wait or return
-          line = client_input_gets.call
-        ensure
-          @folder.server_response_idle_interrupt
-          server_response_thread.join
-        end
-
-        res = []
-        if (line) then
-          line.chomp!("\n")
-          line.chomp!("\r")
-          if (line.upcase == "DONE") then
-            @logger.info('idle terminated.')
-            res << "#{tag} OK IDLE terminated\r\n"
-          else
-            @logger.warn('unexpected client response and idle terminated.')
-            @logger.debug("unexpected client response data: #{line}")
-            res << "#{tag} BAD unexpected client response\r\n"
-          end
-        else
-          @logger.warn('unexpected client connection close and idle terminated.')
-          res << "#{tag} BAD unexpected client connection close\r\n"
-        end
-        yield(res)
+      def idle(tag, client_input_gets, server_output_write, connection_timer, &block)
+        @engine.idle(@token, tag, client_input_gets, server_output_write, connection_timer, &block)
       end
       imap_command_selected :idle, exclusive: nil
     end
