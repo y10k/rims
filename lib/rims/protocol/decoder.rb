@@ -1223,6 +1223,127 @@ module RIMS
           yield(res)
         end
 
+        def store(token, tag, msg_set, data_item_name, data_item_value, uid: false)
+          folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+          folder.should_be_alive
+          return yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ]) if folder.read_only?
+          folder.reload if folder.updated?
+
+          msg_set = folder.parse_msg_set(msg_set, uid: uid)
+          name, option = data_item_name.split(/\./, 2)
+
+          case (name.upcase)
+          when 'FLAGS'
+            action = :flags_replace
+          when '+FLAGS'
+            action = :flags_add
+          when '-FLAGS'
+            action = :flags_del
+          else
+            raise SyntaxError, "unknown store action: #{name}"
+          end
+
+          case (option && option.upcase)
+          when 'SILENT'
+            is_silent = true
+          when nil
+            is_silent = false
+          else
+            raise SyntaxError, "unknown store option: #{option.inspect}"
+          end
+
+          if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
+            flag_list = []
+            for flag_atom in data_item_value[1..-1]
+              case (flag_atom.upcase)
+              when '\ANSWERED'
+                flag_list << 'answered'
+              when '\FLAGGED'
+                flag_list << 'flagged'
+              when '\DELETED'
+                flag_list << 'deleted'
+              when '\SEEN'
+                flag_list << 'seen'
+              when '\DRAFT'
+                flag_list << 'draft'
+              else
+                raise SyntaxError, "invalid flag: #{flag_atom}"
+              end
+            end
+            rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
+          else
+            raise SyntaxError, 'third arugment is not a group list.'
+          end
+
+          msg_list = folder.msg_find_all(msg_set, uid: uid)
+
+          for msg in msg_list
+            case (action)
+            when :flags_replace
+              for name in flag_list
+                @mail_store.set_msg_flag(folder.mbox_id, msg.uid, name, true)
+              end
+              for name in rest_flag_list
+                @mail_store.set_msg_flag(folder.mbox_id, msg.uid, name, false)
+              end
+            when :flags_add
+              for name in flag_list
+                @mail_store.set_msg_flag(folder.mbox_id, msg.uid, name, true)
+              end
+            when :flags_del
+              for name in flag_list
+                @mail_store.set_msg_flag(folder.mbox_id, msg.uid, name, false)
+              end
+            else
+              raise "internal error: unknown action: #{action}"
+            end
+          end
+
+          res = []
+          folder.server_response_fetch{|r|
+            res << r
+            if (res.length >= @bulk_response_count) then
+              yield(res)
+              res = []
+            end
+          }
+
+          if (is_silent) then
+            res << "#{tag} OK STORE completed\r\n"
+            yield(res)
+          else
+            for msg in msg_list
+              flag_atom_list = nil
+
+              if (@mail_store.msg_exist? folder.mbox_id, msg.uid) then
+                flag_atom_list = []
+                for name in MailStore::MSG_FLAG_NAMES
+                  if (@mail_store.msg_flag(folder.mbox_id, msg.uid, name)) then
+                    flag_atom_list << "\\#{name.capitalize}"
+                  end
+                end
+              end
+
+              if (flag_atom_list) then
+                if (uid) then
+                  res << "* #{msg.num} FETCH (UID #{msg.uid} FLAGS (#{flag_atom_list.join(' ')}))\r\n"
+                else
+                  res << "* #{msg.num} FETCH (FLAGS (#{flag_atom_list.join(' ')}))\r\n"
+                end
+                if (res.length >= @bulk_response_count) then
+                  yield(res)
+                  res = []
+                end
+              else
+                @logger.warn("not found a message and skipped: uidvalidity(#{folder.mbox_id}) uid(#{msg.uid})")
+              end
+            end
+
+            res << "#{tag} OK STORE completed\r\n"
+            yield(res)
+          end
+        end
+
         def copy(token, tag, msg_set, mbox_name, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.should_be_alive
@@ -1564,113 +1685,13 @@ module RIMS
       imap_command_selected :fetch
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        return yield([ "#{tag} NO cannot store in read-only mode\r\n" ]) if @folder.read_only?
-        should_be_alive_folder
-        @folder.reload if @folder.updated?
-
-        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-        name, option = data_item_name.split(/\./, 2)
-
-        case (name.upcase)
-        when 'FLAGS'
-          action = :flags_replace
-        when '+FLAGS'
-          action = :flags_add
-        when '-FLAGS'
-          action = :flags_del
-        else
-          raise SyntaxError, "unknown store action: #{name}"
-        end
-
-        case (option && option.upcase)
-        when 'SILENT'
-          is_silent = true
-        when nil
-          is_silent = false
-        else
-          raise SyntaxError, "unknown store option: #{option.inspect}"
-        end
-
-        if ((data_item_value.is_a? Array) && data_item_value[0] == :group) then
-          flag_list = []
-          for flag_atom in data_item_value[1..-1]
-            case (flag_atom.upcase)
-            when '\ANSWERED'
-              flag_list << 'answered'
-            when '\FLAGGED'
-              flag_list << 'flagged'
-            when '\DELETED'
-              flag_list << 'deleted'
-            when '\SEEN'
-              flag_list << 'seen'
-            when '\DRAFT'
-              flag_list << 'draft'
-            else
-              raise SyntaxError, "invalid flag: #{flag_atom}"
+        yield response_stream(tag) {|res|
+          @engine.store(@token, tag, msg_set, data_item_name, data_item_value, uid: uid) {|bulk_res|
+            for r in bulk_res
+              res << r
             end
-          end
-          rest_flag_list = (MailStore::MSG_FLAG_NAMES - %w[ recent ]) - flag_list
-        else
-          raise SyntaxError, 'third arugment is not a group list.'
-        end
-
-        msg_list = @folder.msg_find_all(msg_set, uid: uid)
-
-        for msg in msg_list
-          case (action)
-          when :flags_replace
-            for name in flag_list
-              get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, true)
-            end
-            for name in rest_flag_list
-              get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, false)
-            end
-          when :flags_add
-            for name in flag_list
-              get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, true)
-            end
-          when :flags_del
-            for name in flag_list
-              get_mail_store.set_msg_flag(@folder.mbox_id, msg.uid, name, false)
-            end
-          else
-            raise "internal error: unknown action: #{action}"
-          end
-        end
-
-        if (is_silent) then
-          silent_res = []
-          @folder.server_response_fetch{|r| silent_res << r }
-          silent_res << "#{tag} OK STORE completed\r\n"
-          yield(silent_res)
-        else
-          yield response_stream(tag) {|res|
-            @folder.server_response_fetch{|r| res << r }
-            for msg in msg_list
-              flag_atom_list = nil
-
-              if (get_mail_store.msg_exist? @folder.mbox_id, msg.uid) then
-                flag_atom_list = []
-                for name in MailStore::MSG_FLAG_NAMES
-                  if (get_mail_store.msg_flag(@folder.mbox_id, msg.uid, name)) then
-                    flag_atom_list << "\\#{name.capitalize}"
-                  end
-                end
-              end
-
-              if (flag_atom_list) then
-                if (uid) then
-                  res << "* #{msg.num} FETCH (UID #{msg.uid} FLAGS (#{flag_atom_list.join(' ')}))\r\n"
-                else
-                  res << "* #{msg.num} FETCH (FLAGS (#{flag_atom_list.join(' ')}))\r\n"
-                end
-              else
-                @logger.warn("not found a message and skipped: uidvalidity(#{@folder.mbox_id}) uid(#{msg.uid})")
-              end
-            end
-            res << "#{tag} OK STORE completed\r\n"
           }
-        end
+        }
       end
       imap_command_selected :store, exclusive: true
 
