@@ -1434,7 +1434,6 @@ module RIMS
         @read_lock_timeout_seconds = read_lock_timeout_seconds
         @write_lock_timeout_seconds = write_lock_timeout_seconds
         @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
-        @folder = nil
 
         @token = nil
         @engine = Engine.new(@mail_store_holder, @logger,
@@ -1443,39 +1442,15 @@ module RIMS
                              cleanup_write_lock_timeout_seconds: @cleanup_write_lock_timeout_seconds)
       end
 
-      def get_mail_store
-        @mail_store_holder.mail_store
-      end
-      private :get_mail_store
-
       def auth?
-        @mail_store_holder != nil
+        ! @engine.nil?
       end
 
       def selected?
-        @folder != nil
+        ! @token.nil?
       end
-
-      def alive_folder?
-        @folder.alive?
-      end
-      private :alive_folder?
-
-      def close_folder(&block)
-        if (auth? && selected? && alive_folder?) then
-          @folder.reload if @folder.updated?
-          @folder.close(&block)
-          @folder = nil
-        end
-
-        nil
-      end
-      private :close_folder
 
       def cleanup
-        # preserved
-        @mail_store_holder = nil
-
         unless (@engine.nil?) then
           begin
             @engine.cleanup(@token)
@@ -1497,11 +1472,6 @@ module RIMS
 
         nil
       end
-
-      def should_be_alive_folder
-        @folder.should_be_alive
-      end
-      private :should_be_alive_folder
 
       def guard_authenticated(tag, imap_command, *args, exclusive: false, **name_args)
         if (auth?) then
@@ -1579,9 +1549,6 @@ module RIMS
       imap_command :noop
 
       def logout(tag)
-        # conserved
-        @folder = nil
-
         if (@token) then
           old_token = @token
           @token = nil
@@ -1594,13 +1561,6 @@ module RIMS
       imap_command :logout
 
       def select(tag, mbox_name)
-        # conserved
-        @folder = nil
-        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-        if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          @folder = get_mail_store.open_folder(id)
-        end
-
         ret_val = nil
         old_token = @token
         @token = @engine.select(old_token, tag, mbox_name) {|res|
@@ -1612,13 +1572,6 @@ module RIMS
       imap_command_authenticated :select
 
       def examine(tag, mbox_name)
-        # conserved
-        @folder = nil
-        mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
-        if (id = get_mail_store.mbox_id(mbox_name_utf8)) then
-          @folder = get_mail_store.open_folder(id, read_only: true)
-        end
-
         ret_val = nil
         old_token = @token
         @token = @engine.examine(old_token, tag, mbox_name) {|res|
@@ -1680,9 +1633,6 @@ module RIMS
       imap_command_selected :check, exclusive: true
 
       def close(tag, &block)
-        # conserved
-        @folder = nil
-
         old_token = @token
         @token = nil
 
