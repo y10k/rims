@@ -1088,6 +1088,35 @@ module RIMS
           yield(res)
         end
 
+        def expunge(token, tag)
+          folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+          folder.should_be_alive
+          return yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ]) if folder.read_only?
+          folder.reload if folder.updated?
+
+          res = []
+          folder.server_response_fetch{|r|
+            res << r
+            if (res.length >= @bulk_response_count) then
+              yield(res)
+              res = []
+            end
+          }
+
+          folder.expunge_mbox do |msg_num|
+            r = "* #{msg_num} EXPUNGE\r\n"
+            res << r
+            if (res.length >= @bulk_response_count) then
+              yield(res)
+              res = []
+            end
+            folder.server_response_multicast_push(r)
+          end
+
+          res << "#{tag} OK EXPUNGE completed\r\n"
+          yield(res)
+        end
+
         def copy(token, tag, msg_set, mbox_name, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.should_be_alive
@@ -1396,18 +1425,12 @@ module RIMS
       imap_command_selected :close, exclusive: true
 
       def expunge(tag)
-        return yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ]) if @folder.read_only?
-        should_be_alive_folder
-        @folder.reload if @folder.updated?
-
         yield response_stream(tag) {|res|
-          @folder.server_response_fetch{|r| res << r }
-          @folder.expunge_mbox do |msg_num|
-            r = "* #{msg_num} EXPUNGE\r\n"
-            res << r
-            @folder.server_response_multicast_push(r)
-          end
-          res << "#{tag} OK EXPUNGE completed\r\n"
+          @engine.expunge(@token, tag) {|bulk_res|
+            for r in bulk_res
+              res << r
+            end
+          }
         }
       end
       imap_command_selected :expunge, exclusive: true
