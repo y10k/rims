@@ -1117,6 +1117,71 @@ module RIMS
           yield(res)
         end
 
+        def search(token, tag, *cond_args, uid: false)
+          folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+          folder.should_be_alive
+          folder.reload if folder.updated?
+          parser = SearchParser.new(@mail_store, folder)
+
+          if (! cond_args.empty? && cond_args[0].upcase == 'CHARSET') then
+            cond_args.shift
+            charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
+            charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
+            parser.charset = charset_string
+          end
+
+          if (cond_args.empty?) then
+            raise SyntaxError, 'required search arguments.'
+          end
+
+          if (cond_args[0].upcase == 'UID' && cond_args.length >= 2) then
+            begin
+              msg_set = folder.parse_msg_set(cond_args[1], uid: true)
+              msg_src = folder.msg_find_all(msg_set, uid: true)
+              cond_args.shift(2)
+            rescue MessageSetSyntaxError
+              msg_src = folder.each_msg
+            end
+          else
+            begin
+              msg_set = folder.parse_msg_set(cond_args[0], uid: false)
+              msg_src = folder.msg_find_all(msg_set, uid: false)
+              cond_args.shift
+            rescue MessageSetSyntaxError
+              msg_src = folder.each_msg
+            end
+          end
+          cond = parser.parse(cond_args)
+
+          res = []
+          folder.server_response_fetch{|r|
+            res << r
+            if (res.length >= @bulk_response_count) then
+              yield(res)
+              res = []
+            end
+          }
+
+          res << '* SEARCH'
+          for msg in msg_src
+            if (cond.call(msg)) then
+              if (uid) then
+                res << " #{msg.uid}"
+              else
+                res << " #{msg.num}"
+              end
+              if (res.length >= @bulk_response_count) then
+                yield(res)
+                res = []
+              end
+            end
+          end
+
+          res << "\r\n"
+          res << "#{tag} OK SEARCH completed\r\n"
+          yield(res)
+        end
+
         def copy(token, tag, msg_set, mbox_name, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.should_be_alive
@@ -1436,54 +1501,12 @@ module RIMS
       imap_command_selected :expunge, exclusive: true
 
       def search(tag, *cond_args, uid: false)
-        should_be_alive_folder
-        @folder.reload if @folder.updated?
-        parser = SearchParser.new(get_mail_store, @folder)
-
-        if (! cond_args.empty? && cond_args[0].upcase == 'CHARSET') then
-          cond_args.shift
-          charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
-          charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
-          parser.charset = charset_string
-        end
-
-        if (cond_args.empty?) then
-          raise SyntaxError, 'required search arguments.'
-        end
-
-        if (cond_args[0].upcase == 'UID' && cond_args.length >= 2) then
-          begin
-            msg_set = @folder.parse_msg_set(cond_args[1], uid: true)
-            msg_src = @folder.msg_find_all(msg_set, uid: true)
-            cond_args.shift(2)
-          rescue MessageSetSyntaxError
-            msg_src = @folder.each_msg
-          end
-        else
-          begin
-            msg_set = @folder.parse_msg_set(cond_args[0], uid: false)
-            msg_src = @folder.msg_find_all(msg_set, uid: false)
-            cond_args.shift
-          rescue MessageSetSyntaxError
-            msg_src = @folder.each_msg
-          end
-        end
-        cond = parser.parse(cond_args)
-
         yield response_stream(tag) {|res|
-          @folder.server_response_fetch{|r| res << r }
-          res << '* SEARCH'
-          for msg in msg_src
-            if (cond.call(msg)) then
-              if (uid) then
-                res << " #{msg.uid}"
-              else
-                res << " #{msg.num}"
-              end
+          @engine.search(@token, tag, *cond_args, uid: uid) {|bulk_res|
+            for r in bulk_res
+              res << r
             end
-          end
-          res << "\r\n"
-          res << "#{tag} OK SEARCH completed\r\n"
+          }
         }
       end
       imap_command_selected :search
