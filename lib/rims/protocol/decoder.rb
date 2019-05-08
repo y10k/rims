@@ -1051,6 +1051,17 @@ module RIMS
           yield(res)
         end
 
+        def check(token, tag)
+          res = []
+          if (token) then
+            folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+            folder.server_response_fetch{|r| res << r }
+          end
+          @mail_store.sync
+          res << "#{tag} OK CHECK completed\r\n"
+          yield(res)
+        end
+
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
 
@@ -1362,12 +1373,8 @@ module RIMS
       end
       imap_command_authenticated :append, exclusive: true
 
-      def check(tag)
-        res = []
-        @folder.server_response_fetch{|r| res << r }
-        get_mail_store.sync
-        res << "#{tag} OK CHECK completed\r\n"
-        yield(res)
+      def check(tag, &block)
+        @engine.check(@token, tag, &block)
       end
       imap_command_selected :check, exclusive: true
 
