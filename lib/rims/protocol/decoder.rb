@@ -1182,6 +1182,47 @@ module RIMS
           yield(res)
         end
 
+        def fetch(token, tag, msg_set, data_item_group, uid: false)
+          folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+          folder.should_be_alive
+          folder.reload if folder.updated?
+
+          msg_set = folder.parse_msg_set(msg_set, uid: uid)
+          msg_list = folder.msg_find_all(msg_set, uid: uid)
+
+          unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
+            data_item_group = [ :group, data_item_group ]
+          end
+          if (uid) then
+            unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
+              data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
+            end
+          end
+
+          parser = FetchParser.new(@mail_store, folder)
+          fetch = parser.parse(data_item_group)
+
+          res = []
+          folder.server_response_fetch{|r|
+            res << r
+            if (res.length >= @bulk_response_count) then
+              yield(res)
+              res = []
+            end
+          }
+
+          for msg in msg_list
+            res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
+            if (res.length >= @bulk_response_count) then
+              yield(res)
+              res = []
+            end
+          end
+
+          res << "#{tag} OK FETCH completed\r\n"
+          yield(res)
+        end
+
         def copy(token, tag, msg_set, mbox_name, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.should_be_alive
@@ -1512,30 +1553,12 @@ module RIMS
       imap_command_selected :search
 
       def fetch(tag, msg_set, data_item_group, uid: false)
-        should_be_alive_folder
-        @folder.reload if @folder.updated?
-
-        msg_set = @folder.parse_msg_set(msg_set, uid: uid)
-        msg_list = @folder.msg_find_all(msg_set, uid: uid)
-
-        unless ((data_item_group.is_a? Array) && data_item_group[0] == :group) then
-          data_item_group = [ :group, data_item_group ]
-        end
-        if (uid) then
-          unless (data_item_group.find{|i| (i.is_a? String) && (i.upcase == 'UID') }) then
-            data_item_group = [ :group, 'UID' ] + data_item_group[1..-1]
-          end
-        end
-
-        parser = FetchParser.new(get_mail_store, @folder)
-        fetch = parser.parse(data_item_group)
-
         yield response_stream(tag) {|res|
-          @folder.server_response_fetch{|r| res << r }
-          for msg in msg_list
-            res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
-          end
-          res << "#{tag} OK FETCH completed\r\n"
+          @engine.fetch(@token, tag, msg_set, data_item_group, uid: uid) {|bulk_res|
+            for r in bulk_res
+              res << r
+            end
+          }
         }
       end
       imap_command_selected :fetch
