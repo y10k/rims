@@ -214,34 +214,37 @@ module RIMS
         end
         private :kw_params
 
-        def imap_command(name)
-          name = name.to_sym
-
-          cmd = to_imap_command(name)
-          IMAP_CMDs[cmd] = name
-
-          method = instance_method(name)
-          if (kw_params(method).include? :uid) then
-            IMAP_CMDs['UID'] = :uid
-            UID_CMDs[cmd] = name
-          end
-
-          orig_name = "_#{name}".to_sym
-          alias_method orig_name, name
-          define_method name, lambda{|tag, *args, **name_args, &block|
-            guard_error(orig_name, tag, *args, **name_args, &block)
-          }
-
-          name
-        end
-        private :imap_command
-
         def should_be_imap_command(name)
-          unless (IMAP_CMDs.key? to_imap_command(name)) then
+          cmd = to_imap_command(name)
+          unless (IMAP_CMDs.key? cmd) then
             raise ArgumentError, "not an IMAP command: #{name}"
           end
+
+          method = instance_method(name)
+          if (UID_CMDs.key? cmd) then
+            unless (kw_params(method).include? :uid) then
+              raise ArgumentError, "not defined `uid' keyword parameter: #{name}"
+            end
+          else
+            if (kw_params(method).include? :uid) then
+              raise ArgumentError, "not allowed `uid' keyword parameter: #{name}"
+            end
+          end
+
+          nil
         end
         private :should_be_imap_command
+
+        def imap_command(name)
+          should_be_imap_command(name)
+          orig_name = "_#{name}".to_sym
+          alias_method orig_name, name
+          define_method name, lambda{|tag, *args, **kw_args, &block|
+            guard_error(orig_name, tag, *args, **kw_args, &block)
+          }
+          name.to_sym
+        end
+        private :imap_command
 
         def fetch_mail_store_holder_and_on_demand_recovery(mail_store_pool, username,
                                                            write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
@@ -285,6 +288,9 @@ module RIMS
         yield([ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ])
       end
 
+      # common IMAP command
+      IMAP_CMDs['CAPABILITY'] = :capability
+
       def capability(tag)
         capability_list = %w[ IMAP4rev1 UIDPLUS IDLE ]
         capability_list += @auth.capability.map{|auth_capability| "AUTH=#{auth_capability}" }
@@ -297,6 +303,30 @@ module RIMS
     end
 
     class InitialDecoder < Decoder
+      class << self
+        def imap_command(name)
+          name = name.to_sym
+
+          cmd = to_imap_command(name)
+          Decoder::IMAP_CMDs[cmd] = name
+
+          method = instance_method(name)
+          if (kw_params(method).include? :uid) then
+            Decoder::IMAP_CMDs['UID'] = :uid
+            Decoder::UID_CMDs[cmd] = name
+          end
+
+          orig_name = "_#{name}".to_sym
+          alias_method orig_name, name
+          define_method name, lambda{|tag, *args, **kw_args, &block|
+            guard_error(orig_name, tag, *args, **kw_args, &block)
+          }
+
+          name
+        end
+        private :imap_command
+      end
+
       def initialize(mail_store_pool, auth, logger,
                      mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user,
                      write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
