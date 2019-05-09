@@ -167,12 +167,12 @@ module RIMS
       end
       private :response_stream
 
-      def guard_error(tag, imap_command, *args, **name_args)
+      def guard_error(imap_command, tag, *args, **kw_args, &block)
         begin
-          if (name_args.empty?) then
-            __send__(imap_command, tag, *args) {|res| yield(res) }
+          if (kw_args.empty?) then
+            __send__(imap_command, tag, *args, &block)
           else
-            __send__(imap_command, tag, *args, **name_args) {|res| yield(res) }
+            __send__(imap_command, tag, *args, **kw_args, &block)
           end
         rescue SyntaxError
           @logger.error('client command syntax error.')
@@ -229,7 +229,7 @@ module RIMS
           orig_name = "_#{name}".to_sym
           alias_method orig_name, name
           define_method name, lambda{|tag, *args, **name_args, &block|
-            guard_error(tag, orig_name, *args, **name_args, &block)
+            guard_error(orig_name, tag, *args, **name_args, &block)
           }
 
           name
@@ -1481,25 +1481,19 @@ module RIMS
         nil
       end
 
-      def guard_authenticated(tag, imap_command, *args, exclusive: false, **name_args)
+      def guard_authenticated(imap_command, tag, *args, exclusive: false, **kw_args, &block)
         if (auth?) then
           if (exclusive.nil?) then
-            guard_error(tag, imap_command, *args, **name_args) {|res|
-              yield(res)
-            }
+            guard_error(imap_command, tag, *args, **kw_args, &block)
           else
             begin
               if (exclusive) then
                 @mail_store_holder.write_synchronize(@write_lock_timeout_seconds) {
-                  guard_authenticated(tag, imap_command, *args, exclusive: nil, **name_args) {|res|
-                    yield(res)
-                  }
+                  guard_authenticated(imap_command, tag, *args, exclusive: nil, **kw_args, &block)
                 }
               else
                 @mail_store_holder.read_synchronize(@read_lock_timeout_seconds){
-                  guard_authenticated(tag, imap_command, *args, exclusive: nil, **name_args) {|res|
-                    yield(res)
-                  }
+                  guard_authenticated(imap_command, tag, *args, exclusive: nil, **kw_args, &block)
                 }
               end
             rescue ReadLockTimeoutError
@@ -1516,11 +1510,9 @@ module RIMS
       end
       private :guard_authenticated
 
-      def guard_selected(tag, imap_command, *args, **name_args)
+      def guard_selected(imap_command, tag, *args, **kw_args, &block)
         if (selected?) then
-          guard_authenticated(tag, imap_command, *args, **name_args) {|res|
-            yield(res)
-          }
+          guard_authenticated(imap_command, tag, *args, **kw_args, &block)
         else
           yield([ "#{tag} NO not selected\r\n" ])
         end
@@ -1532,8 +1524,8 @@ module RIMS
           should_be_imap_command(name)
           orig_name = "_#{name}".to_sym
           alias_method orig_name, name
-          define_method name, lambda{|tag, *args, **name_args, &block|
-            guard_authenticated(tag, orig_name, *args, **name_args.merge(guard_optional), &block)
+          define_method name, lambda{|tag, *args, **kw_args, &block|
+            guard_authenticated(orig_name, tag, *args, **kw_args, **guard_optional, &block)
           }
           name.to_sym
         end
@@ -1543,8 +1535,8 @@ module RIMS
           should_be_imap_command(name)
           orig_name = "_#{name}".to_sym
           alias_method orig_name, name
-          define_method name, lambda{|tag, *args, **name_args, &block|
-            guard_selected(tag, orig_name, *args, **name_args.merge(guard_optional), &block)
+          define_method name, lambda{|tag, *args, **kw_args, &block|
+            guard_selected(orig_name, tag, *args, **kw_args, **guard_optional, &block)
           }
           name.to_sym
         end
