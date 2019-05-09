@@ -748,6 +748,66 @@ module RIMS
           nil
         end
 
+        def guard_authenticated(imap_command, token, tag, *args, exclusive: false, **kw_args, &block)
+          if (exclusive.nil?) then
+            if (kw_args.empty?) then
+              __send__(imap_command, token, tag, *args, &block)
+            else
+              __send__(imap_command, token, tag, *args, **kw_args, &block)
+            end
+          else
+            begin
+              if (exclusive) then
+                write_synchronize(@write_lock_timeout_seconds) {
+                  guard_authenticated(imap_command, token, tag, *args, exclusive: nil, **kw_args, &block)
+                }
+              else
+                read_synchronize(@read_lock_timeout_seconds){
+                  guard_authenticated(imap_command, token, tag, *args, exclusive: nil, **kw_args, &block)
+                }
+              end
+            rescue ReadLockTimeoutError
+              @logger.error("write-lock timeout over #{@write_lock_timeout_seconds} seconds")
+              yield([ "#{tag} BAD write-lock timeout over #{@write_lock_timeout_seconds} seconds" ])
+            rescue WriteLockTimeoutError
+              @logger.error("read-lock timeout over #{@read_lock_timeout_seconds} seconds")
+              yield([ "#{tag} BAD read-lock timeout over #{@read_lock_timeout_seconds} seconds" ])
+            end
+          end
+        end
+        private :guard_authenticated
+
+        def guard_selected(imap_command, token, tag, *args, **kw_args, &block)
+          if (token) then
+            guard_authenticated(imap_command, token, tag, *args, **kw_args, &block)
+          else
+            yield([ "#{tag} NO not selected\r\n" ])
+          end
+        end
+        private :guard_selected
+
+        class << self
+          def imap_command_authenticated(name, **guard_optional)
+            orig_name = "_#{name}".to_sym
+            alias_method orig_name, name
+            define_method name, lambda{|token, tag, *args, **kw_args, &block|
+              guard_authenticated(orig_name, token, tag, *args, **kw_args, **guard_optional, &block)
+            }
+            name.to_sym
+          end
+          private :imap_command_authenticated
+
+          def imap_command_selected(name, **guard_optional)
+            orig_name = "_#{name}".to_sym
+            alias_method orig_name, name
+            define_method name, lambda{|token, tag, *args, **kw_args, &block|
+              guard_selected(orig_name, token, tag, *args, **kw_args, **guard_optional, &block)
+            }
+            name.to_sym
+          end
+          private :imap_command_selected
+        end
+
         def noop(token, tag)
           res = []
           if (token) then
@@ -800,6 +860,7 @@ module RIMS
 
           new_token
         end
+        imap_command_authenticated :select
 
         def examine(token, tag, mbox_name)
           if (token) then
@@ -823,6 +884,7 @@ module RIMS
 
           new_token
         end
+        imap_command_authenticated :examine
 
         def create(token, tag, mbox_name)
           res = []
@@ -839,6 +901,7 @@ module RIMS
           end
           yield(res)
         end
+        imap_command_authenticated :create, exclusive: true
 
         def delete(token, tag, mbox_name)
           res = []
@@ -859,6 +922,7 @@ module RIMS
           end
           yield(res)
         end
+        imap_command_authenticated :delete, exclusive: true
 
         def rename(token, tag, src_name, dst_name)
           res = []
@@ -881,6 +945,7 @@ module RIMS
           res << "#{tag} OK RENAME completed\r\n"
           yield(res)
         end
+        imap_command_authenticated :rename, exclusive: true
 
         def subscribe(token, tag, mbox_name)
           res = []
@@ -896,6 +961,7 @@ module RIMS
           end
           yield(res)
         end
+        imap_command_authenticated :subscribe
 
         def unsubscribe(token, tag, mbox_name)
           res = []
@@ -911,6 +977,7 @@ module RIMS
           end
           yield(res)
         end
+        imap_command_authenticated :unsubscribe
 
         def list_mbox(ref_name, mbox_name)
           ref_name_utf8 = Net::IMAP.decode_utf7(ref_name)
@@ -952,6 +1019,7 @@ module RIMS
           res << "#{tag} OK LIST completed\r\n"
           yield(res)
         end
+        imap_command_authenticated :list
 
         def lsub(token, tag, ref_name, mbox_name)
           res = []
@@ -969,6 +1037,7 @@ module RIMS
           res << "#{tag} OK LSUB completed\r\n"
           yield(res)
         end
+        imap_command_authenticated :lsub
 
         def status(token, tag, mbox_name, data_item_group)
           res = []
@@ -1008,6 +1077,7 @@ module RIMS
           end
           yield(res)
         end
+        imap_command_authenticated :status
 
         def mailbox_size_server_response_multicast_push(mbox_id)
           all_msgs = @mail_store.mbox_msg_num(mbox_id)
@@ -1088,6 +1158,7 @@ module RIMS
           end
           yield(res)
         end
+        imap_command_authenticated :append, exclusive: true
 
         def check(token, tag)
           res = []
@@ -1099,6 +1170,7 @@ module RIMS
           res << "#{tag} OK CHECK completed\r\n"
           yield(res)
         end
+        imap_command_selected :check, exclusive: true
 
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
@@ -1125,6 +1197,7 @@ module RIMS
           res << "#{tag} OK CLOSE completed\r\n"
           yield(res)
         end
+        imap_command_selected :close, exclusive: true
 
         def expunge(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
@@ -1154,6 +1227,7 @@ module RIMS
           res << "#{tag} OK EXPUNGE completed\r\n"
           yield(res)
         end
+        imap_command_selected :expunge, exclusive: true
 
         def search(token, tag, *cond_args, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
@@ -1219,6 +1293,7 @@ module RIMS
           res << "#{tag} OK SEARCH completed\r\n"
           yield(res)
         end
+        imap_command_selected :search
 
         def fetch(token, tag, msg_set, data_item_group, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
@@ -1260,6 +1335,7 @@ module RIMS
           res << "#{tag} OK FETCH completed\r\n"
           yield(res)
         end
+        imap_command_selected :fetch
 
         def store(token, tag, msg_set, data_item_name, data_item_value, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
@@ -1381,6 +1457,7 @@ module RIMS
             yield(res)
           end
         end
+        imap_command_selected :store, exclusive: true
 
         def copy(token, tag, msg_set, mbox_name, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
@@ -1415,6 +1492,7 @@ module RIMS
           end
           yield(res)
         end
+        imap_command_selected :copy, exclusive: true
 
         def idle(token, tag, client_input_gets, server_output_write, connection_timer)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
@@ -1460,6 +1538,7 @@ module RIMS
           end
           yield(res)
         end
+        imap_command_selected :idle, exclusive: nil
       end
 
       def initialize(parent_decoder, mail_store_holder, auth, logger,
@@ -1468,16 +1547,11 @@ module RIMS
                      cleanup_write_lock_timeout_seconds: 1)
         super(auth, logger)
         @parent_decoder = parent_decoder
-        @mail_store_holder = mail_store_holder
-        @read_lock_timeout_seconds = read_lock_timeout_seconds
-        @write_lock_timeout_seconds = write_lock_timeout_seconds
-        @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
-
+        @engine = Engine.new(mail_store_holder, @logger,
+                             read_lock_timeout_seconds: read_lock_timeout_seconds,
+                             write_lock_timeout_seconds: write_lock_timeout_seconds,
+                             cleanup_write_lock_timeout_seconds: cleanup_write_lock_timeout_seconds)
         @token = nil
-        @engine = Engine.new(@mail_store_holder, @logger,
-                             read_lock_timeout_seconds: @read_lock_timeout_seconds,
-                             write_lock_timeout_seconds: @write_lock_timeout_seconds,
-                             cleanup_write_lock_timeout_seconds: @cleanup_write_lock_timeout_seconds)
       end
 
       def auth?
@@ -1511,68 +1585,6 @@ module RIMS
         nil
       end
 
-      def guard_authenticated(imap_command, tag, *args, exclusive: false, **kw_args, &block)
-        if (auth?) then
-          if (exclusive.nil?) then
-            guard_error(imap_command, tag, *args, **kw_args, &block)
-          else
-            begin
-              if (exclusive) then
-                @mail_store_holder.write_synchronize(@write_lock_timeout_seconds) {
-                  guard_authenticated(imap_command, tag, *args, exclusive: nil, **kw_args, &block)
-                }
-              else
-                @mail_store_holder.read_synchronize(@read_lock_timeout_seconds){
-                  guard_authenticated(imap_command, tag, *args, exclusive: nil, **kw_args, &block)
-                }
-              end
-            rescue ReadLockTimeoutError
-              @logger.error("write-lock timeout over #{@write_lock_timeout_seconds} seconds")
-              yield([ "#{tag} BAD write-lock timeout over #{@write_lock_timeout_seconds} seconds" ])
-            rescue WriteLockTimeoutError
-              @logger.error("read-lock timeout over #{@read_lock_timeout_seconds} seconds")
-              yield([ "#{tag} BAD read-lock timeout over #{@read_lock_timeout_seconds} seconds" ])
-            end
-          end
-        else
-          yield([ "#{tag} NO not authenticated\r\n" ])
-        end
-      end
-      private :guard_authenticated
-
-      def guard_selected(imap_command, tag, *args, **kw_args, &block)
-        if (selected?) then
-          guard_authenticated(imap_command, tag, *args, **kw_args, &block)
-        else
-          yield([ "#{tag} NO not selected\r\n" ])
-        end
-      end
-      private :guard_selected
-
-      class << self
-        def imap_command_authenticated(name, **guard_optional)
-          should_be_imap_command(name)
-          orig_name = "_#{name}".to_sym
-          alias_method orig_name, name
-          define_method name, lambda{|tag, *args, **kw_args, &block|
-            guard_authenticated(orig_name, tag, *args, **kw_args, **guard_optional, &block)
-          }
-          name.to_sym
-        end
-        private :imap_command_authenticated
-
-        def imap_command_selected(name, **guard_optional)
-          should_be_imap_command(name)
-          orig_name = "_#{name}".to_sym
-          alias_method orig_name, name
-          define_method name, lambda{|tag, *args, **kw_args, &block|
-            guard_selected(orig_name, tag, *args, **kw_args, **guard_optional, &block)
-          }
-          name.to_sym
-        end
-        private :imap_command_selected
-      end
-
       def noop(tag, &block)
         @engine.noop(@token, tag, &block)
       end
@@ -1599,7 +1611,7 @@ module RIMS
 
         ret_val
       end
-      imap_command_authenticated :select
+      imap_command :select
 
       def examine(tag, mbox_name)
         ret_val = nil
@@ -1610,57 +1622,57 @@ module RIMS
 
         ret_val
       end
-      imap_command_authenticated :examine
+      imap_command :examine
 
       def create(tag, mbox_name, &block)
         @engine.create(@token, tag, mbox_name, &block)
       end
-      imap_command_authenticated :create, exclusive: true
+      imap_command :create
 
       def delete(tag, mbox_name, &block)
         @engine.delete(@token, tag, mbox_name, &block)
       end
-      imap_command_authenticated :delete, exclusive: true
+      imap_command :delete
 
       def rename(tag, src_name, dst_name, &block)
         @engine.rename(@token, tag, src_name, dst_name, &block)
       end
-      imap_command_authenticated :rename, exclusive: true
+      imap_command :rename
 
       def subscribe(tag, mbox_name, &block)
         @engine.subscribe(@token, tag, mbox_name, &block)
       end
-      imap_command_authenticated :subscribe
+      imap_command :subscribe
 
       def unsubscribe(tag, mbox_name, &block)
         @engine.unsubscribe(@token, tag, mbox_name, &block)
       end
-      imap_command_authenticated :unsubscribe
+      imap_command :unsubscribe
 
       def list(tag, ref_name, mbox_name, &block)
         @engine.list(@token, tag, ref_name, mbox_name, &block)
       end
-      imap_command_authenticated :list
+      imap_command :list
 
       def lsub(tag, ref_name, mbox_name, &block)
         @engine.lsub(@token, tag, ref_name, mbox_name, &block)
       end
-      imap_command_authenticated :lsub
+      imap_command :lsub
 
       def status(tag, mbox_name, data_item_group, &block)
         @engine.status(@token, tag, mbox_name, data_item_group, &block)
       end
-      imap_command_authenticated :status
+      imap_command :status
 
       def append(tag, mbox_name, *opt_args, msg_text, &block)
         @engine.append(@token, tag, mbox_name, *opt_args, msg_text, &block)
       end
-      imap_command_authenticated :append, exclusive: true
+      imap_command :append
 
       def check(tag, &block)
         @engine.check(@token, tag, &block)
       end
-      imap_command_selected :check, exclusive: true
+      imap_command :check
 
       def close(tag, &block)
         old_token = @token
@@ -1674,7 +1686,7 @@ module RIMS
           }
         }
       end
-      imap_command_selected :close, exclusive: true
+      imap_command :close
 
       def expunge(tag)
         yield response_stream(tag) {|res|
@@ -1685,7 +1697,7 @@ module RIMS
           }
         }
       end
-      imap_command_selected :expunge, exclusive: true
+      imap_command :expunge
 
       def search(tag, *cond_args, uid: false)
         yield response_stream(tag) {|res|
@@ -1696,7 +1708,7 @@ module RIMS
           }
         }
       end
-      imap_command_selected :search
+      imap_command :search
 
       def fetch(tag, msg_set, data_item_group, uid: false)
         yield response_stream(tag) {|res|
@@ -1707,7 +1719,7 @@ module RIMS
           }
         }
       end
-      imap_command_selected :fetch
+      imap_command :fetch
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
         yield response_stream(tag) {|res|
@@ -1718,17 +1730,17 @@ module RIMS
           }
         }
       end
-      imap_command_selected :store, exclusive: true
+      imap_command :store
 
       def copy(tag, msg_set, mbox_name, uid: false, &block)
         @engine.copy(@token, tag, msg_set, mbox_name, uid: uid, &block)
       end
-      imap_command_selected :copy, exclusive: true
+      imap_command :copy
 
       def idle(tag, client_input_gets, server_output_write, connection_timer, &block)
         @engine.idle(@token, tag, client_input_gets, server_output_write, connection_timer, &block)
       end
-      imap_command_selected :idle, exclusive: nil
+      imap_command :idle
     end
 
     def Decoder.encode_delivery_target_mailbox(username, mbox_name)
