@@ -220,7 +220,7 @@ module RIMS
           IMAP_CMDs[cmd] = name
 
           method = instance_method(name)
-          if (kw_params(method).find(:uid)) then
+          if (kw_params(method).include? :uid) then
             IMAP_CMDs['UID'] = :uid
             UID_CMDs[cmd] = name
           end
