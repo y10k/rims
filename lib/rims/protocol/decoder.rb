@@ -135,7 +135,8 @@ module RIMS
 
         nil
       ensure
-        decoder.cleanup
+        # don't forget to clean up if the next decoder has been generated
+        decoder.next_decoder.cleanup
       end
 
       def initialize(auth, logger)
@@ -252,15 +253,22 @@ module RIMS
             logger.info("open mail store: #{unique_user_id} [ #{username} ]")
           }
 
-          mail_store_holder.write_synchronize(write_lock_timeout_seconds) {
-            if (mail_store_holder.mail_store.abort_transaction?) then
-              logger.warn("user data recovery start: #{username}")
-              yield("* OK [ALERT] start user data recovery.\r\n")
-              mail_store_holder.mail_store.recovery_data(logger: logger).sync
-              logger.warn("user data recovery end: #{username}")
-              yield("* OK completed user data recovery.\r\n")
-            end
-          }
+          begin
+            mail_store_holder.write_synchronize(write_lock_timeout_seconds) {
+              if (mail_store_holder.mail_store.abort_transaction?) then
+                logger.warn("user data recovery start: #{username}")
+                yield("* OK [ALERT] start user data recovery.\r\n")
+                mail_store_holder.mail_store.recovery_data(logger: logger).sync
+                logger.warn("user data recovery end: #{username}")
+                yield("* OK completed user data recovery.\r\n")
+              end
+            }
+          rescue
+            mail_store_holder.return_pool{
+              logger.info("close mail store: #{mail_store_holder.unique_user_id}")
+            }
+            raise
+          end
 
           mail_store_holder
         end
