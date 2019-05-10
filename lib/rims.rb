@@ -21,7 +21,6 @@ module RIMS
   autoload :MailboxDB, 'rims/db'
   autoload :MessageDB, 'rims/db'
   autoload :MessageSetSyntaxError, 'rims/protocol'
-  autoload :ObjectPool, 'rims/pool'
   autoload :Password, 'rims/passwd'
   autoload :Protocol, 'rims/protocol'
   autoload :ProtocolError, 'rims/protocol'
