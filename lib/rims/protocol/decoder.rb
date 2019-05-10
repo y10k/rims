@@ -644,11 +644,13 @@ module RIMS
         extend Forwardable
 
         def initialize(mail_store_holder, logger,
+                       bulk_response_count: 100,
                        read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                        write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS)
           @mail_store_holder = mail_store_holder
           @mail_store = @mail_store_holder.mail_store
           @logger = logger
+          @bulk_response_count = bulk_response_count
           @read_lock_timeout_seconds = read_lock_timeout_seconds
           @write_lock_timeout_seconds = write_lock_timeout_seconds
           @folders = {}
@@ -677,6 +679,92 @@ module RIMS
           nil
         end
         private :close_folder
+
+        def folder_open_msgs(token)
+          folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+          all_msgs = @mail_store.mbox_msg_num(folder.mbox_id)
+          recent_msgs = @mail_store.mbox_flag_num(folder.mbox_id, 'recent')
+          unseen_msgs = all_msgs - @mail_store.mbox_flag_num(folder.mbox_id, 'seen')
+          yield("* #{all_msgs} EXISTS\r\n")
+          yield("* #{recent_msgs} RECENT\r\n")
+          yield("* OK [UNSEEN #{unseen_msgs}]\r\n")
+          yield("* OK [UIDVALIDITY #{folder.mbox_id}]\r\n")
+          yield("* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n")
+          nil
+        end
+        private :folder_open_msgs
+
+        def select(token, tag, mbox_name)
+          if (token) then
+            close_folder(token)
+          end
+
+          res = []
+          new_token = nil
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+
+          if (id = @mail_store.mbox_id(mbox_name_utf8)) then
+            new_token = open_folder(id)
+            folder_open_msgs(new_token) do |msg|
+              res << msg
+            end
+            res << "#{tag} OK [READ-WRITE] SELECT completed\r\n"
+          else
+            res << "#{tag} NO not found a mailbox\r\n"
+          end
+          yield(res)
+
+          new_token
+        end
+
+        def examine(token, tag, mbox_name)
+          if (token) then
+            close_folder(token)
+          end
+
+          res = []
+          new_token = nil
+          mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
+
+          if (id = @mail_store.mbox_id(mbox_name_utf8)) then
+            new_token = open_folder(id, read_only: true)
+            folder_open_msgs(new_token) do |msg|
+              res << msg
+            end
+            res << "#{tag} OK [READ-ONLY] EXAMINE completed\r\n"
+          else
+            res << "#{tag} NO not found a mailbox\r\n"
+          end
+          yield(res)
+
+          new_token
+        end
+
+        def close(token, tag)
+          folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+
+          res = []
+          folder.server_response_fetch{|r|
+            res << r
+            if (res.length >= @bulk_response_count) then
+              yield(res)
+              res = []
+            end
+          }
+
+          close_folder(token) do |msg_num|
+            r = "* #{msg_num} EXPUNGE\r\n"
+            res << r
+            folder.server_response_multicast_push(r)
+            if (res.length >= @bulk_response_count) then
+              yield(res)
+              res = []
+            end
+          end
+
+          res << "#{tag} OK CLOSE completed\r\n"
+          yield(res)
+        end
       end
 
       def initialize(parent_decoder, mail_store_holder, auth, logger,
