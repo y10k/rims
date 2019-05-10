@@ -246,22 +246,13 @@ module RIMS
         end
         private :imap_command
 
-        def make_engine_and_recovery_if_needed(mail_store_pool, username,
-                                               logger: Logger.new(STDOUT),
-                                               read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
-                                               write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
-                                               cleanup_write_lock_timeout_seconds: 1)
+        def make_engine_and_recovery_if_needed(services, username,
+                                               logger: Logger.new(STDOUT))
           unique_user_id = Authentication.unique_user_id(username)
           logger.debug("unique user ID: #{username} -> #{unique_user_id}") if logger.debug?
 
-          mail_store_holder = mail_store_pool.get(unique_user_id) {
-            logger.info("open mail store: #{unique_user_id} [ #{username} ]")
-          }
-
-          engine = UserMailboxDecoder::Engine.new(mail_store_holder, logger,
-                                                  read_lock_timeout_seconds: read_lock_timeout_seconds,
-                                                  write_lock_timeout_seconds: write_lock_timeout_seconds,
-                                                  cleanup_write_lock_timeout_seconds: cleanup_write_lock_timeout_seconds)
+          logger.info("open mail store: #{unique_user_id} [ #{username} ]")
+          engine = services[:engine, unique_user_id]
 
           begin
             engine.recovery_if_needed(username) {|msg| yield(msg) }
@@ -324,13 +315,11 @@ module RIMS
         private :imap_command
       end
 
-      def initialize(mail_store_pool, auth, logger,
-                     mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user,
-                     **next_decoder_optional)
+      def initialize(services, auth, logger,
+                     mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user)
         super(auth, logger)
-        @mail_store_pool = mail_store_pool
+        @services = services
         @mail_delivery_user = mail_delivery_user
-        @next_decoder_optional = next_decoder_optional
       end
 
       def auth?
@@ -365,12 +354,9 @@ module RIMS
         case (username)
         when @mail_delivery_user
           @logger.info("mail delivery user: #{username}")
-          MailDeliveryDecoder.new(self, @mail_store_pool, @auth, @logger,
-                                  **@next_decoder_optional)
+          MailDeliveryDecoder.new(self, @services, @auth, @logger)
         else
-          engine =
-            self.class.make_engine_and_recovery_if_needed(@mail_store_pool, username,
-                                                          logger: @logger, **@next_decoder_optional) {|msg| yield(msg) }
+          engine = self.class.make_engine_and_recovery_if_needed(@services, username, logger: @logger) {|msg| yield(msg) }
           UserMailboxDecoder.new(self, engine, @auth, @logger)
         end
       end
@@ -670,13 +656,13 @@ module RIMS
       class Engine
         extend Forwardable
 
-        def initialize(mail_store_holder, logger,
+        def initialize(unique_user_id, mail_store, logger,
                        bulk_response_count: 100,
                        read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                        write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                        cleanup_write_lock_timeout_seconds: 1)
-          @mail_store_holder = mail_store_holder
-          @mail_store = @mail_store_holder.mail_store
+          @unique_user_id = unique_user_id
+          @mail_store = mail_store
           @logger = logger
           @bulk_response_count = bulk_response_count
           @read_lock_timeout_seconds = read_lock_timeout_seconds
@@ -684,6 +670,9 @@ module RIMS
           @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
           @folders = {}
         end
+
+        attr_reader :unique_user_id
+        attr_reader :mail_store # for test only
 
         def_delegators :@mail_store, :read_synchronize, :write_synchronize
 
@@ -739,13 +728,13 @@ module RIMS
         end
 
         def destroy
-          tmp_mail_store_holder = @mail_store_holder
+          tmp_mail_store = @mail_store
           ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
-            tmp_mail_store_holder.return_pool{
-              @logger.info("close mail store: #{tmp_mail_store_holder.unique_user_id}")
+            write_synchronize(timeout_seconds) {
+              @logger.info("close mail store: #{@unique_user_id}")
+              tmp_mail_store.close
             }
           }
-          @mail_store_holder = nil
           @mail_store = nil
 
           nil
@@ -1740,6 +1729,9 @@ module RIMS
       imap_command :idle
     end
 
+    # alias
+    Decoder::Engine = UserMailboxDecoder::Engine
+
     def Decoder.encode_delivery_target_mailbox(username, mbox_name)
       "b64user-mbox #{Protocol.encode_base64(username)} #{mbox_name}"
     end
@@ -1753,13 +1745,11 @@ module RIMS
     end
 
     class MailDeliveryDecoder < AuthenticatedDecoder
-      def initialize(parent_decoder, mail_store_pool, auth, logger,
-                     **mailbox_decoder_optional)
+      def initialize(parent_decoder, services, auth, logger)
         super(auth, logger)
         @parent_decoder = parent_decoder
-        @mail_store_pool = mail_store_pool
+        @services = services
         @auth = auth
-        @mailbox_decoder_optional = mailbox_decoder_optional
         @last_user_cache_key_username = nil
         @last_user_cache_value_engine = nil
       end
@@ -1801,7 +1791,7 @@ module RIMS
       private :release_engine_cache
 
       def auth?
-        @mail_store_pool != nil
+        @services != nil
       end
 
       def selected?
@@ -1810,7 +1800,7 @@ module RIMS
 
       def cleanup
         release_engine_cache
-        @mail_store_pool = nil unless @mail_store_pool.nil?
+        @services = nil unless @services.nil?
         @auth = nil unless @auth.nil?
 
         unless (@parent_decoder.nil?) then
@@ -1925,8 +1915,7 @@ module RIMS
           else
             res = Enumerator.new{|stream_res|
               engine = store_engine_cache(username) {
-                self.class.make_engine_and_recovery_if_needed(@mail_store_pool, username,
-                                                              logger: @logger, **@mailbox_decoder_optional) {|msg| stream_res << msg }
+                self.class.make_engine_and_recovery_if_needed(@services, username, logger: @logger) {|msg| stream_res << msg }
               }
               deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine, stream_res)
             }

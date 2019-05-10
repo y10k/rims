@@ -32,6 +32,20 @@ module RIMS
       @channel = ServerResponseChannel.new
     end
 
+    def self.build(unique_user_id, kvs_meta_open, kvs_text_open)
+      kvs_build = proc{|kvs_open, db_name|
+        kvs_open.call(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id, db_name)
+      }
+
+      mail_store = MailStore.new(DB::Meta.new(kvs_build.call(kvs_meta_open, 'meta')),
+                                 DB::Message.new(kvs_build.call(kvs_text_open, 'message'))) {|mbox_id|
+        DB::Mailbox.new(kvs_build.call(kvs_meta_open, "mailbox_#{mbox_id}"))
+      }
+      mail_store.add_mbox('INBOX') unless mail_store.mbox_id('INBOX')
+
+      mail_store
+    end
+
     def_delegators :@rw_lock, :read_synchronize, :write_synchronize
 
     def get_mbox_db(mbox_id)
