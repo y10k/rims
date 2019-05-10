@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'forwardable'
 require 'logger'
 require 'net/imap'
 require 'time'
@@ -654,8 +653,6 @@ module RIMS
 
     class UserMailboxDecoder < AuthenticatedDecoder
       class Engine
-        extend Forwardable
-
         def initialize(unique_user_id, mail_store, logger,
                        bulk_response_count: 100,
                        read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
@@ -674,10 +671,8 @@ module RIMS
         attr_reader :unique_user_id
         attr_reader :mail_store # for test only
 
-        def_delegators :@mail_store, :read_synchronize, :write_synchronize
-
         def recovery_if_needed(username)
-          write_synchronize(@write_lock_timeout_seconds) {
+          @mail_store.write_synchronize(@write_lock_timeout_seconds) {
             if (@mail_store.abort_transaction?) then
               @logger.warn("user data recovery start: #{username}")
               yield("* OK [ALERT] start user data recovery.\r\n")
@@ -715,7 +710,7 @@ module RIMS
         def cleanup(token)
           if (token) then
             begin
-              write_synchronize(@cleanup_write_lock_timeout_seconds) {
+              @mail_store.write_synchronize(@cleanup_write_lock_timeout_seconds) {
                 close_folder(token)
               }
             rescue WriteLockTimeoutError
@@ -730,7 +725,7 @@ module RIMS
         def destroy
           tmp_mail_store = @mail_store
           ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
-            write_synchronize(timeout_seconds) {
+            @mail_store.write_synchronize(timeout_seconds) {
               @logger.info("close mail store: #{@unique_user_id}")
               tmp_mail_store.close
             }
@@ -750,11 +745,11 @@ module RIMS
           else
             begin
               if (exclusive) then
-                write_synchronize(@write_lock_timeout_seconds) {
+                @mail_store.write_synchronize(@write_lock_timeout_seconds) {
                   guard_authenticated(imap_command, token, tag, *args, exclusive: nil, **kw_args, &block)
                 }
               else
-                read_synchronize(@read_lock_timeout_seconds){
+                @mail_store.read_synchronize(@read_lock_timeout_seconds){
                   guard_authenticated(imap_command, token, tag, *args, exclusive: nil, **kw_args, &block)
                 }
               end
@@ -805,7 +800,7 @@ module RIMS
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
             begin
-              read_synchronize(@read_lock_timeout_seconds) {
+              @mail_store.read_synchronize(@read_lock_timeout_seconds) {
                 folder.server_response_fetch{|r| res << r } if folder.server_response?
               }
             rescue ReadLockTimeoutError
