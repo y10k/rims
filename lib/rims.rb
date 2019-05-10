@@ -18,7 +18,6 @@ module RIMS
   autoload :LockError, 'rims/lock'
   autoload :MailFolder, 'rims/mail_store'
   autoload :MailStore, 'rims/mail_store'
-  autoload :MailStoreHolder, 'rims/mail_store'
   autoload :MailboxDB, 'rims/db'
   autoload :MessageDB, 'rims/db'
   autoload :MessageSetSyntaxError, 'rims/protocol'

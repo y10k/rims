@@ -366,12 +366,6 @@ module RIMS
       @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
       MailFolder.new(mbox_id, self, read_only: read_only).attach(@channel)
     end
-
-    def self.build_pool(kvs_meta_open, kvs_text_open)
-      RIMS::ObjectPool.new{|object_pool, unique_user_id|
-        RIMS::MailStoreHolder.build(object_pool, unique_user_id, kvs_meta_open, kvs_text_open)
-      }
-    end
   end
 
   class MailFolder
@@ -574,38 +568,6 @@ module RIMS
       end
 
       msg_set
-    end
-  end
-
-  class MailStoreHolder < ObjectPool::ObjectHolder
-    extend Forwardable
-
-    def self.build(object_pool, unique_user_id, kvs_meta_open, kvs_text_open)
-      kvs_build = proc{|kvs_open, db_name|
-        kvs_open.call(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id, db_name)
-      }
-
-      mail_store = MailStore.new(DB::Meta.new(kvs_build.call(kvs_meta_open, 'meta')),
-                                 DB::Message.new(kvs_build.call(kvs_text_open, 'message'))) {|mbox_id|
-        DB::Mailbox.new(kvs_build.call(kvs_meta_open, "mailbox_#{mbox_id}"))
-      }
-      mail_store.add_mbox('INBOX') unless mail_store.mbox_id('INBOX')
-
-      new(object_pool, unique_user_id, mail_store)
-    end
-
-    def initialize(object_pool, unique_user_id, mail_store)
-      super(object_pool, unique_user_id)
-      @mail_store = mail_store
-    end
-
-    alias unique_user_id object_key
-    attr_reader :mail_store
-
-    def_delegators :@mail_store, :read_synchronize, :write_synchronize
-
-    def object_destroy
-      @mail_store.close
     end
   end
 end
