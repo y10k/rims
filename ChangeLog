@@ -1,5 +1,9 @@
 2019-05-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/mail_store.rb, lib/rims/protocol/decoder.rb,
+	lib/rims/service.rb: mail store pool is replaced by dRuby
+	services.
+
 	* lib/rims/protocol/decoder.rb: mail store holder is replaced by
 	decoder engine.
 
