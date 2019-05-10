@@ -646,13 +646,15 @@ module RIMS
         def initialize(mail_store_holder, logger,
                        bulk_response_count: 100,
                        read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
-                       write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS)
+                       write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
+                       cleanup_write_lock_timeout_seconds: 1)
           @mail_store_holder = mail_store_holder
           @mail_store = @mail_store_holder.mail_store
           @logger = logger
           @bulk_response_count = bulk_response_count
           @read_lock_timeout_seconds = read_lock_timeout_seconds
           @write_lock_timeout_seconds = write_lock_timeout_seconds
+          @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
           @folders = {}
         end
 
@@ -679,6 +681,34 @@ module RIMS
           nil
         end
         private :close_folder
+
+        def cleanup(token)
+          if (token) then
+            begin
+              write_synchronize(@cleanup_write_lock_timeout_seconds) {
+                close_folder(token)
+              }
+            rescue WriteLockTimeoutError
+              @logger.warn("give up to close folder becaue of write-lock timeout over #{@write_lock_timeout_seconds} seconds")
+              @folders.delete(token)
+            end
+          end
+
+          nil
+        end
+
+        def destroy
+          tmp_mail_store_holder = @mail_store_holder
+          ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
+            tmp_mail_store_holder.return_pool{
+              @logger.info("close mail store: #{tmp_mail_store_holder.unique_user_id}")
+            }
+          }
+          @mail_store_holder = nil
+          @mail_store = nil
+
+          nil
+        end
 
         def folder_open_msgs(token)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
@@ -781,7 +811,8 @@ module RIMS
 
         @engine = Engine.new(@mail_store_holder, @logger,
                              read_lock_timeout_seconds: @read_lock_timeout_seconds,
-                             write_lock_timeout_seconds: @write_lock_timeout_seconds)
+                             write_lock_timeout_seconds: @write_lock_timeout_seconds,
+                             cleanup_write_lock_timeout_seconds: @cleanup_write_lock_timeout_seconds)
       end
 
       def get_mail_store
