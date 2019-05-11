@@ -133,6 +133,7 @@ module RIMS
       #     process_num: 4
       #     process_queue_size: 20
       #     process_queue_polling_timeout_seconds: 0.1
+      #     process_send_io_polling_timeout_seconds: 0.1
       #     thread_num: 20
       #     thread_queue_size: 20
       #     thread_queue_polling_timeout_seconds: 0.1
@@ -474,7 +475,7 @@ module RIMS
       end
 
       def process_send_io_polling_timeout_seconds
-        0.1
+        @config.dig('server', 'process_send_io_polling_timeout_seconds') || 0.1
       end
 
       def thread_num
