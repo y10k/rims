@@ -119,9 +119,9 @@ module RIMS
 
     def self.write_lock_timeout_detach(first_timeout_seconds, detached_timeout_seconds, logger: Logger.new(STDOUT)) # yields: timeout_seconds
       begin
-        logger.debug('ready to detach write-lock timeout.')
+        logger.debug('ready to detach write-lock timeout.') if logger.debug?
         yield(first_timeout_seconds)
-        logger.debug('not detached write-lock timeout.')
+        logger.debug('not detached write-lock timeout.') if logger.debug?
         nil
       rescue WriteLockTimeoutError
         logger.warn($!)

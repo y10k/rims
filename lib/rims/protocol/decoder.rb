@@ -1516,7 +1516,7 @@ module RIMS
               res << "#{tag} OK IDLE terminated\r\n"
             else
               @logger.warn('unexpected client response and idle terminated.')
-              @logger.debug("unexpected client response data: #{line}")
+              @logger.debug("unexpected client response data: #{line}") if @logger.debug?
               res << "#{tag} BAD unexpected client response\r\n"
             end
           else
