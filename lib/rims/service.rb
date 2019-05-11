@@ -153,6 +153,8 @@ module RIMS
       #     send_buffer_limit_size: 16384
       #     read_polling_interval_seconds: 1
       #     command_wait_timeout_seconds: 1800
+      #   drb_services:
+      #     process_num: 4
       #   lock:
       #     read_lock_timeout_seconds: 30
       #     write_lock_timeout_seconds: 30
@@ -543,6 +545,10 @@ module RIMS
       def connection_limits
         Protocol::ConnectionLimits.new(@config.dig('connection', 'read_polling_interval_seconds') || 1,
                                        @config.dig('connection', 'command_wait_timeout_seconds') || 60 * 30)
+      end
+
+      def drb_process_num
+        @config.dig('drb_services', 'process_num') || 0
       end
 
       def read_lock_timeout_seconds

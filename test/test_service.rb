@@ -677,6 +677,19 @@ module RIMS::Test
       assert_equal(expected_values, limits.to_h)
     end
 
+    data('default' => [ 0, {} ],
+         'config'  => [ 4,
+                        { drb_services: {
+                            process_num: 4
+                          }
+                        }
+                      ])
+    def test_drb_process_num(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.drb_process_num)
+    end
+
     data('default'  => [ 30, {} ],
          'config'   => [ 15, { lock: { read_lock_timeout_seconds: 15 } } ],
          'compat'   => [ 15, { read_lock_timeout_seconds: 15 } ],
