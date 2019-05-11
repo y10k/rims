@@ -690,6 +690,21 @@ module RIMS::Test
       assert_equal(expected_value, @c.drb_process_num)
     end
 
+    data('default' => [ 100, {} ],
+         'config'  => [ 1024,
+                        { drb_services: {
+                            engine: {
+                              bulk_response_count: 1024
+                            }
+                          }
+                        }
+                      ])
+    def test_bulk_response_count(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.bulk_response_count)
+    end
+
     data('default'  => [ 30, {} ],
          'config'   => [ 15, { lock: { read_lock_timeout_seconds: 15 } } ],
          'compat'   => [ 15, { read_lock_timeout_seconds: 15 } ],

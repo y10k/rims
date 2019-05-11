@@ -155,6 +155,8 @@ module RIMS
       #     command_wait_timeout_seconds: 1800
       #   drb_services:
       #     process_num: 4
+      #     engine:
+      #       bulk_response_count: 100
       #   lock:
       #     read_lock_timeout_seconds: 30
       #     write_lock_timeout_seconds: 30
@@ -549,6 +551,10 @@ module RIMS
 
       def drb_process_num
         @config.dig('drb_services', 'process_num') || 0
+      end
+
+      def bulk_response_count
+        @config.dig('drb_services', 'engine', 'bulk_response_count') || 100
       end
 
       def read_lock_timeout_seconds
