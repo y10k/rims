@@ -768,12 +768,23 @@ module RIMS
       kvs_meta_open, kvs_meta_log = make_kvs_factory.call(@config.make_meta_key_value_store_params, 'meta')
       kvs_text_open, kvs_text_log = make_kvs_factory.call(@config.make_text_key_value_store_params, 'text')
       auth = @config.make_authentication
-      services = Riser::DRbServices.new(0)
+
+      drb_process_num = @config.drb_process_num
+      if (@config.process_num > 0) then
+        unless (drb_process_num > 0) then
+          drb_process_num = 1
+          logger.warn('the number of dRuby processes needs to be 1 or more when the number of server processes is 1 or more.')
+          logger.warn("drb_services parameter: changed process_num: #{@config.drb_process_num} -> #{drb_process_num}")
+        end
+      end
+
+      services = Riser::DRbServices.new(drb_process_num)
       services.add_sticky_process_service(:engine,
                                           Riser::ResourceSet.build{|builder|
                                             builder.at_create{|unique_user_id|
                                               mail_store = MailStore.build(unique_user_id, kvs_meta_open, kvs_text_open)
                                               Protocol::Decoder::Engine.new(unique_user_id, mail_store, logger,
+                                                                            bulk_response_count: @config.bulk_response_count,
                                                                             read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
                                                                             write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
                                                                             cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
@@ -882,6 +893,8 @@ module RIMS
         logger.info("connection parameter: send_buffer_limit_size=#{@config.send_buffer_limit_size}")
         logger.info("connection parameter: read_polling_interval_seconds=#{conn_limits.read_polling_interval_seconds}")
         logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
+        logger.info("drb_services parameter: process_num=#{drb_process_num}")
+        logger.info("drb_services engine parameter: bulk_response_count=#{@config.bulk_response_count}")
         logger.info("lock parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
         logger.info("lock parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
         logger.info("lock parameter: cleanup_write_lock_timeout_seconds=#{@config.cleanup_write_lock_timeout_seconds}")
