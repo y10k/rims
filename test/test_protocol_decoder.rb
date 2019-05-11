@@ -5308,8 +5308,7 @@ module RIMS::Test
       }
     end
 
-    # not test until the migration to the decoder engine is over.
-    def _test_untagged_server_response
+    def test_untagged_server_response
       imap_decode_engine_evaluate{
         assert_imap_command('LOGIN foo open_sesame') {|assert|
           assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.") if stream_test?
@@ -5512,8 +5511,7 @@ module RIMS::Test
       }
     end
 
-    # not test until the migration to the decoder engine is over.
-    def _test_untagged_server_response_stream
+    def test_untagged_server_response_stream
       use_imap_stream_decode_engine
       test_untagged_server_response
     end
