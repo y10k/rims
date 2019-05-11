@@ -1,3 +1,8 @@
+2019-05-10  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol/decoder.rb: mail store holder is replaced by
+	decoder engine.
+
 2019-05-08  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/decoder.rb: decoder engine for dRuby services
