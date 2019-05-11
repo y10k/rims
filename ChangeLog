@@ -1,6 +1,6 @@
 2019-05-11  TOKI Yoshinori  <toki@freedom.ne.jp>
 
-	* lib/rims/mail_store.rb, lib/rims/pool.rb: osoleted mail store
+	* lib/rims/mail_store.rb, lib/rims/pool.rb: obsoleted mail store
 	holder. obsoleted mail store pool. obsoleted generic object pool.
 
 2019-05-10  TOKI Yoshinori  <toki@freedom.ne.jp>

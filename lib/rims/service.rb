@@ -888,7 +888,7 @@ module RIMS
       server.at_stop{|stop_state|
         case (stop_state)
         when :graceful
-          logger.info('autologout mmediately.')
+          logger.info('autologout immediately.')
           conn_limits.command_wait_timeout_seconds = 0
         when :forced
           logger.info('forced shutdown.')
