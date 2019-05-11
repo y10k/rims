@@ -565,6 +565,14 @@ module RIMS::Test
       assert_equal(expected_value, @c.accept_polling_timeout_seconds)
     end
 
+    data('default' => [ 0, {} ],
+         'config'  => [ 4, { server: { process_num: 4 } } ])
+    def test_process_num(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.process_num)
+    end
+
     data('default' => [ 20, {} ],
          'config'  => [ 30, { server: { thread_num: 30 } } ])
     def test_thread_num(data)
