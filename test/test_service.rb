@@ -574,6 +574,14 @@ module RIMS::Test
     end
 
     data('default' => [ 20, {} ],
+         'config'  => [ 30, { server: { process_queue_size: 30 } } ])
+    def test_process_queue_size(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.process_queue_size)
+    end
+
+    data('default' => [ 20, {} ],
          'config'  => [ 30, { server: { thread_num: 30 } } ])
     def test_thread_num(data)
       expected_value, config = data
