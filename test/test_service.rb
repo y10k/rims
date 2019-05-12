@@ -738,10 +738,21 @@ module RIMS::Test
     end
 
     data('default'  => [ 30, {} ],
-         'config'   => [ 15, { lock: { read_lock_timeout_seconds: 15 } } ],
+         'config'   => [ 15,
+                         { drb_services: {
+                             engine: {
+                               read_lock_timeout_seconds: 15
+                             }
+                           }
+                         }
+                       ],
          'compat'   => [ 15, { read_lock_timeout_seconds: 15 } ],
          'priority' => [ 15,
-                         { lock: { read_lock_timeout_seconds: 15 },
+                         { drb_services: {
+                             engine: {
+                               read_lock_timeout_seconds: 15
+                             }
+                           },
                            read_lock_timeout_seconds: 20
                          }
                        ])
@@ -752,10 +763,21 @@ module RIMS::Test
     end
 
     data('default'  => [ 30, {} ],
-         'config'   => [ 15, { lock: { write_lock_timeout_seconds: 15 } } ],
+         'config'   => [ 15,
+                         { drb_services: {
+                             engine: {
+                               write_lock_timeout_seconds: 15
+                             }
+                           }
+                         }
+                       ],
          'compat'   => [ 15, { write_lock_timeout_seconds: 15 } ],
          'priority' => [ 15,
-                         { lock: { write_lock_timeout_seconds: 15 },
+                         { drb_services: {
+                             engine: {
+                               write_lock_timeout_seconds: 15
+                             }
+                           },
                            write_lock_timeout_seconds: 20,
                          }
                        ])
@@ -766,10 +788,21 @@ module RIMS::Test
     end
 
     data('default'  => [ 1, {} ],
-         'config'   => [ 3, { lock: { cleanup_write_lock_timeout_seconds: 3 } } ],
+         'config'   => [ 3,
+                         { drb_services: {
+                             engine: {
+                               cleanup_write_lock_timeout_seconds: 3
+                             }
+                           }
+                         }
+                       ],
          'compat'   => [ 3, { cleanup_write_lock_timeout_seconds: 3 } ],
          'priority' => [ 3,
-                         { lock: { cleanup_write_lock_timeout_seconds: 3 },
+                         { drb_services: {
+                             engine: {
+                               cleanup_write_lock_timeout_seconds: 3
+                             }
+                           },
                            cleanup_write_lock_timeout_seconds: 5
                          }
                        ])

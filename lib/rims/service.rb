@@ -161,10 +161,9 @@ module RIMS
       #     process_num: 4
       #     engine:
       #       bulk_response_count: 100
-      #   lock:
-      #     read_lock_timeout_seconds: 30
-      #     write_lock_timeout_seconds: 30
-      #     cleanup_write_lock_timeout_seconds: 1
+      #       read_lock_timeout_seconds: 30
+      #       write_lock_timeout_seconds: 30
+      #       cleanup_write_lock_timeout_seconds: 1
       #   storage:
       #     meta_key_value_store:
       #       type: qdbm_depot
@@ -561,19 +560,19 @@ module RIMS
       end
 
       def read_lock_timeout_seconds
-        @config.dig('lock', 'read_lock_timeout_seconds') ||
+        @config.dig('drb_services', 'engine', 'read_lock_timeout_seconds') ||
           @config.dig('read_lock_timeout_seconds') || # for backward compatibility
           30
       end
 
       def write_lock_timeout_seconds
-        @config.dig('lock', 'write_lock_timeout_seconds') ||
+        @config.dig('drb_services', 'engine', 'write_lock_timeout_seconds') ||
           @config.dig('write_lock_timeout_seconds') || # for backward compatibility
           30
       end
 
       def cleanup_write_lock_timeout_seconds
-        @config.dig('lock', 'cleanup_write_lock_timeout_seconds') ||
+        @config.dig('drb_services', 'engine', 'cleanup_write_lock_timeout_seconds') ||
           @config.dig('cleanup_write_lock_timeout_seconds') || # for backward compatibility
           1
       end

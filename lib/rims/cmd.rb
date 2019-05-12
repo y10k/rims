@@ -488,8 +488,10 @@ module RIMS
                  Float
                 ) do |seconds|
         build.chain{|c|
-          c.load(lock: {
-                   read_lock_timeout_seconds: seconds
+          c.load(drb_services: {
+                   engine: {
+                     read_lock_timeout_seconds: seconds
+                   }
                  })
         }
       end
@@ -497,8 +499,10 @@ module RIMS
                  Float
                 ) do |seconds|
         build.chain{|c|
-          c.load(lock: {
-                   write_lock_timeout_seconds: seconds
+          c.load(drb_services: {
+                   engine: {
+                     write_lock_timeout_seconds: seconds
+                   }
                  })
         }
       end
@@ -506,8 +510,10 @@ module RIMS
                  Float
                 ) do |seconds|
         build.chain{|c|
-          c.load(lock: {
-                   cleanup_write_lock_timeout_seconds: seconds
+          c.load(drb_services: {
+                   engine: {
+                     cleanup_write_lock_timeout_seconds: seconds
+                   }
                  })
         }
       end
