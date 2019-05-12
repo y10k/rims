@@ -377,6 +377,40 @@ module RIMS
                  })
         }
       end
+      options.on('--process-num=NUMBER',
+                 Integer
+                ) do |num|
+        build.chain{|c|
+          c.load(server: {
+                   process_num: num
+                 })
+        }
+      end
+      options.on('--process-queue-size=SIZE',
+                 Integer
+                ) do |size|
+        build.chain{|c|
+          c.load(server: {
+                   process_queue_size: size
+                 })
+        }
+      end
+      options.on('--process-queue-polling-timeout=SECONDS',
+                 Float) do |seconds|
+        build.chain{|c|
+          c.load(server: {
+                   process_queue_polling_timeout_seconds: seconds
+                 })
+        }
+      end
+      options.on('--process-send-io-polling-timeout=SECONDS',
+                 Float) do |seconds|
+        build.chain{|c|
+          c.load(server: {
+                   process_send_io_polling_timeout_seconds: seconds
+                 })
+        }
+      end
       options.on('--thread-num=NUMBER',
                  Integer
                 ) do |num|
@@ -428,6 +462,25 @@ module RIMS
         build.chain{|c|
           c.load(connection: {
                    command_wait_timeout_seconds: seconds
+                 })
+        }
+      end
+      options.on('--drb-process-num=NUMBER',
+                 Integer
+                ) do |num|
+        build.chain{|c|
+          c.load(drb_services: {
+                   process_num: num
+                 })
+        }
+      end
+      options.on('--bulk-response-count=COUNT',
+                 Integer) do |count|
+        build.chain{|c|
+          c.load(drb_services: {
+                   engine: {
+                     bulk_response_count: count
+                   }
                  })
         }
       end
