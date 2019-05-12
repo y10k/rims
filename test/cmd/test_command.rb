@@ -64,77 +64,102 @@ module RIMS::Test
       assert_equal('', stderr)
     end
 
-    data('-f'                               => [ %W[ -f #{BASE_DIR}/config.yml ] ],
-         '--config-yaml'                    => [ %W[ --config-yaml #{BASE_DIR}/config.yml ] ],
-         '-r'                               => [ %W[ -f #{BASE_DIR}/config.yml -r prime ] ],
-         '--required-feature'               => [ %W[ -f #{BASE_DIR}/config.yml --required-feature=prime ] ],
-         '-d,--passwd-file'                 => [ %W[ -d #{BASE_DIR} --passwd-file=plain:passwd.yml ] ],
-         '--base-dir,--passwd-file'         => [ %W[ --base-dir=#{BASE_DIR} --passwd-file=plain:passwd.yml ] ],
-         '--log-file'                       => [ %W[ -f #{BASE_DIR}/config.yml --log-file=server.log ] ],
-         '-l'                               => [ %W[ -f #{BASE_DIR}/config.yml -l debug ] ],
-         '--log-level'                      => [ %W[ -f #{BASE_DIR}/config.yml --log-level=debug ] ],
-         '--log-shift-age'                  => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-age=10 ] ],
-         '--log-shift-daily'                => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-age-daily ] ],
-         '--log-shift-weekly'               => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-age-weekly ] ],
-         '--log-shift-monthly'              => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-age-monthly ] ],
-         '--log-shift-size'                 => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-size=1048576 ] ],
-         '-v'                               => [ %W[ -f #{BASE_DIR}/config.yml -v debug ] ],
-         '--log-stdout'                     => [ %W[ -f #{BASE_DIR}/config.yml --log-stdout=debug ] ],
-         '--protocol-log-file'              => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-file=imap.log ] ],
-         '-p'                               => [ %W[ -f #{BASE_DIR}/config.yml -p info ] ],
-         '--protocol-log-level'             => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-level=info ] ],
-         '--protocol-log-shift-age'         => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-age=10 ] ],
-         '--protocol-log-shift-age-daily'   => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-age-daily ] ],
-         '--protocol-log-shift-age-weekly'  => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-age-weekly ] ],
-         '--protocol-log-shift-age-monthly' => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-age-monthly ] ],
-         '--protocol-log-shift-size'        => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-size=1048576 ] ],
-         '--daemonize'                      => [ %W[ -f #{BASE_DIR}/config.yml --daemonize ] ],
-         '--no-daemonize'                   => [ %W[ -f #{BASE_DIR}/config.yml --no-daemonize ] ],
-         '--daemon-debug'                   => [ %W[ -f #{BASE_DIR}/config.yml --daemon-debug ] ],
-         '--no-daemon-debug'                => [ %W[ -f #{BASE_DIR}/config.yml --no-daemon-debug ] ],
-         '--status-file'                    => [ %W[ -f #{BASE_DIR}/config.yml --status-file=status.yml ] ],
-         '--privilege-user'                 => [ %W[ -f #{BASE_DIR}/config.yml --privilege-user=#{Process::UID.eid} ] ],
-         '--privilege-group'                => [ %W[ -f #{BASE_DIR}/config.yml --privilege-group=#{Process::GID.eid} ] ],
-         '-s'                               => [ %W[ -f #{BASE_DIR}/config.yml -s localhost:1430 ] ],
-         '--listen'                         => [ %W[ -f #{BASE_DIR}/config.yml --listen=localhost:1430 ] ],
-         '--accept-polling-timeout'         => [ %W[ -f #{BASE_DIR}/config.yml --accept-polling-timeout=0.1 ] ],
-         '--process-num'                                   => [ %W[ -f #{BASE_DIR}/config.yml --process-num=4 ] ],
-         '--process-num,--process-queue-size'              => [ %W[ -f #{BASE_DIR}/config.yml --process-num=4 --process-queue-size=64 ] ],
-         '--process-num,--process-queue-polling-timeout'   => [ %W[ -f #{BASE_DIR}/config.yml --process-num=4 --process-queue-polling-timeout=0.1 ] ],
-         '--process-num,--process-send-io-polling-timeout' => [ %W[ -f #{BASE_DIR}/config.yml --process-num=4 --process-send-io-polling-timeout=0.1 ] ],
-         '--thread-num'                     => [ %W[ -f #{BASE_DIR}/config.yml --thread-num=4 ] ],
-         '--thread-queue-size'              => [ %W[ -f #{BASE_DIR}/config.yml --thread-queue-size=128 ] ],
-         '--thread-queue-polling-timeout'   => [ %W[ -f #{BASE_DIR}/config.yml --thread-queue-polling-timeout=0.1 ] ],
-         '--send-buffer-limit'              => [ %W[ -f #{BASE_DIR}/config.yml --send-buffer-limit=131072 ] ],
-         '--read-polling-interval'          => [ %W[ -f #{BASE_DIR}/config.yml --read-polling-interval=5 ] ],
-         '--command-wait-timeout'           => [ %W[ -f #{BASE_DIR}/config.yml --command-wait-timeout=3600 ] ],
-         '--drb-process-num'                => [ %W[ -f #{BASE_DIR}/config.yml --drb-process-num=4 ] ],
-         '--bulk-response-count'            => [ %W[ -f #{BASE_DIR}/config.yml --bulk-response-count=128 ] ],
-         '--read-lock-timeout'              => [ %W[ -f #{BASE_DIR}/config.yml --read-lock-timeout=10 ] ],
-         '--write-lock-timeout'             => [ %W[ -f #{BASE_DIR}/config.yml --write-lock-timeout=10 ] ],
-         '--clenup-write-lock-timeout'      => [ %W[ -f #{BASE_DIR}/config.yml --write-lock-timeout=5 ] ],
-         '--meta-kvs-type'                  => [ %W[ -f #{BASE_DIR}/config.yml --meta-kvs-type=gdbm ] ],
-         '--meta-kvs-config'                => [ %W[ -f #{BASE_DIR}/config.yml --meta-kvs-config={} ] ],
-         '--use-meta-kvs-checksum'          => [ %W[ -f #{BASE_DIR}/config.yml --use-meta-kvs-checksum ] ],
-         '--no-use-meta-kvs-checksum'       => [ %W[ -f #{BASE_DIR}/config.yml --no-use-meta-kvs-checksum ] ],
-         '--text-kvs-type'                  => [ %W[ -f #{BASE_DIR}/config.yml --text-kvs-type=gdbm ] ],
-         '--text-kvs-config'                => [ %W[ -f #{BASE_DIR}/config.yml --text-kvs-config={} ] ],
-         '--use-text-kvs-checksum'          => [ %W[ -f #{BASE_DIR}/config.yml --use-text-kvs-checksum ] ],
-         '--no-use-text-kvs-checksum'       => [ %W[ -f #{BASE_DIR}/config.yml --no-use-text-kvs-checksum ] ],
-         '--auth-hostname'                  => [ %W[ -f #{BASE_DIR}/config.yml --auth-hostname=imap.example.com ] ],
-         '--passwd-config'                  => [ %W[ -d #{BASE_DIR} --passwd-config=plain:[{"user":"foo","pass":"foo"}] ] ],
-         '--mail-delivery-user'             => [ %W[ -f #{BASE_DIR}/config.yml --mail-delivery-user=postman ] ],
+    data(
+      # base:
+      '-f'                               => [ %W[ -f #{BASE_DIR}/config.yml ] ],
+      '--config-yaml'                    => [ %W[ --config-yaml #{BASE_DIR}/config.yml ] ],
+      '-r'                               => [ %W[ -f #{BASE_DIR}/config.yml -r prime ] ],
+      '--required-feature'               => [ %W[ -f #{BASE_DIR}/config.yml --required-feature=prime ] ],
+      '-d,--passwd-file'                 => [ %W[ -d #{BASE_DIR} --passwd-file=plain:passwd.yml ] ],
+      '--base-dir,--passwd-file'         => [ %W[ --base-dir=#{BASE_DIR} --passwd-file=plain:passwd.yml ] ],
 
-         # deplicated options
-         'deplicated:--imap-host'           => [ %W[ -f #{BASE_DIR}/config.yml --imap-host=localhost ], true ],
-         'deplicated:--imap-port'           => [ %W[ -f #{BASE_DIR}/config.yml --imap-port=1430      ], true ],
-         'deplicated:--ip-addr'             => [ %W[ -f #{BASE_DIR}/config.yml --ip-addr=0.0.0.0     ], true ],
-         'deplicated:--ip-port'             => [ %W[ -f #{BASE_DIR}/config.yml --ip-port=1430        ], true ],
-         'deplicated:--kvs-type'            => [ %W[ -f #{BASE_DIR}/config.yml --kvs-type=gdbm       ], true ],
-         'deplicated:--use-kvs-cksum'       => [ %W[ -f #{BASE_DIR}/config.yml --use-kvs-cksum       ], true ],
-         'deplicated:--no-use-kvs-cksum'    => [ %W[ -f #{BASE_DIR}/config.yml --no-use-kvs-cksum    ], true ],
-         'deplicated:-u,-w'                 => [ %W[ -d #{BASE_DIR} -u foo -w foo                    ], true ],
-         'deplicated:--username,--password' => [ %W[ -d #{BASE_DIR} --username=foo --password=foo    ], true ])
+      # logging file:
+      '--log-file'                       => [ %W[ -f #{BASE_DIR}/config.yml --log-file=server.log ] ],
+      '-l'                               => [ %W[ -f #{BASE_DIR}/config.yml -l debug ] ],
+      '--log-level'                      => [ %W[ -f #{BASE_DIR}/config.yml --log-level=debug ] ],
+      '--log-shift-age'                  => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-age=10 ] ],
+      '--log-shift-daily'                => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-age-daily ] ],
+      '--log-shift-weekly'               => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-age-weekly ] ],
+      '--log-shift-monthly'              => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-age-monthly ] ],
+      '--log-shift-size'                 => [ %W[ -f #{BASE_DIR}/config.yml --log-shift-size=1048576 ] ],
+
+      # logging stdout:
+      '-v'                               => [ %W[ -f #{BASE_DIR}/config.yml -v debug ] ],
+      '--log-stdout'                     => [ %W[ -f #{BASE_DIR}/config.yml --log-stdout=debug ] ],
+
+      # logging protocol:
+      '--protocol-log-file'              => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-file=imap.log ] ],
+      '-p'                               => [ %W[ -f #{BASE_DIR}/config.yml -p info ] ],
+      '--protocol-log-level'             => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-level=info ] ],
+      '--protocol-log-shift-age'         => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-age=10 ] ],
+      '--protocol-log-shift-age-daily'   => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-age-daily ] ],
+      '--protocol-log-shift-age-weekly'  => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-age-weekly ] ],
+      '--protocol-log-shift-age-monthly' => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-age-monthly ] ],
+      '--protocol-log-shift-size'        => [ %W[ -f #{BASE_DIR}/config.yml --protocol-log-shift-size=1048576 ] ],
+
+      # daemon:
+      '--daemonize'                      => [ %W[ -f #{BASE_DIR}/config.yml --daemonize ] ],
+      '--no-daemonize'                   => [ %W[ -f #{BASE_DIR}/config.yml --no-daemonize ] ],
+      '--daemon-debug'                   => [ %W[ -f #{BASE_DIR}/config.yml --daemon-debug ] ],
+      '--no-daemon-debug'                => [ %W[ -f #{BASE_DIR}/config.yml --no-daemon-debug ] ],
+      '--status-file'                    => [ %W[ -f #{BASE_DIR}/config.yml --status-file=status.yml ] ],
+      '--privilege-user'                 => [ %W[ -f #{BASE_DIR}/config.yml --privilege-user=#{Process::UID.eid} ] ],
+      '--privilege-group'                => [ %W[ -f #{BASE_DIR}/config.yml --privilege-group=#{Process::GID.eid} ] ],
+
+      # server:
+      '-s'                                              => [ %W[ -f #{BASE_DIR}/config.yml -s localhost:1430 ] ],
+      '--listen'                                        => [ %W[ -f #{BASE_DIR}/config.yml --listen=localhost:1430 ] ],
+      '--accept-polling-timeout'                        => [ %W[ -f #{BASE_DIR}/config.yml --accept-polling-timeout=0.1 ] ],
+      '--process-num'                                   => [ %W[ -f #{BASE_DIR}/config.yml --process-num=4 ] ],
+      '--process-num,--process-queue-size'              => [ %W[ -f #{BASE_DIR}/config.yml --process-num=4 --process-queue-size=64 ] ],
+      '--process-num,--process-queue-polling-timeout'   => [ %W[ -f #{BASE_DIR}/config.yml --process-num=4 --process-queue-polling-timeout=0.1 ] ],
+      '--process-num,--process-send-io-polling-timeout' => [ %W[ -f #{BASE_DIR}/config.yml --process-num=4 --process-send-io-polling-timeout=0.1 ] ],
+      '--thread-num'                                    => [ %W[ -f #{BASE_DIR}/config.yml --thread-num=4 ] ],
+      '--thread-queue-size'                             => [ %W[ -f #{BASE_DIR}/config.yml --thread-queue-size=128 ] ],
+      '--thread-queue-polling-timeout'                  => [ %W[ -f #{BASE_DIR}/config.yml --thread-queue-polling-timeout=0.1 ] ],
+
+      # connection:
+      '--send-buffer-limit'              => [ %W[ -f #{BASE_DIR}/config.yml --send-buffer-limit=131072 ] ],
+      '--read-polling-interval'          => [ %W[ -f #{BASE_DIR}/config.yml --read-polling-interval=5 ] ],
+      '--command-wait-timeout'           => [ %W[ -f #{BASE_DIR}/config.yml --command-wait-timeout=3600 ] ],
+
+      # drb_services:
+      '--drb-process-num'                => [ %W[ -f #{BASE_DIR}/config.yml --drb-process-num=4 ] ],
+
+      # drb_services engine:
+      '--bulk-response-count'            => [ %W[ -f #{BASE_DIR}/config.yml --bulk-response-count=128 ] ],
+      '--read-lock-timeout'              => [ %W[ -f #{BASE_DIR}/config.yml --read-lock-timeout=10 ] ],
+      '--write-lock-timeout'             => [ %W[ -f #{BASE_DIR}/config.yml --write-lock-timeout=10 ] ],
+      '--clenup-write-lock-timeout'      => [ %W[ -f #{BASE_DIR}/config.yml --write-lock-timeout=5 ] ],
+
+      # storage meta_key_value_store:
+      '--meta-kvs-type'                  => [ %W[ -f #{BASE_DIR}/config.yml --meta-kvs-type=gdbm ] ],
+      '--meta-kvs-config'                => [ %W[ -f #{BASE_DIR}/config.yml --meta-kvs-config={} ] ],
+      '--use-meta-kvs-checksum'          => [ %W[ -f #{BASE_DIR}/config.yml --use-meta-kvs-checksum ] ],
+      '--no-use-meta-kvs-checksum'       => [ %W[ -f #{BASE_DIR}/config.yml --no-use-meta-kvs-checksum ] ],
+
+      # storage text_key_value_store:
+      '--text-kvs-type'                  => [ %W[ -f #{BASE_DIR}/config.yml --text-kvs-type=gdbm ] ],
+      '--text-kvs-config'                => [ %W[ -f #{BASE_DIR}/config.yml --text-kvs-config={} ] ],
+      '--use-text-kvs-checksum'          => [ %W[ -f #{BASE_DIR}/config.yml --use-text-kvs-checksum ] ],
+      '--no-use-text-kvs-checksum'       => [ %W[ -f #{BASE_DIR}/config.yml --no-use-text-kvs-checksum ] ],
+
+      # authentication:
+      '--auth-hostname'                  => [ %W[ -f #{BASE_DIR}/config.yml --auth-hostname=imap.example.com ] ],
+      '--passwd-config'                  => [ %W[ -d #{BASE_DIR} --passwd-config=plain:[{"user":"foo","pass":"foo"}] ] ],
+      '--mail-delivery-user'             => [ %W[ -f #{BASE_DIR}/config.yml --mail-delivery-user=postman ] ],
+
+      # deplicated options
+      'deplicated:--imap-host'           => [ %W[ -f #{BASE_DIR}/config.yml --imap-host=localhost ], true ],
+      'deplicated:--imap-port'           => [ %W[ -f #{BASE_DIR}/config.yml --imap-port=1430      ], true ],
+      'deplicated:--ip-addr'             => [ %W[ -f #{BASE_DIR}/config.yml --ip-addr=0.0.0.0     ], true ],
+      'deplicated:--ip-port'             => [ %W[ -f #{BASE_DIR}/config.yml --ip-port=1430        ], true ],
+      'deplicated:--kvs-type'            => [ %W[ -f #{BASE_DIR}/config.yml --kvs-type=gdbm       ], true ],
+      'deplicated:--use-kvs-cksum'       => [ %W[ -f #{BASE_DIR}/config.yml --use-kvs-cksum       ], true ],
+      'deplicated:--no-use-kvs-cksum'    => [ %W[ -f #{BASE_DIR}/config.yml --no-use-kvs-cksum    ], true ],
+      'deplicated:-u,-w'                 => [ %W[ -d #{BASE_DIR} -u foo -w foo                    ], true ],
+      'deplicated:--username,--password' => [ %W[ -d #{BASE_DIR} --username=foo --password=foo    ], true ]
+    )
     def test_server(data)
       options, deplicated = data
 
