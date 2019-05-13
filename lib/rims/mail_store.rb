@@ -152,7 +152,7 @@ module RIMS
 
     def add_mbox(name)
       transaction{
-        name = 'INBOX' if (name =~ /\AINBOX\z/i)
+        name = 'INBOX' if (name =~ /\A INBOX \z/xi)
         name = name.b
 
         mbox_id = @meta_db.add_mbox(name)
@@ -193,7 +193,7 @@ module RIMS
         old_name = @meta_db.mbox_name(mbox_id) or raise "not found a mailbox: #{mbox_id}."
         old_name = old_name.dup.force_encoding('utf-8')
 
-        new_name = 'INBOX' if (new_name =~ /\AINBOX\z/i)
+        new_name = 'INBOX' if (new_name =~ /\A INBOX \z/xi)
         @meta_db.rename_mbox(mbox_id, new_name.b)
 
         @meta_db.cnum_succ!
@@ -209,7 +209,7 @@ module RIMS
     end
 
     def mbox_id(mbox_name)
-      mbox_name = 'INBOX' if (mbox_name =~ /\AINBOX\z/i)
+      mbox_name = 'INBOX' if (mbox_name =~ /\A INBOX \z/xi)
       @meta_db.mbox_id(mbox_name.b)
     end
 

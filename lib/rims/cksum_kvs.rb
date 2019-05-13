@@ -10,7 +10,7 @@ module RIMS
 
     def md5_cksum_parse(key, s)
       if (s) then
-        s =~ /\Amd5 (\S+?)\n/ or raise "checksum format error at key: #{key}"
+        s =~ /\A md5 \s (\S+?) \n/x or raise "checksum format error at key: #{key}"
         md5_cksum = $1
         value = $'
         if (Digest::MD5.hexdigest(value) != md5_cksum) then

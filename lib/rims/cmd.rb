@@ -25,7 +25,7 @@ module RIMS
     def self.command_function(method_name, description)
       module_function(method_name)
       method_name = method_name.to_s
-      unless (method_name =~ /^cmd_/) then
+      unless (method_name =~ /\A cmd_/x) then
         raise "invalid command function name: #{method_name}"
       end
       cmd_name = $'.gsub(/_/, '-')
@@ -62,7 +62,7 @@ module RIMS
       w = CMDs.keys.map{|k| k.length }.max + 4
       fmt = "    %- #{w}s%s"
       CMDs.each do |cmd_name, cmd_entry|
-        if ((! show_debug_command) && (cmd_name =~ /^debug/)) then
+        if ((! show_debug_command) && (cmd_name =~ /\A debug/x)) then
           next
         end
         puts format(fmt, cmd_name, cmd_entry[:description])

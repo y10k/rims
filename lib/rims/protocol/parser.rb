@@ -884,7 +884,7 @@ module RIMS
           section_text = nil
           section_index_list = []
         else
-          if (body.section_list[0] =~ /\A(?<index>\d+(?:\.\d+)*)(?:\.(?<text>.+))?\z/) then
+          if (body.section_list[0] =~ /\A (?<index>\d+(?:\.\d+)*) (?:\.(?<text>.+))? \z/x) then
             section_text = $~[:text]
             section_index_list = $~[:index].split(/\./).map{|i| i.to_i }
           else
