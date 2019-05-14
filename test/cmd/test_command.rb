@@ -1017,6 +1017,41 @@ Hello world.
       end
       assert_equal(0, status.exitstatus)
     end
+
+    def test_system(use_ssl: false)
+      run_server(use_ssl: use_ssl) {|imap|
+        imap.noop
+        assert_equal('OK', imap.greeting.name)
+        assert_equal("RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.", imap.greeting.data.text)
+        assert_equal(%w[ IMAP4REV1 UIDPLUS IDLE AUTH=PLAIN AUTH=CRAM-MD5 ], imap.capability)
+
+        imap_connect(use_ssl) {|imap_auth_plain|
+          imap_auth_plain.authenticate('PLAIN', 'foo', 'foo')
+          imap_auth_plain.logout
+        }
+
+        imap_connect(use_ssl) {|imap_auth_cram_md5|
+          imap_auth_cram_md5.authenticate('CRAM-MD5', 'foo', 'foo')
+          imap_auth_cram_md5.logout
+        }
+
+        imap.login('foo', 'foo')
+        imap.noop
+        assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' } ], imap.list('', '*').map(&:to_h))
+        assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' } ], imap.lsub('', '*').map(&:to_h))
+        assert_equal({ 'MESSAGES'    => 0,
+                       'RECENT'      => 0,
+                       'UNSEEN'      => 0,
+                       'UIDNEXT'     => 1,
+                       'UIDVALIDITY' => 1
+                     },
+                     imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+      }
+    end
+
+    def test_system_ssl
+      test_system(use_ssl: true)
+    end
   end
 end
 
