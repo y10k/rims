@@ -420,6 +420,12 @@ module RIMS::Test
           Process.kill(:TERM, wait_thread.pid)
           stdout_thread.join if stdout_thread
           stderr_thread.join if stderr_thread
+          if ($DEBUG) then
+            p :rims_log
+            puts((@base_dir + 'rims.log').read)
+            p :protocol_log
+            puts((@base_dir + 'protocol.log').read)
+          end
         end
 
         server_status = wait_thread.value
