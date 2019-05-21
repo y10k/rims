@@ -169,6 +169,9 @@ Reply-To: foo@nonet.com
 To: alice@test.com, bob <bob@test.com>
 Cc: Kate <kate@test.com>
 Bcc: foo@nonet.com
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 In-Reply-To: <20131106081723.5KJU1774292@smtp.test.com>
 Message-Id: <20131107214750.445A1255B9F@smtp.nonet.com>
 
