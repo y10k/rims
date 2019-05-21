@@ -1125,17 +1125,50 @@ Hello world.
         assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' } ],
                      imap.list('', '*').map(&:to_h))
 
-        make_mail_simple
-        imap.append('INBOX', @simple_mail.raw_source, [ :Flagged ], @simple_mail.date)
-
-        status['MESSAGES'] += 1
-        status['RECENT']   += 1
-        status['UNSEEN']   += 1
-        status['UIDNEXT']  += 1
-        assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
-
         # IMAP commands for Selected State
         assert_no_response_selected_state_imap_commands.call(/not selected/)
+
+        append_inbox = lambda{|message, *optional|
+          imap.append('INBOX', message, *optional)
+          if (optional[0] && (optional[0].is_a? Array)) then
+            flags = optional[0]
+          else
+            flags = []
+          end
+          status['MESSAGES'] += 1
+          status['RECENT']   += 1
+          status['UNSEEN']   += 1 unless (flags.include? :Seen)
+          status['UIDNEXT']  += 1
+          assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+        }
+
+        # message UID offset
+        uid_offset = 6
+        uid_offset.times do
+          append_inbox.call('', [ :Deleted ])
+        end
+        imap.select('INBOX')
+        assert_equal((1..uid_offset).to_a.reverse, imap.expunge)
+        imap.close
+        status['MESSAGES'] -= uid_offset
+        status['RECENT']    = 0
+        status['UNSEEN']   -= uid_offset
+        assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+        make_mail_simple
+        append_inbox.call(@simple_mail.raw_source, [ :Answered, :Flagged ], @simple_mail.date)
+
+        # reset recent flag
+        imap.select('INBOX')
+        imap.close
+        status['RECENT'] = 0
+        assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+        make_mail_multipart
+        append_inbox.call(@mpart_mail.raw_source, [ :Draft, :Seen ], @mpart_mail.date)
+
+        make_mail_mime_subject
+        append_inbox.call(@mime_subject_mail.raw_source, @mime_subject_mail.date)
 
         # State: Authenticated -> Selected
         imap.examine('INBOX')
@@ -1149,7 +1182,6 @@ Hello world.
 
         # State: Authenticated <- Selected
         imap.close
-
         assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
 
         # State: Authenticated -> Selected
@@ -1164,7 +1196,6 @@ Hello world.
 
         # State: Authenticated <- Selected
         imap.close
-
         status['RECENT'] = 0
         assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
 
