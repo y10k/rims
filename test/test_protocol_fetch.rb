@@ -585,7 +585,7 @@ module RIMS::Test
                          '((NIL NIL "alice" "test.com") ("bob" NIL "bob" "test.com"))', # To
                          '(("Kate" NIL "kate" "test.com"))',        # Cc
                          '((NIL NIL "foo" "nonet.com"))',           # Bcc
-                         '"<20131106081723.5KJU1774292@smtp.testt.com>"',# In-Reply-To
+                         '"<20131106081723.5KJU1774292@smtp.test.com>"', # In-Reply-To
                          '"<20131107214750.445A1255B9F@smtp.nonet.com>"' # Message-Id
                        ]
                      ])
