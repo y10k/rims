@@ -416,12 +416,19 @@ module RIMS
       private :parse_or
 
       def parse_text(search_string)
-        search = proc{|text| string_include?(search_string, text) }
+        search_text = proc{|message_text| string_include?(search_string, message_text) }
+        search_mail = proc{|mail|
+          if (mail.multipart?) then
+            search_text.call(mail.header.raw_source) || mail.parts.any?{|m| search_mail.call(m) }
+          else
+            body_text = mail_body_text(mail)
+            search_text.call(mail.header.raw_source) || (body_text && search_text.call(body_text))
+          end
+        }
         proc{|next_cond|
           proc{|msg|
             mail = get_mail(msg)
-            body_txt = mail_body_text(mail)
-            (search.call(mail.header.raw_source) || (body_txt && search.call(body_txt))) && next_cond.call(msg)
+            search_mail.call(mail) && next_cond.call(msg)
           }
         }
       end

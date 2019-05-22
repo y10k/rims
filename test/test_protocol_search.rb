@@ -6,6 +6,8 @@ require 'time'
 
 module RIMS::Test
   class ProtocolSearchParserTest < Test::Unit::TestCase
+    include ProtocolFetchMailSample
+
     def setup
       @kv_store = {}
       @kvs_open = proc{|path| RIMS::Hash_KeyValueStore.new(@kv_store[path] = {}) }
@@ -673,6 +675,30 @@ Content-Type: text/html
 
       assert_search_syntax_error([ 'TEXT' ], /need for a search string/)
       assert_search_syntax_error([ 'TEXT', [ :group, 'foo'] ], /search string expected as <String> but was/)
+    end
+
+    def test_parse_text_multipart
+      make_mail_multipart
+      make_search_parser{
+        add_msg(@mpart_mail.raw_source)
+        assert_msg_uid(1)
+      }
+
+      parse_search_key([ 'TEXT', 'Subject: multipart test' ]) {
+        assert_search_cond(0, true)
+      }
+      parse_search_key([ 'TEXT', 'Subject: inner multipart' ]) {
+        assert_search_cond(0, true)
+      }
+      parse_search_key([ 'TEXT', 'Hello world.' ]) {
+        assert_search_cond(0, true)
+      }
+      parse_search_key([ 'TEXT', 'HALO' ]) {
+        assert_search_cond(0, true)
+      }
+      parse_search_key([ 'TEXT', 'detarame' ]) {
+        assert_search_cond(0, false)
+      }
     end
 
     def test_parse_to
