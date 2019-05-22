@@ -324,7 +324,7 @@ module RIMS
         d = search_time.to_date
         proc{|next_cond|
           proc{|msg|
-            yield(@mail_store.msg_date(@folder.mbox_id, msg.uid).to_date, d) && next_cond.call(msg)
+            yield(@mail_store.msg_date(@folder.mbox_id, msg.uid).utc.to_date, d) && next_cond.call(msg)
           }
         }
       end
@@ -335,7 +335,7 @@ module RIMS
         proc{|next_cond|
           proc{|msg|
             if (mail_datetime = get_mail(msg).date) then
-              yield(mail_datetime.to_date, d) && next_cond.call(msg)
+              yield(mail_datetime.getutc.to_date, d) && next_cond.call(msg)
             else
               false
             end
