@@ -25,9 +25,11 @@ module RIMS
 
       for _name, value in field_pair_list
         value.strip!
+        name.freeze
+        value.freeze
       end
 
-      field_pair_list
+      field_pair_list.freeze
     end
     module_function :parse_header
 
@@ -46,12 +48,12 @@ module RIMS
           else
             value = $~[:token]
           end
-          params[name.downcase] = [ name, value ]
+          params[name.downcase] = [ name.freeze, value.freeze ].freeze
         end
 
-        [ main_type, sub_type, params ]
+        [ main_type.freeze, sub_type.freeze, params.freeze ].freeze
       else
-        [ 'application', 'octet-stream', {} ]
+        [ 'application'.freeze, 'octet-stream'.freeze, {}.freeze ].freeze
       end
     end
     module_function :parse_content_type
@@ -68,12 +70,13 @@ module RIMS
             part_txt.lstrip!
             part_txt.chomp!("\n")
             part_txt.chomp!("\r")
+            part_txt.freeze
           end
-          return part_list
+          return part_list.freeze
         end
       end
 
-      []
+      [].freeze
     end
     module_function :parse_multipart_body
 
@@ -119,7 +122,7 @@ module RIMS
         end
       end
 
-      dst_txt
+      dst_txt.freeze
     end
     module_function :unquote_phrase
 
@@ -138,9 +141,9 @@ module RIMS
         then
           display_name = $~[:display_name]
           group_list = $~[:group_list]
-          addr_list << [ nil, nil, unquote_phrase(display_name), nil ]
+          addr_list << [ nil, nil, unquote_phrase(display_name), nil ].freeze
           addr_list.concat(parse_mail_address_list(group_list))
-          addr_list << [ nil, nil, nil, nil ]
+          addr_list << [ nil, nil, nil, nil ].freeze
         elsif (src_txt.sub!(%r{
                  \A
                  \s*
@@ -149,7 +152,7 @@ module RIMS
                  ,?
                }x, ''))
         then
-          addr_list << [ nil, nil, $~[:local_part], $~[:domain] ]
+          addr_list << [ nil, nil, $~[:local_part].freeze, $~[:domain].freeze ].freeze
         elsif (src_txt.sub!(%r{
                  \A
                  \s*
@@ -174,13 +177,13 @@ module RIMS
           route = $~[:route]
           local_part = $~[:local_part]
           domain = $~[:domain]
-          addr_list << [ unquote_phrase(display_name), route, local_part, domain ]
+          addr_list << [ unquote_phrase(display_name), route.freeze, local_part.freeze, domain.freeze ].freeze
         else
           break
         end
       end
 
-      addr_list
+      addr_list.freeze
     end
     module_function :parse_mail_address_list
 
@@ -188,7 +191,7 @@ module RIMS
       include Enumerable
 
       def initialize(header_txt)
-        @raw_source = header_txt
+        @raw_source = header_txt.freeze
         @field_list = nil
         @field_map = nil
       end
@@ -197,14 +200,17 @@ module RIMS
 
       def setup_header
         if (@field_list.nil? || @field_map.nil?) then
-          @field_list = []
+          @field_list = RFC822.parse_header(@raw_source)
           @field_map = {}
-          for name, value in RFC822.parse_header(@raw_source)
-            @field_list << [ name, value ]
+          for name, value in @field_list
             key = name.downcase
             @field_map[key] = [] unless (@field_map.key? key)
             @field_map[key] << value
           end
+          @field_map.each_value do |value_list|
+            value_list.freeze
+          end
+          @field_map.freeze
           self
         end
       end
@@ -248,7 +254,7 @@ module RIMS
 
     class Body
       def initialize(body_txt)
-        @raw_source = body_txt
+        @raw_source = body_txt.freeze
       end
 
       attr_reader :raw_source
@@ -256,7 +262,7 @@ module RIMS
 
     class Message
       def initialize(msg_txt)
-        @raw_source = msg_txt
+        @raw_source = msg_txt.freeze
         @header = nil
         @body = nil
         @content_type = nil
@@ -371,9 +377,9 @@ module RIMS
           if (@parts.nil?) then
             if (boundary = self.boundary) then
               part_list = RFC822.parse_multipart_body(boundary, body.raw_source)
-              @parts = part_list.map{|msg_txt| Message.new(msg_txt) }
+              @parts = part_list.map{|msg_txt| Message.new(msg_txt) }.freeze
             else
-              @parts = []
+              @parts = [].freeze
             end
           end
           @parts
@@ -406,7 +412,7 @@ module RIMS
             end
           end
 
-          @date
+          @date.freeze
         end
       end
 
@@ -416,6 +422,7 @@ module RIMS
           addr_list = instance_variable_get(ivar_name)
           if (addr_list.nil?) then
             addr_list = header.field_value_list(field_name).map{|addr_list_str| RFC822.parse_mail_address_list(addr_list_str) }.inject(:+)
+            addr_list.freeze
             instance_variable_set(ivar_name, addr_list)
           end
           addr_list
