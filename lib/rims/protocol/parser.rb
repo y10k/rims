@@ -1031,7 +1031,7 @@ module RIMS
 
       def parse_bodystructure(msg_att_name)
         proc{|msg|
-          ''.b << msg_att_name << ' '.b << encode_list(get_bodystructure_data(get_mail(msg)))
+          ''.b << msg_att_name << ' '.b << encode_bodystructure(get_bodystructure_data(get_mail(msg)))
         }
       end
       private :parse_bodystructure
