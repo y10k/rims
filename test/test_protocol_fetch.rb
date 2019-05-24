@@ -910,6 +910,28 @@ module RIMS::Test
   class ProtocolFetchParserUtilsTest < Test::Unit::TestCase
     include ProtocolFetchMailSample
 
+    data('symbol'  => [ '(foo)',            [ :foo ] ],
+         'string'  => [ '("Hello world.")', [ 'Hello world.' ] ],
+         'integer' => [ '(128)',            [ 128 ] ],
+         'nil'     => [ '(NIL)',            [ nil ] ],
+         'array'   => [ '(())',             [ [] ] ],
+         'all'     => [ '(foo "Hello world." 128 NIL (bar "Good bye." 256 NIL))',
+                        [ :foo,
+                          'Hello world.',
+                          128,
+                          nil,
+                          [ :bar,
+                            'Good bye.',
+                            256,
+                            nil
+                          ]
+                        ]
+                      ])
+    def test_encode_list(data)
+      expected_value, array = data
+      assert_equal(expected_value, RIMS::Protocol::FetchParser::Utils.encode_list(array))
+    end
+
     def test_encode_header
       assert_equal("To: foo@nonet.org\r\n" +
                    "From: bar@nonet.org\r\n" +
