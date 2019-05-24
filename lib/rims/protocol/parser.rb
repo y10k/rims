@@ -655,25 +655,55 @@ module RIMS
 
     class FetchParser
       module Utils
+        def encode_value(object)
+          case (object)
+          when Symbol
+            object.to_s
+          when String
+            Protocol.quote(object)
+          when Integer
+            object.to_s
+          when NilClass
+            'NIL'.b
+          when Array
+            '('.b << object.map{|v| encode_value(v) }.join(' '.b) << ')'.b
+          else
+            raise "unknown value: #{object}"
+          end
+        end
+        module_function :encode_value
+
         def encode_list(array)
-          '('.b << array.map{|v|
-            case (v)
-            when Symbol
-              v.to_s
-            when String
-              Protocol.quote(v)
-            when Integer
-              v.to_s
-            when NilClass
-              'NIL'
-            when Array
-              encode_list(v)
-            else
-              raise "unknown value: #{v}"
-            end
-          }.join(' '.b) << ')'.b
+          unless (array.is_a? Array) then
+            raise TypeError, 'not a array type.'
+          end
+          encode_value(array)
         end
         module_function :encode_list
+
+        def encode_bodystructure(array)
+          if ((array.length > 0) && (array.first.is_a? Array)) then
+            s = '('.b
+            array = array.dup
+            while (object = array.shift)
+              case (object)
+              when Array
+                s << encode_bodystructure(object)
+              else
+                s << ' '.b << encode_value(object)
+              end
+            end
+            s << ')'.b
+          elsif ((array.length > 0) && (array.first.upcase == 'MESSAGE')) then
+            msg_body_list = array[0..7].map{|v| encode_value(v) }
+            msg_body_list << encode_bodystructure(array[8])
+            msg_body_list << array[9..-1].map{|v| encode_value(v) }
+            '('.b << msg_body_list.join(' '.b) << ')'.b
+          else
+            encode_list(array)
+          end
+        end
+        module_function :encode_bodystructure
 
         def encode_header(name_value_pair_list)
           name_value_pair_list.map{|n, v| ''.b << n << ': ' << v << "\r\n" }.join('') << "\r\n"
