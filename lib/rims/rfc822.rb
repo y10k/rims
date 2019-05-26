@@ -362,12 +362,12 @@ module RIMS
       end
 
       def text?
-        media_main_type.downcase == 'text'
+        media_main_type_upcase == 'TEXT'
       end
 
       def multipart?
         if (@is_multipart.nil?) then
-          @is_multipart = (media_main_type.downcase == 'multipart')
+          @is_multipart = (media_main_type_upcase == 'MULTIPART')
         end
         @is_multipart
       end
@@ -388,7 +388,7 @@ module RIMS
 
       def message?
         if (@is_message.nil?) then
-          @is_message = (media_main_type.downcase == 'message')
+          @is_message = (media_main_type_upcase == 'MESSAGE')
         end
         @is_message
       end
