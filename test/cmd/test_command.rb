@@ -1170,7 +1170,56 @@ Hello world.
         make_mail_mime_subject
         append_inbox.call(@mime_subject_mail.raw_source, @mime_subject_mail.date)
 
-        # State: Authenticated -> Selected
+        assert_imap_search = lambda{|uid|
+          if (uid) then
+            imap_search = imap.method(:uid_search)
+            seqno = lambda{|*args| args.map{|i| uid_offset + i } }
+          else
+            imap_search = imap.method(:search)
+            seqno = lambda{|*args| args }
+          end
+
+          assert_equal(seqno[2],       imap_search.call([ 2 ]))
+          assert_equal(seqno[1, 2, 3], imap_search.call(%w[ ALL ]))
+          assert_equal(seqno[1],       imap_search.call([ 'ANSWERED' ]))                                              # *a
+          assert_equal(seqno[3],       imap_search.call([ 'BCC', 'foo' ]))                                            # *b
+          assert_equal(seqno[1],       imap_search.call([ 'BEFORE', @mpart_mail.date ]))
+          assert_equal(seqno[1, 3],    imap_search.call([ 'BODY', 'Hello world.' ]))
+          assert_equal(seqno[3],       imap_search.call([ 'CC', 'kate' ]))
+          assert_equal(seqno[],        imap_search.call([ 'DELETED' ]))
+          assert_equal(seqno[2],       imap_search.call([ 'DRAFT' ]))
+          assert_equal(seqno[1],       imap_search.call([ 'FLAGGED' ]))
+          assert_equal(seqno[2, 3],    imap_search.call([ 'FROM', 'foo' ]))
+          assert_equal(seqno[3],       imap_search.call([ 'HEADER', 'Message-Id', '20131107214750.445A1255B9F' ]))
+          assert_equal(seqno[],        imap_search.call([ 'KEYWORD', 'unsupported' ]))
+          assert_equal(seqno[2],       imap_search.call([ 'LARGER', @mime_subject_mail.raw_source.bytesize ]))        # *c
+          assert_equal(seqno[3],       imap_search.call([ 'NEW' ]))
+          assert_equal(seqno[1],       imap_search.call([ 'OLD' ]))
+          assert_equal(seqno[1],       imap_search.call([ 'ON', @simple_mail.date ]))
+          assert_equal(seqno[2, 3],    imap_search.call([ 'RECENT' ]))
+          assert_equal(seqno[2],       imap_search.call([ 'SEEN' ]))
+          assert_equal(seqno[1],       imap_search.call([ 'SENTBEFORE', @mpart_mail.date ]))
+          assert_equal(seqno[1],       imap_search.call([ 'SENTON', @simple_mail.date ]))
+          assert_equal(seqno[2, 3],    imap_search.call([ 'SENTSINCE', @simple_mail.date ]))
+          assert_equal(seqno[1],       imap_search.call([ 'SMALLER', @mime_subject_mail.raw_source.bytesize ]))
+          assert_equal(seqno[2],       imap_search.call([ 'SUBJECT', 'multipart' ]))
+          assert_equal(seqno[1],       imap_search.call([ 'TEXT', 'Subject: test' ]))
+          assert_equal(seqno[1, 2, 3], imap_search.call([ 'TEXT', 'Hello world.' ]))
+          assert_equal(seqno[1],       imap_search.call([ 'TO', 'foo' ]))
+          assert_equal(seqno[1],       imap_search.call([ 'UID', uid_offset + 1 ]))
+          assert_equal(seqno[2, 3],    imap_search.call([ 'UNANSWERED' ]))
+          assert_equal(seqno[1, 2, 3], imap_search.call([ 'UNDELETED' ]))
+          assert_equal(seqno[1, 3],    imap_search.call([ 'UNDRAFT' ]))
+          assert_equal(seqno[2, 3],    imap_search.call([ 'UNFLAGGED' ]))
+          assert_equal(seqno[1, 2, 3], imap_search.call([ 'UNKEYWORD', 'unsupported' ]))
+          assert_equal(seqno[1, 3],    imap_search.call([ 'UNSEEN' ]))
+          assert_equal(seqno[1, 3],    imap_search.call([ 'NOT', 'LARGER', @mime_subject_mail.raw_source.bytesize ])) # not *c
+          assert_equal(seqno[1, 3],    imap_search.call([ 'OR', 'ANSWERED', 'BCC', 'foo' ]))                          # or *a *b
+        }
+        assert_imap_search_seqno = lambda{ assert_imap_search.call(false) }
+        assert_imap_search_uid   = lambda{ assert_imap_search.call(true) }
+
+        # State: Authenticated -> Selected (read-only)
         imap.examine('INBOX')
 
         # IMAP commands for Any State
@@ -1179,6 +1228,8 @@ Hello world.
 
         # IMAP commands for Selected State
         imap.check
+        assert_imap_search_seqno.call
+        assert_imap_search_uid.call
 
         # State: Authenticated <- Selected
         imap.close
@@ -1193,6 +1244,8 @@ Hello world.
 
         # IMAP commands for Selected State
         imap.check
+        assert_imap_search_seqno.call
+        assert_imap_search_uid.call
 
         # State: Authenticated <- Selected
         imap.close
