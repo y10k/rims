@@ -1638,6 +1638,51 @@ Hello world.
         assert_imap_store_read_only_seqno = lambda{ assert_imap_store_read_only.call(false) }
         assert_imap_store_read_only_uid   = lambda{ assert_imap_store_read_only.call(true) }
 
+        assert_imap_fetch_seen = lambda{|uid, read_only|
+          if (uid) then
+            imap_fetch = imap.method(:uid_fetch)
+            imap_store = imap.method(:uid_store)
+            seqno = uid_offset + 3
+            fetch_data = lambda{|attr| attr.merge({ 'UID' => seqno }) }
+          else
+            imap_fetch = imap.method(:fetch)
+            imap_store = imap.method(:store)
+            seqno = 3
+            fetch_data = lambda{|attr| attr }
+          end
+
+          if (read_only) then
+            assert_fetch = lambda{|attribute, expected_fetch_data|
+              assert_equal(fetch_data[
+                             { attribute => expected_fetch_data }
+                           ],
+                           imap_fetch.call(seqno, attribute)[0].attr,
+                           attribute)
+              assert_not_include(imap_fetch.call(seqno, 'FLAGS')[0].attr['FLAGS'], :Seen, attribute)
+            }
+          else
+            assert_fetch = lambda{|attribute, expected_fetch_data|
+              assert_equal(fetch_data[
+                             { attribute => expected_fetch_data,
+                               'FLAGS' => [ :Seen, :Recent ]
+                             }
+                           ],
+                           imap_fetch.call(seqno, attribute)[0].attr,
+                           attribute)
+              assert_include(imap_fetch.call(seqno, 'FLAGS')[0].attr['FLAGS'], :Seen, attribute)
+              imap_store.call(seqno, '-FLAGS.SILENT', [ :Seen ])
+            }
+          end
+
+          assert_fetch.call('BODY[]',      @mime_subject_mail.raw_source)
+          assert_fetch.call('RFC822',      @mime_subject_mail.raw_source)
+          assert_fetch.call('RFC822.TEXT', @mime_subject_mail.body.raw_source)
+        }
+        assert_imap_fetch_seen_seqno           = lambda{ assert_imap_fetch_seen.call(false, false) }
+        assert_imap_fetch_seen_uid             = lambda{ assert_imap_fetch_seen.call(true,  false) }
+        assert_imap_fetch_seen_read_only_seqno = lambda{ assert_imap_fetch_seen.call(false, true) }
+        assert_imap_fetch_seen_read_only_uid   = lambda{ assert_imap_fetch_seen.call(true,  true) }
+
         # State: Authenticated -> Selected (read-only)
         imap.examine('INBOX')
 
@@ -1653,6 +1698,8 @@ Hello world.
         assert_imap_fetch_read_only_uid.call
         assert_imap_store_read_only_seqno.call
         assert_imap_store_read_only_uid.call
+        assert_imap_fetch_seen_read_only_seqno.call
+        assert_imap_fetch_seen_read_only_uid.call
 
         # State: Authenticated <- Selected
         imap.close
@@ -1673,6 +1720,8 @@ Hello world.
         assert_imap_fetch_read_only_uid.call
         assert_imap_store_seqno.call
         assert_imap_store_uid.call
+        assert_imap_fetch_seen_seqno.call
+        assert_imap_fetch_seen_uid.call
 
         # State: Authenticated <- Selected
         imap.close
