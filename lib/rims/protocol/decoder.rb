@@ -1334,7 +1334,7 @@ module RIMS
         def store(token, tag, msg_set, data_item_name, data_item_value, uid: false)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.should_be_alive
-          return yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ]) if folder.read_only?
+          return yield([ "#{tag} NO cannot store in read-only mode\r\n" ]) if folder.read_only?
           folder.reload if folder.updated?
 
           msg_set = folder.parse_msg_set(msg_set, uid: uid)
