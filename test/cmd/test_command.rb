@@ -1570,6 +1570,74 @@ Hello world.
         assert_imap_fetch_read_only_seqno = lambda{ assert_imap_fetch_read_only.call(false) }
         assert_imap_fetch_read_only_uid   = lambda{ assert_imap_fetch_read_only.call(true) }
 
+        assert_imap_store = lambda{|uid|
+          if (uid) then
+            imap_store = imap.method(:uid_store)
+            imap_fetch = imap.method(:uid_fetch)
+            seqno = uid_offset + 3
+          else
+            imap_store = imap.method(:store)
+            imap_fetch = imap.method(:fetch)
+            seqno = 3
+          end
+
+          assert_equal([ :Answered, :Flagged, :Deleted, :Seen, :Draft, :Recent ],
+                       imap_store.call(seqno, 'FLAGS', [ :Answered, :Flagged, :Deleted, :Seen, :Draft ])[0].attr['FLAGS'])
+          assert_equal([ :Answered, :Flagged, :Deleted, :Seen, :Draft, :Recent ],
+                       imap_fetch.call(seqno, 'FLAGS')[0].attr['FLAGS'])
+
+          assert_nil(imap_store.call(seqno, 'FLAGS.SILENT', []))
+          assert_equal([ :Recent ],
+                       imap_fetch.call(seqno, 'FLAGS')[0].attr['FLAGS'])
+
+          assert_equal([ :Answered, :Deleted, :Draft, :Recent ],
+                       imap_store.call(seqno, '+FLAGS', [ :Answered, :Deleted, :Draft ])[0].attr['FLAGS'])
+          assert_equal([ :Answered, :Deleted, :Draft, :Recent ],
+                       imap_fetch.call(seqno, 'FLAGS')[0].attr['FLAGS'])
+
+          assert_equal([ :Recent ], imap_store.call(seqno, '-FLAGS', [ :Answered, :Deleted, :Draft ])[0].attr['FLAGS'])
+          assert_equal([ :Recent ], imap_fetch.call(seqno, 'FLAGS')[0].attr['FLAGS'])
+
+          assert_nil(imap_store.call(seqno, '+FLAGS.SILENT', [ :Flagged, :Seen ]))
+          assert_equal([ :Flagged, :Seen, :Recent ], imap_fetch.call(seqno, 'FLAGS')[0].attr['FLAGS'])
+
+          assert_nil(imap_store.call(seqno, '-FLAGS.SILENT', [ :Flagged, :Seen ]))
+          assert_equal([ :Recent ], imap_fetch.call(seqno, 'FLAGS')[0].attr['FLAGS'])
+        }
+        assert_imap_store_seqno = lambda{ assert_imap_store.call(false) }
+        assert_imap_store_uid   = lambda{ assert_imap_store.call(true) }
+
+        assert_imap_store_read_only = lambda{|uid|
+          if (uid) then
+            imap_store = imap.method(:uid_store)
+            seqno = uid_offset + 3
+          else
+            imap_store = imap.method(:store)
+            seqno = 3
+          end
+
+          assert_imap_no_response[/cannot store in read-only mode/] {
+            imap_store.call(seqno, 'FLAGS', [ :Answered, :Flagged, :Deleted, :Seen, :Draft ])
+          }
+          assert_imap_no_response[/cannot store in read-only mode/] {
+            imap_store.call(seqno, 'FLAGS.SILENT', [])
+          }
+          assert_imap_no_response[/cannot store in read-only mode/] {
+            imap_store.call(seqno, '+FLAGS', [ :Answered, :Deleted, :Draft ])
+          }
+          assert_imap_no_response[/cannot store in read-only mode/] {
+            imap_store.call(seqno, '-FLAGS', [ :Answered, :Deleted, :Draft ])
+          }
+          assert_imap_no_response[/cannot store in read-only mode/] {
+            imap_store.call(seqno, '+FLAGS.SILENT', [ :Flagged, :Seen ])
+          }
+          assert_imap_no_response[/cannot store in read-only mode/] {
+            imap_store.call(seqno, '-FLAGS.SILENT', [ :Flagged, :Seen ])
+          }
+        }
+        assert_imap_store_read_only_seqno = lambda{ assert_imap_store_read_only.call(false) }
+        assert_imap_store_read_only_uid   = lambda{ assert_imap_store_read_only.call(true) }
+
         # State: Authenticated -> Selected (read-only)
         imap.examine('INBOX')
 
@@ -1583,6 +1651,8 @@ Hello world.
         assert_imap_search_uid.call
         assert_imap_fetch_read_only_seqno.call
         assert_imap_fetch_read_only_uid.call
+        assert_imap_store_read_only_seqno.call
+        assert_imap_store_read_only_uid.call
 
         # State: Authenticated <- Selected
         imap.close
@@ -1601,6 +1671,8 @@ Hello world.
         assert_imap_search_uid.call
         assert_imap_fetch_read_only_seqno.call
         assert_imap_fetch_read_only_uid.call
+        assert_imap_store_seqno.call
+        assert_imap_store_uid.call
 
         # State: Authenticated <- Selected
         imap.close
