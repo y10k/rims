@@ -1219,8 +1219,8 @@ Hello world.
         assert_imap_search_seqno = lambda{ assert_imap_search.call(false) }
         assert_imap_search_uid   = lambda{ assert_imap_search.call(true) }
 
+        imap_date_fmt = '%d-%b-%Y %H:%M:%S %z'
         assert_imap_fetch_read_only = lambda{|uid|
-          imap_date_fmt = '%d-%b-%Y %H:%M:%S %z'
           if (uid) then
             imap_fetch = imap.method(:uid_fetch)
             msg_set = lambda{|seqno_set|
@@ -1609,6 +1609,51 @@ Hello world.
 
         # IMAP commands for Selected State
         assert_no_response_selected_state_imap_commands.call(/not selected/)
+
+        imap_copy_count = 0
+        imap.create('COPY')
+        assert_imap_copy = lambda{|uid, read_only|
+          imap_copy_count += 1
+
+          if (uid) then
+            imap_copy = imap.method(:uid_copy)
+            seqno = uid_offset + 1
+          else
+            imap_copy = imap.method(:copy)
+            seqno = 1
+          end
+
+          if (read_only) then
+            imap_select = imap.method(:examine)
+          else
+            imap_select = imap.method(:select)
+          end
+
+          imap_select.call('INBOX')
+          imap_copy.call(seqno, 'COPY')
+          imap.close
+          assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+          imap.examine('COPY')
+          res = imap.fetch('*', %w(BODY[] INTERNALDATE FLAGS))
+          assert_equal(1, res.length)
+          assert_equal(imap_copy_count, res[0].seqno)
+          assert_equal(3, res[0].attr.size)
+          assert_equal(@simple_mail.raw_source,                          res[0].attr['BODY[]'])
+          assert_equal(@simple_mail.date.getutc.strftime(imap_date_fmt), res[0].attr['INTERNALDATE'])
+          assert_equal([ :Answered, :Flagged ],                          res[0].attr['FLAGS'])
+          imap.close
+        }
+        assert_imap_copy_seqno           = lambda{ assert_imap_copy.call(false, false) }
+        assert_imap_copy_uid             = lambda{ assert_imap_copy.call(true,  false) }
+        assert_imap_copy_read_only_seqno = lambda{ assert_imap_copy.call(false, true) }
+        assert_imap_copy_read_only_uid   = lambda{ assert_imap_copy.call(true,  true) }
+
+        # IMAP copy command
+        assert_imap_copy_read_only_seqno.call
+        assert_imap_copy_read_only_uid.call
+        assert_imap_copy_seqno.call
+        assert_imap_copy_uid.call
       }
     end
 
