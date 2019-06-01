@@ -1219,6 +1219,357 @@ Hello world.
         assert_imap_search_seqno = lambda{ assert_imap_search.call(false) }
         assert_imap_search_uid   = lambda{ assert_imap_search.call(true) }
 
+        assert_imap_fetch_read_only = lambda{|uid|
+          imap_date_fmt = '%d-%b-%Y %H:%M:%S %z'
+          if (uid) then
+            imap_fetch = imap.method(:uid_fetch)
+            msg_set = lambda{|seqno_set|
+              case (seqno_set)
+              when Array
+                seqno_set.map{|i| uid_offset + i }
+              when Range
+                first = uid_offset + seqno_set.first
+                if (seqno_set.last >= 0) then
+                  last = uid_offset + seqno_set.last
+                else
+                  last = seqno_set.last
+                end
+                first..last
+              when Integer
+                uid_offset + seqno_set
+              else
+                raise TypeError, "unknown message set type: #{seqno_set}"
+              end
+            }
+            fetch_data = lambda{|*data_list|
+              data_list.map{|seqno, attr|
+                unless (attr.key? 'UID') then
+                  attr = attr.merge({ 'UID' => uid_offset + seqno })
+                end
+                Net::IMAP::FetchData.new(seqno, attr)
+              }
+            }
+          else
+            imap_fetch = imap.method(:fetch)
+            msg_set = lambda{|seqno_set| seqno_set }
+            fetch_data = lambda{|*data_list| data_list.map{|i| Net::IMAP::FetchData.new(*i) } }
+          end
+
+          envelope = lambda{|mail|
+            Net::IMAP::Envelope.new(mail.header['Date'],
+                                    mail.header['Subject'],
+                                    mail.from     ? mail.from.map{|addr| Net::IMAP::Address.new(*addr) }     : nil,
+                                    mail.reply_to ? mail.reply_to.map{|addr| Net::IMAP::Address.new(*addr) } : nil,
+                                    mail.sender   ? mail.sender.map{|addr| Net::IMAP::Address.new(*addr) }   : nil,
+                                    mail.to       ? mail.to.map{|addr| Net::IMAP::Address.new(*addr) }       : nil,
+                                    mail.cc       ? mail.cc.map{|addr| Net::IMAP::Address.new(*addr) }       : nil,
+                                    mail.bcc      ? mail.bcc.map{|addr| Net::IMAP::Address.new(*addr) }      : nil,
+                                    mail.header['In-Reply-To'],
+                                    mail.header['Message-Id'])
+          }
+          body_type = lambda{|mail|
+            case (mail.media_main_type_upcase)
+            when 'TEXT'
+              Net::IMAP::BodyTypeText.new(mail.media_main_type_upcase,
+                                          mail.media_sub_type_upcase,
+                                          Hash[mail.content_type_parameters.map{|n, v| [ n.upcase, v ] }],
+                                          mail.header['Content-Id'],
+                                          mail.header['Content-Description'],
+                                          mail.header.fetch_upcase('Content-Transfer-Encoding'),
+                                          mail.raw_source.bytesize,
+                                          mail.raw_source.each_line.count)
+            when 'MESSAGE'
+              Net::IMAP::BodyTypeMessage.new(mail.media_main_type_upcase,
+                                             mail.media_sub_type_upcase,
+                                             Hash[mail.content_type_parameters.map{|n, v| [ n.upcase, v ] }],
+                                             mail.header['Content-Id'],
+                                             mail.header['Content-Description'],
+                                             mail.header.fetch_upcase('Content-Transfer-Encoding'),
+                                             mail.raw_source.bytesize,
+                                             envelope[mail.message],
+                                             body_type[mail.message],
+                                             mail.raw_source.each_line.count)
+            when 'MULTIPART'
+              Net::IMAP::BodyTypeMultipart.new(mail.media_main_type_upcase,
+                                               mail.media_sub_type_upcase,
+                                               mail.parts.map{|m| body_type[m] })
+            else
+              Net::IMAP::BodyTypeBasic.new(mail.media_main_type_upcase,
+                                           mail.media_sub_type_upcase,
+                                           Hash[mail.content_type_parameters.map{|n, v| [ n.upcase, v ] }],
+                                           mail.header['Content-Id'],
+                                           mail.header['Content-Description'],
+                                           mail.header.fetch_upcase('Content-Transfer-Encoding'),
+                                           mail.raw_source.bytesize)
+            end
+          }
+
+          assert_equal(fetch_data[
+                         [ 1,
+                           { 'FLAGS'        => [ :Answered, :Flagged ],
+                             'INTERNALDATE' => @simple_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @simple_mail.raw_source.bytesize,
+                             'ENVELOPE'     => envelope[@simple_mail]
+                           }
+                         ],
+                         [ 2,
+                           { 'FLAGS'        => [ :Seen, :Draft, :Recent ],
+                             'INTERNALDATE' => @mpart_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @mpart_mail.raw_source.bytesize,
+                             'ENVELOPE'     => envelope[@mpart_mail]
+                           }
+                         ],
+                         [ 3,
+                           { 'FLAGS'        => [ :Recent ],
+                             'INTERNALDATE' => @mime_subject_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @mime_subject_mail.raw_source.bytesize,
+                             'ENVELOPE'     => envelope[@mime_subject_mail]
+                           }
+                         ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'ALL'))
+
+          assert_equal(fetch_data[
+                         [ 1,
+                           { 'FLAGS'        => [ :Answered, :Flagged ],
+                             'INTERNALDATE' => @simple_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @simple_mail.raw_source.bytesize
+                           }
+                         ],
+                         [ 2,
+                           { 'FLAGS'        => [ :Seen, :Draft, :Recent ],
+                             'INTERNALDATE' => @mpart_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @mpart_mail.raw_source.bytesize
+                           }
+                         ],
+                         [ 3,
+                           { 'FLAGS'        => [ :Recent ],
+                             'INTERNALDATE' => @mime_subject_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @mime_subject_mail.raw_source.bytesize
+                           }
+                         ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'FAST'))
+
+          assert_equal(fetch_data[
+                         [ 1,
+                           { 'FLAGS'        => [ :Answered, :Flagged ],
+                             'INTERNALDATE' => @simple_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @simple_mail.raw_source.bytesize,
+                             'ENVELOPE'     => envelope[@simple_mail],
+                             'BODY'         => body_type[@simple_mail]
+                           }
+                         ],
+                         [ 2,
+                           { 'FLAGS'        => [ :Seen, :Draft, :Recent ],
+                             'INTERNALDATE' => @mpart_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @mpart_mail.raw_source.bytesize,
+                             'ENVELOPE'     => envelope[@mpart_mail],
+                             'BODY'         => body_type[@mpart_mail]
+                           }
+                         ],
+                         [ 3,
+                           { 'FLAGS'        => [ :Recent ],
+                             'INTERNALDATE' => @mime_subject_mail.date.getutc.strftime(imap_date_fmt),
+                             'RFC822.SIZE'  => @mime_subject_mail.raw_source.bytesize,
+                             'ENVELOPE'     => envelope[@mime_subject_mail],
+                             'BODY'         => body_type[@mime_subject_mail]
+                           }
+                         ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'FULL'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'BODY' => body_type[@simple_mail] } ],
+                         [ 2, { 'BODY' => body_type[@mpart_mail] } ],
+                         [ 3, { 'BODY' => body_type[@mime_subject_mail] } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'BODY'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'BODYSTRUCTURE' => body_type[@simple_mail] } ],
+                         [ 2, { 'BODYSTRUCTURE' => body_type[@mpart_mail] } ],
+                         [ 3, { 'BODYSTRUCTURE' => body_type[@mime_subject_mail] } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'BODYSTRUCTURE'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'ENVELOPE' => envelope[@simple_mail] } ],
+                         [ 2, { 'ENVELOPE' => envelope[@mpart_mail] } ],
+                         [ 3, { 'ENVELOPE' => envelope[@mime_subject_mail] } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'ENVELOPE'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'FLAGS' => [ :Answered, :Flagged ] } ],
+                         [ 2, { 'FLAGS' => [ :Seen, :Draft, :Recent ] } ],
+                         [ 3, { 'FLAGS' => [ :Recent ] } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'FLAGS'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'INTERNALDATE' => @simple_mail.date.getutc.strftime(imap_date_fmt) } ],
+                         [ 2, { 'INTERNALDATE' => @mpart_mail.date.getutc.strftime(imap_date_fmt) } ],
+                         [ 3, { 'INTERNALDATE' => @mime_subject_mail.date.getutc.strftime(imap_date_fmt) } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'INTERNALDATE'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'RFC822.HEADER' => @simple_mail.header.raw_source } ],
+                         [ 2, { 'RFC822.HEADER' => @mpart_mail.header.raw_source } ],
+                         [ 3, { 'RFC822.HEADER' => @mime_subject_mail.header.raw_source } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'RFC822.HEADER'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'RFC822.SIZE' => @simple_mail.raw_source.bytesize } ],
+                         [ 2, { 'RFC822.SIZE' => @mpart_mail.raw_source.bytesize } ],
+                         [ 3, { 'RFC822.SIZE' => @mime_subject_mail.raw_source.bytesize } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'RFC822.SIZE'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'UID' => uid_offset + 1 } ],
+                         [ 2, { 'UID' => uid_offset + 2 } ],
+                         [ 3, { 'UID' => uid_offset + 3 } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'UID'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'BODY[]' => @simple_mail.raw_source } ],
+                         [ 2, { 'BODY[]' => @mpart_mail.raw_source } ],
+                         [ 3, { 'BODY[]' => @mime_subject_mail.raw_source } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'BODY.PEEK[]'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'BODY[HEADER]' => @simple_mail.header.raw_source } ],
+                         [ 2, { 'BODY[HEADER]' => @mpart_mail.header.raw_source } ],
+                         [ 3, { 'BODY[HEADER]' => @mime_subject_mail.header.raw_source } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'BODY.PEEK[HEADER]'))
+
+          assert_equal(fetch_data[
+                         [ 1,
+                           { 'BODY[HEADER.FIELDS (DATE SUBJECT)]' =>
+                             @simple_mail.header.find_all{|n, v|
+                               %w(DATE SUBJECT).include? n.upcase
+                             }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
+                           }
+                         ],
+                         [ 2,
+                           { 'BODY[HEADER.FIELDS (DATE SUBJECT)]' =>
+                             @mpart_mail.header.find_all{|n, v|
+                               %w(DATE SUBJECT).include? n.upcase
+                             }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
+                           }
+                         ],
+                         [ 3,
+                           { 'BODY[HEADER.FIELDS (DATE SUBJECT)]' =>
+                             @mime_subject_mail.header.find_all{|n, v|
+                               %w(DATE SUBJECT).include? n.upcase
+                             }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
+                           }
+                         ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'BODY.PEEK[HEADER.FIELDS (DATE SUBJECT)]'))
+
+          assert_equal(fetch_data[
+                         [ 1,
+                           { 'BODY[HEADER.FIELDS.NOT (TO FROM)]' =>
+                             @simple_mail.header.find_all{|n, v|
+                               ! (%w(TO FROM).include? n.upcase)
+                             }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
+                           }
+                         ],
+                         [ 2,
+                           { 'BODY[HEADER.FIELDS.NOT (TO FROM)]' =>
+                             @mpart_mail.header.find_all{|n, v|
+                               ! (%w(TO FROM).include? n.upcase)
+                             }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
+                           }
+                         ],
+                         [ 3,
+                           { 'BODY[HEADER.FIELDS.NOT (TO FROM)]' =>
+                             @mime_subject_mail.header.find_all{|n, v|
+                               ! (%w(TO FROM).include? n.upcase)
+                             }.map{|n, v| "#{n}: #{v}\r\n" }.join('') + "\r\n"
+                           }
+                         ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'BODY.PEEK[HEADER.FIELDS.NOT (TO FROM)]'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'BODY[TEXT]' => @simple_mail.body.raw_source } ],
+                         [ 2, { 'BODY[TEXT]' => @mpart_mail.body.raw_source } ],
+                         [ 3, { 'BODY[TEXT]' => @mime_subject_mail.body.raw_source } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'BODY.PEEK[TEXT]'))
+
+          assert_equal(fetch_data[
+                         [ 1, { 'BODY[1.MIME]' => @simple_mail.header.raw_source } ],
+                         [ 2, { 'BODY[1.MIME]' => @mpart_mail.parts[0].header.raw_source } ],
+                         [ 3, { 'BODY[1.MIME]' => @mime_subject_mail.header.raw_source } ]
+                       ],
+                       imap_fetch.call(msg_set[1..-1], 'BODY.PEEK[1.MIME]'))
+
+          assert_fetch_body_sections = lambda{|body_section_table|
+            res = imap_fetch.call(msg_set[2], body_section_table.keys)
+            assert_equal(1, res.length)
+            assert_equal(2, res[0].seqno)
+            if (uid) then
+              assert_equal(body_section_table.size + 1, res[0].attr.size)
+              assert_equal(uid_offset + 2, res[0].attr['UID'])
+            else
+              assert_equal(body_section_table.size, res[0].attr.size)
+            end
+            for body_section, expected_fetch_data in body_section_table
+              body_section = body_section.dup
+              body_section.upcase!
+              body_section.sub!(/\.PEEK/, '')
+              assert_equal(expected_fetch_data, res[0].attr[body_section], body_section)
+            end
+          }
+
+          assert_fetch_body_sections.call({ 'BODY.PEEK[1]'       => @mpart_mail.parts[0].body.raw_source,
+                                            'BODY.PEEK[2]'       => @mpart_mail.parts[1].body.raw_source,
+                                            'BODY.PEEK[3]'       => @mpart_mail.parts[2].body.raw_source,
+                                            'BODY.PEEK[3.1]'     => @mpart_mail.parts[2].message.parts[0].body.raw_source,
+                                            'BODY.PEEK[3.2]'     => @mpart_mail.parts[2].message.parts[1].body.raw_source,
+                                            'BODY.PEEK[4]'       => @mpart_mail.parts[3].body.raw_source,
+                                            'BODY.PEEK[4.1]'     => @mpart_mail.parts[3].parts[0].body.raw_source,
+                                            'BODY.PEEK[4.2]'     => @mpart_mail.parts[3].parts[1].body.raw_source,
+                                            'BODY.PEEK[4.2.1]'   => @mpart_mail.parts[3].parts[1].message.parts[0].body.raw_source,
+                                            'BODY.PEEK[4.2.2]'   => @mpart_mail.parts[3].parts[1].message.parts[1].body.raw_source,
+                                            'BODY.PEEK[4.2.2.1]' => @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].body.raw_source,
+                                            'BODY.PEEK[4.2.2.2]' => @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].body.raw_source
+                                          })
+
+          assert_fetch_body_sections.call({ 'BODY.PEEK[1.MIME]'       => @mpart_mail.parts[0].header.raw_source,
+                                            'BODY.PEEK[2.MIME]'       => @mpart_mail.parts[1].header.raw_source,
+                                            'BODY.PEEK[3.MIME]'       => @mpart_mail.parts[2].header.raw_source,
+                                            'BODY.PEEK[3.1.MIME]'     => @mpart_mail.parts[2].message.parts[0].header.raw_source,
+                                            'BODY.PEEK[3.2.MIME]'     => @mpart_mail.parts[2].message.parts[1].header.raw_source,
+                                            'BODY.PEEK[4.MIME]'       => @mpart_mail.parts[3].header.raw_source,
+                                            'BODY.PEEK[4.1.MIME]'     => @mpart_mail.parts[3].parts[0].header.raw_source,
+                                            'BODY.PEEK[4.2.MIME]'     => @mpart_mail.parts[3].parts[1].header.raw_source,
+                                            'BODY.PEEK[4.2.1.MIME]'   => @mpart_mail.parts[3].parts[1].message.parts[0].header.raw_source,
+                                            'BODY.PEEK[4.2.2.MIME]'   => @mpart_mail.parts[3].parts[1].message.parts[1].header.raw_source,
+                                            'BODY.PEEK[4.2.2.1.MIME]' => @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].header.raw_source,
+                                            'BODY.PEEK[4.2.2.2.MIME]' => @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].header.raw_source
+                                          })
+
+          assert_fetch_body_sections.call({ 'BODY.PEEK[3.HEADER]'   => @mpart_mail.parts[2].message.header.raw_source,
+                                            'BODY.PEEK[4.2.HEADER]' => @mpart_mail.parts[3].parts[1].message.header.raw_source
+                                          })
+
+          assert_fetch_body_sections.call({ 'BODY.PEEK[3.TEXT]'   => @mpart_mail.parts[2].message.body.raw_source,
+                                            'BODY.PEEK[4.2.TEXT]' => @mpart_mail.parts[3].parts[1].message.body.raw_source
+                                          })
+        }
+        assert_imap_fetch_read_only_seqno = lambda{ assert_imap_fetch_read_only.call(false) }
+        assert_imap_fetch_read_only_uid   = lambda{ assert_imap_fetch_read_only.call(true) }
+
         # State: Authenticated -> Selected (read-only)
         imap.examine('INBOX')
 
@@ -1230,6 +1581,8 @@ Hello world.
         imap.check
         assert_imap_search_seqno.call
         assert_imap_search_uid.call
+        assert_imap_fetch_read_only_seqno.call
+        assert_imap_fetch_read_only_uid.call
 
         # State: Authenticated <- Selected
         imap.close
@@ -1246,6 +1599,8 @@ Hello world.
         imap.check
         assert_imap_search_seqno.call
         assert_imap_search_uid.call
+        assert_imap_fetch_read_only_seqno.call
+        assert_imap_fetch_read_only_uid.call
 
         # State: Authenticated <- Selected
         imap.close
