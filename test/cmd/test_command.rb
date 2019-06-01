@@ -28,6 +28,23 @@ module RIMS::Test
       @base_dir.rmtree
     end
 
+    def imap_connect(use_ssl=false)
+      imap = timeout(10) {
+        begin
+          Net::IMAP.new('localhost', 1430, use_ssl, TLS_CA_CERT.to_s)
+        rescue SystemCallError
+          sleep(0.1)
+          retry
+        end
+      }
+      begin
+        yield(imap)
+      ensure
+        imap.disconnect
+      end
+    end
+    private :imap_connect
+
     def test_rims_no_args
       stdout, stderr, status = Open3.capture3('rims')
       pp [ stdout, stderr, status ] if $DEBUG
@@ -186,15 +203,7 @@ module RIMS::Test
             result
           }
 
-          imap = timeout(10) {
-            begin
-              Net::IMAP.new('localhost', 1430)
-            rescue SystemCallError
-              sleep(0.1)
-              retry
-            end
-          }
-          begin
+          imap_connect{|imap|
             imap.noop
             imap.login('foo', 'foo')
             imap.noop
@@ -205,9 +214,7 @@ module RIMS::Test
             fetch_list = imap.fetch(1, %w[ RFC822 ])
             assert_equal([ 'HALO' ], fetch_list.map{|f| f.attr['RFC822'] })
             imap.logout
-          ensure
-            imap.disconnect
-          end
+          }
         ensure
           Process.kill(:TERM, wait_thread.pid)
           stdout_result = stdout_thread.value if stdout_thread
@@ -272,15 +279,7 @@ module RIMS::Test
         assert_equal('', stderr)
         assert_equal(0, status.exitstatus)
 
-        imap = timeout(10) {
-          begin
-            Net::IMAP.new('localhost', 1430)
-          rescue SystemCallError
-            sleep(0.1)
-            retry
-          end
-        }
-        begin
+        imap_connect{|imap|
           imap.noop
           imap.login('foo', 'foo')
           imap.noop
@@ -291,9 +290,7 @@ module RIMS::Test
           fetch_list = imap.fetch(1, %w[ RFC822 ])
           assert_equal([ 'HALO' ], fetch_list.map{|f| f.attr['RFC822'] })
           imap.logout
-        ensure
-          imap.disconnect
-        end
+        }
 
         stdout, stderr, status = Open3.capture3('rims', 'daemon', 'status', '-d', @base_dir.to_s)
         pp [ stdout, stderr, status ] if $DEBUG
@@ -401,21 +398,12 @@ module RIMS::Test
             end
           }
 
-          imap = timeout(10) {
-            begin
-              Net::IMAP.new('localhost', 1430, use_ssl, TLS_CA_CERT.to_s)
-            rescue SystemCallError
-              sleep(0.1)
-              retry
-            end
-          }
-          begin
+          ret_val = nil
+          imap_connect(use_ssl) {|imap|
             imap.noop
             ret_val = yield(imap)
             imap.logout
-          ensure
-            imap.disconnect
-          end
+          }
         ensure
           Process.kill(:TERM, wait_thread.pid)
           stdout_thread.join if stdout_thread
