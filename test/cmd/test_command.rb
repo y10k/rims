@@ -1775,6 +1775,87 @@ Hello world.
         assert_imap_copy_read_only_uid.call
         assert_imap_copy_seqno.call
         assert_imap_copy_uid.call
+
+        # IMAP idle command
+        assert_imap_idle = lambda{|read_only|
+          if (read_only) then
+            imap.examine('INBOX')
+          else
+            imap.select('INBOX')
+          end
+          imap_connect(use_ssl) {|another_imap|
+            start_imap_idle_thread = lambda{
+              mutex = Mutex.new
+              spin_lock = true
+
+              th = Thread.new{
+                response_list = []
+                imap.idle{|res|
+                  mutex.synchronize{ spin_lock = false } # unlock by continuation request
+                  response_list << res
+                }
+                response_list
+              }
+
+              timeout(10) {
+                while (mutex.synchronize{ spin_lock })
+                  sleep(0.1)
+                end
+              }
+
+              th
+            }
+
+            imap_idle_done = lambda{
+              # ad hoc way to avoid the race condition between `Net::IMAP#add_response_handler' and `Net::IMAP#idle_done'
+              sleep(0.1)
+
+              imap.idle_done
+            }
+
+            another_imap.login('foo', 'foo')
+            another_imap.select('INBOX')
+
+            th = start_imap_idle_thread.call
+            another_imap.append('INBOX', 'test', [ :Deleted ])
+            imap_idle_done.call
+
+            response_list = th.value
+            assert_equal(3, response_list.length)
+            assert_instance_of(Net::IMAP::ContinuationRequest, response_list[0])
+            assert_equal([ 'EXISTS', status['MESSAGES'] + 1 ], response_list[1].to_h.values_at(:name, :data))
+            assert_equal([ 'RECENT', status['RECENT']   + 1 ], response_list[2].to_h.values_at(:name, :data))
+
+            th = start_imap_idle_thread.call
+            another_imap.copy('*', 'INBOX')
+            imap_idle_done.call
+
+            response_list = th.value
+            assert_equal(3, response_list.length)
+            assert_instance_of(Net::IMAP::ContinuationRequest, response_list[0])
+            assert_equal([ 'EXISTS', status['MESSAGES'] + 2 ], response_list[1].to_h.values_at(:name, :data))
+            assert_equal([ 'RECENT', status['RECENT']   + 2 ], response_list[2].to_h.values_at(:name, :data))
+
+            th = start_imap_idle_thread.call
+            another_imap.store('*', '+FLAGS.SILENT', [ :Deleted ])
+            another_imap.expunge
+            imap_idle_done.call
+
+            response_list = th.value
+            assert_equal(3, response_list.length)
+            assert_instance_of(Net::IMAP::ContinuationRequest, response_list[0])
+            assert_equal([ 'EXPUNGE', status['MESSAGES'] + 2 ], response_list[1].to_h.values_at(:name, :data))
+            assert_equal([ 'EXPUNGE', status['MESSAGES'] + 1 ], response_list[2].to_h.values_at(:name, :data))
+
+            another_imap.close
+            another_imap.logout
+          }
+          imap.close
+        }
+        assert_imap_idle.call(true)
+        assert_imap_idle.call(false)
+        status['UIDNEXT'] += 2 * 2
+        assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
       }
     end
 
