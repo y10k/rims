@@ -1856,6 +1856,29 @@ Hello world.
         assert_imap_idle.call(false)
         status['UIDNEXT'] += 2 * 2
         assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+        # mail delivery user
+        assert_not_include(imap.capability, 'X-RIMS-MAIL-DELIVERY-USER')
+        imap_connect(use_ssl) {|post_mail|
+          assert_not_include(post_mail.capability, 'X-RIMS-MAIL-DELIVERY-USER')
+
+          post_mail.login('#postman', '#postman')
+          assert_include(post_mail.capability, 'X-RIMS-MAIL-DELIVERY-USER')
+
+          post_mail.append(RIMS::Protocol::Decoder.encode_delivery_target_mailbox('foo', 'INBOX'),
+                           'mail delivery test')
+          status['MESSAGES'] += 1
+          status['RECENT']   += 1
+          status['UNSEEN']   += 1
+          status['UIDNEXT']  += 1
+          assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+          post_mail.logout
+        }
+
+        imap.examine('INBOX')
+        assert_equal('mail delivery test', imap.fetch('*', 'RFC822')[0].attr['RFC822'])
+        imap.close
       }
     end
 
