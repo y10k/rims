@@ -391,14 +391,14 @@ module RIMS::Test
       Open3.popen3('rims', 'server', '-f', config_path.to_s) {|stdin, stdout, stderr, wait_thread|
         begin
           stdout_thread = Thread.new{
-            result = stdout.read
-            puts [ :stdout, result ].pretty_inspect if $DEBUG
-            result
+            for line in stdout
+              puts "stdout: #{line}" if $DEBUG
+            end
           }
           stderr_thread = Thread.new{
-            result = stderr.read
-            puts [ :stderr, result ].pretty_inspect if $DEBUG
-            result
+            for line in stderr
+              puts "stderr: #{line}" if $DEBUG
+            end
           }
 
           imap = timeout(10) {
