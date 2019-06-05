@@ -1,3 +1,9 @@
+2019-05-22  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol/parser.rb: date comparison search (BEFORE, ON,
+	SENTBEFORE, SENTON, SENTSINCE, SINCE) disregarding timezone. TEXT
+	keyword searches a multipart message.
+
 2019-05-12  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/cmd.rb, lib/rims/service.rb: add multi-process server
