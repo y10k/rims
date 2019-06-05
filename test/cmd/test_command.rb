@@ -1020,7 +1020,17 @@ Hello world.
 
     include ProtocolFetchMailSample
 
-    def test_system(use_ssl: false, process_num: 0)
+    data('default'       => {},
+         'use_ssl'       => { use_ssl: true },
+         'multi-process' => { process_num: 4 },
+         'use_ssl,multi-process' => {
+           use_ssl: true,
+           process_num: 4
+         })
+    def test_system(data)
+      use_ssl     = (data.key? :use_ssl) ? data[:use_ssl] : false
+      process_num = data[:process_num] || 0
+
       config = {
         server: {
           process_num: process_num
@@ -1889,18 +1899,6 @@ Hello world.
         assert_equal('mail delivery test', imap.fetch('*', 'RFC822')[0].attr['RFC822'])
         imap.close
       }
-    end
-
-    def test_system_ssl
-      test_system(use_ssl: true)
-    end
-
-    def test_system_multiprocess
-      test_system(process_num: 4)
-    end
-
-    def test_system_multiprocess_ssl
-      test_system(use_ssl: true, process_num: 4)
     end
   end
 end
