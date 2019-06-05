@@ -402,7 +402,7 @@ module RIMS::Test
           imap_connect(use_ssl) {|imap|
             imap.noop
             ret_val = yield(imap)
-            imap.logout
+            imap.logout unless imap.disconnected?
           }
         ensure
           Process.kill(:TERM, wait_thread.pid)
@@ -1898,6 +1898,93 @@ Hello world.
         imap.examine('INBOX')
         assert_equal('mail delivery test', imap.fetch('*', 'RFC822')[0].attr['RFC822'])
         imap.close
+      }
+    end
+
+    data('default'       => {},
+         'use_ssl'       => { use_ssl: true },
+         'multi-process' => { process_num: 4 },
+         'use_ssl,multi-process' => {
+           use_ssl: true,
+           process_num: 4
+         })
+    def test_system_autologout(data)
+      use_ssl     = (data.key? :use_ssl) ? data[:use_ssl] : false
+      process_num = data[:process_num] || 0
+
+      command_wait_timeout_seconds = 0.1
+      config = {
+        server: {
+          process_num: process_num
+        },
+        drb_services: {
+          process_num: process_num
+        },
+        connection: {
+          read_polling_interval_seconds: command_wait_timeout_seconds / 100,
+          command_wait_timeout_seconds: command_wait_timeout_seconds
+        }
+      }
+
+      run_server(use_ssl: use_ssl, optional: config) {
+        # Not Authenticated State
+        imap_connect(use_ssl) {|imap|
+          assert_not_include(imap.responses, 'BYE')
+          sleep(command_wait_timeout_seconds * 1.5)
+          assert_include(imap.responses, 'BYE')
+          assert_match(/autologout/, imap.responses['BYE'].last.text)
+          assert(imap.disconnected?)
+        }
+
+        # Authenticated State
+        imap_connect(use_ssl) {|imap|
+          imap.login('foo', 'foo')
+          assert_not_include(imap.responses, 'BYE')
+          sleep(command_wait_timeout_seconds * 1.5)
+          assert_include(imap.responses, 'BYE')
+          assert_match(/autologout/, imap.responses['BYE'].last.text)
+          assert(imap.disconnected?)
+        }
+
+        # Selected State (read-only)
+        imap_connect(use_ssl) {|imap|
+          imap.login('foo', 'foo')
+          imap.examine('INBOX')
+          assert_not_include(imap.responses, 'BYE')
+          sleep(command_wait_timeout_seconds * 1.5)
+          assert_include(imap.responses, 'BYE')
+          assert_match(/autologout/, imap.responses['BYE'].last.text)
+          assert(imap.disconnected?)
+        }
+
+        # Selected State
+        imap_connect(use_ssl) {|imap|
+          imap.login('foo', 'foo')
+          imap.select('INBOX')
+          assert_not_include(imap.responses, 'BYE')
+          sleep(command_wait_timeout_seconds * 1.5)
+          assert_include(imap.responses, 'BYE')
+          assert_match(/autologout/, imap.responses['BYE'].last.text)
+          assert(imap.disconnected?)
+        }
+
+        # IMAP IDLE command
+        imap_connect(use_ssl) {|imap|
+          imap.login('foo', 'foo')
+          imap.select('INBOX')
+          assert_not_include(imap.responses, 'BYE')
+          timeout(command_wait_timeout_seconds * 10) {
+            error = assert_raise(Net::IMAP::ByeResponseError) {
+              imap.idle{
+                # nothing to do
+              }
+            }
+            assert_match(/autologout/, error.message)
+          }
+          assert_include(imap.responses, 'BYE')
+          assert_match(/autologout/, imap.responses['BYE'].last.text)
+          assert(imap.disconnected?)
+        }
       }
     end
   end
