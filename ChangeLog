@@ -1,3 +1,7 @@
+2019-06-05  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* test/cmd/test_command.rb: IMAP server system test.
+
 2019-05-24  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/parser.rb: fix bodystructure response for
