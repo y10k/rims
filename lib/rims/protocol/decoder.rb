@@ -74,6 +74,13 @@ module RIMS
             when 'LOGIN'
               log_opt_args = opt_args.dup
               log_opt_args[-1] = '********'
+            when 'AUTHENTICATE'
+              if (opt_args[1]) then
+                log_opt_args = opt_args.dup
+                log_opt_args[1] = '********'
+              else
+                log_opt_args = opt_args
+              end
             else
               log_opt_args = opt_args
             end
