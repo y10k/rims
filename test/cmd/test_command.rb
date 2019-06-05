@@ -1020,8 +1020,17 @@ Hello world.
 
     include ProtocolFetchMailSample
 
-    def test_system(use_ssl: false)
-      run_server(use_ssl: use_ssl) {|imap|
+    def test_system(use_ssl: false, process_num: 0)
+      config = {
+        server: {
+          process_num: process_num
+        },
+        drb_services: {
+          process_num: process_num
+        }
+      }
+
+      run_server(use_ssl: use_ssl, optional: config) {|imap|
         assert_imap_no_response = lambda{|error_message_pattern, &block|
           error_response = assert_raise(Net::IMAP::NoResponseError) { block.call }
           assert_match(error_message_pattern, error_response.message)
@@ -1884,6 +1893,14 @@ Hello world.
 
     def test_system_ssl
       test_system(use_ssl: true)
+    end
+
+    def test_system_multiprocess
+      test_system(process_num: 4)
+    end
+
+    def test_system_multiprocess_ssl
+      test_system(use_ssl: true, process_num: 4)
     end
   end
 end
