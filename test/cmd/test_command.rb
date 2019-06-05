@@ -1018,12 +1018,57 @@ Hello world.
       assert_equal(0, status.exitstatus)
     end
 
+    include ProtocolFetchMailSample
+
     def test_system(use_ssl: false)
       run_server(use_ssl: use_ssl) {|imap|
-        imap.noop
+        assert_imap_no_response = lambda{|error_message_pattern, &block|
+          error_response = assert_raise(Net::IMAP::NoResponseError) { block.call }
+          assert_match(error_message_pattern, error_response.message)
+        }
+
+        assert_no_response_authenticated_state_imap_commands = lambda{|error_message_pattern|
+          assert_imap_no_response[error_message_pattern] { imap.subscribe('INBOX') }
+          assert_imap_no_response[error_message_pattern] { imap.unsubscribe('INBOX') }
+          assert_imap_no_response[error_message_pattern] { imap.list('', '*') }
+          assert_imap_no_response[error_message_pattern] { imap.lsub('', '*') }
+          assert_imap_no_response[error_message_pattern] { imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]) }
+          assert_imap_no_response[error_message_pattern] { imap.create('foo') }
+          assert_imap_no_response[error_message_pattern] { imap.rename('foo', 'bar') }
+          assert_imap_no_response[error_message_pattern] { imap.delete('bar') }
+          assert_imap_no_response[error_message_pattern] { imap.append('INBOX', 'a') }
+          assert_imap_no_response[error_message_pattern] { imap.select('INBOX') }
+          assert_imap_no_response[error_message_pattern] { imap.examine('INBOX') }
+        }
+
+        assert_no_response_selected_state_imap_commands = lambda{|error_message_pattern|
+          assert_imap_no_response[error_message_pattern] { imap.check }
+          assert_imap_no_response[error_message_pattern] { imap.search(%w[ * ]) }
+          assert_imap_no_response[error_message_pattern] { imap.uid_search(%w[ * ]) }
+          assert_imap_no_response[error_message_pattern] { imap.fetch(1..-1, 'RFC822') }
+          assert_imap_no_response[error_message_pattern] { imap.uid_fetch(1..-1, 'RFC822') }
+          assert_imap_no_response[error_message_pattern] { imap.store(1..-1, '+FLAGS', [ :Deleted ]) }
+          assert_imap_no_response[error_message_pattern] { imap.uid_store(1..-1, '+FLAGS', [ :Deleted ]) }
+          assert_imap_no_response[error_message_pattern] { imap.copy(1..-1, 'foo') }
+          assert_imap_no_response[error_message_pattern] { imap.uid_copy(1..-1, 'foo') }
+          assert_imap_no_response[error_message_pattern] { imap.expunge }
+          assert_imap_no_response[error_message_pattern] { imap.idle(0.1) { flunk } } # error log is a Net::IMAP bug to ignore Command Continuation Request
+          assert_imap_no_response[error_message_pattern] { imap.close }
+        }
+
+        # State: Not Authenticated
         assert_equal('OK', imap.greeting.name)
         assert_equal("RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.", imap.greeting.data.text)
+
+        # IMAP commands for Any State
         assert_equal(%w[ IMAP4REV1 UIDPLUS IDLE AUTH=PLAIN AUTH=CRAM-MD5 ], imap.capability)
+        imap.noop
+
+        # IMAP commands for Authenticated State
+        assert_no_response_authenticated_state_imap_commands.call(/not authenticated/)
+
+        # IMAP commands for Selected State
+        assert_no_response_selected_state_imap_commands.call(/not authenticated/)
 
         imap_connect(use_ssl) {|imap_auth_plain|
           imap_auth_plain.authenticate('PLAIN', 'foo', 'foo')
@@ -1035,17 +1080,96 @@ Hello world.
           imap_auth_cram_md5.logout
         }
 
+        # State: Not Authenticated -> Authenticated
         imap.login('foo', 'foo')
+
+        # IMAP commands for Any State
+        assert_equal(%w[ IMAP4REV1 UIDPLUS IDLE AUTH=PLAIN AUTH=CRAM-MD5 ], imap.capability)
         imap.noop
+
+        # IMAP commands for Authenticated State
+        imap.subscribe('INBOX')
+        assert_imap_no_response[/not implemented/] { imap.unsubscribe('INBOX') }
+
+        assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' } ],
+                     imap.list('', '*').map(&:to_h))
+        assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' } ],
+                     imap.lsub('', '*').map(&:to_h))
+
+        status = {
+          'MESSAGES'    => 0,
+          'RECENT'      => 0,
+          'UNSEEN'      => 0,
+          'UIDNEXT'     => 1,
+          'UIDVALIDITY' => 1
+        }
+        assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+        # INBOX will not be changed.
+        assert_imap_no_response[/duplicated mailbox/] { imap.create('INBOX') }
+        assert_imap_no_response[/not rename inbox/] { imap.rename('INBOX', 'foo') }
+        assert_imap_no_response[/not delete inbox/] { imap.delete('INBOX') }
         assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' } ], imap.list('', '*').map(&:to_h))
-        assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' } ], imap.lsub('', '*').map(&:to_h))
-        assert_equal({ 'MESSAGES'    => 0,
-                       'RECENT'      => 0,
-                       'UNSEEN'      => 0,
-                       'UIDNEXT'     => 1,
-                       'UIDVALIDITY' => 1
-                     },
-                     imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+        imap.create('foo')
+        assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' },
+                       { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'foo' }
+                     ],
+                     imap.list('', '*').map(&:to_h))
+        imap.rename('foo', 'bar')
+        assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' },
+                       { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'bar' }
+                     ],
+                     imap.list('', '*').map(&:to_h))
+        imap.delete('bar')
+        assert_equal([ { attr: [:Noinferiors, :Unmarked], delim: nil, name: 'INBOX' } ],
+                     imap.list('', '*').map(&:to_h))
+
+        make_mail_simple
+        imap.append('INBOX', @simple_mail.raw_source, [ :Flagged ], @simple_mail.date)
+
+        status['MESSAGES'] += 1
+        status['RECENT']   += 1
+        status['UNSEEN']   += 1
+        status['UIDNEXT']  += 1
+        assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+        # IMAP commands for Selected State
+        assert_no_response_selected_state_imap_commands.call(/not selected/)
+
+        # State: Authenticated -> Selected
+        imap.examine('INBOX')
+
+        # IMAP commands for Any State
+        assert_equal(%w[ IMAP4REV1 UIDPLUS IDLE AUTH=PLAIN AUTH=CRAM-MD5 ], imap.capability)
+        imap.noop
+
+        # IMAP commands for Selected State
+        imap.check
+
+        # State: Authenticated <- Selected
+        imap.close
+
+        assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+        # State: Authenticated -> Selected
+        imap.select('INBOX')
+
+        # IMAP commands for Any State
+        assert_equal(%w[ IMAP4REV1 UIDPLUS IDLE AUTH=PLAIN AUTH=CRAM-MD5 ], imap.capability)
+        imap.noop
+
+        # IMAP commands for Selected State
+        imap.check
+
+        # State: Authenticated <- Selected
+        imap.close
+
+        status['RECENT'] = 0
+        assert_equal(status, imap.status('INBOX', %w[ MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN ]))
+
+        # IMAP commands for Selected State
+        assert_no_response_selected_state_imap_commands.call(/not selected/)
       }
     end
 
