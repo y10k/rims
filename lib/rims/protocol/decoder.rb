@@ -704,10 +704,16 @@ module RIMS
         end
         private :open_folder
 
-        def close_folder(token, &block)
+        def close_folder(token)
           folder = @folders.delete(token) or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.reload if folder.updated?
-          folder.close(&block)
+          if (block_given?) then
+            folder.close do |msg_num|
+              yield("* #{msg_num} EXPUNGE\r\n")
+            end
+          else
+            folder.close
+          end
           @mail_store.sync
 
           nil
@@ -1178,11 +1184,10 @@ module RIMS
             end
           }
 
-          close_folder(token) do |msg_num|
+          close_folder(token) do |untagged_response|
             # IMAP CLOSE command may not send untagged EXPUNGE
             # responses, but notifies other connections of them.
-            r = "* #{msg_num} EXPUNGE\r\n"
-            folder.server_response_multicast_push(r)
+            folder.server_response_multicast_push(untagged_response)
           end
 
           res << "#{tag} OK CLOSE completed\r\n"
