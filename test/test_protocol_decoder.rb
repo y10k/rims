@@ -2044,7 +2044,13 @@ module RIMS::Test
         end
 
         assert_imap_command('CLOSE') {|assert|
-          assert.equal("* 1 EXPUNGE")
+          # see: RFC 3501 / 6.4.2.  CLOSE Command
+          # <https://tools.ietf.org/html/rfc3501#section-6.4.2>
+          #
+          # The CLOSE command permanently removes all messages that have the
+          # \Deleted flag set from the currently selected mailbox, and returns
+          # to the authenticated state from the selected state.  No untagged
+          # EXPUNGE responses are sent.
           assert.equal("#{tag} OK CLOSE completed")
         }
 

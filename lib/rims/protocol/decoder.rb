@@ -1179,13 +1179,10 @@ module RIMS
           }
 
           close_folder(token) do |msg_num|
+            # IMAP CLOSE command may not send untagged EXPUNGE
+            # responses, but notifies other connections of them.
             r = "* #{msg_num} EXPUNGE\r\n"
-            res << r
             folder.server_response_multicast_push(r)
-            if (res.length >= @bulk_response_count) then
-              yield(res)
-              res = []
-            end
           end
 
           res << "#{tag} OK CLOSE completed\r\n"
