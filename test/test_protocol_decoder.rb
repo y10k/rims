@@ -5406,67 +5406,70 @@ module RIMS::Test
         another_decoder = another_decoder.next_decoder
         assert_equal(true, another_decoder.selected?)
 
+        n = 1
         another_decoder.append('tag', 'INBOX', [ :group, '\Deleted' ], 'test', &another_writer)
         assert_imap_command('NOOP') {|assert|
-          assert.equal('* 1 EXISTS')
-          assert.equal('* 1 RECENT')
+          assert.equal("* #{n} EXISTS")
+          assert.equal("* #{n} RECENT")
           assert.equal("#{tag} OK NOOP completed")
         }
 
+        n += 1
         another_decoder.copy('tag', '1', 'INBOX', &another_writer)
         assert_imap_command('NOOP') {|assert|
-          assert.equal('* 2 EXISTS')
-          assert.equal('* 2 RECENT')
+          assert.equal("* #{n} EXISTS")
+          assert.equal("* #{n} RECENT")
           assert.equal("#{tag} OK NOOP completed")
         }
 
+        n -= 1
         another_decoder.expunge('tag', &another_writer)
         assert_imap_command('NOOP') {|assert|
           assert.equal('* 1 EXPUNGE')
           assert.equal("#{tag} OK NOOP completed")
         }
-        n = 2
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('CREATE foo') {|assert|
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
           assert.equal("#{tag} OK CREATE completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('RENAME foo bar') {|assert|
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
           assert.equal("#{tag} OK RENAME completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('DELETE bar') {|assert|
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
           assert.equal("#{tag} OK DELETE completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('SUBSCRIBE INBOX') {|assert|
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
           assert.equal("#{tag} OK SUBSCRIBE completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('UNSUBSCRIBE INBOX') {|assert|
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
           assert.equal("#{tag} NO not implemented subscribe/unsbscribe command")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('LIST "" *') {|assert|
           assert.equal("* #{n} EXISTS")
@@ -5474,8 +5477,8 @@ module RIMS::Test
           assert.equal('* LIST (\Noinferiors \Marked) NIL "INBOX"')
           assert.equal("#{tag} OK LIST completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('LSUB "" *') {|assert|
           assert.equal("* #{n} EXISTS")
@@ -5483,8 +5486,8 @@ module RIMS::Test
           assert.equal('* LSUB (\Noinferiors \Marked) NIL "INBOX"')
           assert.equal("#{tag} OK LSUB completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('STATUS INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
           assert.equal("* #{n} EXISTS")
@@ -5492,34 +5495,35 @@ module RIMS::Test
           assert.equal("* STATUS \"INBOX\" (MESSAGES #{n} RECENT #{n} UIDNEXT #{(n+1).succ} UIDVALIDITY #{@inbox_id} UNSEEN #{n})")
           assert.equal("#{tag} OK STATUS completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+        n += 1
         assert_imap_command('APPEND INBOX test') {|assert|
+          assert.equal("* #{n-1} EXISTS")
+          assert.equal("* #{n-1} RECENT")
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
-          assert.equal("* #{n+1} EXISTS")
-          assert.equal("* #{n+1} RECENT")
-          assert.equal("#{tag} OK [APPENDUID 1 #{n+2}] APPEND completed")
+          assert.equal("#{tag} OK [APPENDUID 1 #{n+1}] APPEND completed")
         }
-        n += 2
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('CHECK') {|assert|
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
           assert.equal("#{tag} OK CHECK completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('EXPUNGE') {|assert|
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
           assert.equal("#{tag} OK EXPUNGE completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('SEARCH *') {|assert|
           assert.equal("* #{n} EXISTS\r\n")
@@ -5527,8 +5531,8 @@ module RIMS::Test
           assert.equal("* SEARCH #{n}\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('FETCH 1 BODY.PEEK[]') {|assert|
           assert.equal("* #{n} EXISTS")
@@ -5536,8 +5540,8 @@ module RIMS::Test
           assert.equal(%Q'* 1 FETCH (BODY[] "test")')
           assert.equal("#{tag} OK FETCH completed")
         }
-        n += 1
 
+        n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('STORE 1 +FLAGS (\Flagged)') {|assert|
           assert.equal("* #{n} EXISTS")
@@ -5545,17 +5549,16 @@ module RIMS::Test
           assert.equal('* 1 FETCH (FLAGS (\Flagged \Recent))')
           assert.equal("#{tag} OK STORE completed")
         }
-        n += 1
 
+        n += 2
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('COPY 1 INBOX') {|assert|
+          assert.equal("* #{n-1} EXISTS")
+          assert.equal("* #{n-1} RECENT")
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
-          assert.equal("* #{n+1} EXISTS")
-          assert.equal("* #{n+1} RECENT")
-          assert.equal("#{tag} OK [COPYUID 1 2 #{n+2}] COPY completed")
+          assert.equal("#{tag} OK [COPYUID 1 2 #{n+1}] COPY completed")
         }
-        n += 2
 
         open_mail_store{
           f = @mail_store.open_folder(@inbox_id, read_only: true)
@@ -5568,6 +5571,7 @@ module RIMS::Test
           end
         }
 
+        n -= 1
         another_decoder.close('tag', &another_writer)
         assert_imap_command('NOOP') {|assert|
           assert.equal("* 1 EXPUNGE")
