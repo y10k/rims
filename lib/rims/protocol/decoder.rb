@@ -1183,24 +1183,12 @@ module RIMS
 
         def close(token, tag)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-
-          res = []
-          folder.server_response_fetch{|r|
-            res << r
-            if (res.length >= @bulk_response_count) then
-              yield(res)
-              res = []
-            end
-          }
-
           close_folder(token) do |untagged_response|
             # IMAP CLOSE command may not send untagged EXPUNGE
             # responses, but notifies other connections of them.
             folder.server_response_multicast_push(untagged_response)
           end
-
-          res << "#{tag} OK CLOSE completed\r\n"
-          yield(res)
+          yield([ "#{tag} OK CLOSE completed\r\n" ])
         end
         imap_command_selected :close, exclusive: true
 

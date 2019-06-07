@@ -5579,6 +5579,15 @@ module RIMS::Test
           assert.equal("#{tag} OK NOOP completed")
         }
 
+        n += 1
+        another_decoder.append('tag', 'INBOX', 'test', &another_writer)
+        assert_imap_command('CLOSE') {|assert|
+          # IMAP CLOSE command releases a mailbox that has a status to
+          # be notified, and it will not send untagged responses
+          # notified from other connections.
+          assert.equal("#{tag} OK CLOSE completed")
+        }
+
         another_decoder.cleanup
       }
     end
