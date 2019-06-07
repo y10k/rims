@@ -733,7 +733,10 @@ module RIMS
           if (token) then
             begin
               @mail_store.write_synchronize(@cleanup_write_lock_timeout_seconds) {
-                close_folder(token)
+                folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
+                close_folder(token) do |untagged_response|
+                  folder.server_response_multicast_push(untagged_response)
+                end
               }
             rescue WriteLockTimeoutError
               @logger.warn("give up to close folder becaue of write-lock timeout over #{@write_lock_timeout_seconds} seconds")
@@ -849,7 +852,7 @@ module RIMS
 
         def select(token, tag, mbox_name)
           if (token) then
-            close_folder(token)
+            close_no_response(token)
           end
 
           res = []
@@ -873,7 +876,7 @@ module RIMS
 
         def examine(token, tag, mbox_name)
           if (token) then
-            close_folder(token)
+            close_no_response(token)
           end
 
           res = []
@@ -1181,13 +1184,20 @@ module RIMS
         end
         imap_command_selected :check, exclusive: true
 
-        def close(token, tag)
+        def close_no_response(token)
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           close_folder(token) do |untagged_response|
             # IMAP CLOSE command may not send untagged EXPUNGE
             # responses, but notifies other connections of them.
             folder.server_response_multicast_push(untagged_response)
           end
+
+          nil
+        end
+        private :close_no_response
+
+        def close(token, tag)
+          close_no_response(token)
           yield([ "#{tag} OK CLOSE completed\r\n" ])
         end
         imap_command_selected :close, exclusive: true

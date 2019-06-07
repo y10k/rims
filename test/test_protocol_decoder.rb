@@ -5579,6 +5579,36 @@ module RIMS::Test
           assert.equal("#{tag} OK NOOP completed")
         }
 
+        open_mail_store{
+          f = @mail_store.open_folder(@inbox_id, read_only: true)
+          begin
+            uid_list = @mail_store.each_msg_uid(@inbox_id).to_a
+            last_uid = uid_list.min
+            @mail_store.set_msg_flag(@inbox_id, last_uid, 'deleted', true)
+          ensure
+            f.close
+          end
+        }
+
+        another_decoder.create('tag', 'foo', &another_writer)
+        another_decoder.examine('tag', 'INBOX', &another_writer)
+        another_decoder.examine('tag', 'foo', &another_writer) # closed INBOX implicitly
+        another_decoder.close('tag', 'foo', &another_writer)
+        assert_imap_command('NOOP') {|assert|
+          # no untagged responses on implicit INBOX close because
+          # INBOX is opened as read-only.
+          assert.equal("#{tag} OK NOOP completed")
+        }
+
+        n -= 1
+        another_decoder.select('tag', 'INBOX', &another_writer)
+        another_decoder.select('tag', 'foo', &another_writer) # closed INBOX implicitly
+        another_decoder.close('tag', 'foo', &another_writer)
+        assert_imap_command('NOOP') {|assert|
+          assert.equal("* 1 EXPUNGE")
+          assert.equal("#{tag} OK NOOP completed")
+        }
+
         n += 1
         another_decoder.append('tag', 'INBOX', 'test', &another_writer)
         assert_imap_command('CLOSE') {|assert|
@@ -5588,7 +5618,33 @@ module RIMS::Test
           assert.equal("#{tag} OK CLOSE completed")
         }
 
-        another_decoder.cleanup
+        assert_imap_command('EXAMINE INBOX') {|assert|
+          assert.equal("* #{n} EXISTS")
+          assert.equal('* 0 RECENT')
+          assert.equal("* OK [UNSEEN #{n}]")
+          assert.equal('* OK [UIDVALIDITY 1]')
+          assert.equal('* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)')
+          assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
+        }
+
+        open_mail_store{
+          f = @mail_store.open_folder(@inbox_id, read_only: true)
+          begin
+            uid_list = @mail_store.each_msg_uid(@inbox_id).to_a
+            last_uid = uid_list.min
+            @mail_store.set_msg_flag(@inbox_id, last_uid, 'deleted', true)
+          ensure
+            f.close
+          end
+        }
+
+        n -= 1
+        another_decoder.select('tag', 'INBOX', &another_writer)
+        another_decoder.cleanup # closed INBOX implicitly
+        assert_imap_command('NOOP') {|assert|
+          assert.equal("* 1 EXPUNGE")
+          assert.equal("#{tag} OK NOOP completed")
+        }
       }
     end
 
