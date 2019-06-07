@@ -707,12 +707,21 @@ module RIMS
         def close_folder(token)
           folder = @folders.delete(token) or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.reload if folder.updated?
-          if (block_given?) then
-            folder.close do |msg_num|
-              yield("* #{msg_num} EXPUNGE\r\n")
+          begin
+            if (block_given?) then
+              saved_recent_msgs = @mail_store.mbox_flag_num(folder.mbox_id, 'recent')
+              folder.close do |msg_num|
+                yield("* #{msg_num} EXPUNGE\r\n")
+              end
+              last_recent_msgs = @mail_store.mbox_flag_num(folder.mbox_id, 'recent')
+              if (last_recent_msgs != saved_recent_msgs) then
+                yield("* #{last_recent_msgs} RECENT\r\n")
+              end
+            else
+              folder.close
             end
-          else
-            folder.close
+          ensure
+            folder.detach
           end
           @mail_store.sync
 

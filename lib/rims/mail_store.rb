@@ -512,6 +512,13 @@ module RIMS
           end
         end
       end
+      @cnum = nil
+      @msg_list = nil
+      @uid_map = nil
+      self
+    end
+
+    def detach
       @mail_store = nil
       @pub.detach
       @sub.detach

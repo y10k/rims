@@ -5575,6 +5575,7 @@ module RIMS::Test
         another_decoder.close('tag', &another_writer)
         assert_imap_command('NOOP') {|assert|
           assert.equal("* 1 EXPUNGE")
+          assert.equal("* 0 RECENT")
           assert.equal("#{tag} OK NOOP completed")
         }
 
@@ -5655,7 +5656,8 @@ module RIMS::Test
         another_decoder.close('tag', &another_writer)
         assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
           assert.equal_lines("+ continue\r\n" +
-                             "* 1 EXPUNGE\r\n")
+                             "* 1 EXPUNGE\r\n" +
+                             "* 0 RECENT\r\n")
           assert.equal("#{tag} OK IDLE terminated")
         }
 
