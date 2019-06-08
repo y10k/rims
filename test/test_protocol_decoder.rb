@@ -574,7 +574,7 @@ module RIMS::Test
 
         assert_imap_command("AUTHENTICATE plain #{client_plain_response_base64('foo', 'detarame')}",
                             client_input_text: '') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/auth.* fail/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -588,7 +588,7 @@ module RIMS::Test
 
         assert_imap_command("AUTHENTICATE plain #{client_plain_response_base64('foo', 'open_sesame')}",
                             client_input_text: '') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/dup.* auth/)
         }
 
         assert_equal(true, @decoder.auth?) if command_test?
@@ -619,13 +619,13 @@ module RIMS::Test
 
         assert_imap_command('AUTHENTICATE plain', client_input_text: "*\r\n") {|assert|
           assert.equal('+ ')
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD AUTHENTICATE/, peek_next_line: true).match(/fail/)
         }
 
         assert_imap_command('AUTHENTICATE plain',
                             client_input_text: client_plain_response_base64('foo', 'detarame') + "\r\n") {|assert|
           assert.equal('+ ')
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/auth.* fail/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -639,7 +639,7 @@ module RIMS::Test
         assert_equal(true, @decoder.auth?) if command_test?
 
         assert_imap_command('AUTHENTICATE plain', client_input_text: '') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).match(/duplicated authentication/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/dup.* auth/)
         }
 
         assert_equal(true, @decoder.auth?) if command_test?
@@ -676,13 +676,13 @@ module RIMS::Test
 
         assert_imap_command('AUTHENTICATE cram-md5', client_input_text: "*\r\n") {|assert|
           assert.equal("+ #{server_client_data_base64_pair_list[0][0]}")
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD AUTHENTICATE/, peek_next_line: true).match(/fail/)
         }
 
         assert_imap_command('AUTHENTICATE cram-md5',
                             client_input_text: server_client_data_base64_pair_list[1][1] + "\r\n") {|assert|
           assert.equal("+ #{server_client_data_base64_pair_list[1][0]}")
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/auth.* fail/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -696,7 +696,7 @@ module RIMS::Test
         assert_equal(true, @decoder.auth?) if command_test?
 
         assert_imap_command('AUTHENTICATE cram-md5', client_input_text: '') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).match(/duplicated authentication/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/dup.* auth/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
@@ -724,7 +724,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('LOGIN foo detarame') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/fail.* login/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -736,7 +736,7 @@ module RIMS::Test
         assert_equal(true, @decoder.auth?) if command_test?
 
         assert_imap_command('LOGIN foo open_sesame') {|assert|
-          assert.match(/^#{tag} NO/)
+          assert.match(/^#{tag} NO/, peek_next_line: true).match(/dup.* login/)
         }
 
         assert_equal(true, @decoder.auth?) if command_test?
@@ -787,7 +787,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -918,7 +918,7 @@ module RIMS::Test
         end
 
         assert_imap_command('EXAMINE INBOX') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -1028,7 +1028,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('CREATE foo') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -1051,7 +1051,7 @@ module RIMS::Test
         }
 
         assert_imap_command('CREATE inbox') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/dup.* mailbox/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
@@ -1118,7 +1118,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('DELETE foo') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         open_mail_store{
@@ -1144,7 +1144,7 @@ module RIMS::Test
         }
 
         assert_imap_command('DELETE bar') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not found.* mailbox/)
         }
 
         open_mail_store{
@@ -1153,7 +1153,7 @@ module RIMS::Test
         }
 
         assert_imap_command('DELETE inbox') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not delete.* [Ii][Nn][Bb][Oo][Xx]/)
         }
 
         if (command_test?) then
@@ -1231,7 +1231,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('RENAME foo bar') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         open_mail_store{
@@ -1257,7 +1257,7 @@ module RIMS::Test
         }
 
         assert_imap_command('RENAME nobox baz') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not found.* mailbox/)
         }
 
         open_mail_store{
@@ -1265,7 +1265,7 @@ module RIMS::Test
         }
 
         assert_imap_command('RENAME INBOX baz') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not rename.* [Ii][Nn][Bb][Oo][Xx]/)
         }
 
         open_mail_store{
@@ -1274,7 +1274,7 @@ module RIMS::Test
         }
 
         assert_imap_command('RENAME bar inbox') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/dup.* mailbox/)
         }
 
         open_mail_store{
@@ -1351,7 +1351,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('SUBSCRIBE INBOX') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -1420,7 +1420,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('UNSUBSCRIBE INBOX') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -1432,7 +1432,7 @@ module RIMS::Test
         assert_equal(true, @decoder.auth?) if command_test?
 
         assert_imap_command('UNSUBSCRIBE INBOX') {|assert|
-          assert.equal("#{tag} NO not implemented subscribe/unsbscribe command")
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not implemented/)
         }
       }
     end
@@ -1453,7 +1453,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('LIST "" ""') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -1568,7 +1568,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('STATUS nobox (MESSAGES)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -1580,7 +1580,7 @@ module RIMS::Test
         assert_equal(true, @decoder.auth?) if command_test?
 
         assert_imap_command('STATUS nobox (MESSAGES)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not found.* mailbox/)
         }
 
         assert_imap_command('STATUS INBOX (MESSAGES)') {|assert|
@@ -1639,11 +1639,11 @@ module RIMS::Test
         }
 
         assert_imap_command('STATUS INBOX MESSAGES') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('STATUS INBOX (DETARAME)') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
@@ -1700,7 +1700,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('LSUB "" *') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
@@ -1767,7 +1767,7 @@ module RIMS::Test
         assert_equal(false, @decoder.auth?) if command_test?
 
         assert_imap_command('APPEND INBOX a') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         }
 
         open_mail_store{
@@ -1825,7 +1825,7 @@ module RIMS::Test
         }
 
         assert_imap_command('APPEND INBOX (\Answered \Flagged \Deleted \Seen \Draft) "19-Nov-1975 12:34:56 +0900" NIL x') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         open_mail_store{
@@ -1833,7 +1833,7 @@ module RIMS::Test
         }
 
         assert_imap_command('APPEND INBOX "19-Nov-1975 12:34:56 +0900" (\Answered \Flagged \Deleted \Seen \Draft) x') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         open_mail_store{
@@ -1841,7 +1841,7 @@ module RIMS::Test
         }
 
         assert_imap_command('APPEND INBOX (\Recent) x') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         open_mail_store{
@@ -1849,7 +1849,7 @@ module RIMS::Test
         }
 
         assert_imap_command('APPEND INBOX "bad date-time" x') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         open_mail_store{
@@ -1857,7 +1857,7 @@ module RIMS::Test
         }
 
         assert_imap_command('APPEND nobox x') {|assert|
-          assert.match(/^#{tag} NO \[TRYCREATE\]/)
+          assert.match(/^#{tag} NO \[TRYCREATE\]/, peek_next_line: true).match(/not found.* mailbox/)
         }
 
         open_mail_store{
@@ -1929,7 +1929,7 @@ module RIMS::Test
         end
 
         assert_imap_command('CHECK') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -1947,7 +1947,7 @@ module RIMS::Test
         end
 
         assert_imap_command('CHECK') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -2008,7 +2008,7 @@ module RIMS::Test
         end
 
         assert_imap_command('CLOSE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -2026,7 +2026,7 @@ module RIMS::Test
         end
 
         assert_imap_command('CLOSE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -2119,7 +2119,7 @@ module RIMS::Test
         end
 
         assert_imap_command('CLOSE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -2137,7 +2137,7 @@ module RIMS::Test
         end
 
         assert_imap_command('CLOSE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('EXAMINE INBOX') {|assert|
@@ -2205,7 +2205,7 @@ module RIMS::Test
         end
 
         assert_imap_command('EXPUNGE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -2223,7 +2223,7 @@ module RIMS::Test
         end
 
         assert_imap_command('EXPUNGE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -2364,7 +2364,7 @@ module RIMS::Test
         end
 
         assert_imap_command('EXPUNGE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -2382,7 +2382,7 @@ module RIMS::Test
         end
 
         assert_imap_command('EXPUNGE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('EXAMINE INBOX') {|assert|
@@ -2396,7 +2396,7 @@ module RIMS::Test
         end
 
         assert_imap_command('EXPUNGE') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot expunge.* read-only/)
         }
 
         open_mail_store{
@@ -2431,7 +2431,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SEARCH ALL') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -2449,7 +2449,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SEARCH ALL') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -2532,11 +2532,11 @@ module RIMS::Test
         }
 
         assert_imap_command('SEARCH bad-search-command') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('SEARCH') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
@@ -2587,7 +2587,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -2605,7 +2605,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -2689,7 +2689,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         if (command_test?) then
@@ -2707,7 +2707,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -2782,7 +2782,7 @@ module RIMS::Test
         end
 
         assert_imap_command('FETCH 1:* FAST') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_imap_command('LOGIN foo open_sesame') {|assert|
@@ -2795,7 +2795,7 @@ module RIMS::Test
         end
 
         assert_imap_command('FETCH 1:* FAST') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -2906,7 +2906,7 @@ module RIMS::Test
         end
 
         assert_imap_command('FETCH 1:* FAST') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_imap_command('LOGIN foo open_sesame') {|assert|
@@ -2919,7 +2919,7 @@ module RIMS::Test
         end
 
         assert_imap_command('FETCH 1:* FAST') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('EXAMINE INBOX') {|assert|
@@ -3038,7 +3038,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS (\Answered)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_imap_command('LOGIN foo open_sesame') {|assert|
@@ -3051,7 +3051,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS (\Answered)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('EXAMINE INBOX') {|assert|
@@ -3065,7 +3065,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS (\Answered)') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store in read-only mode/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         assert_imap_command('CLOSE') {|assert|
@@ -3341,7 +3341,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_imap_command('LOGIN foo open_sesame') {|assert|
@@ -3354,7 +3354,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('EXAMINE INBOX') {|assert|
@@ -3368,7 +3368,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered)') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store in read-only mode/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         assert_imap_command('CLOSE') {|assert|
@@ -3609,7 +3609,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS (\Answered)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_imap_command('LOGIN foo open_sesame') {|assert|
@@ -3622,7 +3622,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS (\Answered)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -3889,7 +3889,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         assert_imap_command('LOGIN foo open_sesame') {|assert|
@@ -3902,7 +3902,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -4126,7 +4126,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
         open_mail_store{
@@ -4147,7 +4147,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
         open_mail_store{
@@ -4165,7 +4165,7 @@ module RIMS::Test
         end
 
         assert_imap_command('STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4173,7 +4173,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4181,7 +4181,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4189,7 +4189,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4197,7 +4197,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4205,7 +4205,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 -FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4213,7 +4213,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4221,7 +4221,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4229,7 +4229,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 -FLAGS (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4237,7 +4237,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4245,7 +4245,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4253,7 +4253,7 @@ module RIMS::Test
         }
 
         assert_imap_command('STORE 1 -FLAGS.SILENT (\Answered \Flagged \Deleted \Seen \Draft)', uid: true) {|assert|
-          assert.match(/^#{tag} NO /)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
         }
 
         open_mail_store{
@@ -4319,7 +4319,7 @@ module RIMS::Test
         end
 
         assert_imap_command('COPY 2:4 WORK') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         }
 
         if (command_test?) then
@@ -4337,7 +4337,7 @@ module RIMS::Test
         end
 
         assert_imap_command('COPY 2:4 WORK') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -4461,7 +4461,7 @@ module RIMS::Test
         }
 
         assert_imap_command('COPY 1:* nobox') {|assert|
-          assert.match(/^#{tag} NO \[TRYCREATE\]/)
+          assert.match(/^#{tag} NO \[TRYCREATE\]/, peek_next_line: true).match(/not found.* mailbox/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
@@ -4523,7 +4523,7 @@ module RIMS::Test
         end
 
         assert_imap_command('COPY 3,5,7 WORK', uid: true) {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         }
 
         if (command_test?) then
@@ -4541,7 +4541,7 @@ module RIMS::Test
         end
 
         assert_imap_command('COPY 3,5,7 WORK', uid: true) {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).no_match(/\[TRYCREATE\]/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/, peek_next_line: true).no_match(/\[TRYCREATE\]/)
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
@@ -4665,7 +4665,7 @@ module RIMS::Test
         }
 
         assert_imap_command('COPY 1:* nobox', uid: true) {|assert|
-          assert.match(/^#{tag} NO \[TRYCREATE\]/)
+          assert.match(/^#{tag} NO \[TRYCREATE\]/, peek_next_line: true).match(/not found.* mailbox/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
@@ -5022,71 +5022,71 @@ module RIMS::Test
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('EXAMINE INBOX') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('CREATE foo') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('DELETE foo') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('RENAME foo bar') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('SUBSCRIBE foo') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('UNSUBSCRIBE foo') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('LIST "" *') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('LSUB "" *') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('STATUS INBOX (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('CHECK') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('CLOSE') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('EXPUNGE') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('SEARCH *') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('FETCH * RFC822') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('STORE 1 +FLAGS (\Answered \Flagged \Deleted \Seen \Draft)') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         assert_imap_command('COPY * foo') {|assert|
-          assert.match(/#{tag} NO not allowed command/)
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not allowed/)
         }
 
         base64_foo = RIMS::Protocol.encode_base64('foo')
@@ -5114,7 +5114,7 @@ module RIMS::Test
         }
 
         assert_imap_command(%Q'APPEND "b64user-mbox #{base64_foo} nobox" x') {|assert|
-          assert.match(/^#{tag} NO \[TRYCREATE\]/)
+          assert.match(/^#{tag} NO \[TRYCREATE\]/, peek_next_line: true).match(/not found.* mailbox/)
         }
 
         open_mail_store{
@@ -5122,7 +5122,7 @@ module RIMS::Test
         }
 
         assert_imap_command(%Q'APPEND "b64user-mbox #{base64_nouser} INBOX" x') {|assert|
-          assert.match(/^#{tag} NO not found a user/)
+          assert.match(/^#{tag} NO/, peek_next_line: true).match(/not found.* user/)
         }
 
         open_mail_store{
@@ -5130,7 +5130,7 @@ module RIMS::Test
         }
 
         assert_imap_command(%Q'APPEND "unknown-encode-type #{base64_foo} INBOX" x') {|assert|
-          assert.match(/^#{tag} BAD /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         open_mail_store{
@@ -5466,7 +5466,7 @@ module RIMS::Test
         assert_imap_command('UNSUBSCRIBE INBOX') {|assert|
           assert.equal("* #{n} EXISTS")
           assert.equal("* #{n} RECENT")
-          assert.equal("#{tag} NO not implemented subscribe/unsbscribe command")
+          assert.match(/^#{tag} NO /, peek_next_line: true).match(/not implemented/)
         }
 
         n += 1
