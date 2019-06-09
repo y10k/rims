@@ -541,9 +541,9 @@ module RIMS
 
     def self.parse_msg_seq(msg_seq_desc, last_number)
       case (msg_seq_desc)
-      when /\A(\d+|\*)\z/
+      when /\A (\d+|\*) \z/x
         msg_seq_pair = [ $&, $& ]
-      when /\A(\d+|\*):(\d+|\*)\z/
+      when /\A (\d+|\*):(\d+|\*) \z/x
         msg_seq_pair = [ $1, $2 ]
       else
         raise MessageSetSyntaxError, "invalid message sequence format: #{msg_seq_desc}"

@@ -50,11 +50,16 @@ module RIMS
       def scan_line(line)
         atom_list = line.scan(/BODY(?:\.\S+)?\[.*?\](?:<\d+\.\d+>)?|[\[\]()]|".*?"|[^\[\]()\s]+/i).map{|s|
           case (s)
-          when '(', ')', '[', ']', /\ANIL\z/i
+          when '(', ')', '[', ']', /\A NIL \z/ix
             s.upcase.intern
-          when /\A"/
-            s.sub(/\A"/, '').sub(/"\z/, '')
-          when /\A(?<body_symbol>BODY)(?:\.(?<body_option>\S+))?\[(?<body_section>.*)\](?:<(?<partial_origin>\d+\.(?<partial_size>\d+)>))?\z/i
+          when /\A "/x
+            s.sub(/\A "/x, '').sub(/" \z/x, '')
+          when /
+                 \A
+                 (?<body_symbol>BODY) (?:\. (?<body_option>\S+))? \[ (?<body_section>.*) \]
+                 (?:< (?<partial_origin>\d+) \. (?<partial_size>\d+) >)?
+                 \z
+               /ix
             body_symbol = $~[:body_symbol]
             body_option = $~[:body_option]
             body_section = $~[:body_section]
@@ -71,7 +76,7 @@ module RIMS
             s
           end
         }
-        if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /\A{\d+}\z/)) then
+        if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /\A {\d+} \z/x)) then
           next_size = $&[1..-2].to_i
           @logger.debug("found literal: #{next_size} octets.") if @logger.debug?
           @output.write("+ continue\r\n")
@@ -121,7 +126,7 @@ module RIMS
           if (atom_list.length < 2) then
             raise 'need for tag and command.'
           end
-          if (atom_list[0] =~ /\A[*+]/) then
+          if (atom_list[0] =~ /\A [*+]/x) then
             raise "invalid command tag: #{atom_list[0]}"
           end
           return parse(atom_list)
@@ -499,7 +504,7 @@ module RIMS
         unless (octet_size_string = search_key.shift) then
           raise SyntaxError, "need for a octet size of #{operation_name}."
         end
-        unless ((octet_size_string.is_a? String) && (octet_size_string =~ /\A\d+\z/)) then
+        unless ((octet_size_string.is_a? String) && (octet_size_string =~ /\A \d+ \z/x)) then
           raise SyntaxError, "#{operation_name} octet size is expected as numeric string but was <#{octet_size_string}>."
         end
 
