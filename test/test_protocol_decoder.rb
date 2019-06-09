@@ -2871,6 +2871,10 @@ module RIMS::Test
           assert_msg_flags(3, seen: false, recent: true)
         }
 
+        assert_imap_command('FETCH 1 bad-fetch-attr') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
         assert_imap_command('LOGOUT') {|assert|
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
@@ -2993,6 +2997,10 @@ module RIMS::Test
         open_mail_store{
           assert_msg_flags(2, seen: false, recent: true)
           assert_msg_flags(3, seen: false, recent: true)
+        }
+
+        assert_imap_command('FETCH 1 bad-fetch-attr') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
