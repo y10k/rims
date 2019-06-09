@@ -1638,6 +1638,11 @@ module RIMS::Test
           assert.equal("#{tag} OK STATUS completed")
         }
 
+        assert_imap_command('STATUS INBOX ()') {|assert|
+          assert.equal('* STATUS "INBOX" ()')
+          assert.equal("#{tag} OK STATUS completed")
+        }
+
         assert_imap_command('STATUS INBOX MESSAGES') {|assert|
           assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
