@@ -3054,29 +3054,6 @@ module RIMS::Test
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
-        assert_imap_command('EXAMINE INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* / }
-          assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
-        }
-
-        if (command_test?) then
-          assert_equal(true, @decoder.auth?)
-          assert_equal(true, @decoder.selected?)
-        end
-
-        assert_imap_command('STORE 1 +FLAGS (\Answered)') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
-        }
-
-        assert_imap_command('CLOSE') {|assert|
-          assert.equal("#{tag} OK CLOSE completed")
-        }
-
-        if (command_test?) then
-          assert_equal(true, @decoder.auth?)
-          assert_equal(false, @decoder.selected?)
-        end
-
         assert_imap_command('SELECT INBOX') {|assert|
           assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
@@ -3356,29 +3333,6 @@ module RIMS::Test
         assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered)') {|assert|
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
-
-        assert_imap_command('EXAMINE INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* / }
-          assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
-        }
-
-        if (command_test?) then
-          assert_equal(true, @decoder.auth?)
-          assert_equal(true, @decoder.selected?)
-        end
-
-        assert_imap_command('STORE 1 +FLAGS.SILENT (\Answered)') {|assert|
-          assert.match(/^#{tag} NO /, peek_next_line: true).match(/cannot store.* read-only/)
-        }
-
-        assert_imap_command('CLOSE') {|assert|
-          assert.equal("#{tag} OK CLOSE completed")
-        }
-
-        if (command_test?) then
-          assert_equal(true, @decoder.auth?)
-          assert_equal(false, @decoder.selected?)
-        end
 
         assert_imap_command('SELECT INBOX') {|assert|
           assert.skip_while{|line| line =~ /^\* / }
