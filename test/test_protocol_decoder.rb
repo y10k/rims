@@ -2645,6 +2645,18 @@ module RIMS::Test
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
+        assert_imap_command('SEARCH CHARSET') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('SEARCH CHARSET NIL') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('SEARCH CHARSET utf-8') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
         assert_imap_command('LOGOUT') {|assert|
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
@@ -2750,6 +2762,18 @@ module RIMS::Test
           assert.match(/^\+ /)
           assert.equal("* SEARCH 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
+        }
+
+        assert_imap_command('SEARCH CHARSET') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('SEARCH CHARSET NIL') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('SEARCH CHARSET utf-8') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
