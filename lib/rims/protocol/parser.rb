@@ -112,7 +112,7 @@ module RIMS
         end
 
         if (atom == nil && last_atom != nil) then
-          raise 'syntax error.'
+          raise SyntaxError, "not found a terminator: `#{last_atom}'"
         end
 
         syntax_list

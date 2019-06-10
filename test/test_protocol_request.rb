@@ -194,6 +194,12 @@ Hello Joe, do you think we can meet at 3:30 tomorrow?
       assert_equal([ 'A003', 'APPEND', 'saved-messages', "foo\nbody[]\nbar\n" ],
                    @reader.parse([ 'A003', 'APPEND', 'saved-messages', "foo\nbody[]\nbar\n" ]))
 
+      error = assert_raise(RIMS::SyntaxError) { @reader.parse([ '*', 'OK', '['.intern, 'UNSEEN', '12' ]) }
+      assert_match(/not found a terminator/, error.message)
+
+      error = assert_raise(RIMS::SyntaxError) { @reader.parse([ '*', 'LIST', '('.intern, '\Noselect' ]) }
+      assert_match(/not found a terminator/, error.message)
+
       assert_equal('', @output.string)
     end
 
