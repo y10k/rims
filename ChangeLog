@@ -1,3 +1,7 @@
+2019-06-10  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* RIMS version 0.2.5 is released.
+
 2019-06-07  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/decoder.rb: IMAP CLOSE command may not send
