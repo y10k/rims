@@ -2635,7 +2635,7 @@ module RIMS::Test
 
         utf8_msg = "\u306F\u306B\u307B"
         assert_imap_command("SEARCH CHARSET utf-8 BODY {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
-          assert.equal('+ continue')
+          assert.match(/^\+ /)
           assert.equal("* SEARCH 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
@@ -2742,7 +2742,7 @@ module RIMS::Test
 
         utf8_msg = "\u306F\u306B\u307B"
         assert_imap_command("SEARCH CHARSET utf-8 TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
-          assert.equal('+ continue')
+          assert.match(/^\+ /)
           assert.equal("* SEARCH 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
@@ -4820,24 +4820,24 @@ module RIMS::Test
         end
 
         assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
-          assert.equal('+ continue')
+          assert.match(/^\+ /)
           assert.equal("#{tag} OK IDLE terminated")
         }
 
         assert_imap_command('IDLE', client_input_text: "done\r\n") {|assert|
-          assert.equal('+ continue')
+          assert.match(/^\+ /)
           assert.equal("#{tag} OK IDLE terminated")
         }
 
         assert_imap_command('IDLE', client_input_text: "detarame\r\n") {|assert|
-          assert.equal('+ continue')
+          assert.match(/^\+ /)
           assert.equal("#{tag} BAD unexpected client response")
         }
 
         if (command_test?) then
           # not be able to close client input in stream test
           assert_imap_command('IDLE', client_input_text: '') {|assert|
-            assert.equal('+ continue')
+            assert.match(/^\+ /)
             assert.equal("#{tag} BAD unexpected client connection close")
           }
         end
@@ -4866,7 +4866,7 @@ module RIMS::Test
         end
 
         assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
-          assert.equal('+ continue')
+          assert.match(/^\+ /)
           assert.equal("#{tag} OK IDLE terminated")
         }
 
@@ -5290,7 +5290,7 @@ module RIMS::Test
         }
 
         assert_imap_command('IDLE', client_input_text: '') {|assert|
-          assert.equal('+ continue')
+          assert.match(/^\+ /)
         }
 
         @limits.command_wait_timeout_seconds = 0.1
@@ -5318,7 +5318,7 @@ module RIMS::Test
         }
 
         assert_imap_command('IDLE', client_input_text: '') {|assert|
-          assert.equal('+ continue')
+          assert.match(/^\+ /)
         }
 
         @limits.command_wait_timeout_seconds = 0
@@ -5640,24 +5640,24 @@ module RIMS::Test
 
         another_decoder.append('tag', 'INBOX', [ :group, '\Deleted' ], 'test', &another_writer)
         assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
-          assert.equal_lines("+ continue\r\n" +
-                             "* 1 EXISTS\r\n" +
-                             "* 1 RECENT\r\n")
+          assert.match(/^\+ /)
+          assert.equal('* 1 EXISTS')
+          assert.equal('* 1 RECENT')
           assert.equal("#{tag} OK IDLE terminated")
         }
 
         another_decoder.copy('tag', '1', 'INBOX', &another_writer)
         assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
-          assert.equal_lines("+ continue\r\n" +
-                             "* 2 EXISTS\r\n" +
-                             "* 2 RECENT\r\n")
+          assert.match(/^\+ /)
+          assert.equal('* 2 EXISTS')
+          assert.equal('* 2 RECENT')
           assert.equal("#{tag} OK IDLE terminated")
         }
 
         another_decoder.expunge('tag', &another_writer)
         assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
-          assert.equal_lines("+ continue\r\n" +
-                             "* 1 EXPUNGE\r\n")
+          assert.match(/^\+ /)
+          assert.equal('* 1 EXPUNGE')
           assert.equal("#{tag} OK IDLE terminated")
         }
 
@@ -5674,9 +5674,9 @@ module RIMS::Test
 
         another_decoder.close('tag', &another_writer)
         assert_imap_command('IDLE', client_input_text: "DONE\r\n") {|assert|
-          assert.equal_lines("+ continue\r\n" +
-                             "* 1 EXPUNGE\r\n" +
-                             "* 0 RECENT\r\n")
+          assert.match(/^\+ /)
+          assert.equal('* 1 EXPUNGE')
+          assert.equal('* 0 RECENT')
           assert.equal("#{tag} OK IDLE terminated")
         }
 
