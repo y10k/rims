@@ -3288,6 +3288,18 @@ module RIMS::Test
           assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
         }
 
+        assert_imap_command('STORE 1 DETARAME (\Flagged)') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('STORE 1 FLAGS (\Detarame)') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('STORE 1 FLAGS NIL') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
         assert_imap_command('LOGOUT') {|assert|
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
@@ -3531,6 +3543,18 @@ module RIMS::Test
           assert_flag_enabled_msgs('draft'   ,              )
           assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
           assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+        }
+
+        assert_imap_command('STORE 1 FLAGS.DETARAME (\Flagged)') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('STORE 1 FLAGS.SILENT (\Detarame)') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('STORE 1 FLAGS.SILENT NIL') {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
@@ -3813,6 +3837,18 @@ module RIMS::Test
           assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
         }
 
+        assert_imap_command('STORE 1 DETARAME (\Flagged)', uid: true) {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('STORE 1 FLAGS (\Detarame)', uid: true) {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('STORE 1 FLAGS NIL', uid: true) {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
         assert_imap_command('LOGOUT') {|assert|
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
@@ -4056,6 +4092,18 @@ module RIMS::Test
           assert_flag_enabled_msgs('draft'   ,              )
           assert_flag_enabled_msgs('recent'  , 1, 3, 5, 7, 9)
           assert_mbox_flag_num(answered: 4, flagged: 3, deleted: 2, seen: 1, draft: 0, recent: 5)
+        }
+
+        assert_imap_command('STORE 1 FLAGS.DETARAME (\Flagged)', uid: true) {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('STORE 1 FLAGS.SILENT (\Detarame)', uid: true) {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
+        assert_imap_command('STORE 1 FLAGS.SILENT NIL', uid: true) {|assert|
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('LOGOUT') {|assert|
