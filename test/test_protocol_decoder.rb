@@ -2870,6 +2870,18 @@ module RIMS::Test
           assert_msg_flags(3, seen: false, recent: true)
         }
 
+        assert(10 < @simple_mail.raw_source.bytesize)
+        assert(10 + 10 < @simple_mail.raw_source.bytesize)
+        assert_imap_command('FETCH 1 BODY[]<10.10>') {|assert|
+          assert.equal_lines("* 1 FETCH (BODY[]<10> #{literal(@simple_mail.raw_source[10, 10])})".b)
+          assert.equal("#{tag} OK FETCH completed")
+        }
+
+        open_mail_store{
+          assert_msg_flags(2, seen: true,  recent: true)
+          assert_msg_flags(3, seen: false, recent: true)
+        }
+
         assert_imap_command('FETCH 2 BODY.PEEK[1]') {|assert|
           assert.equal_lines(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
           assert.equal("#{tag} OK FETCH completed")
@@ -2882,6 +2894,18 @@ module RIMS::Test
 
         assert_imap_command('FETCH 2 RFC822', uid: true) {|assert|
           assert.equal_lines("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
+          assert.equal("#{tag} OK FETCH completed")
+        }
+
+        open_mail_store{
+          assert_msg_flags(2, seen: true,  recent: true)
+          assert_msg_flags(3, seen: false, recent: true)
+        }
+
+        assert(10 < @simple_mail.raw_source.bytesize)
+        assert(10 + 10 < @simple_mail.raw_source.bytesize)
+        assert_imap_command('FETCH 2 BODY[]<10.10>', uid: true) {|assert|
+          assert.equal_lines("* 1 FETCH (UID 2 BODY[]<10> #{literal(@simple_mail.raw_source[10, 10])})".b)
           assert.equal("#{tag} OK FETCH completed")
         }
 
@@ -2998,6 +3022,18 @@ module RIMS::Test
           assert_msg_flags(3, seen: false, recent: true)
         }
 
+        assert(10 < @simple_mail.raw_source.bytesize)
+        assert(10 + 10 < @simple_mail.raw_source.bytesize)
+        assert_imap_command('FETCH 1 BODY[]<10.10>') {|assert|
+          assert.equal_lines("* 1 FETCH (BODY[]<10> #{literal(@simple_mail.raw_source[10, 10])})".b)
+          assert.equal("#{tag} OK FETCH completed")
+        }
+
+        open_mail_store{
+          assert_msg_flags(2, seen: false, recent: true)
+          assert_msg_flags(3, seen: false, recent: true)
+        }
+
         assert_imap_command('FETCH 2 BODY.PEEK[1]') {|assert|
           assert.equal_lines(%Q'* 2 FETCH (BODY[1] "#{@mpart_mail.parts[0].body.raw_source}")'.b)
           assert.equal("#{tag} OK FETCH completed")
@@ -3010,6 +3046,18 @@ module RIMS::Test
 
         assert_imap_command('FETCH 2 RFC822', uid: true) {|assert|
           assert.equal_lines("* 1 FETCH (UID 2 RFC822 #{literal(@simple_mail.raw_source)})".b)
+          assert.equal("#{tag} OK FETCH completed")
+        }
+
+        open_mail_store{
+          assert_msg_flags(2, seen: false, recent: true)
+          assert_msg_flags(3, seen: false, recent: true)
+        }
+
+        assert(10 < @simple_mail.raw_source.bytesize)
+        assert(10 + 10 < @simple_mail.raw_source.bytesize)
+        assert_imap_command('FETCH 2 BODY[]<10.10>', uid: true) {|assert|
+          assert.equal_lines("* 1 FETCH (UID 2 BODY[]<10> #{literal(@simple_mail.raw_source[10, 10])})".b)
           assert.equal("#{tag} OK FETCH completed")
         }
 
