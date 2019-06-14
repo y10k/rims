@@ -1287,11 +1287,12 @@ Hello world.
                                     mail.header['Message-Id'])
           }
           body_type = lambda{|mail|
+            body_params = mail.content_type_parameters
             case (mail.media_main_type_upcase)
             when 'TEXT'
               Net::IMAP::BodyTypeText.new(mail.media_main_type_upcase,
                                           mail.media_sub_type_upcase,
-                                          Hash[mail.content_type_parameters.map{|n, v| [ n.upcase, v ] }],
+                                          (body_params && ! body_params.empty?) ? Hash[body_params.map{|n, v| [ n.upcase, v ] }] : nil,
                                           mail.header['Content-Id'],
                                           mail.header['Content-Description'],
                                           mail.header.fetch_upcase('Content-Transfer-Encoding'),
@@ -1300,7 +1301,7 @@ Hello world.
             when 'MESSAGE'
               Net::IMAP::BodyTypeMessage.new(mail.media_main_type_upcase,
                                              mail.media_sub_type_upcase,
-                                             Hash[mail.content_type_parameters.map{|n, v| [ n.upcase, v ] }],
+                                             (body_params && ! body_params.empty?) ? Hash[body_params.map{|n, v| [ n.upcase, v ] }] : nil,
                                              mail.header['Content-Id'],
                                              mail.header['Content-Description'],
                                              mail.header.fetch_upcase('Content-Transfer-Encoding'),
@@ -1315,7 +1316,7 @@ Hello world.
             else
               Net::IMAP::BodyTypeBasic.new(mail.media_main_type_upcase,
                                            mail.media_sub_type_upcase,
-                                           Hash[mail.content_type_parameters.map{|n, v| [ n.upcase, v ] }],
+                                           (body_params && ! body_params.empty?) ? Hash[body_params.map{|n, v| [ n.upcase, v ] }] : nil,
                                            mail.header['Content-Id'],
                                            mail.header['Content-Description'],
                                            mail.header.fetch_upcase('Content-Transfer-Encoding'),

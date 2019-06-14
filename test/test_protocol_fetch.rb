@@ -461,10 +461,10 @@ module RIMS::Test
                                                   @mpart_mail.parts[0].raw_source.bytesize,
                                                   @mpart_mail.parts[0].raw_source.each_line.count
                                                 ],
-                                                [ 'APPLICATION', 'OCTET-STREAM', [], nil, nil, nil,
+                                                [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
                                                   @mpart_mail.parts[1].raw_source.bytesize
                                                 ],
-                                                [ 'MESSAGE', 'RFC822', [], nil, nil, nil,
+                                                [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
                                                   @mpart_mail.parts[2].raw_source.bytesize,
                                                   [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
                                                     [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
@@ -473,17 +473,17 @@ module RIMS::Test
                                                       @mpart_mail.parts[2].message.parts[0].raw_source.bytesize,
                                                       @mpart_mail.parts[2].message.parts[0].raw_source.each_line.count
                                                     ],
-                                                    [ 'APPLICATION', 'OCTET-STREAM', [], nil, nil, nil,
+                                                    [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
                                                       @mpart_mail.parts[2].message.parts[1].raw_source.bytesize
                                                     ],
                                                     'MIXED'
                                                   ],
                                                   @mpart_mail.parts[2].raw_source.each_line.count
                                                 ],
-                                                [ [ 'IMAGE', 'GIF', [], nil, nil, nil,
+                                                [ [ 'IMAGE', 'GIF', nil, nil, nil, nil,
                                                     @mpart_mail.parts[3].parts[0].raw_source.bytesize
                                                   ],
-                                                  [ 'MESSAGE', 'RFC822', [], nil, nil, nil,
+                                                  [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
                                                     @mpart_mail.parts[3].parts[1].raw_source.bytesize,
                                                     [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
                                                       [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
@@ -515,7 +515,7 @@ module RIMS::Test
                          "#{fetch_att_bodystruct} " +
                          encode_bodystructure([ 'APPLICATION',
                                                 'OCTET-STREAM',
-                                                [],
+                                                nil,
                                                 nil,
                                                 nil,
                                                 nil,
@@ -526,7 +526,7 @@ module RIMS::Test
                          "#{fetch_att_bodystruct} " +
                          encode_bodystructure([ 'APPLICATION',
                                                 'OCTET-STREAM',
-                                                [],
+                                                nil,
                                                 nil,
                                                 nil,
                                                 nil,
@@ -734,10 +734,10 @@ module RIMS::Test
                                                 @mpart_mail.parts[0].raw_source.bytesize,
                                                 @mpart_mail.parts[0].raw_source.each_line.count
                                               ],
-                                              [ 'APPLICATION', 'OCTET-STREAM', [], nil, nil, nil,
+                                              [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
                                                 @mpart_mail.parts[1].raw_source.bytesize
                                               ],
-                                              [ 'MESSAGE', 'RFC822', [], nil, nil, nil,
+                                              [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
                                                 @mpart_mail.parts[2].raw_source.bytesize,
                                                 [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
                                                   [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
@@ -746,7 +746,7 @@ module RIMS::Test
                                                     @mpart_mail.parts[2].message.parts[0].raw_source.bytesize,
                                                     @mpart_mail.parts[2].message.parts[0].raw_source.each_line.count
                                                   ],
-                                                  [ 'APPLICATION', 'OCTET-STREAM', [], nil, nil, nil,
+                                                  [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
                                                     @mpart_mail.parts[2].message.parts[1].raw_source.bytesize
                                                   ],
                                                   'MIXED'
@@ -754,10 +754,10 @@ module RIMS::Test
                                                 @mpart_mail.parts[2].raw_source.each_line.count
                                               ],
                                               [
-                                                [ 'IMAGE', 'GIF', [], nil, nil, nil,
+                                                [ 'IMAGE', 'GIF', nil, nil, nil, nil,
                                                   @mpart_mail.parts[3].parts[0].raw_source.bytesize
                                                 ],
-                                                [ 'MESSAGE', 'RFC822', [], nil, nil, nil,
+                                                [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
                                                   @mpart_mail.parts[3].parts[1].raw_source.bytesize,
                                                   [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
                                                     [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
@@ -965,10 +965,10 @@ module RIMS::Test
                                         'ALTERNATIVE'
                                       ]
                                     ],
-         'message/rfc822:plain/text' => [ '("MESSAGE" "RFC822" () NIL NIL NIL 16822 ("8 Nov 2013 06:47:50 +0900 (JST)" "test" (NIL NIL "alice" "example.net") NIL NIL (NIL NIL "bob" "example.net") NIL NIL NIL NIL) ("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "BASE64" 16722 335) 345)',
+         'message/rfc822:plain/text' => [ '("MESSAGE" "RFC822" NIL NIL NIL NIL 16822 ("8 Nov 2013 06:47:50 +0900 (JST)" "test" (NIL NIL "alice" "example.net") NIL NIL (NIL NIL "bob" "example.net") NIL NIL NIL NIL) ("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "BASE64" 16722 335) 345)',
                                           [ 'MESSAGE',
                                             'RFC822',
-                                            [],
+                                            nil, # not allowed empty body field parameters
                                             nil,
                                             nil,
                                             nil,
@@ -996,10 +996,10 @@ module RIMS::Test
                                             345
                                           ]
                                         ],
-         'message/rfc822:multipart/alternative' => [ '("MESSAGE" "RFC822" () NIL NIL NIL 16822 ("8 Nov 2013 06:47:50 +0900 (JST)" "test" (NIL NIL "alice" "example.net") NIL NIL (NIL NIL "bob" "example.net") NIL NIL NIL NIL) (("TEXT" "PLAIN" ("CHARSET" "UTF-8" "DELSP" "yes" "FORMAT" "flowed") NIL NIL "BASE64" 1756 36)("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "QUOTED-PRINTABLE" 5921 119) "ALTERNATIVE") 345)',
+         'message/rfc822:multipart/alternative' => [ '("MESSAGE" "RFC822" NIL NIL NIL NIL 16822 ("8 Nov 2013 06:47:50 +0900 (JST)" "test" (NIL NIL "alice" "example.net") NIL NIL (NIL NIL "bob" "example.net") NIL NIL NIL NIL) (("TEXT" "PLAIN" ("CHARSET" "UTF-8" "DELSP" "yes" "FORMAT" "flowed") NIL NIL "BASE64" 1756 36)("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "QUOTED-PRINTABLE" 5921 119) "ALTERNATIVE") 345)',
                                                      [ 'MESSAGE',
                                                        'RFC822',
-                                                       [],
+                                                       nil, # not allowed empty body field parameters
                                                        nil,
                                                        nil,
                                                        nil,
