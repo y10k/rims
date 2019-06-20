@@ -124,6 +124,7 @@ Content-Type: multipart/mixed; boundary="1383.905529.351299"
 --1383.905529.351299
 Content-Type: image/gif
 
+GIF image...
 --1383.905529.351299
 Content-Type: message/rfc822
 
