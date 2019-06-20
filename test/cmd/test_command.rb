@@ -1288,8 +1288,7 @@ Hello world.
           }
           body_type = lambda{|mail|
             body_params = mail.content_type_parameters
-            case (mail.media_main_type_upcase)
-            when 'TEXT'
+            if (mail.text?) then
               Net::IMAP::BodyTypeText.new(mail.media_main_type_upcase,
                                           mail.media_sub_type_upcase,
                                           (body_params && ! body_params.empty?) ? Hash[body_params.map{|n, v| [ n.upcase, v ] }] : nil,
@@ -1298,7 +1297,7 @@ Hello world.
                                           mail.header.fetch_upcase('Content-Transfer-Encoding'),
                                           mail.raw_source.bytesize,
                                           mail.raw_source.each_line.count)
-            when 'MESSAGE'
+            elsif (mail.message?) then
               Net::IMAP::BodyTypeMessage.new(mail.media_main_type_upcase,
                                              mail.media_sub_type_upcase,
                                              (body_params && ! body_params.empty?) ? Hash[body_params.map{|n, v| [ n.upcase, v ] }] : nil,
@@ -1309,7 +1308,7 @@ Hello world.
                                              envelope[mail.message],
                                              body_type[mail.message],
                                              mail.raw_source.each_line.count)
-            when 'MULTIPART'
+            elsif (mail.multipart?) then
               Net::IMAP::BodyTypeMultipart.new(mail.media_main_type_upcase,
                                                mail.media_sub_type_upcase,
                                                mail.parts.map{|m| body_type[m] })
