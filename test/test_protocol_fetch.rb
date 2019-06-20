@@ -162,7 +162,7 @@ module RIMS::Test
         assert_fetch(0, [ "BODY[] #{literal(@simple_mail.raw_source)}" ])
         assert_fetch(1, [ "BODY[] #{literal(@mpart_mail.raw_source)}" ])
         assert_fetch(2, [ 'BODY[] ""' ])
-        assert_fetch(3, [ %Q'BODY[] "#{@no_body_mail.raw_source}"' ])
+        assert_fetch(3, [ "BODY[] #{literal(@no_body_mail.raw_source)}" ])
       }
 
       parse_fetch_attribute(make_body('BODY[TEXT]')) {
@@ -176,7 +176,7 @@ module RIMS::Test
         assert_fetch(0, [ "BODY[HEADER] #{literal(@simple_mail.header.raw_source)}" ])
         assert_fetch(1, [ "BODY[HEADER] #{literal(@mpart_mail.header.raw_source)}" ])
         assert_fetch(2, [ 'BODY[HEADER] ""' ])
-        assert_fetch(3, [ %Q'BODY[HEADER] "#{@no_body_mail.header.raw_source}"' ])
+        assert_fetch(3, [ "BODY[HEADER] #{literal(@no_body_mail.header.raw_source)}" ])
       }
 
       parse_fetch_attribute(make_body('BODY[HEADER.FIELDS (From To)]')) {
@@ -590,7 +590,7 @@ module RIMS::Test
                        ]
                      ])
         assert_fetch(3, [ 'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)' ])
-        assert_fetch(4, [ 'ENVELOPE (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)' ])
+        assert_fetch(4, [ 'ENVELOPE (NIL "foo" NIL NIL NIL NIL NIL NIL NIL NIL)' ])
         assert_fetch(5, [
                        'ENVELOPE',
                        [ '"Fri,  8 Nov 2013 06:47:50 +0900 (JST)"', # Date

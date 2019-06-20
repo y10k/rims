@@ -187,7 +187,7 @@ Hello world.
       private :make_mail_empty
 
       def make_mail_no_body
-        @no_body_mail = RIMS::RFC822::Message.new('foo')
+        @no_body_mail = RIMS::RFC822::Message.new("Subject: foo\r\n\r\n")
       end
       private :make_mail_no_body
 
