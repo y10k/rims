@@ -1277,12 +1277,12 @@ Hello world.
           envelope = lambda{|mail|
             Net::IMAP::Envelope.new(mail.header['Date'],
                                     mail.header['Subject'],
-                                    mail.from     ? mail.from.map{|addr| Net::IMAP::Address.new(*addr) }     : nil,
-                                    mail.reply_to ? mail.reply_to.map{|addr| Net::IMAP::Address.new(*addr) } : nil,
-                                    mail.sender   ? mail.sender.map{|addr| Net::IMAP::Address.new(*addr) }   : nil,
-                                    mail.to       ? mail.to.map{|addr| Net::IMAP::Address.new(*addr) }       : nil,
-                                    mail.cc       ? mail.cc.map{|addr| Net::IMAP::Address.new(*addr) }       : nil,
-                                    mail.bcc      ? mail.bcc.map{|addr| Net::IMAP::Address.new(*addr) }      : nil,
+                                    mail.from     ? mail.from.map{|addr| Net::IMAP::Address.new(*addr.to_a) }     : nil,
+                                    mail.reply_to ? mail.reply_to.map{|addr| Net::IMAP::Address.new(*addr.to_a) } : nil,
+                                    mail.sender   ? mail.sender.map{|addr| Net::IMAP::Address.new(*addr.to_a) }   : nil,
+                                    mail.to       ? mail.to.map{|addr| Net::IMAP::Address.new(*addr.to_a) }       : nil,
+                                    mail.cc       ? mail.cc.map{|addr| Net::IMAP::Address.new(*addr.to_a) }       : nil,
+                                    mail.bcc      ? mail.bcc.map{|addr| Net::IMAP::Address.new(*addr.to_a) }      : nil,
                                     mail.header['In-Reply-To'],
                                     mail.header['Message-Id'])
           }

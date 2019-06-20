@@ -902,12 +902,12 @@ module RIMS
         env_data = []
         env_data << mail.header['Date']
         env_data << mail.header['Subject']
-        env_data << mail.from
-        env_data << mail.sender
-        env_data << mail.reply_to
-        env_data << mail.to
-        env_data << mail.cc
-        env_data << mail.bcc
+        env_data << mail.from&.map(&:to_a)
+        env_data << mail.sender&.map(&:to_a)
+        env_data << mail.reply_to&.map(&:to_a)
+        env_data << mail.to&.map(&:to_a)
+        env_data << mail.cc&.map(&:to_a)
+        env_data << mail.bcc&.map(&:to_a)
         env_data << mail.header['In-Reply-To']
         env_data << mail.header['Message-Id']
       end
