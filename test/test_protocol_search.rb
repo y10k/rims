@@ -952,6 +952,7 @@ Content-Type: text/html
     def test_parse_charset_text
       make_search_parser(charset: 'utf-8') {
         add_msg("Content-Type: text/plain\r\n" +
+                "\r\n" +
                 "foo")
         add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
                 "X-foo: dummy\r\n" +

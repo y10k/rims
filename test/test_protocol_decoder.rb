@@ -2679,6 +2679,7 @@ module RIMS::Test
 
         open_mail_store{
           add_msg("Content-Type: text/plain\r\n" +
+                  "\r\n" +
                   "foo")
           add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
                   "X-foo: dummy\r\n" +
