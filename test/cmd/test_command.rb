@@ -1286,40 +1286,103 @@ Hello world.
                                     mail.header['In-Reply-To'],
                                     mail.header['Message-Id'])
           }
-          body_type = lambda{|mail|
-            body_params = mail.content_type_parameter_list
+          body_type = lambda{|mail, extension=false|
+            body_params = lambda{|params|
+              if (params && ! params.empty?) then
+                Hash[params.map{|n, v| [ n.upcase, v ] }]
+              end
+            }
+            body_disposition = lambda{|mail|
+              if (mail.content_disposition) then
+                Net::IMAP::ContentDisposition.new(mail.content_disposition_upcase,
+                                                  body_params[mail.content_disposition_parameter_list])
+              end
+            }
+            body_language = lambda{|mail|
+              if (mail.content_language) then
+                if (mail.content_language.length > 1) then
+                  mail.content_language_upcase
+                else
+                  mail.content_language_upcase[0]
+                end
+              end
+            }
             if (mail.text?) then
               Net::IMAP::BodyTypeText.new(mail.media_main_type_upcase,
                                           mail.media_sub_type_upcase,
-                                          (body_params && ! body_params.empty?) ? Hash[body_params.map{|n, v| [ n.upcase, v ] }] : nil,
+                                          body_params[mail.content_type_parameter_list],
                                           mail.header['Content-Id'],
                                           mail.header['Content-Description'],
                                           mail.header.fetch_upcase('Content-Transfer-Encoding'),
                                           mail.raw_source.bytesize,
-                                          mail.raw_source.each_line.count)
+                                          mail.raw_source.each_line.count,
+                                          *(
+                                            if (extension) then
+                                              [ mail.header['Content-MD5'],
+                                                body_disposition[mail],
+                                                body_language[mail],
+                                                [ mail.header['Content-Location'] ]
+                                              ]
+                                            else
+                                              []
+                                            end
+                                          ))
             elsif (mail.message?) then
               Net::IMAP::BodyTypeMessage.new(mail.media_main_type_upcase,
                                              mail.media_sub_type_upcase,
-                                             (body_params && ! body_params.empty?) ? Hash[body_params.map{|n, v| [ n.upcase, v ] }] : nil,
+                                             body_params[mail.content_type_parameter_list],
                                              mail.header['Content-Id'],
                                              mail.header['Content-Description'],
                                              mail.header.fetch_upcase('Content-Transfer-Encoding'),
                                              mail.raw_source.bytesize,
                                              envelope[mail.message],
-                                             body_type[mail.message],
-                                             mail.raw_source.each_line.count)
+                                             body_type[mail.message, extension],
+                                             mail.raw_source.each_line.count,
+                                             *(
+                                               if (extension) then
+                                                 [ mail.header['Content-MD5'],
+                                                   body_disposition[mail],
+                                                   body_language[mail],
+                                                   [ mail.header['Content-Location'] ]
+                                                 ]
+                                               else
+                                                 []
+                                               end
+                                             ))
             elsif (mail.multipart?) then
               Net::IMAP::BodyTypeMultipart.new(mail.media_main_type_upcase,
                                                mail.media_sub_type_upcase,
-                                               mail.parts.map{|m| body_type[m] })
+                                               mail.parts.map{|m| body_type[m, extension] },
+                                               *(
+                                                 if (extension) then
+                                                   [ body_params[mail.content_type_parameter_list],
+                                                     body_disposition[mail],
+                                                     body_language[mail],
+                                                     [ mail.header['Content-Location'] ]
+                                                   ]
+                                                 else
+                                                   []
+                                                 end
+                                               ))
             else
               Net::IMAP::BodyTypeBasic.new(mail.media_main_type_upcase,
                                            mail.media_sub_type_upcase,
-                                           (body_params && ! body_params.empty?) ? Hash[body_params.map{|n, v| [ n.upcase, v ] }] : nil,
+                                           body_params[mail.content_type_parameter_list],
                                            mail.header['Content-Id'],
                                            mail.header['Content-Description'],
                                            mail.header.fetch_upcase('Content-Transfer-Encoding'),
-                                           mail.raw_source.bytesize)
+                                           mail.raw_source.bytesize,
+                                           *(
+                                             if (extension) then
+                                               [ mail.header['Content-MD5'],
+                                                 body_disposition[mail],
+                                                 body_language[mail],
+                                                 [ mail.header['Content-Location'] ]
+                                               ]
+                                             else
+                                               []
+                                             end
+                                           ))
             end
           }
 
@@ -1406,9 +1469,9 @@ Hello world.
                        imap_fetch.call(msg_set[1..-1], 'BODY'))
 
           assert_equal(fetch_data[
-                         [ 1, { 'BODYSTRUCTURE' => body_type[@simple_mail] } ],
-                         [ 2, { 'BODYSTRUCTURE' => body_type[@mpart_mail] } ],
-                         [ 3, { 'BODYSTRUCTURE' => body_type[@mime_subject_mail] } ]
+                         [ 1, { 'BODYSTRUCTURE' => body_type[@simple_mail, true] } ],
+                         [ 2, { 'BODYSTRUCTURE' => body_type[@mpart_mail, true] } ],
+                         [ 3, { 'BODYSTRUCTURE' => body_type[@mime_subject_mail, true] } ]
                        ],
                        imap_fetch.call(msg_set[1..-1], 'BODYSTRUCTURE'))
 

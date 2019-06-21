@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'digest'
 require 'logger'
 require 'rims'
 require 'set'
@@ -441,100 +442,247 @@ module RIMS::Test
         add_mail_no_body
       }
 
-      for fetch_att_bodystruct in %w[ BODY BODYSTRUCTURE ]
-        parse_fetch_attribute(fetch_att_bodystruct) {
-          assert_fetch(0, [
-                         "#{fetch_att_bodystruct} " +
-                         encode_bodystructure([ 'TEXT',
-                                                'PLAIN',
-                                                %w[ charset us-ascii ],
-                                                nil,
-                                                nil,
-                                                '7BIT',
-                                                @simple_mail.raw_source.bytesize,
-                                                @simple_mail.raw_source.each_line.count
-                                              ])
-                       ])
-          assert_fetch(1, [
-                         "#{fetch_att_bodystruct} " +
-                         encode_bodystructure([ [ 'TEXT', 'PLAIN', %w[ charset us-ascii], nil, nil, nil,
-                                                  @mpart_mail.parts[0].raw_source.bytesize,
-                                                  @mpart_mail.parts[0].raw_source.each_line.count
+      parse_fetch_attribute('BODY') {
+        assert_fetch(0,
+                     [
+                       'BODY ' +
+                       encode_bodystructure([ 'TEXT',
+                                              'PLAIN',
+                                              %w[ charset us-ascii ],
+                                              nil,
+                                              nil,
+                                              '7BIT',
+                                              @simple_mail.raw_source.bytesize,
+                                              @simple_mail.raw_source.each_line.count
+                                            ])
+                     ])
+        assert_fetch(1,
+                     [
+                       'BODY ' +
+                       encode_bodystructure([ [ 'TEXT', 'PLAIN', %w[ charset us-ascii], nil, nil, nil,
+                                                @mpart_mail.parts[0].raw_source.bytesize,
+                                                @mpart_mail.parts[0].raw_source.each_line.count
+                                              ],
+                                              [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
+                                                @mpart_mail.parts[1].raw_source.bytesize
+                                              ],
+                                              [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
+                                                @mpart_mail.parts[2].raw_source.bytesize,
+                                                [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                                  [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
                                                 ],
-                                                [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
-                                                  @mpart_mail.parts[1].raw_source.bytesize
+                                                [ [ 'TEXT', 'PLAIN', %w[ charset us-ascii ], nil, nil, nil,
+                                                    @mpart_mail.parts[2].message.parts[0].raw_source.bytesize,
+                                                    @mpart_mail.parts[2].message.parts[0].raw_source.each_line.count
+                                                  ],
+                                                  [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
+                                                    @mpart_mail.parts[2].message.parts[1].raw_source.bytesize
+                                                  ],
+                                                  'MIXED'
+                                                ],
+                                                @mpart_mail.parts[2].raw_source.each_line.count
+                                              ],
+                                              [ [ 'IMAGE', 'GIF', nil, nil, nil, nil,
+                                                  @mpart_mail.parts[3].parts[0].raw_source.bytesize
                                                 ],
                                                 [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
-                                                  @mpart_mail.parts[2].raw_source.bytesize,
+                                                  @mpart_mail.parts[3].parts[1].raw_source.bytesize,
                                                   [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
                                                     [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
                                                   ],
                                                   [ [ 'TEXT', 'PLAIN', %w[ charset us-ascii ], nil, nil, nil,
-                                                      @mpart_mail.parts[2].message.parts[0].raw_source.bytesize,
-                                                      @mpart_mail.parts[2].message.parts[0].raw_source.each_line.count
+                                                      @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.bytesize,
+                                                      @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.each_line.count
                                                     ],
-                                                    [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
-                                                      @mpart_mail.parts[2].message.parts[1].raw_source.bytesize
+                                                    [ [ 'TEXT', 'PLAIN', %w[ charset us-ascii ], nil, nil, nil,
+                                                        @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.bytesize,
+                                                        @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.each_line.count
+                                                      ],
+                                                      [ 'TEXT', 'HTML', %w[ charset us-ascii ], nil, nil, nil,
+                                                        @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.bytesize,
+                                                        @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.each_line.count
+                                                      ],
+                                                      'ALTERNATIVE'
                                                     ],
                                                     'MIXED'
                                                   ],
-                                                  @mpart_mail.parts[2].raw_source.each_line.count
+                                                  @mpart_mail.parts[3].parts[1].raw_source.each_line.count
                                                 ],
-                                                [ [ 'IMAGE', 'GIF', nil, nil, nil, nil,
-                                                    @mpart_mail.parts[3].parts[0].raw_source.bytesize
+                                                'MIXED',
+                                              ],
+                                              'MIXED'
+                                            ])
+                     ])
+        assert_fetch(2,
+                     [
+                       'BODY ' +
+                       encode_bodystructure([ 'APPLICATION',
+                                              'OCTET-STREAM',
+                                              nil,
+                                              nil,
+                                              nil,
+                                              nil,
+                                              @empty_mail.raw_source.bytesize
+                                            ])
+                     ])
+        assert_fetch(3,
+                     [
+                       'BODY ' +
+                       encode_bodystructure([ 'APPLICATION',
+                                              'OCTET-STREAM',
+                                              nil,
+                                              nil,
+                                              nil,
+                                              nil,
+                                              @no_body_mail.raw_source.bytesize
+                                            ])
+                     ])
+      }
+    end
+
+    def test_parse_bodystructure_extension_data
+      make_fetch_parser{
+        add_mail_simple
+        add_mail_multipart
+        add_mail_empty
+        add_mail_no_body
+      }
+
+      parse_fetch_attribute('BODYSTRUCTURE') {
+        assert_fetch(0,
+                     [
+                       'BODYSTRUCTURE ' +
+                       encode_bodystructure([ 'TEXT',
+                                              'PLAIN',
+                                              %w[ charset us-ascii ],
+                                              nil,
+                                              nil,
+                                              '7BIT',
+                                              @simple_mail.raw_source.bytesize,
+                                              @simple_mail.raw_source.each_line.count,
+                                              [ Digest::MD5.digest(@simple_mail_body) ].pack('m').strip,
+                                              nil,
+                                              %w[ EN-US EN ],
+                                              nil
+                                            ])
+                     ])
+        assert_fetch(1,
+                     [
+                       'BODYSTRUCTURE ' +
+                       encode_bodystructure([ [ 'TEXT', 'PLAIN', %w[ charset us-ascii], nil, nil, nil,
+                                                @mpart_mail.parts[0].raw_source.bytesize,
+                                                @mpart_mail.parts[0].raw_source.each_line.count,
+                                                nil, nil, nil, nil
+                                              ],
+                                              [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
+                                                @mpart_mail.parts[1].raw_source.bytesize,
+                                                nil,
+                                                [ 'ATTACHMENT', [ 'filename', 'test.dat', 'modification-date', 'Wed, 12 Feb 1997 16:29:51 -0500' ] ],
+                                                nil, nil
+                                              ],
+                                              [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
+                                                @mpart_mail.parts[2].raw_source.bytesize,
+                                                [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                                  [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
+                                                ],
+                                                [ [ 'TEXT', 'PLAIN', %w[ charset us-ascii ], nil, nil, nil,
+                                                    @mpart_mail.parts[2].message.parts[0].raw_source.bytesize,
+                                                    @mpart_mail.parts[2].message.parts[0].raw_source.each_line.count,
+                                                    nil, nil, nil, nil
                                                   ],
-                                                  [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
-                                                    @mpart_mail.parts[3].parts[1].raw_source.bytesize,
-                                                    [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
-                                                      [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
-                                                    ],
-                                                    [ [ 'TEXT', 'PLAIN', %w[ charset us-ascii ], nil, nil, nil,
-                                                        @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.bytesize,
-                                                        @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.each_line.count
-                                                      ],
-                                                      [ [ 'TEXT', 'PLAIN', %w[ charset us-ascii ], nil, nil, nil,
-                                                          @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.bytesize,
-                                                          @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.each_line.count
-                                                        ],
-                                                        [ 'TEXT', 'HTML', %w[ charset us-ascii ], nil, nil, nil,
-                                                          @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.bytesize,
-                                                          @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.each_line.count
-                                                        ],
-                                                        'ALTERNATIVE'
-                                                      ],
-                                                      'MIXED'
-                                                    ],
-                                                    @mpart_mail.parts[3].parts[1].raw_source.each_line.count
+                                                  [ 'APPLICATION', 'OCTET-STREAM', nil, nil, nil, nil,
+                                                    @mpart_mail.parts[2].message.parts[1].raw_source.bytesize,
+                                                    nil, nil, nil, nil
                                                   ],
                                                   'MIXED',
+                                                  %w[ boundary 1383.905529.351298 ],
+                                                  [ 'ATTACHMENT', %w[ filename hello.txt ] ],
+                                                  'EN',
+                                                  'test'
                                                 ],
-                                                'MIXED'
-                                              ])
-                       ])
-          assert_fetch(2, [
-                         "#{fetch_att_bodystruct} " +
-                         encode_bodystructure([ 'APPLICATION',
-                                                'OCTET-STREAM',
-                                                nil,
-                                                nil,
-                                                nil,
-                                                nil,
-                                                @empty_mail.raw_source.bytesize
-                                              ])
-                       ])
-          assert_fetch(3, [
-                         "#{fetch_att_bodystruct} " +
-                         encode_bodystructure([ 'APPLICATION',
-                                                'OCTET-STREAM',
-                                                nil,
-                                                nil,
-                                                nil,
-                                                nil,
-                                                @no_body_mail.raw_source.bytesize
-                                              ])
-                       ])
-        }
-      end
+                                                @mpart_mail.parts[2].raw_source.each_line.count,
+                                                nil, nil, nil, nil
+                                              ],
+                                              [ [ 'IMAGE', 'GIF', nil, nil, nil, nil,
+                                                  @mpart_mail.parts[3].parts[0].raw_source.bytesize,
+                                                  nil,
+                                                  [ 'INLINE', nil ],
+                                                  nil, nil
+                                                ],
+                                                [ 'MESSAGE', 'RFC822', nil, nil, nil, nil,
+                                                  @mpart_mail.parts[3].parts[1].raw_source.bytesize,
+                                                  [ 'Fri, 8 Nov 2013 19:31:03 +0900', 'inner multipart',
+                                                    [ [ nil, nil, 'foo', 'nonet.com' ] ], nil, nil, [ [ nil, nil, 'bar', 'nonet.com' ] ], nil, nil, nil, nil
+                                                  ],
+                                                  [ [ 'TEXT', 'PLAIN', %w[ charset us-ascii ], nil, nil, nil,
+                                                      @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.bytesize,
+                                                      @mpart_mail.parts[3].parts[1].message.parts[0].raw_source.each_line.count,
+                                                      nil, nil, nil,
+                                                      'foo'
+                                                    ],
+                                                    [ [ 'TEXT', 'PLAIN', %w[ charset us-ascii ], nil, nil, nil,
+                                                        @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.bytesize,
+                                                        @mpart_mail.parts[3].parts[1].message.parts[1].parts[0].raw_source.each_line.count,
+                                                        nil, nil, nil,
+                                                        'bar'
+                                                      ],
+                                                      [ 'TEXT', 'HTML', %w[ charset us-ascii ], nil, nil, nil,
+                                                        @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.bytesize,
+                                                        @mpart_mail.parts[3].parts[1].message.parts[1].parts[1].raw_source.each_line.count,
+                                                        nil, nil, nil,
+                                                        'baz'
+                                                      ],
+                                                      'ALTERNATIVE',
+                                                      %w[ boundary 1383.905529.351301 ],
+                                                      nil, nil, nil
+                                                    ],
+                                                    'MIXED',
+                                                    %w[ boundary 1383.905529.351300 ],
+                                                    nil, nil, nil
+                                                  ],
+                                                  @mpart_mail.parts[3].parts[1].raw_source.each_line.count,
+                                                  nil, nil, nil, nil
+                                                ],
+                                                'MIXED',
+                                                %w[ boundary 1383.905529.351299 ],
+                                                nil, nil, nil
+                                              ],
+                                              'MIXED',
+                                              %w[ boundary 1383.905529.351297 ],
+                                              nil, nil, nil
+                                            ])
+                     ])
+        assert_fetch(2, [
+                       'BODYSTRUCTURE ' +
+                       encode_bodystructure([ 'APPLICATION',
+                                              'OCTET-STREAM',
+                                              nil,
+                                              nil,
+                                              nil,
+                                              nil,
+                                              @empty_mail.raw_source.bytesize,
+                                              nil,
+                                              nil,
+                                              nil,
+                                              nil
+                                            ])
+                     ])
+        assert_fetch(3, [
+                       'BODYSTRUCTURE ' +
+                       encode_bodystructure([ 'APPLICATION',
+                                              'OCTET-STREAM',
+                                              nil,
+                                              nil,
+                                              nil,
+                                              nil,
+                                              @no_body_mail.raw_source.bytesize,
+                                              nil,
+                                              nil,
+                                              nil,
+                                              nil
+                                            ])
+                     ])
+      }
     end
 
     def test_parse_envelope

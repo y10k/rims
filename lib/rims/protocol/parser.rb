@@ -825,56 +825,107 @@ module RIMS
       end
       private :get_body_params
 
-      def get_bodystructure_data(mail)
+      def get_body_disposition(mail)
+        if (disposition_type = mail.content_disposition_upcase) then
+          body_disposition = [ disposition_type ]
+          if ((body_params = mail.content_disposition_parameter_list) && ! body_params.empty?) then
+            body_disposition << body_params.flatten
+          else
+            # not allowed empty body field parameters.
+            # RFC 3501 / 9. Formal Syntax:
+            #     body-fld-param  = "(" string SP string *(SP string SP string) ")" / nil
+            body_disposition << nil
+          end
+        else
+          # not allowed empty body field disposition.
+          # RFC 3501 / 9. Formal Syntax:
+          #     body-fld-dsp    = "(" string SP body-fld-param ")" / nil
+          nil
+        end
+      end
+      private :get_body_disposition
+
+      def get_body_lang(mail)
+        if (tag_list = mail.content_language_upcase) then
+          unless (tag_list.empty?) then
+            if (tag_list.length == 1) then
+              tag_list[0]
+            else
+              tag_list
+            end
+          end
+        end
+      end
+      private :get_body_lang
+
+      def get_bodystructure_data(mail, extension: false)
         body_data = []
         if (mail.multipart?) then       # body_type_mpart
-          body_data.concat(mail.parts.map{|part_msg| get_bodystructure_data(part_msg) })
-          body_data << mail.media_sub_type_upcase
-        elsif (mail.text?) then         # body_type_text
-          # media_text
-          body_data << mail.media_main_type_upcase
+          body_data.concat(mail.parts.map{|part_msg| get_bodystructure_data(part_msg, extension: extension) })
           body_data << mail.media_sub_type_upcase
 
-          # body_fields
-          body_data << get_body_params(mail)
-          body_data << mail.header['Content-Id']
-          body_data << mail.header['Content-Description']
-          body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
-          body_data << mail.raw_source.bytesize
+          # body_ext_mpart
+          if (extension) then
+            body_data << get_body_params(mail)
+            body_data << get_body_disposition(mail)
+            body_data << get_body_lang(mail)
+            body_data << mail.header['Content-Location']
+          end
+        else
+          if (mail.text?) then          # body_type_text
+            # media_text
+            body_data << mail.media_main_type_upcase
+            body_data << mail.media_sub_type_upcase
 
-          # body_fld_lines
-          body_data << mail.raw_source.each_line.count
-        elsif (mail.message?) then      # body_type_msg
-          # message_media
-          body_data << mail.media_main_type_upcase
-          body_data << mail.media_sub_type_upcase
+            # body_fields
+            body_data << get_body_params(mail)
+            body_data << mail.header['Content-Id']
+            body_data << mail.header['Content-Description']
+            body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
+            body_data << mail.raw_source.bytesize
 
-          # body_fields
-          body_data << get_body_params(mail)
-          body_data << mail.header['Content-Id']
-          body_data << mail.header['Content-Description']
-          body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
-          body_data << mail.raw_source.bytesize
+            # body_fld_lines
+            body_data << mail.raw_source.each_line.count
+          elsif (mail.message?) then    # body_type_msg
+            # message_media
+            body_data << mail.media_main_type_upcase
+            body_data << mail.media_sub_type_upcase
 
-          # envelope
-          body_data << get_envelope_data(mail.message)
+            # body_fields
+            body_data << get_body_params(mail)
+            body_data << mail.header['Content-Id']
+            body_data << mail.header['Content-Description']
+            body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
+            body_data << mail.raw_source.bytesize
 
-          # body
-          body_data << get_bodystructure_data(mail.message)
+            # envelope
+            body_data << get_envelope_data(mail.message)
 
-          # body_fld_lines
-          body_data << mail.raw_source.each_line.count
-        else                            # body_type_basic
-          # media_basic
-          body_data << mail.media_main_type_upcase
-          body_data << mail.media_sub_type_upcase
+            # body
+            body_data << get_bodystructure_data(mail.message, extension: extension)
 
-          # body_fields
-          body_data << get_body_params(mail)
-          body_data << mail.header['Content-Id']
-          body_data << mail.header['Content-Description']
-          body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
-          body_data << mail.raw_source.bytesize
+            # body_fld_lines
+            body_data << mail.raw_source.each_line.count
+          else                          # body_type_basic
+            # media_basic
+            body_data << mail.media_main_type_upcase
+            body_data << mail.media_sub_type_upcase
+
+            # body_fields
+            body_data << get_body_params(mail)
+            body_data << mail.header['Content-Id']
+            body_data << mail.header['Content-Description']
+            body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
+            body_data << mail.raw_source.bytesize
+          end
+
+          # body_ext_1part
+          if (extension) then
+            body_data << mail.header['Content-MD5']
+            body_data << get_body_disposition(mail)
+            body_data << get_body_lang(mail)
+            body_data << mail.header['Content-Location']
+          end
         end
 
         body_data
@@ -1038,9 +1089,9 @@ module RIMS
       end
       private :parse_body
 
-      def parse_bodystructure(msg_att_name)
+      def parse_bodystructure(msg_att_name, extension: false)
         proc{|msg|
-          ''.b << msg_att_name << ' '.b << encode_bodystructure(get_bodystructure_data(get_mail(msg)))
+          ''.b << msg_att_name << ' '.b << encode_bodystructure(get_bodystructure_data(get_mail(msg), extension: extension))
         }
       end
       private :parse_bodystructure
@@ -1099,9 +1150,9 @@ module RIMS
         when 'ALL'
           fetch = expand_macro(%w[ FLAGS INTERNALDATE RFC822.SIZE ENVELOPE ])
         when 'BODY'
-          fetch = parse_bodystructure(fetch_att)
+          fetch = parse_bodystructure(fetch_att, extension: false)
         when 'BODYSTRUCTURE'
-          fetch = parse_bodystructure(fetch_att)
+          fetch = parse_bodystructure(fetch_att, extension: true)
         when 'ENVELOPE'
           fetch = parse_envelope(fetch_att)
         when 'FAST'

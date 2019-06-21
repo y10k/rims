@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'digest'
 require 'fileutils'
 require 'set'
 
@@ -68,16 +69,22 @@ module RIMS
 
     module ProtocolFetchMailSample
       def make_mail_simple
-        @simple_mail = RIMS::RFC822::Message.new(<<-'EOF')
+        @simple_mail_body = <<-'EOF'
+Hello world.
+        EOF
+
+        md5_digest = Digest::MD5.digest(@simple_mail_body)
+        @simple_mail = RIMS::RFC822::Message.new(<<-"EOF" + @simple_mail_body)
 To: foo@nonet.org
 From: bar@nonet.org
 Subject: test
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-MD5: #{[ md5_digest ].pack('m').strip}
+Content-Language: en-US, en
 Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
 
-Hello world.
         EOF
       end
       private :make_mail_simple
@@ -97,6 +104,9 @@ Content-Type: text/plain; charset=us-ascii
 Multipart test.
 --1383.905529.351297
 Content-Type: application/octet-stream
+Content-Disposition: attachment
+  ; filename=test.dat
+  ; modification-date="Wed, 12 Feb 1997 16:29:51 -0500"
 
 0123456789
 --1383.905529.351297
@@ -108,6 +118,9 @@ Subject: inner multipart
 MIME-Version: 1.0
 Date: Fri, 8 Nov 2013 19:31:03 +0900
 Content-Type: multipart/mixed; boundary="1383.905529.351298"
+Content-Disposition: attachment; filename=hello.txt
+Content-Language: en
+Content-Location: test
 
 --1383.905529.351298
 Content-Type: text/plain; charset=us-ascii
@@ -123,6 +136,7 @@ Content-Type: multipart/mixed; boundary="1383.905529.351299"
 
 --1383.905529.351299
 Content-Type: image/gif
+Content-Disposition: inline
 
 GIF image...
 --1383.905529.351299
@@ -137,6 +151,7 @@ Content-Type: multipart/mixed; boundary="1383.905529.351300"
 
 --1383.905529.351300
 Content-Type: text/plain; charset=us-ascii
+Content-Location: foo
 
 HALO
 --1383.905529.351300
@@ -144,10 +159,12 @@ Content-Type: multipart/alternative; boundary="1383.905529.351301"
 
 --1383.905529.351301
 Content-Type: text/plain; charset=us-ascii
+Content-Location: bar
 
 alternative message.
 --1383.905529.351301
 Content-Type: text/html; charset=us-ascii
+Content-Location: baz
 
 <html>
 <body><p>HTML message</p></body>
