@@ -817,6 +817,18 @@ module RIMS
       end
       private :get_header_field
 
+      def get_body_params(mail)
+        if ((body_params = mail.content_type_parameter_list) && ! body_params.empty?) then
+          body_params.flatten
+        else
+          # not allowed empty body field parameters.
+          # RFC 3501 / 9. Formal Syntax:
+          #     body-fld-param  = "(" string SP string *(SP string SP string) ")" / nil
+          nil
+        end
+      end
+      private :get_body_params
+
       def get_bodystructure_data(mail)
         if (mail.multipart?) then       # body_type_mpart
           mpart_data = []
@@ -830,14 +842,7 @@ module RIMS
           text_data << mail.media_sub_type_upcase
 
           # body_fields
-          if ((text_params = mail.content_type_parameters) && ! text_params.empty?) then
-            text_data << text_params.flatten
-          else
-            # not allowed empty body field parameters.
-            # RFC 3501 / 9. Formal Syntax:
-            #     body-fld-param  = "(" string SP string *(SP string SP string) ")" / nil
-            text_data << nil
-          end
+          text_data << get_body_params(mail)
           text_data << mail.header['Content-Id']
           text_data << mail.header['Content-Description']
           text_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
@@ -853,14 +858,7 @@ module RIMS
           msg_data << mail.media_sub_type_upcase
 
           # body_fields
-          if ((msg_params = mail.content_type_parameters) && ! msg_params.empty?) then
-            msg_data << msg_params.flatten
-          else
-            # not allowed empty body field parameters.
-            # RFC 3501 / 9. Formal Syntax:
-            #     body-fld-param  = "(" string SP string *(SP string SP string) ")" / nil
-            msg_data << nil
-          end
+          msg_data << get_body_params(mail)
           msg_data << mail.header['Content-Id']
           msg_data << mail.header['Content-Description']
           msg_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
@@ -882,14 +880,7 @@ module RIMS
           basic_data << mail.media_sub_type_upcase
 
           # body_fields
-          if ((basic_params = mail.content_type_parameters) && ! basic_params.empty?) then
-            basic_data << basic_params.flatten
-          else
-            # not allowed empty body field parameters.
-            # RFC 3501 / 9. Formal Syntax:
-            #     body-fld-param  = "(" string SP string *(SP string SP string) ")" / nil
-            basic_data << nil
-          end
+          basic_data << get_body_params(mail)
           basic_data << mail.header['Content-Id']
           basic_data << mail.header['Content-Description']
           basic_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
