@@ -1287,7 +1287,7 @@ Hello world.
                                     mail.header['Message-Id'])
           }
           body_type = lambda{|mail|
-            body_params = mail.content_type_parameters
+            body_params = mail.content_type_parameter_list
             if (mail.text?) then
               Net::IMAP::BodyTypeText.new(mail.media_main_type_upcase,
                                           mail.media_sub_type_upcase,
