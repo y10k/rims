@@ -830,62 +830,58 @@ module RIMS
       private :get_body_params
 
       def get_bodystructure_data(mail)
+        body_data = []
         if (mail.multipart?) then       # body_type_mpart
-          mpart_data = []
-          mpart_data.concat(mail.parts.map{|part_msg| get_bodystructure_data(part_msg) })
-          mpart_data << mail.media_sub_type_upcase
+          body_data.concat(mail.parts.map{|part_msg| get_bodystructure_data(part_msg) })
+          body_data << mail.media_sub_type_upcase
         elsif (mail.text?) then         # body_type_text
-          text_data = []
-
           # media_text
-          text_data << mail.media_main_type_upcase
-          text_data << mail.media_sub_type_upcase
+          body_data << mail.media_main_type_upcase
+          body_data << mail.media_sub_type_upcase
 
           # body_fields
-          text_data << get_body_params(mail)
-          text_data << mail.header['Content-Id']
-          text_data << mail.header['Content-Description']
-          text_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
-          text_data << mail.raw_source.bytesize
+          body_data << get_body_params(mail)
+          body_data << mail.header['Content-Id']
+          body_data << mail.header['Content-Description']
+          body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
+          body_data << mail.raw_source.bytesize
 
           # body_fld_lines
-          text_data << mail.raw_source.each_line.count
+          body_data << mail.raw_source.each_line.count
         elsif (mail.message?) then      # body_type_msg
-          msg_data = []
-
           # message_media
-          msg_data << mail.media_main_type_upcase
-          msg_data << mail.media_sub_type_upcase
+          body_data << mail.media_main_type_upcase
+          body_data << mail.media_sub_type_upcase
 
           # body_fields
-          msg_data << get_body_params(mail)
-          msg_data << mail.header['Content-Id']
-          msg_data << mail.header['Content-Description']
-          msg_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
-          msg_data << mail.raw_source.bytesize
+          body_data << get_body_params(mail)
+          body_data << mail.header['Content-Id']
+          body_data << mail.header['Content-Description']
+          body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
+          body_data << mail.raw_source.bytesize
 
           # envelope
-          msg_data << get_envelope_data(mail.message)
+          body_data << get_envelope_data(mail.message)
 
           # body
-          msg_data << get_bodystructure_data(mail.message)
+          body_data << get_bodystructure_data(mail.message)
 
           # body_fld_lines
-          msg_data << mail.raw_source.each_line.count
+          body_data << mail.raw_source.each_line.count
         else                            # body_type_basic
-          basic_data = []
-
           # media_basic
-          basic_data << mail.media_main_type_upcase
-          basic_data << mail.media_sub_type_upcase
+          body_data << mail.media_main_type_upcase
+          body_data << mail.media_sub_type_upcase
 
           # body_fields
-          basic_data << get_body_params(mail)
-          basic_data << mail.header['Content-Id']
-          basic_data << mail.header['Content-Description']
-          basic_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
-          basic_data << mail.raw_source.bytesize
+          body_data << get_body_params(mail)
+          body_data << mail.header['Content-Id']
+          body_data << mail.header['Content-Description']
+          body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
+          body_data << mail.raw_source.bytesize
         end
+
+        body_data
       end
       private :get_bodystructure_data
 
