@@ -690,14 +690,10 @@ module RIMS
           if ((array.length > 0) && (array.first.is_a? Array)) then
             s = '('.b
             array = array.dup
-            while (object = array.shift)
-              case (object)
-              when Array
-                s << encode_bodystructure(object)
-              else
-                s << ' '.b << encode_value(object)
-              end
-            end
+            begin
+              s << encode_bodystructure(array.shift)
+            end while ((array.length > 0) && (array.first.is_a? Array))
+            s << ' '.b << array.map{|i| encode_value(i) }.join(' '.b)
             s << ')'.b
           elsif ((array.length > 0) && (array.first.upcase == 'MESSAGE')) then
             msg_body_list = array[0..7].map{|v| encode_value(v) }

@@ -932,112 +932,155 @@ module RIMS::Test
       assert_equal(expected_value, RIMS::Protocol::FetchParser::Utils.encode_list(array))
     end
 
-    data('text/plain' => [ '("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "BASE64" 16722 335)',
-                           [ 'TEXT',
-                             'PLAIN',
-                             %w[ CHARSET UTF-8 ],
-                             nil,
-                             nil,
-                             'BASE64',
-                             16722,
-                             335
-                           ]
-                         ],
-         'multipart/alternative' => [ '(("TEXT" "PLAIN" ("CHARSET" "UTF-8" "DELSP" "yes" "FORMAT" "flowed") NIL NIL "BASE64" 1756 36)("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "QUOTED-PRINTABLE" 5921 119) "ALTERNATIVE")',
-                                      [ [ 'TEXT',
-                                          'PLAIN',
-                                          %w[ CHARSET UTF-8 DELSP yes FORMAT flowed ],
-                                          nil,
-                                          nil,
-                                          'BASE64',
-                                          1756,
-                                          36
-                                        ],
-                                        [ 'TEXT',
-                                          'HTML',
-                                          %w[ CHARSET UTF-8 ],
-                                          nil,
-                                          nil,
-                                          'QUOTED-PRINTABLE',
-                                          5921,
-                                          119
-                                        ],
-                                        'ALTERNATIVE'
-                                      ]
-                                    ],
-         'message/rfc822:plain/text' => [ '("MESSAGE" "RFC822" NIL NIL NIL NIL 16822 ("8 Nov 2013 06:47:50 +0900 (JST)" "test" (NIL NIL "alice" "example.net") NIL NIL (NIL NIL "bob" "example.net") NIL NIL NIL NIL) ("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "BASE64" 16722 335) 345)',
-                                          [ 'MESSAGE',
-                                            'RFC822',
-                                            nil, # not allowed empty body field parameters
-                                            nil,
-                                            nil,
-                                            nil,
-                                            16822,
-                                            [ '8 Nov 2013 06:47:50 +0900 (JST)',    # Date
-                                              'test',                               # Subject
-                                              [ nil, nil, 'alice', 'example.net' ], # From
-                                              nil,                                  # Reply-To
-                                              nil,                                  # Sender
-                                              [ nil, nil, 'bob', 'example.net'],    # To
-                                              nil,                                  # Cc
-                                              nil,                                  # Bcc
-                                              nil,                                  # In-Reply-To
-                                              nil                                   # Message-Id
-                                            ],
-                                            [ 'TEXT',
-                                              'PLAIN',
-                                              %w[ CHARSET UTF-8 ],
-                                              nil,
-                                              nil,
-                                              'BASE64',
-                                              16722,
-                                              335
-                                            ],
-                                            345
-                                          ]
-                                        ],
-         'message/rfc822:multipart/alternative' => [ '("MESSAGE" "RFC822" NIL NIL NIL NIL 16822 ("8 Nov 2013 06:47:50 +0900 (JST)" "test" (NIL NIL "alice" "example.net") NIL NIL (NIL NIL "bob" "example.net") NIL NIL NIL NIL) (("TEXT" "PLAIN" ("CHARSET" "UTF-8" "DELSP" "yes" "FORMAT" "flowed") NIL NIL "BASE64" 1756 36)("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "QUOTED-PRINTABLE" 5921 119) "ALTERNATIVE") 345)',
-                                                     [ 'MESSAGE',
-                                                       'RFC822',
-                                                       nil, # not allowed empty body field parameters
-                                                       nil,
-                                                       nil,
-                                                       nil,
-                                                       16822,
-                                                       [ '8 Nov 2013 06:47:50 +0900 (JST)',    # Date
-                                                         'test',                               # Subject
-                                                         [ nil, nil, 'alice', 'example.net' ], # From
-                                                         nil,                                  # Reply-To
-                                                         nil,                                  # Sender
-                                                         [ nil, nil, 'bob', 'example.net'],    # To
-                                                         nil,                                  # Cc
-                                                         nil,                                  # Bcc
-                                                         nil,                                  # In-Reply-To
-                                                         nil                                   # Message-Id
-                                                       ],
-                                                       [ [ 'TEXT',
-                                                           'PLAIN',
-                                                           %w[ CHARSET UTF-8 DELSP yes FORMAT flowed ],
-                                                           nil,
-                                                           nil,
-                                                           'BASE64',
-                                                           1756,
-                                                           36
-                                                         ],
-                                                         [ 'TEXT',
-                                                           'HTML',
-                                                           %w[ CHARSET UTF-8 ],
-                                                           nil,
-                                                           nil,
-                                                           'QUOTED-PRINTABLE',
-                                                           5921,
-                                                           119
-                                                         ],
-                                                         'ALTERNATIVE'
-                                                       ],
-                                                       345
-                                                     ]
-                                                   ])
+    data('text/plain' =>
+         [ '("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "BASE64" 16722 335)',
+           [ 'TEXT',
+             'PLAIN',
+             %w[ CHARSET UTF-8 ],
+             nil,
+             nil,
+             'BASE64',
+             16722,
+             335
+           ]
+         ],
+
+         'multipart/alternative' =>
+         [ '(("TEXT" "PLAIN" ("CHARSET" "UTF-8" "DELSP" "yes" "FORMAT" "flowed") NIL NIL "BASE64" 1756 36)("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "QUOTED-PRINTABLE" 5921 119) "ALTERNATIVE")',
+           [ [ 'TEXT',
+               'PLAIN',
+               %w[ CHARSET UTF-8 DELSP yes FORMAT flowed ],
+               nil,
+               nil,
+               'BASE64',
+               1756,
+               36
+             ],
+             [ 'TEXT',
+               'HTML',
+               %w[ CHARSET UTF-8 ],
+               nil,
+               nil,
+               'QUOTED-PRINTABLE',
+               5921,
+               119
+             ],
+             'ALTERNATIVE'
+           ]
+         ],
+
+         'message/rfc822:plain/text' =>
+         [ '("MESSAGE" "RFC822" NIL NIL NIL NIL 16822 ("8 Nov 2013 06:47:50 +0900 (JST)" "test" (NIL NIL "alice" "example.net") NIL NIL (NIL NIL "bob" "example.net") NIL NIL NIL NIL) ("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "BASE64" 16722 335) 345)',
+           [ 'MESSAGE',
+             'RFC822',
+             nil, # not allowed empty body field parameters
+             nil,
+             nil,
+             nil,
+             16822,
+             [ '8 Nov 2013 06:47:50 +0900 (JST)',    # Date
+               'test',                               # Subject
+               [ nil, nil, 'alice', 'example.net' ], # From
+               nil,                                  # Reply-To
+               nil,                                  # Sender
+               [ nil, nil, 'bob', 'example.net'],    # To
+               nil,                                  # Cc
+               nil,                                  # Bcc
+               nil,                                  # In-Reply-To
+               nil                                   # Message-Id
+             ],
+             [ 'TEXT',
+               'PLAIN',
+               %w[ CHARSET UTF-8 ],
+               nil,
+               nil,
+               'BASE64',
+               16722,
+               335
+             ],
+             345
+           ]
+         ],
+
+         'message/rfc822:multipart/alternative' =>
+         [ '("MESSAGE" "RFC822" NIL NIL NIL NIL 16822 ("8 Nov 2013 06:47:50 +0900 (JST)" "test" (NIL NIL "alice" "example.net") NIL NIL (NIL NIL "bob" "example.net") NIL NIL NIL NIL) (("TEXT" "PLAIN" ("CHARSET" "UTF-8" "DELSP" "yes" "FORMAT" "flowed") NIL NIL "BASE64" 1756 36)("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "QUOTED-PRINTABLE" 5921 119) "ALTERNATIVE") 345)',
+           [ 'MESSAGE',
+             'RFC822',
+             nil, # not allowed empty body field parameters
+             nil,
+             nil,
+             nil,
+             16822,
+             [ '8 Nov 2013 06:47:50 +0900 (JST)',    # Date
+               'test',                               # Subject
+               [ nil, nil, 'alice', 'example.net' ], # From
+               nil,                                  # Reply-To
+               nil,                                  # Sender
+               [ nil, nil, 'bob', 'example.net'],    # To
+               nil,                                  # Cc
+               nil,                                  # Bcc
+               nil,                                  # In-Reply-To
+               nil                                   # Message-Id
+             ],
+             [ [ 'TEXT',
+                 'PLAIN',
+                 %w[ CHARSET UTF-8 DELSP yes FORMAT flowed ],
+                 nil,
+                 nil,
+                 'BASE64',
+                 1756,
+                 36
+               ],
+               [ 'TEXT',
+                 'HTML',
+                 %w[ CHARSET UTF-8 ],
+                 nil,
+                 nil,
+                 'QUOTED-PRINTABLE',
+                 5921,
+                 119
+               ],
+               'ALTERNATIVE'
+             ],
+             345
+           ]
+         ],
+
+         'multipart/alternative:extension' =>
+         [ '(("TEXT" "PLAIN" ("CHARSET" "UTF-8" "DELSP" "yes" "FORMAT" "flowed") NIL NIL "BASE64" 1756 36 "Q2hlY2sgSW50ZWdyaXR5IQ==" ("INLINE" NIL) NIL NIL)("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "QUOTED-PRINTABLE" 5921 119 NIL ("ATTACHMENT" ("filename" "halo.html")) ("EN-US" "EN") NIL) "ALTERNATIVE" ("boundary" "1383.905529.351297") NIL "EN" "test")',
+           [ [ 'TEXT',
+               'PLAIN',
+               %w[ CHARSET UTF-8 DELSP yes FORMAT flowed ],
+               nil,
+               nil,
+               'BASE64',
+               1756,
+               36,
+               'Q2hlY2sgSW50ZWdyaXR5IQ==',
+               [ 'INLINE', nil ],
+               nil,
+               nil
+             ],
+             [ 'TEXT',
+               'HTML',
+               %w[ CHARSET UTF-8 ],
+               nil,
+               nil,
+               'QUOTED-PRINTABLE',
+               5921,
+               119,
+               nil,
+               [ 'ATTACHMENT', %w[ filename halo.html ] ],
+               %w[ EN-US EN ],
+               nil
+             ],
+             'ALTERNATIVE',
+             %w[ boundary 1383.905529.351297 ],
+             nil,
+             "EN",
+             "test"
+           ]
+         ])
     def test_encode_bodystructure(data)
       expected_value, array = data
       assert_equal(expected_value, RIMS::Protocol::FetchParser::Utils.encode_bodystructure(array))
