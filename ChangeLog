@@ -1,3 +1,16 @@
+2019-06-15  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol/parser.rb: not allowed empty body field
+	parameters at attribute parser.
+
+	when body field parameters are empty, a command to fetch
+	`bodystructure' should response `NIL' instead of `()'.
+
+	see RFC 3501 / 9. Formal Syntax:
+	<https://tools.ietf.org/html/rfc3501#section-9>
+
+        body-fld-param  = "(" string SP string *(SP string SP string) ")" / nil
+
 2019-06-10  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.2.5 is released.
