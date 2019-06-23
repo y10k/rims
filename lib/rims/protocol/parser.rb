@@ -813,9 +813,9 @@ module RIMS
       end
       private :get_header_field
 
-      def get_body_params(mail)
-        if ((body_params = mail.content_type_parameter_list) && ! body_params.empty?) then
-          body_params.flatten
+      def make_body_params(name_value_pair_list)
+        if (name_value_pair_list && ! name_value_pair_list.empty?) then
+          name_value_pair_list.flatten
         else
           # not allowed empty body field parameters.
           # RFC 3501 / 9. Formal Syntax:
@@ -823,19 +823,13 @@ module RIMS
           nil
         end
       end
-      private :get_body_params
+      private :make_body_params
 
       def get_body_disposition(mail)
         if (disposition_type = mail.content_disposition_upcase) then
-          body_disposition = [ disposition_type ]
-          if ((body_params = mail.content_disposition_parameter_list) && ! body_params.empty?) then
-            body_disposition << body_params.flatten
-          else
-            # not allowed empty body field parameters.
-            # RFC 3501 / 9. Formal Syntax:
-            #     body-fld-param  = "(" string SP string *(SP string SP string) ")" / nil
-            body_disposition << nil
-          end
+          [ disposition_type,
+            make_body_params(mail.content_disposition_parameter_list)
+          ]
         else
           # not allowed empty body field disposition.
           # RFC 3501 / 9. Formal Syntax:
@@ -866,7 +860,7 @@ module RIMS
 
           # body_ext_mpart
           if (extension) then
-            body_data << get_body_params(mail)
+            body_data << make_body_params(mail.content_type_parameter_list)
             body_data << get_body_disposition(mail)
             body_data << get_body_lang(mail)
             body_data << mail.header['Content-Location']
@@ -878,7 +872,7 @@ module RIMS
             body_data << mail.media_sub_type_upcase
 
             # body_fields
-            body_data << get_body_params(mail)
+            body_data << make_body_params(mail.content_type_parameter_list)
             body_data << mail.header['Content-Id']
             body_data << mail.header['Content-Description']
             body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
@@ -892,7 +886,7 @@ module RIMS
             body_data << mail.media_sub_type_upcase
 
             # body_fields
-            body_data << get_body_params(mail)
+            body_data << make_body_params(mail.content_type_parameter_list)
             body_data << mail.header['Content-Id']
             body_data << mail.header['Content-Description']
             body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
@@ -912,7 +906,7 @@ module RIMS
             body_data << mail.media_sub_type_upcase
 
             # body_fields
-            body_data << get_body_params(mail)
+            body_data << make_body_params(mail.content_type_parameter_list)
             body_data << mail.header['Content-Id']
             body_data << mail.header['Content-Description']
             body_data << mail.header.fetch_upcase('Content-Transfer-Encoding')
