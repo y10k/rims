@@ -769,29 +769,6 @@ module RIMS
       end
       private :get_mail
 
-      def make_array(value)
-        if (value) then
-          if (value.is_a? Array) then
-            list = value
-          else
-            list = [ value ]
-          end
-
-          if (block_given?) then
-            yield(list)
-          else
-            list
-          end
-        end
-      end
-      private :make_array
-
-      def make_address_list(email_address)
-        mailbox, host = email_address.split(/@/, 2)
-        [ nil, nil, mailbox, host ]
-      end
-      private :make_address_list
-
       def expand_macro(cmd_list)
         func_list = cmd_list.map{|name| parse_cached(name) }
         proc{|msg|
@@ -799,19 +776,6 @@ module RIMS
         }
       end
       private :expand_macro
-
-      def get_header_field(mail, name, default=nil)
-        if (field = mail[name]) then
-          if (block_given?) then
-            yield(field)
-          else
-            field
-          end
-        else
-          default
-        end
-      end
-      private :get_header_field
 
       def make_body_params(name_value_pair_list)
         if (name_value_pair_list && ! name_value_pair_list.empty?) then
