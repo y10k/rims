@@ -1278,21 +1278,26 @@ module RIMS
           }
 
           res << '* SEARCH'
-          for msg in msg_src
-            if (cond.call(msg)) then
-              if (uid) then
-                res << " #{msg.uid}"
-              else
-                res << " #{msg.num}"
-              end
-              if (res.length >= @bulk_response_count) then
-                yield(res)
-                res = []
+          begin
+            for msg in msg_src
+              if (cond.call(msg)) then
+                if (uid) then
+                  res << " #{msg.uid}"
+                else
+                  res << " #{msg.num}"
+                end
+                if (res.length >= @bulk_response_count) then
+                  yield(res)
+                  res = []
+                end
               end
             end
+          rescue
+            yield([ "\r\n" ])   # line break before error response
+            raise
           end
-
           res << "\r\n"
+
           res << "#{tag} OK SEARCH completed\r\n"
           yield(res)
         end

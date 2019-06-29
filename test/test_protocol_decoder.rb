@@ -2791,6 +2791,69 @@ module RIMS::Test
       test_search_charset_text
     end
 
+    def test_search_interrupt_by_bad_response
+      imap_decode_engine_evaluate{
+        if (stream_test?) then
+          assert_untagged_response{|assert|
+            assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+          }
+        end
+
+        open_mail_store{
+          @bulk_response_count.times do
+            add_msg("Content-Type: text/plain\r\n" +
+                    "\r\n" +
+                    "foo")
+          end
+
+          add_msg("Content-Type: text/plain; charset=x-nothing\r\n" +
+                  "\r\n" +
+                  "foo")
+
+          assert_msg_uid(*(1..(@bulk_response_count.succ)).to_a)
+        }
+
+        if (command_test?) then
+          assert_equal(false, @decoder.auth?)
+          assert_equal(false, @decoder.selected?)
+        end
+
+        assert_imap_command('LOGIN foo open_sesame') {|assert|
+          assert.equal("#{tag} OK LOGIN completed")
+        }
+
+        if (command_test?) then
+          assert_equal(true, @decoder.auth?)
+          assert_equal(false, @decoder.selected?)
+        end
+
+        assert_imap_command('SELECT INBOX') {|assert|
+          assert.skip_while{|line| line =~ /^\* / }
+          assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+        }
+
+        if (command_test?) then
+          assert_equal(true, @decoder.auth?)
+          assert_equal(true, @decoder.selected?)
+        end
+
+        assert_imap_command('SEARCH TEXT foo') {|assert|
+          assert.match(/\A\* SEARCH( \d+)+\r\n\z/, peek_next_line: true).no_match(/ #{@bulk_response_count.succ}/)
+          assert.equal("#{tag} BAD internal server error\r\n")
+        }
+
+        assert_imap_command('LOGOUT') {|assert|
+          assert.match(/^\* BYE /)
+          assert.equal("#{tag} OK LOGOUT completed")
+        }
+      }
+    end
+
+    def test_search_interrupt_by_bad_response_stream
+      use_imap_stream_decode_engine
+      test_search_interrupt_by_bad_response
+    end
+
     def test_fetch
       imap_decode_engine_evaluate{
         if (stream_test?) then
