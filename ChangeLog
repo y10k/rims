@@ -1,3 +1,8 @@
+2019-06-29  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol/decoder.rb: line break before error response
+	interrupting search command.
+
 2019-06-25  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/parser.rb: delete unnecessary private methods.
