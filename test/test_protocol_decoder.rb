@@ -288,12 +288,14 @@ module RIMS::Test
       }
       @unique_user_id = RIMS::Authentication.unique_user_id('foo')
 
+      @bulk_response_count = 10
       @services = Riser::DRbServices.new(0)
       @services.add_sticky_process_service(:engine,
                                            Riser::ResourceSet.build{|builder|
                                              builder.at_create{|unique_user_id|
                                                mail_store = RIMS::MailStore.build(unique_user_id, @kvs_open, @kvs_open)
-                                               RIMS::Protocol::Decoder::Engine.new(unique_user_id, mail_store, @logger)
+                                               RIMS::Protocol::Decoder::Engine.new(unique_user_id, mail_store, @logger,
+                                                                                   bulk_response_count: @bulk_response_count)
                                              }
                                              builder.at_destroy{|engine|
                                                engine.destroy
