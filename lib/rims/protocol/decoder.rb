@@ -252,13 +252,13 @@ module RIMS
         end
         private :imap_command
 
-        def make_engine_and_recovery_if_needed(services, username,
+        def make_engine_and_recovery_if_needed(drb_services, username,
                                                logger: Logger.new(STDOUT))
           unique_user_id = Authentication.unique_user_id(username)
           logger.debug("unique user ID: #{username} -> #{unique_user_id}") if logger.debug?
 
           logger.info("open mail store: #{unique_user_id} [ #{username} ]")
-          engine = services[:engine, unique_user_id]
+          engine = drb_services[:engine, unique_user_id]
 
           begin
             engine.recovery_if_needed(username) {|msg| yield(msg) }
@@ -321,10 +321,10 @@ module RIMS
         private :imap_command
       end
 
-      def initialize(services, auth, logger,
+      def initialize(drb_services, auth, logger,
                      mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user)
         super(auth, logger)
-        @services = services
+        @drb_services = drb_services
         @mail_delivery_user = mail_delivery_user
       end
 
@@ -360,9 +360,9 @@ module RIMS
         case (username)
         when @mail_delivery_user
           @logger.info("mail delivery user: #{username}")
-          MailDeliveryDecoder.new(self, @services, @auth, @logger)
+          MailDeliveryDecoder.new(self, @drb_services, @auth, @logger)
         else
-          engine = self.class.make_engine_and_recovery_if_needed(@services, username, logger: @logger) {|msg| yield(msg) }
+          engine = self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|msg| yield(msg) }
           UserMailboxDecoder.new(self, engine, @auth, @logger)
         end
       end
@@ -1776,10 +1776,10 @@ module RIMS
     end
 
     class MailDeliveryDecoder < AuthenticatedDecoder
-      def initialize(parent_decoder, services, auth, logger)
+      def initialize(parent_decoder, drb_services, auth, logger)
         super(auth, logger)
         @parent_decoder = parent_decoder
-        @services = services
+        @drb_services = drb_services
         @auth = auth
         @last_user_cache_key_username = nil
         @last_user_cache_value_engine = nil
@@ -1822,7 +1822,7 @@ module RIMS
       private :release_engine_cache
 
       def auth?
-        @services != nil
+        @drb_services != nil
       end
 
       def selected?
@@ -1831,7 +1831,7 @@ module RIMS
 
       def cleanup
         release_engine_cache
-        @services = nil unless @services.nil?
+        @drb_services = nil unless @drb_services.nil?
         @auth = nil unless @auth.nil?
 
         unless (@parent_decoder.nil?) then
@@ -1946,7 +1946,7 @@ module RIMS
           else
             res = Enumerator.new{|stream_res|
               engine = store_engine_cache(username) {
-                self.class.make_engine_and_recovery_if_needed(@services, username, logger: @logger) {|msg| stream_res << msg }
+                self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|msg| stream_res << msg }
               }
               deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine, stream_res)
             }

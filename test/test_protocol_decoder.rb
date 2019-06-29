@@ -242,7 +242,7 @@ module RIMS::Test
     extend Forwardable
 
     def open_mail_store
-      @services.call_service(:engine, @unique_user_id) {|engine|
+      @drb_services.call_service(:engine, @unique_user_id) {|engine|
         begin
           @mail_store = engine.mail_store
           @mail_store.write_synchronize{
@@ -256,7 +256,7 @@ module RIMS::Test
     private :open_mail_store
 
     def make_decoder
-      RIMS::Protocol::Decoder.new_decoder(@services, @auth, @logger)
+      RIMS::Protocol::Decoder.new_decoder(@drb_services, @auth, @logger)
     end
     private :make_decoder
 
@@ -289,21 +289,21 @@ module RIMS::Test
       @unique_user_id = RIMS::Authentication.unique_user_id('foo')
 
       @bulk_response_count = 10
-      @services = Riser::DRbServices.new(0)
-      @services.add_sticky_process_service(:engine,
-                                           Riser::ResourceSet.build{|builder|
-                                             builder.at_create{|unique_user_id|
-                                               mail_store = RIMS::MailStore.build(unique_user_id, @kvs_open, @kvs_open)
-                                               RIMS::Protocol::Decoder::Engine.new(unique_user_id, mail_store, @logger,
-                                                                                   bulk_response_count: @bulk_response_count)
-                                             }
-                                             builder.at_destroy{|engine|
-                                               engine.destroy
-                                             }
-                                             builder.alias_unref(:destroy)
-                                           })
-      @services.start_server
-      @services.start_client
+      @drb_services = Riser::DRbServices.new(0)
+      @drb_services.add_sticky_process_service(:engine,
+                                               Riser::ResourceSet.build{|builder|
+                                                 builder.at_create{|unique_user_id|
+                                                   mail_store = RIMS::MailStore.build(unique_user_id, @kvs_open, @kvs_open)
+                                                   RIMS::Protocol::Decoder::Engine.new(unique_user_id, mail_store, @logger,
+                                                                                       bulk_response_count: @bulk_response_count)
+                                                 }
+                                                 builder.at_destroy{|engine|
+                                                   engine.destroy
+                                                 }
+                                                 builder.alias_unref(:destroy)
+                                               })
+      @drb_services.start_server
+      @drb_services.start_client
 
       open_mail_store{
         @inbox_id = @mail_store.mbox_id('INBOX')
@@ -330,8 +330,8 @@ module RIMS::Test
     end
 
     def teardown
-      assert_equal(0, @services.get_service(:engine, @unique_user_id).proxy_count)
-      @services.stop_server
+      assert_equal(0, @drb_services.get_service(:engine, @unique_user_id).proxy_count)
+      @drb_services.stop_server
       pp @kvs if $DEBUG
     end
 

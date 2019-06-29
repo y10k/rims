@@ -780,22 +780,22 @@ module RIMS
         end
       end
 
-      services = Riser::DRbServices.new(drb_process_num)
-      services.add_sticky_process_service(:engine,
-                                          Riser::ResourceSet.build{|builder|
-                                            builder.at_create{|unique_user_id|
-                                              mail_store = MailStore.build(unique_user_id, kvs_meta_open, kvs_text_open)
-                                              Protocol::Decoder::Engine.new(unique_user_id, mail_store, logger,
-                                                                            bulk_response_count: @config.bulk_response_count,
-                                                                            read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
-                                                                            write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
-                                                                            cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
-                                            }
-                                            builder.at_destroy{|engine|
-                                              engine.destroy
-                                            }
-                                            builder.alias_unref(:destroy)
-                                          })
+      drb_services = Riser::DRbServices.new(drb_process_num)
+      drb_services.add_sticky_process_service(:engine,
+                                              Riser::ResourceSet.build{|builder|
+                                                builder.at_create{|unique_user_id|
+                                                  mail_store = MailStore.build(unique_user_id, kvs_meta_open, kvs_text_open)
+                                                  Protocol::Decoder::Engine.new(unique_user_id, mail_store, logger,
+                                                                                bulk_response_count: @config.bulk_response_count,
+                                                                                read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
+                                                                                write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
+                                                                                cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
+                                                }
+                                                builder.at_destroy{|engine|
+                                                  engine.destroy
+                                                }
+                                                builder.alias_unref(:destroy)
+                                              })
 
       server.before_start{|server_socket|
         logger.info('start server.')
@@ -906,11 +906,11 @@ module RIMS
         logger.info("authorization parameter: mail_delivery_user=#{@config.mail_delivery_user}")
 
         logger.info('dRuby services: start server.')
-        services.start_server
+        drb_services.start_server
       }
       server.at_fork{
         logger.info('dRuby services: detach server.')
-        services.detach_server
+        drb_services.detach_server
       }
       server.at_stop{|stop_state|
         case (stop_state)
@@ -926,7 +926,7 @@ module RIMS
       }
       server.preprocess{
         logger.info('dRuby services: start client.')
-        services.start_client
+        drb_services.start_client
         auth.start_plug_in(logger)
       }
       server.dispatch{|socket|
@@ -947,7 +947,7 @@ module RIMS
                   stream = Riser::WriteBufferStream.new(socket, @config.send_buffer_limit_size)
                 end
                 stream = Riser::LoggingStream.new(stream, protocol_logger)
-                decoder = Protocol::Decoder.new_decoder(services, auth, logger, mail_delivery_user: @config.mail_delivery_user)
+                decoder = Protocol::Decoder.new_decoder(drb_services, auth, logger, mail_delivery_user: @config.mail_delivery_user)
                 Protocol::Decoder.repl(decoder, conn_limits, stream, stream, logger)
               ensure
                 if (stream) then
@@ -980,7 +980,7 @@ module RIMS
       }
       server.after_stop{
         logger.info('dRuby services: stop server.')
-        services.stop_server
+        drb_services.stop_server
         logger.info('stop server.')
       }
 
