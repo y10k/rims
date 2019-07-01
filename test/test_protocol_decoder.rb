@@ -2441,11 +2441,6 @@ module RIMS::Test
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
-        if (command_test?) then
-          assert_equal(false, @decoder.auth?)
-          assert_equal(false, @decoder.selected?)
-        end
-
         assert_imap_command('LOGIN foo open_sesame') {|assert|
           assert.equal("#{tag} OK LOGIN completed")
         }
@@ -2597,11 +2592,6 @@ module RIMS::Test
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
-        if (command_test?) then
-          assert_equal(false, @decoder.auth?)
-          assert_equal(false, @decoder.selected?)
-        end
-
         assert_imap_command('LOGIN foo open_sesame') {|assert|
           assert.equal("#{tag} OK LOGIN completed")
         }
@@ -2711,11 +2701,6 @@ module RIMS::Test
         assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
-
-        if (command_test?) then
-          assert_equal(false, @decoder.auth?)
-          assert_equal(false, @decoder.selected?)
-        end
 
         assert_imap_command('LOGIN foo open_sesame') {|assert|
           assert.equal("#{tag} OK LOGIN completed")
