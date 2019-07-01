@@ -244,7 +244,11 @@ module RIMS
       end
       private :get_mail
 
-      attr_accessor :charset
+      attr_reader :charset
+
+      def charset=(new_charset)
+        @charset = Encoding.find(new_charset)
+      end
 
       def string_include?(search_string, text)
         if (search_string.ascii_only?) then
@@ -266,7 +270,7 @@ module RIMS
         if (mail.text? || mail.message?) then
           body_txt = mail.body.raw_source
           if (charset = mail.charset) then
-            if (body_txt.encoding != Encoding.find(charset)) then
+            if (body_txt.encoding != charset) then
               body_txt = body_txt.dup.force_encoding(charset)
             end
           end
