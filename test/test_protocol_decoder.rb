@@ -2588,7 +2588,7 @@ module RIMS::Test
           assert_equal(false, @decoder.selected?)
         end
 
-        assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii ALL') {|assert|
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
@@ -2601,7 +2601,7 @@ module RIMS::Test
           assert_equal(false, @decoder.selected?)
         end
 
-        assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii ALL') {|assert|
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
@@ -2615,17 +2615,17 @@ module RIMS::Test
           assert_equal(true, @decoder.selected?)
         end
 
-        assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii ALL') {|assert|
           assert.equal("* SEARCH 1 2 3 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
-        assert_imap_command('SEARCH CHARSET utf-8 BODY foo') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii BODY foo') {|assert|
           assert.equal("* SEARCH 1 2 3\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
-        assert_imap_command('SEARCH CHARSET utf-8 BODY bar') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii BODY bar') {|assert|
           assert.equal("* SEARCH\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
@@ -2635,6 +2635,10 @@ module RIMS::Test
           assert.match(/^\+ /)
           assert.equal("* SEARCH 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
+        }
+
+        assert_imap_command('SEARCH CHARSET x-nothing BODY foo') {|assert|
+          assert.match(/^#{tag} NO \[BADCHARSET \(\S+( \S+)*\)\] unknown charset/)
         }
 
         assert_imap_command('SEARCH CHARSET') {|assert|
@@ -2698,7 +2702,7 @@ module RIMS::Test
           assert_equal(false, @decoder.selected?)
         end
 
-        assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii ALL') {|assert|
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not auth/)
         }
 
@@ -2711,7 +2715,7 @@ module RIMS::Test
           assert_equal(false, @decoder.selected?)
         end
 
-        assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii ALL') {|assert|
           assert.match(/^#{tag} NO /, peek_next_line: true).match(/not selected/)
         }
 
@@ -2725,12 +2729,12 @@ module RIMS::Test
           assert_equal(true, @decoder.selected?)
         end
 
-        assert_imap_command('SEARCH CHARSET utf-8 ALL') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii ALL') {|assert|
           assert.equal("* SEARCH 1 2 3 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
-        assert_imap_command('SEARCH CHARSET utf-8 TEXT foo') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii TEXT foo') {|assert|
           assert.equal("* SEARCH 1 2 3\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
@@ -2740,7 +2744,7 @@ module RIMS::Test
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
-        assert_imap_command('SEARCH CHARSET utf-8 TEXT baz') {|assert|
+        assert_imap_command('SEARCH CHARSET us-ascii TEXT baz') {|assert|
           assert.equal("* SEARCH\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
@@ -2750,6 +2754,10 @@ module RIMS::Test
           assert.match(/^\+ /)
           assert.equal("* SEARCH 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
+        }
+
+        assert_imap_command('SEARCH CHARSET x-nothing TEXT foo') {|assert|
+          assert.match(/^#{tag} NO \[BADCHARSET \(\S+( \S+)*\)\] unknown charset/)
         }
 
         assert_imap_command('SEARCH CHARSET') {|assert|

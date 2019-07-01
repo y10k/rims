@@ -1242,7 +1242,12 @@ module RIMS
             cond_args.shift
             charset_string = cond_args.shift or raise SyntaxError, 'need for a charset string of CHARSET'
             charset_string.is_a? String or raise SyntaxError, "CHARSET charset string expected as <String> but was <#{charset_string.class}>."
-            parser.charset = charset_string
+            begin
+              parser.charset = charset_string
+            rescue ArgumentError
+              @logger.warn("unknown charset: #{charset_string}")
+              return yield([ "#{tag} NO [BADCHARSET (#{Encoding.list.map(&:to_s).join(' ')})] unknown charset\r\n" ])
+            end
           end
 
           if (cond_args.empty?) then
