@@ -1,3 +1,19 @@
+2019-07-01  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol/decoder.rb, lib/rims/protocol/parser.rb: skip
+	encoding error on SEARCH command.
+
+	* lib/rims/protocol/decoder.rb: BADCHARSET response code for
+	unknown charset on SERCH command.
+
+	See RFC 3501 / 6.4.4.  SEARCH Command
+	<https://tools.ietf.org/html/rfc3501#section-6.4.4>
+
+	    If the server does not support the specified [CHARSET], it MUST
+	    return a tagged NO response (not a BAD).  This response SHOULD
+	    contain the BADCHARSET response code, which MAY list the
+	    [CHARSET]s supported by the server.
+
 2019-06-29  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/decoder.rb: line break before error response
