@@ -250,6 +250,15 @@ module RIMS
         @charset = Encoding.find(new_charset)
       end
 
+      def force_string_charset(string)
+        string = string.dup
+        string.force_encoding(@charset)
+        string.valid_encoding? or raise SyntaxError, "invalid #{@charset} string: #{string.inspect}"
+        string
+      end
+      private :force_string_charset
+
+      # should set `search_string' encoding to `@charset'
       def string_include?(search_string, text)
         if (search_string.ascii_only?) then
           unless (text.encoding.ascii_compatible?) then
@@ -257,7 +266,6 @@ module RIMS
           end
         else
           if (@charset) then
-            search_string = search_string.dup.force_encoding(@charset)
             text = text.encode(@charset)
           end
         end
@@ -314,6 +322,7 @@ module RIMS
       private :parse_msg_flag_enabled
 
       def parse_search_header(field_name, search_string)
+        search_string = force_string_charset(search_string) if @charset
         proc{|next_cond|
           proc{|msg|
             mail = get_mail(msg)
@@ -363,6 +372,7 @@ module RIMS
       private :parse_mail_bytesize
 
       def parse_body(search_string)
+        search_string = force_string_charset(search_string) if @charset
         proc{|next_cond|
           proc{|msg|
             if (text = mail_body_text(get_mail(msg))) then
@@ -425,6 +435,7 @@ module RIMS
       private :parse_or
 
       def parse_text(search_string)
+        search_string = force_string_charset(search_string) if @charset
         search_text = proc{|message_text| string_include?(search_string, message_text) }
         search_mail = proc{|mail|
           if (mail.multipart?) then

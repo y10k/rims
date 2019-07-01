@@ -2637,6 +2637,11 @@ module RIMS::Test
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
+        assert_imap_command("SEARCH CHARSET euc-jp BODY {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+          assert.match(/^\+ /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
+        }
+
         assert_imap_command('SEARCH CHARSET x-nothing BODY foo') {|assert|
           assert.match(/^#{tag} NO \[BADCHARSET \(\S+( \S+)*\)\] unknown charset/)
         }
@@ -2754,6 +2759,11 @@ module RIMS::Test
           assert.match(/^\+ /)
           assert.equal("* SEARCH 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
+        }
+
+        assert_imap_command("SEARCH CHARSET euc-jp TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+          assert.match(/^\+ /)
+          assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
 
         assert_imap_command('SEARCH CHARSET x-nothing TEXT foo') {|assert|
