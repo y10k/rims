@@ -2784,6 +2784,77 @@ module RIMS::Test
       test_search_charset_text
     end
 
+    def test_search_charset_skip_encoding_error
+      imap_decode_engine_evaluate{
+        if (stream_test?) then
+          assert_untagged_response{|assert|
+            assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+          }
+        end
+
+        open_mail_store{
+          add_msg("Content-Type: text/plain\r\n" +
+                  "\r\n" +
+                  "foo")
+          add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                  "\r\n" +
+                  # utf-8
+                  "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                  "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                  "\u3042\u3044\u3046\u3048\u304A\r\n" +
+                  "foo\r\n")
+
+          assert_msg_uid(1, 2)
+        }
+
+        if (command_test?) then
+          assert_equal(false, @decoder.auth?)
+          assert_equal(false, @decoder.selected?)
+        end
+
+        assert_imap_command('LOGIN foo open_sesame') {|assert|
+          assert.equal("#{tag} OK LOGIN completed")
+        }
+
+        if (command_test?) then
+          assert_equal(true, @decoder.auth?)
+          assert_equal(false, @decoder.selected?)
+        end
+
+        assert_imap_command('SELECT INBOX') {|assert|
+          assert.skip_while{|line| line =~ /^\* / }
+          assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+        }
+
+        if (command_test?) then
+          assert_equal(true, @decoder.auth?)
+          assert_equal(true, @decoder.selected?)
+        end
+
+        assert_imap_command('SEARCH CHARSET us-ascii BODY foo') {|assert|
+          assert.equal("* SEARCH 1\r\n")
+          assert.equal("#{tag} OK SEARCH completed\r\n")
+        }
+
+        utf8_msg = "\u306F\u306B\u307B"
+        assert_imap_command("SEARCH CHARSET utf-8 TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+          assert.match(/^\+ /)
+          assert.equal("* SEARCH\r\n")
+          assert.equal("#{tag} OK SEARCH completed\r\n")
+        }
+
+        assert_imap_command('LOGOUT') {|assert|
+          assert.match(/^\* BYE /)
+          assert.equal("#{tag} OK LOGOUT completed")
+        }
+      }
+    end
+
+    def test_search_charset_skip_encoding_error_stream
+      use_imap_stream_decode_engine
+      test_search_charset_skip_encoding_error
+    end
+
     def test_search_interrupt_by_bad_response
       imap_decode_engine_evaluate{
         if (stream_test?) then

@@ -1286,16 +1286,21 @@ module RIMS
           begin
             begin
               for msg in msg_src
-                if (cond.call(msg)) then
-                  if (uid) then
-                    res << " #{msg.uid}"
-                  else
-                    res << " #{msg.num}"
+                begin
+                  if (cond.call(msg)) then
+                    if (uid) then
+                      res << " #{msg.uid}"
+                    else
+                      res << " #{msg.num}"
+                    end
+                    if (res.length >= @bulk_response_count) then
+                      yield(res)
+                      res = []
+                    end
                   end
-                  if (res.length >= @bulk_response_count) then
-                    yield(res)
-                    res = []
-                  end
+                rescue EncodingError
+                  @logger.warn("encoding error at the message: uidvalidity(#{folder.mbox_id}) uid(#{msg.uid})")
+                  @logger.warn("#{$!} (#{$!.class})")
                 end
               end
             ensure
