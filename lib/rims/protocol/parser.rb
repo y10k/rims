@@ -756,7 +756,6 @@ module RIMS
       def initialize(mail_store, folder)
         @mail_store = mail_store
         @folder = folder
-        @charset = nil
         @mail_cache = Hash.new{|hash, uid|
           if (msg_txt = @mail_store.msg_text(@folder.mbox_id, uid)) then
             hash[uid] = RFC822::Message.new(msg_txt)
