@@ -379,7 +379,7 @@ module RIMS
           if (username != :*) then
             yield response_stream(tag) {|res|
               @logger.info("authentication OK: #{username}")
-              @next_decoder = accept_authentication(username) {|msg| res << msg }
+              @next_decoder = accept_authentication(username) {|msg| res << msg << :flush }
               res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
             }
           else
@@ -396,7 +396,7 @@ module RIMS
         if (@auth.authenticate_login(username, password)) then
           yield response_stream(tag) {|res|
             @logger.info("login authentication OK: #{username}")
-            @next_decoder = accept_authentication(username) {|msg| res << msg }
+            @next_decoder = accept_authentication(username) {|msg| res << msg << :flush }
             res << "#{tag} OK LOGIN completed\r\n"
           }
         else
@@ -1950,7 +1950,7 @@ module RIMS
           else
             res = response_stream(tag) {|stream_res|
               engine = store_engine_cache(username) {
-                self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|msg| stream_res << msg }
+                self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|msg| stream_res << msg << :flush }
               }
               deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine, stream_res)
             }
