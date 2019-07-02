@@ -1,3 +1,8 @@
+2019-07-02  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol/decoder.rb: ALERT message notified to client
+	immediately.
+
 2019-07-01  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/decoder.rb, lib/rims/protocol/parser.rb: skip
