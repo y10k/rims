@@ -1944,7 +1944,7 @@ module RIMS
             engine = engine_cache(username)
             deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine, res)
           else
-            res = Enumerator.new{|stream_res|
+            res = response_stream(tag) {|stream_res|
               engine = store_engine_cache(username) {
                 self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|msg| stream_res << msg }
               }
