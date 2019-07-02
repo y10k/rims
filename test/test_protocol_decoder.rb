@@ -135,8 +135,10 @@ module RIMS::Test
           output = StringIO.new('', 'w')
           input_gets = input.method(:gets)
           output_write = lambda{|res|
-            for line in res
-              output << line
+            for data in res
+              if (data != :flush) then
+                output << data
+              end
             end
           }
           inout_args = [ input_gets, output_write ]
@@ -158,7 +160,9 @@ module RIMS::Test
             response_message << output.string
           end
           for response in responses
-            response_message << response
+            if (response != :flush) then
+              response_message << response
+            end
           end
           response_lines = StringIO.new(response_message, 'r').each_line
           ret_val = yield(response_lines)

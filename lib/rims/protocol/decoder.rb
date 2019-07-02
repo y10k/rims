@@ -26,9 +26,13 @@ module RIMS
         output_write = lambda{|res|
           last_line = nil
           for data in res
-            logger.debug("response data: #{Protocol.io_data_log(data)}") if logger.debug?
-            output << data
-            last_line = data
+            if (data == :flush) then
+              output.flush
+            else
+              logger.debug("response data: #{Protocol.io_data_log(data)}") if logger.debug?
+              output << data
+              last_line = data
+            end
           end
           output.flush
 
