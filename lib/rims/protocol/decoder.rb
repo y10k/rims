@@ -1261,18 +1261,18 @@ module RIMS
           if (cond_args[0].upcase == 'UID' && cond_args.length >= 2) then
             begin
               msg_set = folder.parse_msg_set(cond_args[1], uid: true)
-              msg_src = folder.msg_find_all(msg_set, uid: true)
+              msg_list = folder.msg_find_all(msg_set, uid: true)
               cond_args.shift(2)
             rescue MessageSetSyntaxError
-              msg_src = folder.each_msg
+              msg_list = folder.each_msg
             end
           else
             begin
               msg_set = folder.parse_msg_set(cond_args[0], uid: false)
-              msg_src = folder.msg_find_all(msg_set, uid: false)
+              msg_list = folder.msg_find_all(msg_set, uid: false)
               cond_args.shift
             rescue MessageSetSyntaxError
-              msg_src = folder.each_msg
+              msg_list = folder.each_msg
             end
           end
           cond = parser.parse(cond_args)
@@ -1289,7 +1289,7 @@ module RIMS
           res << '* SEARCH'
           begin
             begin
-              for msg in msg_src
+              for msg in msg_list
                 begin
                   if (cond.call(msg)) then
                     if (uid) then
