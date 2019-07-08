@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 
 require 'json'
-require 'logger'
 require 'net/imap'
 require 'optparse'
 require 'pp'if $DEBUG
 require 'riser'
-require 'syslog'
-require 'syslog/logger'
 require 'yaml'
 
 OptionParser.accept(JSON) do |json_data, *_|
