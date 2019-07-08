@@ -1142,6 +1142,44 @@ module RIMS
     end
     command_function :cmd_daemon, "Daemon start/stop/status tool."
 
+    def cmd_environment(options, args)
+      format = {
+        yaml: lambda{|env|
+          YAML.dump(env)
+        },
+        json: lambda{|env|
+          JSON.pretty_generate(env)
+        }
+      }
+
+      conf = Config.new(options,
+                        [ [ :format_type,
+                            format.keys.first,
+                            '--format=FORMAT',
+                            format.keys,
+                            "Choose display format (#{format.keys.join(' ')})."
+                          ]
+                        ])
+      conf.required_feature_option
+      conf.setup_option_list
+      conf.parse_options!(args)
+
+      env = {
+        'RIMS Environment' => [
+          { 'RUBY VERSION' => RUBY_DESCRIPTION },
+          { 'RIMS VERSION' => RIMS::VERSION },
+          { 'AUTHENTICATION PLUG-IN' => Authentication.plug_in_names },
+          { 'KEY-VALUE STORE PLUG-IN' => KeyValueStore::FactoryBuilder.plug_in_names }
+        ]
+      }
+
+      formatter = format[conf[:format_type]]
+      puts formatter.call(env)
+
+      0
+    end
+    command_function :cmd_environment, 'Show rims environment.'
+
     def imap_append(imap, mailbox, message, store_flags: [], date_time: nil, verbose: false)
       puts "message date: #{date_time}" if (verbose && date_time)
       store_flags = nil if store_flags.empty?

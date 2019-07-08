@@ -334,6 +334,35 @@ module RIMS::Test
       assert_equal(0, status.exitstatus)
     end
 
+    data('default'            => [ false, %w[] ],
+         '-r'                 => [ false, %w[ -r prime ] ],
+         '--required-feature' => [ false, %w[ --required-feature=prime ] ],
+         '--format=yaml'      => [ false, %w[ --format=yaml ] ],
+         '--format=json'      => [ false, %w[ --format=json ] ],
+
+         # deplicated options
+         'deplicated:--load-library' => [ true, %w[ --load-library=prime ] ])
+    def test_environment(data)
+      deplicated, options = data
+
+      stdout, stderr, status = Open3.capture3('rims', 'environment', *options)
+      pp [ stdout, stderr, status ] if $DEBUG
+
+      assert_equal(0, status.exitstatus)
+      if (deplicated) then
+        assert_match(/^warning:/, stderr)
+      else
+        assert_equal('', stderr)
+      end
+
+      assert_match(/RIMS Environment/, stdout)
+      assert_match(/RUBY VERSION.*#{Regexp.quote(RUBY_DESCRIPTION)}/, stdout)
+      assert_match(/RIMS VERSION.*#{Regexp.quote(RIMS::VERSION)}/, stdout)
+      assert_match(/AUTHENTICATION PLUG-IN.*plain/m, stdout)
+      assert_match(/AUTHENTICATION PLUG-IN.*hash/m, stdout)
+      assert_match(/KEY-VALUE STORE PLUG-IN.*gdbm/m, stdout)
+    end
+
     tls_dir = Pathname(__FILE__).parent.parent / "tls"
     TLS_CA_CERT     = tls_dir / 'ca.cert'
     TLS_SERVER_CERT = tls_dir / 'server_localhost.cert'
