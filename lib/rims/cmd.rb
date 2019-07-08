@@ -516,13 +516,7 @@ module RIMS
       end
       options.on('--meta-kvs-type=TYPE',
                  KeyValueStore::FactoryBuilder.plug_in_names,
-                 "Choose key-value store type of mailbox meta-data database" +
-                 if (KeyValueStore::FactoryBuilder.plug_in_names.length > 1) then
-                   ' (' + KeyValueStore::FactoryBuilder.plug_in_names.join(' ') + ')'
-                 else
-                   ''
-                 end +
-                 ". default is `" +
+                 "Choose key-value store type of mailbox meta-data database. default is `" +
                  KeyValueStore::FactoryBuilder.plug_in_names[0] +
                  "'."
                 ) do |kvs_type|
@@ -565,13 +559,7 @@ module RIMS
       end
       options.on('--text-kvs-type=TYPE',
                  KeyValueStore::FactoryBuilder.plug_in_names,
-                 "Choose key-value store type of mailbox text-data database" +
-                 if (KeyValueStore::FactoryBuilder.plug_in_names.length > 1) then
-                   ' (' + KeyValueStore::FactoryBuilder.plug_in_names.join(' ') + ')'
-                 else
-                   ''
-                 end +
-                 ". default is `" +
+                 "Choose key-value store type of mailbox text-data database. default is `" +
                  KeyValueStore::FactoryBuilder.plug_in_names[0] +
                  "'."
                 ) do |kvs_type|
@@ -624,7 +612,7 @@ module RIMS
       end
       options.on('--passwd-config=TYPE_JSONDATA',
                  /([^:]+)(?::(.*))?/,
-                 "Password source type (#{Authentication.plug_in_names.join(',')}) and configuration. format is `[type]:[json_data]'."
+                 "Password source type and configuration. format is `[type]:[json_data]'."
                 ) do |_, type, json_data|
         build.chain{|c|
           c.load(authentication: {
@@ -638,7 +626,7 @@ module RIMS
       end
       options.on('--passwd-file=TYPE_FILE',
                  /([^:]+):(.+)/,
-                 "Password source type (#{Authentication.plug_in_names.join(',')}) and configuration file. format is `[type]:[file]'."
+                 "Password source type and configuration file. format is `[type]:[file]'."
                 ) do |_, type, path|
         build.chain{|c|
           c.load(authentication: {
@@ -904,14 +892,7 @@ module RIMS
       def key_value_store_option
         @conf[:key_value_store_type] = GDBM_KeyValueStore
         @options.on('--kvs-type=TYPE',
-                    KeyValueStore::FactoryBuilder.plug_in_names,
-                    "Choose key-value store type of mailbox database" +
-                    if (KeyValueStore::FactoryBuilder.plug_in_names.length > 1) then
-                      ' (' + KeyValueStore::FactoryBuilder.plug_in_names.join(' ') + ')'
-                    else
-                      ''
-                    end +
-                    ". default is `" +
+                    "Choose key-value store type of mailbox database. default is `" +
                     KeyValueStore::FactoryBuilder.plug_in_names[0] +
                     "'."
                    ) do |kvs_type|
