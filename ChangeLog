@@ -1,3 +1,7 @@
+2019-07-08  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb: environment command is defined.
+
 2019-07-02  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/decoder.rb: ALERT message notified to client
