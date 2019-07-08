@@ -1,5 +1,8 @@
 2019-07-08  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/cmd.rb: disable plug-in name list on plug-in command
+	options.
+
 	* lib/rims/cmd.rb: environment command is defined.
 
 2019-07-02  TOKI Yoshinori  <toki@freedom.ne.jp>
