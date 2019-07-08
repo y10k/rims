@@ -58,7 +58,7 @@ module RIMS
       puts "commands:"
       w = CMDs.keys.map{|k| k.length }.max + 4
       fmt = "    %- #{w}s%s"
-      CMDs.each do |cmd_name, cmd_entry|
+      CMDs.sort_by{|cmd_name, _| cmd_name }.each do |cmd_name, cmd_entry|
         if ((! show_debug_command) && (cmd_name =~ /\A debug/x)) then
           next
         end
