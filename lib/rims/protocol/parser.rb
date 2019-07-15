@@ -250,44 +250,22 @@ module RIMS
         @charset = Encoding.find(new_charset)
       end
 
-      def force_string_charset(string)
+      def force_charset(string)
         string = string.dup
         string.force_encoding(@charset)
         string.valid_encoding? or raise SyntaxError, "invalid #{@charset} string: #{string.inspect}"
         string
       end
-      private :force_string_charset
+      private :force_charset
 
-      # should set `search_string' encoding to `@charset'
-      def string_include?(search_string, text)
-        if (search_string.ascii_only?) then
-          unless (text.encoding.ascii_compatible?) then
-            text = text.encode('utf-8')
-          end
+      def encode_charset(string)
+        if (string.encoding == @charset) then
+          string
         else
-          if (@charset) then
-            text = text.encode(@charset)
-          end
-        end
-
-        text.include? search_string
-      end
-      private :string_include?
-
-      def mail_body_text(mail)
-        if (mail.text? || mail.message?) then
-          body_txt = mail.body.raw_source
-          if (charset = mail.charset) then
-            if (body_txt.encoding != charset) then
-              body_txt = body_txt.dup.force_encoding(charset)
-            end
-          end
-          body_txt
-        else
-          nil
+          string.encode(@charset)
         end
       end
-      private :mail_body_text
+      private :encode_charset
 
       def end_of_cond
         proc{|msg| true }
@@ -322,14 +300,27 @@ module RIMS
       private :parse_msg_flag_enabled
 
       def parse_search_header(field_name, search_string)
-        search_string = force_string_charset(search_string) if @charset
+        if (@charset) then
+          search_string = force_charset(search_string)
+          search_header = proc{|mail|
+            mail.mime_decoded_header_field_value_list(field_name, @charset).any?{|field_value|
+              field_value.include? search_string
+            }
+          }
+        else
+          search_string = search_string.b
+          search_header = proc{|mail|
+            mail.header.field_value_list(field_name).any?{|field_value|
+              field_value.include? search_string
+            }
+          }
+        end
+
         proc{|next_cond|
           proc{|msg|
             mail = get_mail(msg)
             if (mail.header.key? field_name) then
-              mail.header.field_value_list(field_name).any?{|field_value|
-                string_include?(search_string, field_value)
-              } && next_cond.call(msg)
+              search_header.call(mail) && next_cond.call(msg)
             else
               false
             end
@@ -372,11 +363,40 @@ module RIMS
       private :parse_mail_bytesize
 
       def parse_body(search_string)
-        search_string = force_string_charset(search_string) if @charset
+        if (@charset)
+          search_string = force_charset(search_string)
+          search_body = proc{|mail|
+            if (mail.text? || mail.messge?) then
+              encode_charset(mail.mime_charset_body_text).include? search_string
+            elsif (mail.multipart?) then
+              # mail.parts.any?{|next_mail|
+              #   search_body.call(next_mail)
+              # }
+              false
+            else
+              false
+            end
+          }
+        else
+          search_string = search_string.b
+          search_body = proc{|mail|
+            if (mail.text? || mail.message?)then
+              mail.mime_binary_body_string.include? search_string
+            elsif (mail.multipart?) then
+              # mail.parts.any?{|next_mail|
+              #   search_body.call(next_mail)
+              # }
+              false
+            else
+              false
+            end
+          }
+        end
+
         proc{|next_cond|
           proc{|msg|
-            if (text = mail_body_text(get_mail(msg))) then
-              string_include?(search_string, text) && next_cond.call(msg)
+            if (mail = get_mail(msg)) then
+              search_body.call(mail) && next_cond.call(msg)
             else
               false
             end
@@ -435,20 +455,42 @@ module RIMS
       private :parse_or
 
       def parse_text(search_string)
-        search_string = force_string_charset(search_string) if @charset
-        search_text = proc{|message_text| string_include?(search_string, message_text) }
-        search_mail = proc{|mail|
-          if (mail.multipart?) then
-            search_text.call(mail.header.raw_source) || mail.parts.any?{|m| search_mail.call(m) }
-          else
-            body_text = mail_body_text(mail)
-            search_text.call(mail.header.raw_source) || (body_text && search_text.call(body_text))
-          end
-        }
+        if (@charset) then
+          search_string = force_charset(search_string)
+          search_text = proc{|mail|
+            if (mail.mime_decoded_header_text(@charset).include? search_string) then
+              true
+            elsif (mail.text? || mail.message?) then
+              encode_charset(mail.mime_charset_body_text).include? search_string
+            elsif (mail.multipart?) then
+              mail.parts.any?{|next_mail|
+                search_text.call(next_mail)
+              }
+            else
+              false
+            end
+          }
+        else
+          search_string = search_string.b
+          search_text = proc{|mail|
+            if (mail.header.raw_source.include? search_string) then
+              true
+            elsif (mail.text? || mail.message?) then
+              mail.mime_binary_body_string.include? search_string
+            elsif (mail.multipart?) then
+              mail.parts.any?{|next_mail|
+                search_text.call(next_mail)
+              }
+            else
+              false
+            end
+          }
+        end
+
         proc{|next_cond|
           proc{|msg|
             mail = get_mail(msg)
-            search_mail.call(mail) && next_cond.call(msg)
+            search_text.call(mail) && next_cond.call(msg)
           }
         }
       end
