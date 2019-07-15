@@ -2869,7 +2869,8 @@ module RIMS::Test
       test_search_charset_skip_encoding_error
     end
 
-    def test_search_interrupt_by_bad_response
+    # skip this test because `EncodingError' is ignored.
+    def _test_search_interrupt_by_bad_response
       imap_decode_engine_evaluate{
         if (stream_test?) then
           assert_untagged_response{|assert|
@@ -2915,7 +2916,7 @@ module RIMS::Test
           assert_equal(true, @decoder.selected?)
         end
 
-        assert_imap_command('SEARCH TEXT foo') {|assert|
+        assert_imap_command('SEARCH CHARSET utf-8 TEXT foo') {|assert|
           assert.match(/\A\* SEARCH( \d+)+\r\n\z/, peek_next_line: true).no_match(/ #{@bulk_response_count.succ}/)
           assert.equal("#{tag} BAD internal server error\r\n")
         }
@@ -2927,7 +2928,8 @@ module RIMS::Test
       }
     end
 
-    def test_search_interrupt_by_bad_response_stream
+    # skip this test because `EncodingError' is ignored.
+    def _test_search_interrupt_by_bad_response_stream
       use_imap_stream_decode_engine
       test_search_interrupt_by_bad_response
     end
