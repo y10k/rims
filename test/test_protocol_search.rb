@@ -23,11 +23,6 @@ module RIMS::Test
     end
     private :add_msg
 
-    def get_msg_flag(uid, flag_name)
-      @mail_store.msg_flag(@inbox_id, uid, flag_name)
-    end
-    private :get_msg_flag
-
     def set_msg_flag(uid, flag_name, flag_value)
       @mail_store.set_msg_flag(@inbox_id, uid, flag_name, flag_value)
       nil
@@ -48,14 +43,8 @@ module RIMS::Test
     end
     private :assert_msg_uid
 
-    def assert_msg_flag(flag_name, *flag_value_list)
-      uid_list = @mail_store.each_msg_uid(@inbox_id).to_a
-      assert_equal(uid_list.map{|uid| get_msg_flag(uid, flag_name) }, flag_value_list)
-    end
-    private :assert_msg_flag
-
     def make_search_parser(charset: nil)
-      yield
+      yield if block_given?
       @folder = @mail_store.open_folder(@inbox_id, read_only: true).reload
       @parser = RIMS::Protocol::SearchParser.new(@mail_store, @folder)
       @parser.charset = charset if charset
@@ -73,8 +62,8 @@ module RIMS::Test
     end
     private :parse_search_key
 
-    def assert_search_cond(msg_idx, expected_found_flag)
-      assert_equal(expected_found_flag, @cond.call(@folder[msg_idx]))
+    def assert_search_cond(msg_idx, expected_found_flag, *optional)
+      assert_equal(expected_found_flag, @cond.call(@folder[msg_idx]), *optional)
     end
     private :assert_search_cond
 
@@ -93,86 +82,92 @@ module RIMS::Test
     end
     private :assert_search_syntax_error
 
-    def test_parse_all
-      make_search_parser{
-        add_msg('foo')
-        assert_msg_uid(1)
-      }
-
-      parse_search_key([ 'ALL' ]) {
-        assert_search_cond(0, true)
-      }
+    # test data format:
+    #   { search: <search key array>,
+    #     charset: <charset (optional)>,
+    #     messages: [
+    #       [ <expected search condition>,
+    #         <message text>,
+    #         <message flags>,
+    #         (<optional arguments for `RIMS::MailStore#add_msg'>)
+    #       ],
+    #       ...
+    #     ]
+    #   }
+    data('ALL', {
+           search: %w[ ALL ],
+           messages: [
+             [ true, 'foo', {} ]
+           ]
+         })
+    [ [ 'ANSWERED',   %w[ ANSWERED ],   [ true,  false ] ],
+      [ 'UNANSWERED', %w[ UNANSWERED ], [ false, true  ] ]
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ ' foo', { answered: true  } ],
+               [  'foo', { answered: false } ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_answered
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'answered', true)
-        assert_msg_flag('answered', true, false)
-      }
-
-      parse_search_key([ 'ANSWERED' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-      }
+    data('BCC', {
+           search: %w[ BCC foo ],
+           messages: [
+             [ true,
+               "Bcc: foo\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               "Bcc: bar\r\n" +
+               "\r\n" +
+               "foo",
+               {},
+             ],
+             [ false,
+               'foo',
+               {}
+             ]
+           ]
+         })
+    [ [ 'BEFORE', %w[ BEFORE 08-Nov-2013 ], [ true,  false, false ] ],
+      [ 'ON',     %w[ ON     08-Nov-2013 ], [ false, true,  false ] ],
+      [ 'SINCE',  %w[ SINCE  08-Nov-2013 ], [ false, false, true  ] ]
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ 'foo', {}, Time.parse('2013-11-07 12:34:56 +0000') ],
+               [ 'foo', {}, Time.parse('2013-11-08 12:34:56 +0000') ],
+               [ 'foo', {}, Time.parse('2013-11-09 12:34:56 +0000') ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_bcc
-      make_search_parser{
-        add_msg("Bcc: foo\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Bcc: bar\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'BCC', 'foo' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'BCC' ], /need for a search string/)
-      assert_search_syntax_error([ 'BCC', [ :group, 'foo' ] ], /search string expected as <String> but was/)
-    end
-
-    def test_parse_before
-      make_search_parser{
-        add_msg('foo', Time.parse('2013-11-07 12:34:56'))
-        add_msg('foo', Time.parse('2013-11-08 12:34:56'))
-        add_msg('foo', Time.parse('2013-11-09 12:34:56'))
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'BEFORE', '08-Nov-2013' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'BEFORE' ], /need for a search date/)
-      assert_search_syntax_error([ 'BEFORE', '99-Nov-2013' ], /search date is invalid/)
-      assert_search_syntax_error([ 'BEFORE', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
-    end
-
-    def test_parse_body
-      make_search_parser{
-        add_msg("Content-Type: text/plain\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Content-Type: text/plain\r\n" +
-                "\r\n" +
-                "bar")
-        add_msg("Content-Type: message/rfc822\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg(<<-'EOF')
+    data('BODY', {
+           search: %w[ BODY foo ],
+           messages: [
+             [ true,
+               "Content-Type: text/plain\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               "Content-Type: text/plain\r\n" +
+               "\r\n" +
+               "bar",
+               {}
+             ],
+             [ true,
+               "Content-Type: message/rfc822\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,           # ignored text part of multipart message.
+               <<-'EOF',
 Content-Type: multipart/alternative; boundary="1383.905529.351297"
 
 --1383.905529.351297
@@ -184,543 +179,491 @@ Content-Type: text/html
 
 <html><body><p>foo</p></body></html>
 --1383.905529.351297--
-        EOF
-
-        assert_msg_uid(1, 2, 3, 4)
-      }
-
-      parse_search_key([ 'BODY', 'foo' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, true)
-        assert_search_cond(3, false) # ignored text part of multipart message.
-      }
-
-      assert_search_syntax_error([ 'BODY' ], /need for a search string/)
-      assert_search_syntax_error([ 'BODY', [ :group, 'foo' ] ], /search string expected as <String> but was/)
+               EOF
+               {}
+             ]
+           ]
+         })
+    data('CC', {
+           search: %w[ CC foo ],
+           messages: [
+             [ true,
+               "Cc: foo\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               "Cc: bar\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               'foo',
+               {}
+             ]
+           ]
+         })
+    [ [ 'DELETED',   %w[ DELETED ],   [ true,  false ] ],
+      [ 'UNDELETED', %w[ UNDELETED ], [ false, true  ] ]
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ 'foo', { deleted: true  } ],
+               [ 'foo', { deleted: false } ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_cc
-      make_search_parser{
-        add_msg("Cc: foo\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Cc: bar\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'CC', 'foo' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'CC' ], /need for a search string/)
-      assert_search_syntax_error([ 'CC', [ :group, 'foo' ] ], /search string expected as <String> but was/)
+    [ [ 'DRAFT',   %w[ DRAFT ],   [ true,  false ] ],
+      [ 'UNDRAFT', %w[ UNDRAFT ], [ false, true  ] ]
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ 'foo', { draft: true  } ],
+               [ 'foo', { draft: false } ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_deleted
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'deleted', true)
-        assert_msg_flag('deleted', true, false)
-      }
-
-      parse_search_key([ 'DELETED' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-      }
+    [ [ 'FLAGGED',   %w[ FLAGGED ],   [ true,  false ] ],
+      [ 'UNFLAGGED', %w[ UNFLAGGED ], [ false, true  ] ]
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ 'foo', { flagged: true  } ],
+               [ 'foo', { flagged: false } ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_draft
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'draft', true)
-        assert_msg_flag('draft', true, false)
-      }
-
-      parse_search_key([ 'DRAFT' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-      }
+    data('FROM', {
+           search: %w[ FROM foo ],
+           messages: [
+             [ true,
+               "From: foo\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               "From: bar\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               'foo',
+               {}
+             ]
+           ]
+         })
+    [ [ 'x-foo_alice', %w[ HEADER x-foo alice ], [ true,  false, false ] ],
+      [ 'x-foo_bob',   %w[ HEADER x-foo bob   ], [ false, true,  false ] ],
+      [ 'x-foo_foo',   %w[ HEADER x-foo foo   ], [ false, false, false ] ],
+      [ 'x-bar_alice', %w[ HEADER x-bar alice ], [ false, true,  false ] ],
+      [ 'x-bar_bob',   %w[ HEADER x-bar bob   ], [ true,  false, false ] ],
+      [ 'x-bar_foo',   %w[ HEADER x-bar foo   ], [ false, false, false ] ]
+    ].each do |label, search, cond_list|
+      data("HEADER:#{label}", {
+             search: search,
+             messages: [
+               [ "X-Foo: alice\r\n" +
+                 "X-Bar: bob\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "X-Foo: bob\r\n" +
+                 "X-Bar: alice\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ 'foo',
+                 {}
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_flagged
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'flagged', true)
-        assert_msg_flag('flagged', true, false)
-      }
-
-      parse_search_key([ 'FLAGGED' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-      }
+    [ [ 'KEYWORD',   %w[ KEYWORD   foo ], [ false ] ], # always false
+      [ 'UNKEYWORD', %w[ UNKEYWORD foo ], [ true  ] ]  # always true
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ '', {} ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_from
-      make_search_parser{
-        add_msg("From: foo\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("From: bar\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'FROM', 'foo' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'FROM' ], /need for a search string/)
-      assert_search_syntax_error([ 'FROM', [ :group, 'foo' ] ], /search string expected as <String> but was/)
+    [ [ 'LARGER',  %w[ LARGER  3 ], [ false, false, true,  false ] ],
+      [ 'SMALLER', %w[ SMALLER 3 ], [ false, true,  false, false ] ]
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ 'foo',  {} ],
+               [ '12',   {} ],
+               [ '1234', {} ],
+               [ 'bar',  {} ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_header
-      make_search_parser{
-        add_msg("X-Foo: alice\r\n" +
-                "X-Bar: bob\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("X-Foo: bob\r\n" +
-                "X-Bar: alice\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'HEADER', 'x-foo', 'alice' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
-
-      parse_search_key([ 'HEADER', 'x-foo', 'bob' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-        assert_search_cond(2, false)
-      }
-
-      parse_search_key([ 'HEADER', 'x-bar', 'alice' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-        assert_search_cond(2, false)
-      }
-
-      parse_search_key([ 'HEADER', 'x-bar', 'bob' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'HEADER' ], /need for a search string/)
-      assert_search_syntax_error([ 'HEADER', 'Received' ], /need for a search string/)
-      assert_search_syntax_error([ 'HEADER', 'Received', [ :group, 'foo' ] ], /search string expected as <String> but was/)
-      assert_search_syntax_error([ 'HEADER', [ :group, 'Received' ], 'foo' ], /search string expected as <String> but was/)
+    [ [ 'NEW', %w[ NEW ], [ true, false, false ] ],
+      [ 'OLD', %w[ OLD ], [ false, false, true ] ]
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ 'foo', { recent: true,  seen: false } ],
+               [ 'bar', { recent: true,  seen: true  } ],
+               [ 'baz', { recent: false, seen: false } ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_keyword
-      make_search_parser{
-        add_msg('')
-        assert_msg_uid(1)
-      }
-
-      parse_search_key([ 'KEYWORD', 'foo' ]) {
-        assert_search_cond(0, false) # always false
-      }
-
-      assert_search_syntax_error([ 'KEYWORD' ], /need for a search string/)
-      assert_search_syntax_error([ 'KEYWORD', [ :group, 'foo' ] ], /search string expected as <String> but was/)
+    [ [ 'LARGER',   %w[ NOT LARGER 3 ], [ true,  false, true ] ],
+      [ 'ANSWERED', %w[ NOT ANSWERED ], [ false, true,  true ] ]
+    ].each do |label, search, cond_list|
+      data("NOT:#{label}", {
+             search: search,
+             messages: [
+               [ 'foo',  { answered: true  } ],
+               [ '1234', { answered: false } ],
+               [ 'bar',  { answered: false } ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_larger
-      make_search_parser{
-        add_msg('foo')
-        add_msg('1234')
-        add_msg('bar')
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'LARGER', '3' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'LARGER' ], /need for a octet size/)
-      assert_search_syntax_error([ 'LARGER', [ :group, '3' ] ], /octet size is expected as numeric string but was/)
-      assert_search_syntax_error([ 'LARGER', 'nonum' ], /octet size is expected as numeric string but was/)
+    data('OR', {
+           search: %w[ OR ANSWERED FLAGGED ],
+           messages: [
+             [ true,  'foo', { answered: true,  flagged: true  } ],
+             [ true,  'foo', { answered: true,  flagged: false } ],
+             [ true,  'foo', { answered: false, flagged: true  } ],
+             [ false, 'foo', { answered: false, flagged: false } ]
+           ]
+         })
+    data('RECENT', {
+           search: %w[ RECENT ],
+           messages: [
+             [ false, 'foo', { recent: false } ],
+             [ true,  'foo', { recent: true  } ]
+           ]
+         })
+    [ [ 'SEEN',   %w[ SEEN ],   [ true,  false ] ],
+      [ 'UNSEEN', %w[ UNSEEN ], [ false, true  ] ]
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ 'foo', { seen: true  } ],
+               [ 'foo', { seen: false } ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_new
-      make_search_parser{
-        add_msg('foo')
-        add_msg('bar')
-        add_msg('baz')
-        assert_msg_uid(1, 2, 3)
-
-        set_msg_flag(3, 'recent', false)
-        set_msg_flag(2, 'seen', true)
-        assert_msg_flag('recent', true,  true, false)
-        assert_msg_flag('seen',   false, true, false)
-      }
-
-      parse_search_key([ 'NEW' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
+    [ [ 'SENTBEFORE', %w[ SENTBEFORE 08-Nov-2013 ], [ true,  false, false, false ] ],
+      [ 'SENTON',     %w[ SENTON     08-Nov-2013 ], [ false, true,  false, false ] ],
+      [ 'SENTSINCE',  %w[ SENTSINCE  08-Nov-2013 ], [ false, false, true,  false ] ],
+    ].each do |label, search, cond_list|
+      data(label, {
+             search: search,
+             messages: [
+               [ "Date: Thu, 07 Nov 2013 12:34:56 +0000\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Date: Fri, 08 Nov 2013 12:34:56 +0000\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Date: Sat, 09 Nov 2013 12:34:56 +0000\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ 'foo',
+                 {}
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_not
-      make_search_parser{
-        add_msg('foo')
-        add_msg('1234')
-        add_msg('bar')
-        assert_msg_uid(1, 2, 3)
-
-        set_msg_flag(1, 'answered', true)
-        assert_msg_flag('answered', true, false, false)
-      }
-
-      parse_search_key([ 'NOT', 'LARGER', '3' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, true)
-      }
-
-      parse_search_key([ 'NOT', 'ANSWERED' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-        assert_search_cond(2, true)
-      }
-
-      assert_search_syntax_error([ 'NOT' ], 'unexpected end of search key.')
+    data('SUBJECT', {
+           search: %w[ SUBJECT foo ],
+           messages: [
+             [ true,
+               "Subject: foo\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               "Subject: bar\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               'foo',
+               {}
+             ]
+           ]
+         })
+    [ [ 'header_field_name',  %w[ TEXT jec ], [ true  ] ],
+      [ 'header_field_value', %w[ TEXT foo ], [ true  ] ],
+      [ 'body',               %w[ TEXT bar ], [ true  ] ],
+      [ 'no_match',           %w[ TEXT baz ], [ false ] ]
+    ].each do |label, search, cond_list|
+      data("TEXT:#{label}", {
+             search: search,
+             messages: [
+               [ "Content-Type: text/plain\r\n" +
+                 "Subject: foo\r\n" +
+                 "\r\n" +
+                 "bar",
+                 {}
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_old
-      make_search_parser{
-        add_msg('foo')
-        add_msg('bar')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'recent', false)
-        assert_msg_flag('recent', false, true)
-      }
-
-      parse_search_key([ 'OLD' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-      }
+    [ [ 'header',          [ 'TEXT', 'Subject: multipart test' ],  [ true  ] ],
+      [ 'inner_header',    [ 'TEXT', 'Subject: inner multipart' ], [ true  ] ],
+      [ 'part_body',       [ 'TEXT', 'Hello world.' ],             [ true  ] ],
+      [ 'inner_part_body', [ 'TEXT', 'HALO' ],                     [ true  ] ],
+      [ 'no_match',        [ 'TEXT', 'detarame' ],                 [ false ] ]
+    ].each do |label, search, cond_list|
+      data("TEXT:multipart:#{label}", {
+             search: search,
+             messages: [
+               [ MPART_MAIL_TEXT, {} ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_on
-      make_search_parser{
-        add_msg('foo', Time.parse('2013-11-07 12:34:56'))
-        add_msg('foo', Time.parse('2013-11-08 12:34:56'))
-        add_msg('foo', Time.parse('2013-11-09 12:34:56'))
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'ON', '08-Nov-2013' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'ON' ], /need for a search date/)
-      assert_search_syntax_error([ 'ON', '99-Nov-2013' ], /search date is invalid/)
-      assert_search_syntax_error([ 'ON', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
+    data('TO', {
+           search: %w[ TO foo ],
+           messages: [
+             [ true,
+               "To: foo\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               "To: bar\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               'foo',
+               {}
+             ]
+           ]
+         })
+    [ [ 'us-ascii',          %w[ BODY foo ],                [ true,  true,  true,  false, false ] ],
+      [ 'us-ascii:no_match', %w[ BODY bar ],                [ false, false, false, false, false ] ],
+      [ 'utf-8',             %W[ BODY \u306F\u306B\u307B ], [ false, false, false, true,  true  ] ]
+    ].each do |label, search, cond_list|
+      data("BODY:charset:#{label}", {
+             search: search,
+             charset: 'utf-8',
+             messages: [
+               [ "Content-Type: text/plain\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Content-Type: text/plain; charset=utf-8\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Content-Type: text/plain; charset=utf-8\r\n" +
+                 "\r\n" +
+                 "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                 "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                 "\u3042\u3044\u3046\u3048\u304A\r\n",
+                 {}
+               ],
+               [ "Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                 "\r\n" +
+                 "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n",
+                 {}
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
-
-    def test_parse_or
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3, 4)
-
-        set_msg_flag(1, 'answered', true)
-        set_msg_flag(2, 'answered', true)
-        set_msg_flag(1, 'flagged', true)
-        set_msg_flag(3, 'flagged', true)
-        assert_msg_flag('answered', true, true,  false, false)
-        assert_msg_flag('flagged',  true, false, true,  false)
-      }
-
-      parse_search_key([ 'OR', 'ANSWERED', 'FLAGGED' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, true)
-        assert_search_cond(2, true)
-        assert_search_cond(3, false)
-
-      }
-
-      assert_search_syntax_error([ 'OR' ], 'unexpected end of search key.')
-      assert_search_syntax_error([ 'OR', 'ANSWERED' ], 'unexpected end of search key.')
+    [ [ 'us-ascii:header_and_body', %w[ TEXT foo ],                [ true,  true,  true,  false, false ] ],
+      [ 'us-ascii:body',            %w[ TEXT bar ],                [ false, true,  true,  false, false ] ],
+      [ 'us-ascii:no_match',        %w[ TEXT baz ],                [ false, false, false, false, false ] ],
+      [ 'utf-8:body',               %W[ TEXT \u306F\u306B\u307B ], [ false, false, false, true,  true  ] ]
+    ].each do |label, search, cond_list|
+      data("TEXT:charset:#{label}", {
+             search: search,
+             charset: 'utf-8',
+             messages: [
+               [ "Content-Type: text/plain\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Content-Type: text/plain; charset=utf-8\r\n" +
+                 "X-foo: dummy\r\n" +
+                 "\r\n" +
+                 "bar",
+                 {}
+               ],
+               [ "Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                 "X-dummy: foo\r\n" +
+                 "\r\n" +
+                 "bar",
+                 {}
+               ],
+               [ "Content-Type: text/plain; charset=utf-8\r\n" +
+                 "\r\n" +
+                 "\u3053\u3093\u306B\u3061\u306F\r\n" +
+                 "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
+                 "\u3042\u3044\u3046\u3048\u304A\r\n",
+                 {}
+               ],
+               [ "Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                 "\r\n" +
+                 "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n",
+                 {}
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond] + msg }
+           })
     end
-
-    def test_parse_recent
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'recent', false)
-        assert_msg_flag('recent', false, true)
-      }
-
-      parse_search_key([ 'RECENT' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-      }
+    data('msg_set', {
+           search: %w[ 1,2,* ],
+           messages: [
+             [ true,  'foo', {} ],
+             [ true,  'foo', {} ],
+             [ false, 'foo', {} ],
+             [ false, 'foo', {} ],
+             [ true,  'foo', {} ]
+           ]
+         })
+    [ [ 'list',  %w[ ANSWERED FLAGGED ],                [ true, false, false, false ] ],
+      [ 'group', [ [ :group, 'ANSWERED', 'FLAGGED' ] ], [ true, false, false, false ] ]
+    ].each do |label, search, cond_list|
+      data("group:#{label}", {
+             search: search,
+             messages: [
+               [ 'foo', { answered: true,  flagged: true  } ],
+               [ 'foo', { answered: true,  flagged: false } ],
+               [ 'foo', { answered: false, flagged: true  } ],
+               [ 'foo', { answered: false, flagged: false } ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
     end
+    def test_parse_and_search(data)
+      search   = data[:search]
+      charset  = data[:charset]
+      msg_list = data[:messages]
 
-    def test_parse_seen
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'seen', true)
-        assert_msg_flag('seen', true, false)
+      make_search_parser(charset: charset) {
+        for _, msg, flags, *optional in msg_list
+          uid = add_msg(msg, *optional)
+          for name, value in flags
+            set_msg_flag(uid, name.to_s, value)
+          end
+        end
       }
 
-      parse_search_key([ 'SEEN' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-      }
-    end
-
-    def test_parse_sentbefore
-      make_search_parser{
-        add_msg("Date: Thu, 07 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3, 4)
-      }
-
-      parse_search_key([ 'SENTBEFORE', '08-Nov-2013' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-        assert_search_cond(3, false)
-      }
-
-      assert_search_syntax_error([ 'SENTBEFORE' ], /need for a search date/)
-      assert_search_syntax_error([ 'SENTBEFORE', '99-Nov-2013' ], /search date is invalid/)
-      assert_search_syntax_error([ 'SENTBEFORE', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
-    end
-
-    def test_parse_senton
-      make_search_parser{
-        add_msg("Date: Thu, 07 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3, 4)
-      }
-
-      parse_search_key([ 'SENTON', '08-Nov-2013' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-        assert_search_cond(2, false)
-        assert_search_cond(3, false)
-      }
-
-      assert_search_syntax_error([ 'SENTON' ], /need for a search date/)
-      assert_search_syntax_error([ 'SENTON', '99-Nov-2013' ], /search date is invalid/)
-      assert_search_syntax_error([ 'SENTON', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
-    end
-
-    def test_parse_sentsince
-      make_search_parser{
-        add_msg("Date: Thu, 07 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Date: Fri, 08 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Date: Sat, 09 Nov 2013 12:34:56 +0900\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3, 4)
-      }
-
-      parse_search_key([ 'SENTSINCE', '08-Nov-2013' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, false)
-        assert_search_cond(2, true)
-        assert_search_cond(3, false)
-      }
-
-      assert_search_syntax_error([ 'SENTSINCE' ], /need for a search date/)
-      assert_search_syntax_error([ 'SENTSINCE', '99-Nov-2013' ], /search date is invalid/)
-      assert_search_syntax_error([ 'SENTSINCE', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
-    end
-
-    def test_parse_since
-      make_search_parser{
-        add_msg('foo', Time.parse('2013-11-07 12:34:56'))
-        add_msg('foo', Time.parse('2013-11-08 12:34:56'))
-        add_msg('foo', Time.parse('2013-11-09 12:34:56'))
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'SINCE', '08-Nov-2013' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, false)
-        assert_search_cond(2, true)
-      }
-
-      assert_search_syntax_error([ 'SINCE' ], /need for a search date/)
-      assert_search_syntax_error([ 'SINCE', '99-Nov-2013' ], /search date is invalid/)
-      assert_search_syntax_error([ 'SINCE', [ :group, '08-Nov-2013'] ], /search date string expected as <String> but was/)
-    end
-
-    def test_parse_smaller
-      make_search_parser{
-        add_msg('foo')
-        add_msg('12')
-        add_msg('bar')
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'SMALLER', '3' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'SMALLER' ], /need for a octet size/)
-      assert_search_syntax_error([ 'SMALLER', [ :group, '3' ] ], /octet size is expected as numeric string but was/)
-      assert_search_syntax_error([ 'SMALLER', 'nonum' ], /octet size is expected as numeric string but was/)
-    end
-
-    def test_parse_subject
-      make_search_parser{
-        add_msg("Subject: foo\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Subject: bar\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'SUBJECT', 'foo' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'SUBJECT' ], /need for a search string/)
-      assert_search_syntax_error([ 'SUBJECT', [ :group, 'foo' ] ], /search string expected as <String> but was/)
-    end
-
-    def test_parse_text
-      make_search_parser{
-        add_msg("Content-Type: text/plain\r\n" +
-                "Subject: foo\r\n" +
-                "\r\n" +
-                "bar")
-        assert_msg_uid(1)
-      }
-
-      parse_search_key([ 'TEXT', 'jec' ]) {
-        assert_search_cond(0, true)
-      }
-      parse_search_key([ 'TEXT', 'foo' ]) {
-        assert_search_cond(0, true)
-      }
-      parse_search_key([ 'TEXT', 'bar' ]) {
-        assert_search_cond(0, true)
-      }
-      parse_search_key([ 'TEXT', 'baz' ]) {
-        assert_search_cond(0, false)
-      }
-
-      assert_search_syntax_error([ 'TEXT' ], /need for a search string/)
-      assert_search_syntax_error([ 'TEXT', [ :group, 'foo'] ], /search string expected as <String> but was/)
-    end
-
-    def test_parse_text_multipart
-      make_mail_multipart
-      make_search_parser{
-        add_msg(@mpart_mail.raw_source)
-        assert_msg_uid(1)
-      }
-
-      parse_search_key([ 'TEXT', 'Subject: multipart test' ]) {
-        assert_search_cond(0, true)
-      }
-      parse_search_key([ 'TEXT', 'Subject: inner multipart' ]) {
-        assert_search_cond(0, true)
-      }
-      parse_search_key([ 'TEXT', 'Hello world.' ]) {
-        assert_search_cond(0, true)
-      }
-      parse_search_key([ 'TEXT', 'HALO' ]) {
-        assert_search_cond(0, true)
-      }
-      parse_search_key([ 'TEXT', 'detarame' ]) {
-        assert_search_cond(0, false)
+      search = search.map{|key| (key.is_a? String) ? key.b : key }
+      parse_search_key(search) {
+        msg_list.each_with_index do |(expected_cond, *_), i|
+          assert_search_cond(i, expected_cond, "message index: #{i}")
+        end
       }
     end
 
-    def test_parse_to
-      make_search_parser{
-        add_msg("To: foo\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("To: bar\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3)
-      }
-
-      parse_search_key([ 'TO', 'foo' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-      }
-
-      assert_search_syntax_error([ 'TO' ], /need for a search string/)
-      assert_search_syntax_error([ 'TO', [ :group, 'foo' ] ], /search string expected as <String> but was/)
+    %w[ BCC BODY CC FROM KEYWORD SUBJECT TEXT TO UNKEYWORD ].each do |key|
+      data("#{key}:no_string", [
+             [ key ],
+             /need for a search string/
+           ])
+      data("#{key}:not_string", [
+             [ key, [ :group, 'foo' ] ],
+             /search string expected as <String> but was/
+           ])
+    end
+    %w[ BEFORE ON SENTBEFORE SENTON SENTSINCE SINCE ].each do |key|
+      data("#{key}:no_date", [
+             [ key ],
+             /need for a search date/
+           ])
+      data("#{key}:invalid_date", [
+             [ key, '99-Nov-2013' ],
+             /search date is invalid/
+           ])
+      data("#{key}:not_date", [
+             [ key, [ :group, '08-Nov-2013'] ],
+             /search date string expected as <String> but was/
+           ])
+    end
+    %w[ LARGER SMALLER ].each do |key|
+      data("#{key}:no_size", [
+             %w[ LARGER ],
+             /need for a octet size/
+           ])
+      data("#{key}:invalid_size", [
+             %w[ LARGER nonum ],
+             /octet size is expected as numeric string but was/
+           ])
+      data("#{key}:not_size", [
+             [ 'LARGER', [ :group, '3' ] ],
+             /octet size is expected as numeric string but was/
+           ])
+    end
+    data('HEADER:no_field_name', [
+           %w[ HEADER ],
+           /need for a search string/
+         ])
+    data('HEADER:no_string', [
+           %w[ HEADER Received ],
+           /need for a search string/
+         ])
+    data('HEADER:not_field_name', [
+           [ 'HEADER', [ :group, 'Received' ], 'foo' ],
+           /search string expected as <String> but was/
+         ])
+    data('HEADER:not_string', [
+           [ 'HEADER', 'Received', [ :group, 'foo' ] ],
+           /search string expected as <String> but was/
+         ])
+    data('NOT:no_search_key', [
+           %w[ NOT ],
+           'unexpected end of search key.'
+         ])
+    data('OR:no_left_search_key', [
+           %w[ OR ],
+           'unexpected end of search key.'
+         ])
+    data('OR:no_right_search_key', [
+           %w[ OR ANSWERED ],
+           'unexpected end of search key.'
+         ])
+    [ [ 'string', %w[ detarame ] ],
+      [ 'symbol', [ :detarame ] ],
+      [ 'array',  [ [ :detarame, 'ANSWERED', 'FLAGGED' ] ] ],
+    ].each do |label, search_key|
+      data("unknown_search_key:#{label}", [
+             search_key,
+             /unknown search key/
+           ])
+    end
+    def test_search_syntax_error(data)
+      search, expected_pattern = data
+      make_search_parser
+      assert_search_syntax_error(search, expected_pattern)
     end
 
     def test_parse_uid
@@ -745,263 +688,6 @@ Content-Type: text/html
       assert_kind_of(RIMS::SyntaxError, error)
       assert_match(/invalid message sequence format/, error.message)
       assert_match(/detarame/, error.message)
-    end
-
-    def test_parse_unanswered
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'answered', true)
-        assert_msg_flag('answered', true, false)
-      }
-
-      parse_search_key([ 'UNANSWERED' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-      }
-    end
-
-    def test_parse_undeleted
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'deleted', true)
-        assert_msg_flag('deleted', true, false)
-      }
-
-      parse_search_key([ 'UNDELETED' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-      }
-    end
-
-    def test_parse_undraft
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'draft', true)
-        assert_msg_flag('draft', true, false)
-      }
-
-      parse_search_key([ 'UNDRAFT' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-      }
-    end
-
-    def test_parse_unflagged
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'flagged', true)
-        assert_msg_flag('flagged', true, false)
-      }
-
-      parse_search_key([ 'UNFLAGGED' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-      }
-    end
-
-    def test_parse_unkeyword
-      make_search_parser{
-        add_msg('')
-        assert_msg_uid(1)
-      }
-
-      parse_search_key([ 'UNKEYWORD', 'foo' ]) {
-        assert_search_cond(0, true) # always true
-      }
-
-      assert_search_syntax_error([ 'UNKEYWORD' ], /need for a search string/)
-      assert_search_syntax_error([ 'UNKEYWORD', [ :group, 'foo' ] ], /search string expected as <String> but was/)
-    end
-
-    def test_parse_unseen
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2)
-
-        set_msg_flag(1, 'seen', true)
-        assert_msg_flag('seen', true, false)
-      }
-
-      parse_search_key([ 'UNSEEN' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-      }
-    end
-
-    def test_parse_msg_set
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        add_msg('foo')
-        add_msg('foo')
-        add_msg('foo')
-        add_msg('foo')
-        expunge(1, 3, 5)
-        assert_msg_uid(2, 4, 6)
-      }
-
-      parse_search_key([ '1,*' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, true)
-      }
-
-      assert_search_syntax_error([ 'detarame' ], /unknown search key/)
-    end
-
-    def test_parse_group
-      make_search_parser{
-        add_msg('foo')
-        add_msg('foo')
-        add_msg('foo')
-        add_msg('foo')
-        assert_msg_uid(1, 2, 3, 4)
-
-        set_msg_flag(1, 'answered', true)
-        set_msg_flag(2, 'answered', true)
-        set_msg_flag(1, 'flagged', true)
-        set_msg_flag(3, 'flagged', true)
-        assert_msg_flag('answered', true, true,  false, false)
-        assert_msg_flag('flagged',  true, false, true,  false)
-      }
-
-      parse_search_key([ 'ANSWERED', 'FLAGGED' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-        assert_search_cond(3, false)
-      }
-
-      parse_search_key([ [ :group, 'ANSWERED', 'FLAGGED' ] ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-        assert_search_cond(3, false)
-      }
-
-      assert_search_syntax_error([ [ :block, 'ANSWERED', 'FLAGGED' ] ], /unknown search key/)
-    end
-
-    def test_parse_unknown
-      make_search_parser{}
-      assert_search_syntax_error([ :detarame ], /unknown search key/)
-    end
-
-    def test_parse_charset_body
-      make_search_parser(charset: 'utf-8') {
-        add_msg("Content-Type: text/plain\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-                "\r\n" +
-                "\u3053\u3093\u306B\u3061\u306F\r\n" +
-                "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
-                "\u3042\u3044\u3046\u3048\u304A\r\n")
-        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-                "\r\n" +
-                "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
-        assert_msg_uid(1, 2, 3, 4, 5)
-      }
-
-      parse_search_key([ 'BODY', 'foo' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, true)
-        assert_search_cond(2, true)
-        assert_search_cond(3, false)
-        assert_search_cond(4, false)
-      }
-
-      parse_search_key([ 'BODY', 'bar' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-        assert_search_cond(3, false)
-        assert_search_cond(4, false)
-      }
-
-      parse_search_key([ 'BODY', "\u306F\u306B\u307B".b ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-        assert_search_cond(3, true)
-        assert_search_cond(4, true)
-      }
-    end
-
-    def test_parse_charset_text
-      make_search_parser(charset: 'utf-8') {
-        add_msg("Content-Type: text/plain\r\n" +
-                "\r\n" +
-                "foo")
-        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-                "X-foo: dummy\r\n" +
-                "\r\n" +
-                "bar")
-        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-                "X-dummy: foo\r\n" +
-                "\r\n" +
-                "bar")
-        add_msg("Content-Type: text/plain; charset=utf-8\r\n" +
-                "\r\n" +
-                "\u3053\u3093\u306B\u3061\u306F\r\n" +
-                "\u3044\u308D\u306F\u306B\u307B\u3078\u3068\r\n" +
-                "\u3042\u3044\u3046\u3048\u304A\r\n")
-        add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
-                "\r\n" +
-                "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n")
-        assert_msg_uid(1, 2, 3, 4, 5)
-      }
-
-      parse_search_key([ 'TEXT', 'foo' ]) {
-        assert_search_cond(0, true)
-        assert_search_cond(1, true)
-        assert_search_cond(2, true)
-        assert_search_cond(3, false)
-        assert_search_cond(4, false)
-      }
-
-      parse_search_key([ 'TEXT', 'bar' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, true)
-        assert_search_cond(2, true)
-        assert_search_cond(3, false)
-        assert_search_cond(4, false)
-      }
-
-      parse_search_key([ 'TEXT', 'baz' ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-        assert_search_cond(3, false)
-        assert_search_cond(4, false)
-      }
-
-      parse_search_key([ 'TEXT', "\u306F\u306B\u307B".b ]) {
-        assert_search_cond(0, false)
-        assert_search_cond(1, false)
-        assert_search_cond(2, false)
-        assert_search_cond(3, true)
-        assert_search_cond(4, true)
-      }
     end
   end
 end
