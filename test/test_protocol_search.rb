@@ -741,12 +741,10 @@ Content-Type: text/html
         assert_search_cond(2, true)
       }
 
-      begin
-        @parser.parse([ 'UID', 'detarame' ])
-      rescue
-        error = $!
-      end
+      error = assert_raise(RIMS::MessageSetSyntaxError) { @parser.parse([ 'UID', 'detarame' ]) }
       assert_kind_of(RIMS::SyntaxError, error)
+      assert_match(/invalid message sequence format/, error.message)
+      assert_match(/detarame/, error.message)
     end
 
     def test_parse_unanswered
