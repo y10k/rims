@@ -68,29 +68,30 @@ module RIMS
     end
 
     module ProtocolFetchMailSample
-      def make_mail_simple
-        @simple_mail_body = <<-'EOF'
+      simple_mail_body = <<-'EOF'.freeze
 Hello world.
-        EOF
+      EOF
 
-        md5_digest = Digest::MD5.digest(@simple_mail_body)
-        @simple_mail = RIMS::RFC822::Message.new(<<-"EOF" + @simple_mail_body)
+      MAIL_SIMPLE_TEXT = (<<-"EOF" + simple_mail_body).freeze
 To: foo@nonet.org
 From: bar@nonet.org
 Subject: test
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-MD5: #{[ md5_digest ].pack('m').strip}
+Content-MD5: #{[ Digest::MD5.digest(simple_mail_body) ].pack('m').strip}
 Content-Language: en-US, en
 Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
 
-        EOF
+      EOF
+
+      def make_mail_simple
+        @simple_mail = RIMS::RFC822::Message.new(MAIL_SIMPLE_TEXT)
+        @simple_mail_body = @simple_mail.body.raw_source
       end
       private :make_mail_simple
 
-      def make_mail_multipart
-        @mpart_mail = RIMS::RFC822::Message.new(<<-'EOF')
+      MPART_MAIL_TEXT = <<-'EOF'.freeze
 To: bar@nonet.com
 From: foo@nonet.com
 Subject: multipart test
@@ -173,12 +174,14 @@ Content-Location: baz
 --1383.905529.351300--
 --1383.905529.351299--
 --1383.905529.351297--
-        EOF
+      EOF
+
+      def make_mail_multipart
+        @mpart_mail = RIMS::RFC822::Message.new(MPART_MAIL_TEXT)
       end
       private :make_mail_multipart
 
-      def make_mail_mime_subject
-        @mime_subject_mail = RIMS::RFC822::Message.new(<<-'EOF')
+      MAIL_MIME_SUBJECT_TEXT = <<-'EOF'.freeze
 Date: Fri, 8 Nov 2013 19:31:03 +0900
 Subject: =?ISO-2022-JP?B?GyRCJEYkOSRIGyhC?=
 From: foo@nonet.com, bar <bar@nonet.com>
@@ -194,22 +197,28 @@ In-Reply-To: <20131106081723.5KJU1774292@smtp.test.com>
 Message-Id: <20131107214750.445A1255B9F@smtp.nonet.com>
 
 Hello world.
-        EOF
+      EOF
+
+      def make_mail_mime_subject
+        @mime_subject_mail = RIMS::RFC822::Message.new(MAIL_MIME_SUBJECT_TEXT)
       end
       private :make_mail_mime_subject
 
+      MAIL_EMPTY_TEXT = ''.freeze
+
       def make_mail_empty
-        @empty_mail = RIMS::RFC822::Message.new('')
+        @empty_mail = RIMS::RFC822::Message.new(MAIL_EMPTY_TEXT)
       end
       private :make_mail_empty
 
+      MAIL_NO_BODY_TEXT = "Subject: foo\r\n\r\n".freeze
+
       def make_mail_no_body
-        @no_body_mail = RIMS::RFC822::Message.new("Subject: foo\r\n\r\n")
+        @no_body_mail = RIMS::RFC822::Message.new(MAIL_NO_BODY_TEXT)
       end
       private :make_mail_no_body
 
-      def make_mail_address_header_pattern
-        @address_header_pattern_mail = RIMS::RFC822::Message.new(<<-'EOF')
+      MAIL_ADDRESS_HEADER_PATTERN_TEXT = <<-'EOF'.freeze
 To: "foo@nonet.org" <foo@nonet.org>
 From: bar@nonet.org
 Subject: test
@@ -219,7 +228,10 @@ Content-Transfer-Encoding: 7bit
 Date: Fri,  8 Nov 2013 06:47:50 +0900 (JST)
 
 Hello world.
-EOF
+      EOF
+
+      def make_mail_address_header_pattern
+        @address_header_pattern_mail = RIMS::RFC822::Message.new(MAIL_ADDRESS_HEADER_PATTERN_TEXT)
       end
       private :make_mail_address_header_pattern
     end
