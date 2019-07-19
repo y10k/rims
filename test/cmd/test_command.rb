@@ -1232,7 +1232,7 @@ Hello world.
           assert_equal(seqno[1],       imap_search.call([ 'ANSWERED' ]))                                              # *a
           assert_equal(seqno[3],       imap_search.call([ 'BCC', 'foo' ]))                                            # *b
           assert_equal(seqno[1],       imap_search.call([ 'BEFORE', @mpart_mail.date ]))
-          assert_equal(seqno[1, 3],    imap_search.call([ 'BODY', 'Hello world.' ]))
+          assert_equal(seqno[1, 2, 3], imap_search.call([ 'BODY', 'Hello world.' ]))
           assert_equal(seqno[3],       imap_search.call([ 'CC', 'kate' ]))
           assert_equal(seqno[],        imap_search.call([ 'DELETED' ]))
           assert_equal(seqno[2],       imap_search.call([ 'DRAFT' ]))

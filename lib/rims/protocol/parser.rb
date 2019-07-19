@@ -369,10 +369,9 @@ module RIMS
             if (mail.text? || mail.messge?) then
               encode_charset(mail.mime_charset_body_text).include? search_string
             elsif (mail.multipart?) then
-              # mail.parts.any?{|next_mail|
-              #   search_body.call(next_mail)
-              # }
-              false
+              mail.parts.any?{|next_mail|
+                search_body.call(next_mail)
+              }
             else
               false
             end
@@ -383,10 +382,9 @@ module RIMS
             if (mail.text? || mail.message?)then
               mail.mime_binary_body_string.include? search_string
             elsif (mail.multipart?) then
-              # mail.parts.any?{|next_mail|
-              #   search_body.call(next_mail)
-              # }
-              false
+              mail.parts.any?{|next_mail|
+                search_body.call(next_mail)
+              }
             else
               false
             end

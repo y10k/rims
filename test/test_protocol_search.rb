@@ -166,7 +166,7 @@ module RIMS::Test
                "foo",
                {}
              ],
-             [ false,           # ignored text part of multipart message.
+             [ true,
                <<-'EOF',
 Content-Type: multipart/alternative; boundary="1383.905529.351297"
 
