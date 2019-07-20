@@ -353,6 +353,36 @@ Content-Type: text/html
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
+    data('HEADER:charset', {
+           search: %W[ HEADER x-foo \u306F\u306B\u307B ],
+           charset: 'utf-8',
+           messages: [
+             [ true,
+               "X-Foo: =?UTF-8?B?44GE44KN44Gv44Gr44G744G444Go?=\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ false,
+               "X-Foo: =?UTF-8?B?44Gh44KK44Gs44KL44KS?=\r\n" +
+               "\r\n" +
+               "foo",
+               {}
+             ],
+             [ true,
+               "X-Foo: =?ISO-2022-JP?B?GyRCJCQkbSRPJEskWyRYJEgbKEI=?=\r\n" +
+               "\r\n" +
+               "foo",
+               {},
+             ],
+             [ false,
+               "X-Foo: =?ISO-2022-JP?B?GyRCJEEkaiRMJGskchsoQg==?=\r\n" +
+               "\r\n" +
+               "foo",
+               {},
+             ]
+           ]
+         })
     [ [ 'KEYWORD',   %w[ KEYWORD   foo ], [ false ] ], # always false
       [ 'UNKEYWORD', %w[ UNKEYWORD foo ], [ true  ] ]  # always true
     ].each do |label, search, cond_list|
