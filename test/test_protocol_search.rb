@@ -558,27 +558,49 @@ Content-Type: text/html
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    data('TO', {
-           search: %w[ TO foo ],
-           messages: [
-             [ true,
-               "To: foo\r\n" +
-               "\r\n" +
-               "foo",
-               {}
-             ],
-             [ false,
-               "To: bar\r\n" +
-               "\r\n" +
-               "foo",
-               {}
-             ],
-             [ false,
-               'foo',
-               {}
-             ]
-           ]
-         })
+    [ [ 'us-ascii', %w[ TO foo ],                [ true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ TO \u306F\u306B\u307B ], [ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    ].each do |label, search, cond_list, charset|
+      data("TO:#{label}", {
+             search: search,
+             charset: charset,
+             messages: [
+               [ "To: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "To: bar\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ 'foo',
+                 {}
+               ],
+               [ "To: =?UTF-8?B?44GE44KN44Gv44Gr44G744G444Go?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "To: =?UTF-8?B?44Gh44KK44Gs44KL44KS?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "To: =?ISO-2022-JP?B?GyRCJCQkbSRPJEskWyRYJEgbKEI=?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "To: =?ISO-2022-JP?B?GyRCJEEkaiRMJGskchsoQg==?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
+    end
     [ [ 'us-ascii',          %w[ BODY foo ],                [ true,  true,  true,  false, false ] ],
       [ 'us-ascii:no_match', %w[ BODY bar ],                [ false, false, false, false, false ] ],
       [ 'utf-8',             %W[ BODY \u306F\u306B\u307B ], [ false, false, false, true,  true  ] ]
