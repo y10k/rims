@@ -1,5 +1,15 @@
 2019-07-20  TOKI Yoshinori  <toki@freedom.ne.jp>
 
+	* lib/rims/protocol/decoder.rb, lib/rims/protocol/parser.rb:
+	case-insensitive matching of SEARCH command.
+
+	See RFC3501 / 6.4.4. SEARCH Command
+	<https://tools.ietf.org/html/rfc3501#section-6.4.4>
+
+	    In all search keys that use strings, a message matches the key if
+	    the string is a substring of the field. The matching is
+	    case-insensitive.
+
 	* lib/rims/protocol/parser.rb: search for MIME encoded header
 	fields.
 
