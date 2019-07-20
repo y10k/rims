@@ -282,27 +282,49 @@ Content-Type: text/html
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    data('FROM', {
-           search: %w[ FROM foo ],
-           messages: [
-             [ true,
-               "From: foo\r\n" +
-               "\r\n" +
-               "foo",
-               {}
-             ],
-             [ false,
-               "From: bar\r\n" +
-               "\r\n" +
-               "foo",
-               {}
-             ],
-             [ false,
-               'foo',
-               {}
-             ]
-           ]
-         })
+    [ [ 'us-ascii', %w[ FROM foo ],               [ true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ FROM \u306F\u306B\u307B ],[ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    ].each do |label, search, cond_list, charset|
+      data("FROM:#{label}", {
+             search: search,
+             charset: charset,
+             messages: [
+               [ "From: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "From: bar\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ 'foo',
+                 {}
+               ],
+               [ "From: =?UTF-8?B?44GE44KN44Gv44Gr44G744G444Go?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "From: =?UTF-8?B?44Gh44KK44Gs44KL44KS?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "From: =?ISO-2022-JP?B?GyRCJCQkbSRPJEskWyRYJEgbKEI=?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "From: =?ISO-2022-JP?B?GyRCJEEkaiRMJGskchsoQg==?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
+    end
     [ [ 'x-foo_alice', %w[ HEADER x-foo alice ], [ true,  false, false ] ],
       [ 'x-foo_bob',   %w[ HEADER x-foo bob   ], [ false, true,  false ] ],
       [ 'x-foo_foo',   %w[ HEADER x-foo foo   ], [ false, false, false ] ],
