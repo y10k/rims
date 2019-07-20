@@ -111,27 +111,49 @@ module RIMS::Test
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    data('BCC', {
-           search: %w[ BCC foo ],
-           messages: [
-             [ true,
-               "Bcc: foo\r\n" +
-               "\r\n" +
-               "foo",
-               {}
-             ],
-             [ false,
-               "Bcc: bar\r\n" +
-               "\r\n" +
-               "foo",
-               {},
-             ],
-             [ false,
-               'foo',
-               {}
-             ]
-           ]
-         })
+    [ [ 'us-ascii', %w[ BCC foo ],                [ true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ BCC \u306F\u306B\u307B ], [ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    ].each do |label, search, cond_list, charset|
+      data("BCC:#{label}", {
+             search: search,
+             charset: charset,
+             messages: [
+               [ "Bcc: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Bcc: bar\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ 'foo',
+                 {}
+               ],
+               [ "Bcc: =?UTF-8?B?44GE44KN44Gv44Gr44G744G444Go?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "Bcc: =?UTF-8?B?44Gh44KK44Gs44KL44KS?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Bcc: =?ISO-2022-JP?B?GyRCJCQkbSRPJEskWyRYJEgbKEI=?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "Bcc: =?ISO-2022-JP?B?GyRCJEEkaiRMJGskchsoQg==?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
+    end
     [ [ 'BEFORE', %w[ BEFORE 08-Nov-2013 ], [ true,  false, false ] ],
       [ 'ON',     %w[ ON     08-Nov-2013 ], [ false, true,  false ] ],
       [ 'SINCE',  %w[ SINCE  08-Nov-2013 ], [ false, false, true  ] ]
