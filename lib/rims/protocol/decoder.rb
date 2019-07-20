@@ -1250,7 +1250,7 @@ module RIMS
               parser.charset = charset_string
             rescue ArgumentError
               @logger.warn("unknown charset: #{charset_string}")
-              return yield([ "#{tag} NO [BADCHARSET (#{Encoding.list.map(&:to_s).join(' ')})] unknown charset\r\n" ])
+              return yield([ "#{tag} NO [BADCHARSET (#{Encoding.list.reject(&:dummy?).map(&:to_s).join(' ')})] unknown charset\r\n" ])
             end
           end
 

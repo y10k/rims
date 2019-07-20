@@ -247,7 +247,12 @@ module RIMS
       attr_reader :charset
 
       def charset=(new_charset)
-        @charset = Encoding.find(new_charset)
+        charset_encoding = Encoding.find(new_charset)
+        if (charset_encoding.dummy?) then
+          # same error type as `Encoding.find'
+          raise ArgumentError, "not a searchable charset: #{new_charset}"
+        end
+        @charset = charset_encoding
       end
 
       def force_charset(string)
