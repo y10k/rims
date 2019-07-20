@@ -267,6 +267,11 @@ module RIMS
       end
       private :encode_charset
 
+      def compile_search_regexp(search_string)
+        Regexp.new(Regexp.quote(search_string), true)
+      end
+      private :compile_search_regexp
+
       def end_of_cond
         proc{|msg| true }
       end
@@ -302,16 +307,18 @@ module RIMS
       def parse_search_header(field_name, search_string)
         if (@charset) then
           search_string = force_charset(search_string)
+          search_regexp = compile_search_regexp(search_string)
           search_header = proc{|mail|
             mail.mime_decoded_header_field_value_list(field_name, @charset).any?{|field_value|
-              field_value.include? search_string
+              search_regexp.match? field_value
             }
           }
         else
           search_string = search_string.b
+          search_regexp = compile_search_regexp(search_string)
           search_header = proc{|mail|
             mail.header.field_value_list(field_name).any?{|field_value|
-              field_value.include? search_string
+              search_regexp.match? field_value
             }
           }
         end
@@ -365,9 +372,10 @@ module RIMS
       def parse_body(search_string)
         if (@charset)
           search_string = force_charset(search_string)
+          search_regexp = compile_search_regexp(search_string)
           search_body = proc{|mail|
             if (mail.text? || mail.messge?) then
-              encode_charset(mail.mime_charset_body_text).include? search_string
+              search_regexp.match? encode_charset(mail.mime_charset_body_text)
             elsif (mail.multipart?) then
               mail.parts.any?{|next_mail|
                 search_body.call(next_mail)
@@ -378,9 +386,10 @@ module RIMS
           }
         else
           search_string = search_string.b
+          search_regexp = compile_search_regexp(search_string)
           search_body = proc{|mail|
             if (mail.text? || mail.message?)then
-              mail.mime_binary_body_string.include? search_string
+              search_regexp.match? mail.mime_binary_body_string
             elsif (mail.multipart?) then
               mail.parts.any?{|next_mail|
                 search_body.call(next_mail)
@@ -455,11 +464,12 @@ module RIMS
       def parse_text(search_string)
         if (@charset) then
           search_string = force_charset(search_string)
+          search_regexp = compile_search_regexp(search_string)
           search_text = proc{|mail|
-            if (mail.mime_decoded_header_text(@charset).include? search_string) then
+            if (search_regexp.match? mail.mime_decoded_header_text(@charset)) then
               true
             elsif (mail.text? || mail.message?) then
-              encode_charset(mail.mime_charset_body_text).include? search_string
+              search_regexp.match? encode_charset(mail.mime_charset_body_text)
             elsif (mail.multipart?) then
               mail.parts.any?{|next_mail|
                 search_text.call(next_mail)
@@ -470,11 +480,12 @@ module RIMS
           }
         else
           search_string = search_string.b
+          search_regexp = compile_search_regexp(search_string)
           search_text = proc{|mail|
-            if (mail.header.raw_source.include? search_string) then
+            if (search_regexp.match? mail.header.raw_source) then
               true
             elsif (mail.text? || mail.message?) then
-              mail.mime_binary_body_string.include? search_string
+              search_regexp.match? mail.mime_binary_body_string
             elsif (mail.multipart?) then
               mail.parts.any?{|next_mail|
                 search_text.call(next_mail)
