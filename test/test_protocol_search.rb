@@ -639,10 +639,10 @@ Content-Type: text/html
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    [ [ 'us-ascii:header_and_body', %w[ TEXT foo ],                [ true,  true,  true,  false, false ] ],
-      [ 'us-ascii:body',            %w[ TEXT bar ],                [ false, true,  true,  false, false ] ],
-      [ 'us-ascii:no_match',        %w[ TEXT baz ],                [ false, false, false, false, false ] ],
-      [ 'utf-8:body',               %W[ TEXT \u306F\u306B\u307B ], [ false, false, false, true,  true  ] ]
+    [ [ 'us-ascii:header_and_body', %w[ TEXT foo ],                [ true,  true,  true,  false, false, false, false ] ],
+      [ 'us-ascii:body',            %w[ TEXT bar ],                [ false, true,  true,  false, false, false, false ] ],
+      [ 'us-ascii:no_match',        %w[ TEXT baz ],                [ false, false, false, false, false, false, false ] ],
+      [ 'utf-8:header_and_body',    %W[ TEXT \u306F\u306B\u307B ], [ false, false, false, true,  true,  true,  true  ] ]
     ].each do |label, search, cond_list|
       data("TEXT:charset:#{label}", {
              search: search,
@@ -676,6 +676,16 @@ Content-Type: text/html
                  "\r\n" +
                  "\e$B$3$s$K$A$O\e(B\r\n\e$B$$$m$O$K$[$X$H\e(B\r\n\e$B$\"$$$&$($*\e(B\r\n",
                  {}
+               ],
+               [ "Subject: =?UTF-8?B?44GE44KN44Gv44Gr44G744G444Go?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Subject: =?ISO-2022-JP?B?GyRCJCQkbSRPJEskWyRYJEgbKEI=?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
                ]
              ].zip(cond_list).map{|msg, cond| [ cond] + msg }
            })
