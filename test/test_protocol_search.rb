@@ -206,27 +206,49 @@ Content-Type: text/html
              ]
            ]
          })
-    data('CC', {
-           search: %w[ CC foo ],
-           messages: [
-             [ true,
-               "Cc: foo\r\n" +
-               "\r\n" +
-               "foo",
-               {}
-             ],
-             [ false,
-               "Cc: bar\r\n" +
-               "\r\n" +
-               "foo",
-               {}
-             ],
-             [ false,
-               'foo',
-               {}
-             ]
-           ]
-         })
+    [ [ 'us-ascii', %w[ CC foo ],                [ true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ CC \u306F\u306B\u307B ], [ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    ].each do |label, search, cond_list, charset|
+      data("CC:#{label}", {
+             search: search,
+             charset: charset,
+             messages: [
+               [ "Cc: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Cc: bar\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ 'foo',
+                 {}
+               ],
+               [ "Cc: =?UTF-8?B?44GE44KN44Gv44Gr44G744G444Go?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "Cc: =?UTF-8?B?44Gh44KK44Gs44KL44KS?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Cc: =?ISO-2022-JP?B?GyRCJCQkbSRPJEskWyRYJEgbKEI=?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "Cc: =?ISO-2022-JP?B?GyRCJEEkaiRMJGskchsoQg==?=\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ]
+             ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
+           })
+    end
     [ [ 'DELETED',   %w[ DELETED ],   [ true,  false ] ],
       [ 'UNDELETED', %w[ UNDELETED ], [ false, true  ] ]
     ].each do |label, search, cond_list|
