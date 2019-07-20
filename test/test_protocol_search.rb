@@ -111,14 +111,19 @@ module RIMS::Test
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    [ [ 'us-ascii', %w[ BCC foo ],                [ true,  false, false, false, false, false, false ] ],
-      [ 'charset',  %W[ BCC \u306F\u306B\u307B ], [ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    [ [ 'us-ascii', %w[ BCC foo ],                [ true,  true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ BCC \u306F\u306B\u307B ], [ false, false, false, false, true,  false, true,  false ], 'utf-8' ]
     ].each do |label, search, cond_list, charset|
       data("BCC:#{label}", {
              search: search,
              charset: charset,
              messages: [
                [ "Bcc: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Bcc: FOO\r\n" +
                  "\r\n" +
                  "foo",
                  {}
@@ -176,6 +181,12 @@ module RIMS::Test
                "foo",
                {}
              ],
+             [ true,
+               "Content-Type: text/plain\r\n" +
+               "\r\n" +
+               "FOO",
+               {}
+             ],
              [ false,
                "Content-Type: text/plain\r\n" +
                "\r\n" +
@@ -206,14 +217,19 @@ Content-Type: text/html
              ]
            ]
          })
-    [ [ 'us-ascii', %w[ CC foo ],                [ true,  false, false, false, false, false, false ] ],
-      [ 'charset',  %W[ CC \u306F\u306B\u307B ], [ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    [ [ 'us-ascii', %w[ CC foo ],                [ true,  true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ CC \u306F\u306B\u307B ], [ false, false, false, false, true,  false, true,  false ], 'utf-8' ]
     ].each do |label, search, cond_list, charset|
       data("CC:#{label}", {
              search: search,
              charset: charset,
              messages: [
                [ "Cc: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Cc: FOO\r\n" +
                  "\r\n" +
                  "foo",
                  {}
@@ -282,14 +298,19 @@ Content-Type: text/html
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    [ [ 'us-ascii', %w[ FROM foo ],               [ true,  false, false, false, false, false, false ] ],
-      [ 'charset',  %W[ FROM \u306F\u306B\u307B ],[ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    [ [ 'us-ascii', %w[ FROM foo ],               [ true,  true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ FROM \u306F\u306B\u307B ],[ false, false, false, false, true,  false, true,  false ], 'utf-8' ]
     ].each do |label, search, cond_list, charset|
       data("FROM:#{label}", {
              search: search,
              charset: charset,
              messages: [
                [ "From: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "From: FOO\r\n" +
                  "\r\n" +
                  "foo",
                  {}
@@ -325,12 +346,12 @@ Content-Type: text/html
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    [ [ 'x-foo_alice', %w[ HEADER x-foo alice ], [ true,  false, false ] ],
-      [ 'x-foo_bob',   %w[ HEADER x-foo bob   ], [ false, true,  false ] ],
-      [ 'x-foo_foo',   %w[ HEADER x-foo foo   ], [ false, false, false ] ],
-      [ 'x-bar_alice', %w[ HEADER x-bar alice ], [ false, true,  false ] ],
-      [ 'x-bar_bob',   %w[ HEADER x-bar bob   ], [ true,  false, false ] ],
-      [ 'x-bar_foo',   %w[ HEADER x-bar foo   ], [ false, false, false ] ]
+    [ [ 'x-foo_alice', %w[ HEADER x-foo alice ], [ true,  true,  false, false, false ] ],
+      [ 'x-foo_bob',   %w[ HEADER x-foo bob   ], [ false, false, true,  true,  false ] ],
+      [ 'x-foo_foo',   %w[ HEADER x-foo foo   ], [ false, false, false, false, false ] ],
+      [ 'x-bar_alice', %w[ HEADER x-bar alice ], [ false, false, true,  true,  false ] ],
+      [ 'x-bar_bob',   %w[ HEADER x-bar bob   ], [ true,  true,  false, false, false ] ],
+      [ 'x-bar_foo',   %w[ HEADER x-bar foo   ], [ false, false, false, false, false ] ]
     ].each do |label, search, cond_list|
       data("HEADER:#{label}", {
              search: search,
@@ -341,8 +362,20 @@ Content-Type: text/html
                  "foo",
                  {}
                ],
+               [ "X-Foo: Alice\r\n" +
+                 "X-Bar: Bob\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
                [ "X-Foo: bob\r\n" +
                  "X-Bar: alice\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {},
+               ],
+               [ "X-Foo: Bob\r\n" +
+                 "X-Bar: Alice\r\n" +
                  "\r\n" +
                  "foo",
                  {},
@@ -485,14 +518,19 @@ Content-Type: text/html
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    [ [ 'us-ascii', %w[ SUBJECT foo ],                [ true,  false, false, false, false, false, false ] ],
-      [ 'charset',  %W[ SUBJECT \u306F\u306B\u307B ], [ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    [ [ 'us-ascii', %w[ SUBJECT foo ],                [ true,  true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ SUBJECT \u306F\u306B\u307B ], [ false, false, false, false, true,  false, true,  false ], 'utf-8' ]
     ].each do |label, search, cond_list, charset|
       data("SUBJECT:#{label}", {
              search: search,
              charset: charset,
              messages: [
                [ "Subject: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "Subject: FOO\r\n" +
                  "\r\n" +
                  "foo",
                  {}
@@ -529,6 +567,7 @@ Content-Type: text/html
            })
     end
     [ [ 'header_field_name',  %w[ TEXT jec ], [ true  ] ],
+      [ 'case_insensitive',   %w[ TEXT sUB ], [ true  ] ],
       [ 'header_field_value', %w[ TEXT foo ], [ true  ] ],
       [ 'body',               %w[ TEXT bar ], [ true  ] ],
       [ 'no_match',           %w[ TEXT baz ], [ false ] ]
@@ -558,14 +597,19 @@ Content-Type: text/html
              ].zip(cond_list).map{|msg, cond| [ cond ] + msg }
            })
     end
-    [ [ 'us-ascii', %w[ TO foo ],                [ true,  false, false, false, false, false, false ] ],
-      [ 'charset',  %W[ TO \u306F\u306B\u307B ], [ false, false, false, true,  false, true,  false ], 'utf-8' ]
+    [ [ 'us-ascii', %w[ TO foo ],                [ true,  true,  false, false, false, false, false, false ] ],
+      [ 'charset',  %W[ TO \u306F\u306B\u307B ], [ false, false, false, false, true,  false, true,  false ], 'utf-8' ]
     ].each do |label, search, cond_list, charset|
       data("TO:#{label}", {
              search: search,
              charset: charset,
              messages: [
                [ "To: foo\r\n" +
+                 "\r\n" +
+                 "foo",
+                 {}
+               ],
+               [ "To: FOO\r\n" +
                  "\r\n" +
                  "foo",
                  {}
