@@ -1,3 +1,8 @@
+2019-07-20  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/protocol/parser.rb: search for MIME encoded header
+	fields.
+
 2019-07-09  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.2.6 is released.
