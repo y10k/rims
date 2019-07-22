@@ -140,6 +140,11 @@ module RIMS::Test
       '--read-polling-interval'          => [ %W[ -f #{BASE_DIR}/config.yml --read-polling-interval=5 ] ],
       '--command-wait-timeout'           => [ %W[ -f #{BASE_DIR}/config.yml --command-wait-timeout=3600 ] ],
 
+      # charset aliases:
+      '--use-default-charset-aliases'    => [ %W[ -f #{BASE_DIR}/config.yml --use-default-charset-aliases ] ],
+      '--no-use-default-charset-aliases' => [ %W[ -f #{BASE_DIR}/config.yml --no-use-default-charset-aliases ] ],
+      '--add-charset-alias'              => [ %W[ -f #{BASE_DIR}/config.yml --no-use-default-charset-aliases --add-charset-alias=iso-2022-jp,CP50221 ] ],
+
       # drb_services:
       '--drb-process-num'                => [ %W[ -f #{BASE_DIR}/config.yml --drb-process-num=4 ] ],
 

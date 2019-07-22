@@ -462,6 +462,27 @@ module RIMS
                  })
         }
       end
+      options.on('--[no-]use-default-charset-aliases'
+                ) do |use_default_aliases|
+        build.chain{|c|
+          c.load(charset: {
+                   use_default_aliases: use_default_aliases
+                 })
+        }
+      end
+      options.on('--add-charset-alias=NAME_TO_ENCODING',
+                 /\A \S+,\S+ \z/x,
+                 "Set the alias name and encoding separated with comma (,)."
+                ) do |name_to_encoding|
+        name, encoding = name_to_encoding.split(',', 2)
+        build.chain{|c|
+          c.load(charset: {
+                   aliases: [
+                     { name: name, encoding: encoding }
+                   ]
+                 })
+        }
+      end
       options.on('--drb-process-num=NUMBER',
                  Integer
                 ) do |num|
