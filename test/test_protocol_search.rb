@@ -723,12 +723,12 @@ Content-Type: text/html
                ],
                [ "Subject: =?UTF-8?B?44GE44KN44Gv44Gr44G744G444Go?=\r\n" +
                  "\r\n" +
-                 "foo",
+                 "",
                  {}
                ],
                [ "Subject: =?ISO-2022-JP?B?GyRCJCQkbSRPJEskWyRYJEgbKEI=?=\r\n" +
                  "\r\n" +
-                 "foo",
+                 "",
                  {},
                ]
              ].zip(cond_list).map{|msg, cond| [ cond] + msg }

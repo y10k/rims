@@ -516,25 +516,27 @@ module RIMS::Test
         assert_fetch(2,
                      [
                        'BODY ' +
-                       encode_bodystructure([ 'APPLICATION',
-                                              'OCTET-STREAM',
+                       encode_bodystructure([ 'TEXT',
+                                              'PLAIN',
                                               nil,
                                               nil,
                                               nil,
                                               nil,
-                                              @empty_mail.raw_source.bytesize
+                                              @empty_mail.raw_source.bytesize,
+                                              @empty_mail.raw_source.each_line.count
                                             ])
                      ])
         assert_fetch(3,
                      [
                        'BODY ' +
-                       encode_bodystructure([ 'APPLICATION',
-                                              'OCTET-STREAM',
+                       encode_bodystructure([ 'TEXT',
+                                              'PLAIN',
                                               nil,
                                               nil,
                                               nil,
                                               nil,
-                                              @no_body_mail.raw_source.bytesize
+                                              @no_body_mail.raw_source.bytesize,
+                                              @no_body_mail.raw_source.each_line.count
                                             ])
                      ])
       }
@@ -654,13 +656,14 @@ module RIMS::Test
                      ])
         assert_fetch(2, [
                        'BODYSTRUCTURE ' +
-                       encode_bodystructure([ 'APPLICATION',
-                                              'OCTET-STREAM',
+                       encode_bodystructure([ 'TEXT',
+                                              'PLAIN',
                                               nil,
                                               nil,
                                               nil,
                                               nil,
                                               @empty_mail.raw_source.bytesize,
+                                              @empty_mail.raw_source.each_line.count,
                                               nil,
                                               nil,
                                               nil,
@@ -669,13 +672,14 @@ module RIMS::Test
                      ])
         assert_fetch(3, [
                        'BODYSTRUCTURE ' +
-                       encode_bodystructure([ 'APPLICATION',
-                                              'OCTET-STREAM',
+                       encode_bodystructure([ 'TEXT',
+                                              'PLAIN',
                                               nil,
                                               nil,
                                               nil,
                                               nil,
                                               @no_body_mail.raw_source.bytesize,
+                                              @no_body_mail.raw_source.each_line.count,
                                               nil,
                                               nil,
                                               nil,
