@@ -709,6 +709,46 @@ module RIMS::Test
       assert_equal(expected_values, limits.to_h)
     end
 
+    data('default'                 => [ [ [ 'EUC-JP',      Encoding::EUCJP_MS ],
+                                          [ 'ISO-2022-JP', Encoding::CP50221 ],
+                                          [ 'SHIFT_JIS',   Encoding::WINDOWS_31J ]
+                                        ],
+                                        {}
+                                      ],
+         'use_default_aliases:yes' => [ [ [ 'EUC-JP',      Encoding::EUCJP_MS ],
+                                          [ 'ISO-2022-JP', Encoding::CP50221 ],
+                                          [ 'SHIFT_JIS',   Encoding::WINDOWS_31J ]
+                                        ],
+                                        { charset: {
+                                            use_default_aliases: true
+                                          }
+                                        }
+                                      ],
+         'use_default_aliases:no'  => [ [],
+                                        { charset: {
+                                            use_default_aliases: false
+                                          }
+                                        }
+                                      ],
+         'aliases'                 => [ [ [ 'EUC-JP',      Encoding::EUCJP_MS ],
+                                          [ 'SHIFT_JIS',   Encoding::WINDOWS_31J ]
+                                        ],
+                                        { charset: {
+                                            use_default_aliases: false,
+                                            aliases: [
+                                              { name: 'euc-jp',    encoding: 'eucJP-ms' },
+                                              { name: 'Shift_JIS', encoding: 'Windows-31J' }
+                                            ]
+                                          }
+                                        }
+                                      ])
+    def test_charset_aliases(data)
+      expected_aliases, config = data
+      @c.load(config)
+      charset_aliases = @c.charset_aliases
+      assert_equal(expected_aliases, charset_aliases.to_a)
+    end
+
     data('default' => [ 0, {} ],
          'config'  => [ 4,
                         { drb_services: {

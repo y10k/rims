@@ -157,6 +157,15 @@ module RIMS
       #     send_buffer_limit_size: 16384
       #     read_polling_interval_seconds: 1
       #     command_wait_timeout_seconds: 1800
+      #   charset:
+      #     use_default_aliases: true
+      #     aliases:
+      #       - name: euc-jp
+      #         encoding: eucJP-ms
+      #       - name: ios-2022-jp
+      #         encoding: CP50221
+      #       - name: Shift_JIS
+      #         encoding: Windows-31J
       #   drb_services:
       #     process_num: 4
       #     engine:
@@ -551,6 +560,29 @@ module RIMS
                                        @config.dig('connection', 'command_wait_timeout_seconds') || 60 * 30)
       end
 
+      def charset_aliases
+        charset_aliases = RFC822::CharsetAliases.new
+
+        if (@config.dig('charset')&.key? 'use_default_aliases') then
+          use_default_aliases = @config.dig('charset', 'use_default_aliases')
+        else
+          use_default_aliases = true
+        end
+        if (use_default_aliases) then
+          charset_aliases.add_alias('euc-jp', Encoding::EUCJP_MS)
+          charset_aliases.add_alias('iso-2022-jp', Encoding::CP50221)
+          charset_aliases.add_alias('shift_jis', Encoding::WINDOWS_31J)
+        end
+
+        if (alias_list = @config.dig('charset', 'aliases')) then
+          for an_alias in alias_list
+            charset_aliases.add_alias(an_alias['name'], Encoding.find(an_alias['encoding']))
+          end
+        end
+
+        charset_aliases
+      end
+
       def drb_process_num
         @config.dig('drb_services', 'process_num') || 0
       end
@@ -789,7 +821,8 @@ module RIMS
                                                                                 bulk_response_count: @config.bulk_response_count,
                                                                                 read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
                                                                                 write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
-                                                                                cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds)
+                                                                                cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds,
+                                                                                charset_aliases: @config.charset_aliases)
                                                 }
                                                 builder.at_destroy{|engine|
                                                   engine.destroy
@@ -895,6 +928,9 @@ module RIMS
         logger.info("connection parameter: send_buffer_limit_size=#{@config.send_buffer_limit_size}")
         logger.info("connection parameter: read_polling_interval_seconds=#{conn_limits.read_polling_interval_seconds}")
         logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
+        @config.charset_aliases.each_with_index do |(name, enc), i|
+          logger.info("charset parameter: alias[#{i}]: #{name} -> #{enc.name}")
+        end
         logger.info("drb_services parameter: process_num=#{drb_process_num}")
         logger.info("drb_services engine parameter: bulk_response_count=#{@config.bulk_response_count}")
         logger.info("drb_services engine parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
