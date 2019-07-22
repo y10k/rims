@@ -897,9 +897,9 @@ module RIMS
         logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
         logger.info("drb_services parameter: process_num=#{drb_process_num}")
         logger.info("drb_services engine parameter: bulk_response_count=#{@config.bulk_response_count}")
-        logger.info("lock parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
-        logger.info("lock parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
-        logger.info("lock parameter: cleanup_write_lock_timeout_seconds=#{@config.cleanup_write_lock_timeout_seconds}")
+        logger.info("drb_services engine parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
+        logger.info("drb_services engine parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
+        logger.info("drb_services engine parameter: cleanup_write_lock_timeout_seconds=#{@config.cleanup_write_lock_timeout_seconds}")
         kvs_meta_log.call
         kvs_text_log.call
         logger.info("authentication parameter: hostname=#{auth.hostname}")
