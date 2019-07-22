@@ -668,7 +668,8 @@ module RIMS
                        bulk_response_count: 100,
                        read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                        write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
-                       cleanup_write_lock_timeout_seconds: 1)
+                       cleanup_write_lock_timeout_seconds: 1,
+                       charset_aliases: RFC822::DEFAULT_CHARSET_ALIASES)
           @unique_user_id = unique_user_id
           @mail_store = mail_store
           @logger = logger
@@ -676,6 +677,7 @@ module RIMS
           @read_lock_timeout_seconds = read_lock_timeout_seconds
           @write_lock_timeout_seconds = write_lock_timeout_seconds
           @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
+          @charset_aliases = charset_aliases
           @folders = {}
         end
 
@@ -1240,7 +1242,7 @@ module RIMS
           folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.should_be_alive
           folder.reload if folder.updated?
-          parser = SearchParser.new(@mail_store, folder)
+          parser = SearchParser.new(@mail_store, folder, charset_aliases: @charset_aliases)
 
           if (! cond_args.empty? && cond_args[0].upcase == 'CHARSET') then
             cond_args.shift
@@ -1339,7 +1341,7 @@ module RIMS
             end
           end
 
-          parser = FetchParser.new(@mail_store, folder)
+          parser = FetchParser.new(@mail_store, folder, charset_aliases: @charset_aliases)
           fetch = parser.parse(data_item_group)
 
           res = []

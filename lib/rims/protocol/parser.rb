@@ -228,13 +228,14 @@ module RIMS
     end
 
     class SearchParser
-      def initialize(mail_store, folder)
+      def initialize(mail_store, folder, charset_aliases: RFC822::DEFAULT_CHARSET_ALIASES)
         @mail_store = mail_store
         @folder = folder
+        @charset_aliases = charset_aliases
         @charset = nil
         @mail_cache = Hash.new{|hash, uid|
           if (msg_txt = @mail_store.msg_text(@folder.mbox_id, uid)) then
-            hash[uid] = RFC822::Message.new(msg_txt)
+            hash[uid] = RFC822::Message.new(msg_txt, charset_aliases: @charset_aliases)
           end
         }
       end
@@ -247,7 +248,7 @@ module RIMS
       attr_reader :charset
 
       def charset=(new_charset)
-        charset_encoding = Encoding.find(new_charset)
+        charset_encoding = @charset_aliases[new_charset] || Encoding.find(new_charset)
         if (charset_encoding.dummy?) then
           # same error type as `Encoding.find'
           raise ArgumentError, "not a searchable charset: #{new_charset}"
@@ -824,12 +825,12 @@ module RIMS
       end
       include Utils
 
-      def initialize(mail_store, folder)
+      def initialize(mail_store, folder, charset_aliases: RFC822::DEFAULT_CHARSET_ALIASES)
         @mail_store = mail_store
         @folder = folder
         @mail_cache = Hash.new{|hash, uid|
           if (msg_txt = @mail_store.msg_text(@folder.mbox_id, uid)) then
-            hash[uid] = RFC822::Message.new(msg_txt)
+            hash[uid] = RFC822::Message.new(msg_txt, charset_aliases: charset_aliases)
           end
         }
       end
