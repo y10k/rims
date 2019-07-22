@@ -394,9 +394,8 @@ module RIMS
       end
 
       def daemonize?
-        daemon_config = @config['daemon'] || {}
-        if (daemon_config.key? 'daemonize') then
-          daemon_config['daemonize']
+        if (@config.dig('daemon')&.key? 'daemonize') then
+          @config.dig('daemon', 'daemonize')
         else
           true
         end
@@ -407,9 +406,8 @@ module RIMS
       end
 
       def daemon_debug?
-        daemon_config = @config['daemon'] || {}
-        if (daemon_config.key? 'debug') then
-          daemon_config['debug']
+        if (@config.dig('daemon')&.key? 'debug') then
+          @config.dig('daemon', 'debug')
         else
           false
         end
@@ -530,22 +528,20 @@ module RIMS
       end
 
       def ssl_context
-        if (openssl_config = @config['openssl']) then
-          if (openssl_config.key? 'use_ssl') then
-            use_ssl = openssl_config['use_ssl']
-          else
-            use_ssl = openssl_config.key? 'ssl_context'
+        if (@config.dig('openssl')&.key? 'use_ssl') then
+          use_ssl = @config.dig('openssl', 'use_ssl')
+        else
+          use_ssl = (@config.dig('openssl')&.key? 'ssl_context') || false
+        end
+
+        if (use_ssl) then
+          ssl_context = OpenSSL::SSL::SSLContext.new
+          if (ssl_config_expr = @config.dig('openssl', 'ssl_context')) then
+            anon_mod = SSLContextConfigAttribute.new_module(ssl_context, base_dir)
+            SSLContextConfigAttribute.eval_config(anon_mod, ssl_config_expr, 'ssl_context')
           end
 
-          if (use_ssl) then
-            ssl_context = OpenSSL::SSL::SSLContext.new
-            if (ssl_config_expr = openssl_config['ssl_context']) then
-              anon_mod = SSLContextConfigAttribute.new_module(ssl_context, base_dir)
-              SSLContextConfigAttribute.eval_config(anon_mod, ssl_config_expr, 'ssl_context')
-            end
-
-            ssl_context
-          end
+          ssl_context
         end
       end
 
@@ -671,8 +667,8 @@ module RIMS
       end
 
       def make_authentication
-        if ((@config.key? 'authentication') && (@config['authentication'].is_a? Hash)) then
-          auth_conf = @config['authentication']
+        if (@config.dig('authentication')&.is_a? Hash) then
+          auth_conf = @config.dig('authentication')
         else
           auth_conf = {}
         end
@@ -711,8 +707,8 @@ module RIMS
         end
 
         # for backward compatibility
-        if ((@config.key? 'authentication') && (@config['authentication'].is_a? Array)) then
-          plug_in_list = @config['authentication']
+        if (@config.dig('authentication')&.is_a? Array) then
+          plug_in_list = @config.dig('authentication')
           for plug_in_conf in plug_in_list
             plug_in_name = plug_in_conf['plug_in'] or raise KeyError, 'not found an authentication plug_in.'
             plug_in_config = get_configuration(plug_in_conf)
