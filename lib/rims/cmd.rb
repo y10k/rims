@@ -515,7 +515,6 @@ module RIMS
         }
       end
       options.on('--meta-kvs-type=TYPE',
-                 KeyValueStore::FactoryBuilder.plug_in_names,
                  "Choose key-value store type of mailbox meta-data database. default is `" +
                  KeyValueStore::FactoryBuilder.plug_in_names[0] +
                  "'."
@@ -558,7 +557,6 @@ module RIMS
         }
       end
       options.on('--text-kvs-type=TYPE',
-                 KeyValueStore::FactoryBuilder.plug_in_names,
                  "Choose key-value store type of mailbox text-data database. default is `" +
                  KeyValueStore::FactoryBuilder.plug_in_names[0] +
                  "'."
@@ -684,7 +682,6 @@ module RIMS
         build.chain{|c| c.load(ip_port: port) }
       end
       options.on('--kvs-type=TYPE',
-                 KeyValueStore::FactoryBuilder.plug_in_names,
                  'Deplicated.'
                 ) do |kvs_type|
         warn("warning: `--kvs-type=TYPE' is deplicated option and should use `--meta-kvs-type=TYPE' or `--text-kvs-type=TYPE'.")
