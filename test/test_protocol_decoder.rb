@@ -6225,6 +6225,8 @@ module RIMS::Test
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
+        # not recommend changing charset aliases after passing them to the decoder.
+        # here, the charset aliases are reluctantly changed for testing.
         @charset_aliases.add_alias('iso-2022-jp', Encoding::CP50221)
 
         assert_imap_command("SEARCH CHARSET utf-8 TEXT #{literal(platform_dependent_character)}") {|assert|
