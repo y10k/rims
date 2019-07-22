@@ -1,3 +1,9 @@
+2019-07-22  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb, lib/rims/protocol/decoder.rb,
+	lib/rims/protocol/parser.rb, lib/rims/service.rb: charset aliases
+	option.
+
 2019-07-20  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* lib/rims/protocol/decoder.rb, lib/rims/protocol/parser.rb:
