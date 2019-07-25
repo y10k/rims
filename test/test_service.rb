@@ -745,8 +745,7 @@ module RIMS::Test
     def test_charset_aliases(data)
       expected_aliases, config = data
       @c.load(config)
-      charset_aliases = @c.charset_aliases
-      assert_equal(expected_aliases, charset_aliases.to_a)
+      assert_equal(expected_aliases, @c.charset_aliases.to_a)
     end
 
     data('default' => [ 0, {} ],
