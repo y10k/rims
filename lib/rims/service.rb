@@ -564,10 +564,11 @@ module RIMS
         else
           use_default_aliases = true
         end
+
         if (use_default_aliases) then
-          charset_aliases.add_alias('euc-jp', Encoding::EUCJP_MS)
-          charset_aliases.add_alias('iso-2022-jp', Encoding::CP50221)
-          charset_aliases.add_alias('shift_jis', Encoding::WINDOWS_31J)
+          for name, encoding in RFC822::DEFAULT_CHARSET_ALIASES
+            charset_aliases.add_alias(name, encoding)
+          end
         end
 
         if (alias_list = @config.dig('charset', 'aliases')) then
