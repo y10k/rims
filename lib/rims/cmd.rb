@@ -483,6 +483,37 @@ module RIMS
                  })
         }
       end
+      options.on('--[no-]replace-charset-invalid'
+                ) do |replace|
+        build.chain{|c|
+          c.load(charset: {
+                   convert_options: {
+                     replace_invalid_byte_sequence: replace
+                   }
+                 })
+        }
+      end
+      options.on('--[no-]replace-charset-undef'
+                ) do |replace|
+        build.chain{|c|
+          c.load(charset: {
+                   convert_options: {
+                     replace_undefined_character: replace
+                   }
+                 })
+        }
+      end
+      options.on('--charset-replaced-mark=MARK',
+                 String
+                ) do |mark|
+        build.chain{|c|
+          c.load(charset: {
+                   convert_options: {
+                     replaced_mark: mark
+                   }
+                 })
+        }
+      end
       options.on('--drb-process-num=NUMBER',
                  Integer
                 ) do |num|

@@ -145,6 +145,13 @@ module RIMS::Test
       '--no-use-default-charset-aliases' => [ %W[ -f #{BASE_DIR}/config.yml --no-use-default-charset-aliases ] ],
       '--add-charset-alias'              => [ %W[ -f #{BASE_DIR}/config.yml --no-use-default-charset-aliases --add-charset-alias=iso-2022-jp,CP50221 ] ],
 
+      # charset convert_options:
+      '--replace-charset-invalid'        => [ %W[ -f #{BASE_DIR}/config.yml --replace-charset-invalid ] ],
+      '--no-replace-charset-invalid'     => [ %W[ -f #{BASE_DIR}/config.yml --no-replace-charset-invalid ] ],
+      '--replace-charset-undef'          => [ %W[ -f #{BASE_DIR}/config.yml --replace-charset-undef ] ],
+      '--no-replace-charset-undef'       => [ %W[ -f #{BASE_DIR}/config.yml --no-replace-charset-undef ] ],
+      '--charset-replaced-mark'          => [ %W[ -f #{BASE_DIR}/config.yml --charset-replaced-mark=? ] ],
+
       # drb_services:
       '--drb-process-num'                => [ %W[ -f #{BASE_DIR}/config.yml --drb-process-num=4 ] ],
 
