@@ -748,6 +748,70 @@ module RIMS::Test
       assert_equal(expected_aliases, @c.charset_aliases.to_a)
     end
 
+    data('default'                              => [ { undef: :replace }, {} ],
+         'replace_invalid_byte_sequence: true'  => [ { invalid: :replace,
+                                                       undef: :replace
+                                                     },
+                                                     { charset: {
+                                                         convert_options: {
+                                                           replace_invalid_byte_sequence: true
+                                                         }
+                                                       }
+                                                     }
+                                                   ],
+         'replace_invalid_byte_sequence: false' => [ { undef: :replace },
+                                                     { charset: {
+                                                         convert_options: {
+                                                           replace_invalid_byte_sequence: false
+                                                         }
+                                                       }
+                                                     }
+                                                   ],
+         'replace_undefined_character: true'    => [ { undef: :replace },
+                                                     { charset: {
+                                                         convert_options: {
+                                                           replace_undefined_character: true
+                                                         }
+                                                       }
+                                                     }
+                                                   ],
+         'replace_undefined_character: false'   => [ {},
+                                                     { charset: {
+                                                         convert_options: {
+                                                           replace_undefined_character: false
+                                                         }
+                                                       }
+                                                     }
+                                                   ],
+         'replaced_mark'                        => [ { undef: :replace,
+                                                       replace: "\uFFFD"
+                                                     },
+                                                     { charset: {
+                                                         convert_options: {
+                                                           replaced_mark: "\uFFFD"
+                                                         }
+                                                       }
+                                                     }
+                                                   ],
+         'all'                                  => [ { invalid: :replace,
+                                                       undef: :replace,
+                                                       replace: "\uFFFD"
+                                                     },
+                                                     { charset: {
+                                                         convert_options: {
+                                                           replace_invalid_byte_sequence: true,
+                                                           replace_undefined_character: true,
+                                                           replaced_mark: "\uFFFD"
+                                                         }
+                                                       }
+                                                     }
+                                                   ])
+    def test_charset_convert_options(data)
+      expected_options, config = data
+      @c.load(config)
+      assert_equal(expected_options, @c.charset_convert_options)
+    end
+
     data('default' => [ 0, {} ],
          'config'  => [ 4,
                         { drb_services: {

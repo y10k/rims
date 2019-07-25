@@ -166,6 +166,10 @@ module RIMS
       #         encoding: CP50221
       #       - name: Shift_JIS
       #         encoding: Windows-31J
+      #     convert_options:
+      #       replace_invalid_byte_sequence: false
+      #       replace_undefined_character: true
+      #       replaced_mark: "\uFFFD"
       #   drb_services:
       #     process_num: 4
       #     engine:
@@ -580,6 +584,36 @@ module RIMS
         charset_aliases
       end
 
+      def charset_convert_options
+        options = {}
+
+        if (@config.dig('charset', 'convert_options')&.key? 'replace_invalid_byte_sequence') then
+          replace_invalid_byte_sequence = @config.dig('charset', 'convert_options', 'replace_invalid_byte_sequence')
+        else
+          replace_invalid_byte_sequence = false
+        end
+
+        if (replace_invalid_byte_sequence) then
+          options[:invalid] = :replace
+        end
+
+        if (@config.dig('charset', 'convert_options')&.key? 'replace_undefined_character') then
+          replace_undefined_character = @config.dig('charset', 'convert_options', 'replace_undefined_character')
+        else
+          replace_undefined_character = true
+        end
+
+        if (replace_undefined_character) then
+          options[:undef] = :replace
+        end
+
+        if (replaced_mark = @config.dig('charset', 'convert_options', 'replaced_mark')) then
+          options[:replace] = replaced_mark
+        end
+
+        options
+      end
+
       def drb_process_num
         @config.dig('drb_services', 'process_num') || 0
       end
@@ -819,7 +853,8 @@ module RIMS
                                                                                 read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
                                                                                 write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
                                                                                 cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds,
-                                                                                charset_aliases: @config.charset_aliases)
+                                                                                charset_aliases: @config.charset_aliases,
+                                                                                charset_convert_options: @config.charset_convert_options)
                                                 }
                                                 builder.at_destroy{|engine|
                                                   engine.destroy
@@ -927,6 +962,9 @@ module RIMS
         logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
         @config.charset_aliases.each_with_index do |(name, enc), i|
           logger.info("charset aliases parameter: alias[#{i}]: #{name} -> #{enc.name}")
+        end
+        for name, value in @config.charset_convert_options
+          logger.info("charset convert_options parameter: #{name}=#{value}")
         end
         logger.info("drb_services parameter: process_num=#{drb_process_num}")
         logger.info("drb_services engine parameter: bulk_response_count=#{@config.bulk_response_count}")
