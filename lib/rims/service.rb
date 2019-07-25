@@ -926,7 +926,7 @@ module RIMS
         logger.info("connection parameter: read_polling_interval_seconds=#{conn_limits.read_polling_interval_seconds}")
         logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
         @config.charset_aliases.each_with_index do |(name, enc), i|
-          logger.info("charset parameter: alias[#{i}]: #{name} -> #{enc.name}")
+          logger.info("charset aliases parameter: alias[#{i}]: #{name} -> #{enc.name}")
         end
         logger.info("drb_services parameter: process_num=#{drb_process_num}")
         logger.info("drb_services engine parameter: bulk_response_count=#{@config.bulk_response_count}")
