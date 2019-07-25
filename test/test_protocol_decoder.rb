@@ -294,6 +294,7 @@ module RIMS::Test
 
       @bulk_response_count = 10
       @charset_aliases = RIMS::RFC822::CharsetAliases.new
+      @charset_convert_options = {}
       @drb_services = Riser::DRbServices.new(0)
       @drb_services.add_sticky_process_service(:engine,
                                                Riser::ResourceSet.build{|builder|
@@ -301,7 +302,8 @@ module RIMS::Test
                                                    mail_store = RIMS::MailStore.build(unique_user_id, @kvs_open, @kvs_open)
                                                    RIMS::Protocol::Decoder::Engine.new(unique_user_id, mail_store, @logger,
                                                                                        bulk_response_count: @bulk_response_count,
-                                                                                       charset_aliases: @charset_aliases)
+                                                                                       charset_aliases: @charset_aliases,
+                                                                                       charset_convert_options: @charset_convert_options)
                                                  }
                                                  builder.at_destroy{|engine|
                                                    engine.destroy
@@ -6257,6 +6259,87 @@ module RIMS::Test
     end
 
     def test_charset_aliases_stream
+      use_imap_stream_decode_engine
+      test_charset_aliases
+    end
+
+    def test_charset_convert_options
+      imap_decode_engine_evaluate{
+        if (stream_test?) then
+          assert_untagged_response{|assert|
+            assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+          }
+        end
+
+        platform_dependent_character = "\u2460"
+        open_mail_store{
+          add_msg("Content-Type: text/plain; charset=iso-2022-jp\r\n" +
+                  "\r\n" +
+                  "#{platform_dependent_character.encode(Encoding::CP50221).b}")
+        }
+
+        if (command_test?) then
+          assert_equal(false, @decoder.auth?)
+          assert_equal(false, @decoder.selected?)
+        end
+
+        assert_imap_command('LOGIN foo open_sesame') {|assert|
+          assert.equal("#{tag} OK LOGIN completed")
+        }
+
+        if (command_test?) then
+          assert_equal(true, @decoder.auth?)
+          assert_equal(false, @decoder.selected?)
+        end
+
+        assert_imap_command('SELECT INBOX') {|assert|
+          assert.skip_while{|line| line =~ /^\* /}
+          assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+        }
+
+        if (command_test?) then
+          assert_equal(true, @decoder.auth?)
+          assert_equal(true, @decoder.selected?)
+        end
+
+        assert_imap_command(%Q'SEARCH CHARSET utf-8 TEXT #{literal("\uFFFD")}') {|assert|
+          assert.match(/^\+ /)
+          assert.equal("* SEARCH\r\n") # skip by `EncodingError'
+          assert.equal("#{tag} OK SEARCH completed\r\n")
+        }
+
+        # not recommend changing charset convert options after passing them to the decoder.
+        # here, the options are reluctantly changed for testing.
+        @charset_convert_options[:undef] = :replace
+
+        assert_imap_command("SEARCH CHARSET utf-8 TEXT #{literal("\uFFFD")}") {|assert|
+          assert.match(/^\+ /)
+          assert.equal("* SEARCH 1\r\n") # matched!
+          assert.equal("#{tag} OK SEARCH completed\r\n")
+        }
+
+        assert_imap_command('CLOSE') {|assert|
+          assert.equal("#{tag} OK CLOSE completed")
+        }
+
+        if (command_test?) then
+          assert_equal(true, @decoder.auth?)
+          assert_equal(false, @decoder.selected?)
+        end
+
+        assert_imap_command('LOGOUT') {|assert|
+          assert.match(/^\* BYE /)
+          assert.equal("#{tag} OK LOGOUT completed")
+        }
+
+        if (command_test?) then
+          assert_equal(false, @decoder.auth?)
+          assert_equal(false, @decoder.selected?)
+        end
+      }
+    end
+
+    def test_charset_convert_options_stream
       use_imap_stream_decode_engine
       test_charset_aliases
     end

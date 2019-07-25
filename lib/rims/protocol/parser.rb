@@ -228,10 +228,11 @@ module RIMS
     end
 
     class SearchParser
-      def initialize(mail_store, folder, charset_aliases: RFC822::DEFAULT_CHARSET_ALIASES)
+      def initialize(mail_store, folder, charset_aliases: RFC822::DEFAULT_CHARSET_ALIASES, charset_convert_options: nil)
         @mail_store = mail_store
         @folder = folder
         @charset_aliases = charset_aliases
+        @charset_convert_options = charset_convert_options
         @charset = nil
         @mail_cache = Hash.new{|hash, uid|
           if (msg_txt = @mail_store.msg_text(@folder.mbox_id, uid)) then
@@ -268,7 +269,7 @@ module RIMS
         if (string.encoding == @charset) then
           string
         else
-          string.encode(@charset)
+          string.encode(@charset, @charset_convert_options)
         end
       end
       private :encode_charset
@@ -315,7 +316,7 @@ module RIMS
           search_string = force_charset(search_string)
           search_regexp = compile_search_regexp(search_string)
           search_header = proc{|mail|
-            mail.mime_decoded_header_field_value_list(field_name, @charset).any?{|field_value|
+            mail.mime_decoded_header_field_value_list(field_name, @charset, charset_convert_options: @charset_convert_options).any?{|field_value|
               search_regexp.match? field_value
             }
           }
@@ -472,7 +473,7 @@ module RIMS
           search_string = force_charset(search_string)
           search_regexp = compile_search_regexp(search_string)
           search_text = proc{|mail|
-            if (search_regexp.match? mail.mime_decoded_header_text(@charset)) then
+            if (search_regexp.match? mail.mime_decoded_header_text(@charset, charset_convert_options: @charset_convert_options)) then
               true
             elsif (mail.text? || mail.message?) then
               search_regexp.match? encode_charset(mail.mime_charset_body_text)
