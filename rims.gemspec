@@ -33,6 +33,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake"
   spec.add_development_dependency "test-unit"
   spec.add_development_dependency "rdoc"
+  spec.add_development_dependency "irb"
 end
 
 # Local Variables:
