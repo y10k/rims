@@ -523,6 +523,15 @@ module RIMS
                  })
         }
       end
+      options.on('--drb-load-limit=NUMBER',
+                 Integer
+                ) do |size|
+        build.chain{|c|
+          c.load(drb_services: {
+                   load_limit: size
+                 })
+        }
+      end
       options.on('--bulk-response-count=COUNT',
                  Integer) do |count|
         build.chain{|c|

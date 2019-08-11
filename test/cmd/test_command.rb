@@ -154,6 +154,7 @@ module RIMS::Test
 
       # drb_services:
       '--drb-process-num'                => [ %W[ -f #{BASE_DIR}/config.yml --drb-process-num=4 ] ],
+      '--drb-load-limit'                 => [ %W[ -f #{BASE_DIR}/config.yml --drb-load-limit=134217728 ] ],
 
       # drb_services engine:
       '--bulk-response-count'            => [ %W[ -f #{BASE_DIR}/config.yml --bulk-response-count=128 ] ],
