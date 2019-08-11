@@ -862,7 +862,9 @@ module RIMS
         end
       end
 
-      drb_services = Riser::DRbServices.new(drb_process_num)
+      drb_services = Riser::DRbServices.new(drb_process_num,
+                                            server_config: @config.drb_server_config,
+                                            client_config: @config.drb_client_config)
       drb_services.add_sticky_process_service(:engine,
                                               Riser::ResourceSet.build{|builder|
                                                 builder.at_create{|unique_user_id|
@@ -986,6 +988,12 @@ module RIMS
           logger.info("charset convert_options parameter: #{name}=#{value}")
         end
         logger.info("drb_services parameter: process_num=#{drb_process_num}")
+        for name, value in @config.drb_server_config
+          logger.info("drb_services server config parameter: #{name}=#{value}")
+        end
+        for name, value in @config.drb_client_config
+          logger.info("drb_services client config parameter: #{name}=#{value}")
+        end
         logger.info("drb_services engine parameter: bulk_response_count=#{@config.bulk_response_count}")
         logger.info("drb_services engine parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
         logger.info("drb_services engine parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
