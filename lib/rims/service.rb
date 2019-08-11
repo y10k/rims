@@ -172,6 +172,7 @@ module RIMS
       #       replaced_mark: "\uFFFD"
       #   drb_services:
       #     process_num: 4
+      #     load_limit: 134217728
       #     engine:
       #       bulk_response_count: 100
       #       read_lock_timeout_seconds: 30
@@ -616,6 +617,24 @@ module RIMS
 
       def drb_process_num
         @config.dig('drb_services', 'process_num') || 0
+      end
+
+      def drb_server_config
+        config = {}
+        if (load_limit = @config.dig('drb_services', 'load_limit')) then
+          config[:load_limit] = load_limit
+        end
+
+        config
+      end
+
+      def drb_client_config
+        config = {}
+        if (load_limit = @config.dig('drb_services', 'load_limit')) then
+          config[:load_limit] = load_limit
+        end
+
+        config
       end
 
       def bulk_response_count

@@ -825,6 +825,21 @@ module RIMS::Test
       assert_equal(expected_value, @c.drb_process_num)
     end
 
+    data('default'    => [ {}, {}, {} ],
+         'load_limit' => [ { load_limit: 134217728 },
+                           { load_limit: 134217728 },
+                           { drb_services: {
+                               load_limit: 134217728
+                             }
+                           }
+                         ])
+    def test_drb_server_client_config(data)
+      expected_server_config, expected_client_config, config = data
+      @c.load(config)
+      assert_equal(expected_server_config, @c.drb_server_config)
+      assert_equal(expected_client_config, @c.drb_client_config)
+    end
+
     data('default' => [ 100, {} ],
          'config'  => [ 1024,
                         { drb_services: {
