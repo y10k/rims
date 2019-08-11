@@ -17,4 +17,6 @@
 /Gemfile_local*
 /README.html
 *~
+.#*
+\#*
 *.log
