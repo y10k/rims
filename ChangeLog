@@ -1,3 +1,8 @@
+2019-08-12  TOKI Yoshinori  <toki@freedom.ne.jp>
+
+	* lib/rims/cmd.rb, lib/rims/service.rb: DRb service load_limit
+	option.
+
 2019-07-27  TOKI Yoshinori  <toki@freedom.ne.jp>
 
 	* RIMS version 0.2.7 is released.
