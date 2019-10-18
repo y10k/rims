@@ -1535,7 +1535,7 @@ module RIMS
           server_output_write.call([ "+ continue\r\n" ])
 
           server_response_thread = Thread.new{
-            @logger.info('idle server response thread start... ')
+            @logger.info('idle server response thread start...')
             folder.server_response_idle_wait{|server_response_list|
               for server_response in server_response_list
                 @logger.debug("idle server response: #{server_response}") if @logger.debug?
