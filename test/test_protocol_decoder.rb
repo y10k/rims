@@ -6341,7 +6341,7 @@ module RIMS::Test
 
     def test_charset_convert_options_stream
       use_imap_stream_decode_engine
-      test_charset_aliases
+      test_charset_convert_options
     end
   end
 
