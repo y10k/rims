@@ -1966,7 +1966,7 @@ module RIMS::Test
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
@@ -5215,7 +5215,7 @@ module RIMS::Test
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
@@ -5242,7 +5242,7 @@ module RIMS::Test
         }
 
         assert_imap_command('EXAMINE INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
         }
 
@@ -5303,7 +5303,7 @@ module RIMS::Test
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
@@ -5349,7 +5349,7 @@ module RIMS::Test
         }
 
         assert_imap_command('EXAMINE INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-ONLY] EXAMINE completed")
         }
 
@@ -5730,7 +5730,7 @@ module RIMS::Test
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
@@ -5754,7 +5754,7 @@ module RIMS::Test
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
@@ -5778,7 +5778,7 @@ module RIMS::Test
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
@@ -5806,7 +5806,7 @@ module RIMS::Test
         }
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
@@ -6212,7 +6212,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
@@ -6293,7 +6293,7 @@ module RIMS::Test
         end
 
         assert_imap_command('SELECT INBOX') {|assert|
-          assert.skip_while{|line| line =~ /^\* /}
+          assert.skip_while{|line| line =~ /^\* / }
           assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
         }
 
