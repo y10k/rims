@@ -2,6 +2,7 @@
 
 require 'logger'
 require 'net/imap'
+require 'pp'
 require 'time'
 
 module RIMS
@@ -23,6 +24,14 @@ module RIMS
 
       def self.logging_error_chain(error, logger)
         Error.trace_error_chain(error) do |exception|
+          if (logger.debug?) then
+            Error.optional_data(exception) do |error, data|
+              logger.debug("error message: #{error.message} (#{error.class})")
+              for name, value in data
+                logger.debug("error data [#{name}]: #{value.pretty_inspect}")
+              end
+            end
+          end
           logger.error(exception)
         end
       end
