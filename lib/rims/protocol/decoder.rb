@@ -21,6 +21,12 @@ module RIMS
         name.upcase
       end
 
+      def self.logging_error_chain(error, logger)
+        Error.trace_error_chain(error) do |exception|
+          logger.error(exception)
+        end
+      end
+
       def self.repl(decoder, limits, input, output, logger)
         input_gets = input.method(:gets)
         output_write = lambda{|res|
@@ -44,7 +50,7 @@ module RIMS
             logger.info("server response: #{last_line.strip}")
           rescue
             logger.error('response write error.')
-            logger.error($!)
+            logging_error_chain($!, logger)
             raise
           end
         }
@@ -61,9 +67,7 @@ module RIMS
             atom_list = request_reader.read_command
           rescue
             logger.error('invalid client command.')
-            Error.trace_error_chain($!) do |exception|
-              logger.error(exception)
-            end
+            logging_error_chain($!, logger)
             response_write.call([ "* BAD client command syntax error\r\n" ])
             next
           end
@@ -122,9 +126,7 @@ module RIMS
             end
           rescue
             logger.error('unexpected error.')
-            Error.trace_error_chain($!) do |exception|
-              logger.error(exception)
-            end
+            logging_error_chain($!, logger)
             response_write.call([ "#{tag} BAD unexpected error\r\n" ])
           end
 
@@ -157,20 +159,23 @@ module RIMS
 
       attr_reader :next_decoder
 
+      def logging_error_chain(error)
+        self.class.logging_error_chain(error, @logger)
+      end
+      private :logging_error_chain
+
       def response_stream(tag)
         Enumerator.new{|res|
           begin
             yield(res)
           rescue SyntaxError
             @logger.error('client command syntax error.')
-            @logger.error($!)
+            logging_error_chain($!)
             res << "#{tag} BAD client command syntax error\r\n"
           rescue
             raise if ($!.class.name =~ /AssertionFailedError/)
             @logger.error('internal server error.')
-            Error.trace_error_chain($!) do |exception|
-              @logger.error(exception)
-            end
+            logging_error_chain($!)
             res << "#{tag} BAD internal server error\r\n"
           end
         }
@@ -186,18 +191,16 @@ module RIMS
           end
         rescue SyntaxError
           @logger.error('client command syntax error.')
-          @logger.error($!)
+          logging_error_chain($!)
           yield([ "#{tag} BAD client command syntax error\r\n" ])
         rescue ArgumentError
           @logger.error('invalid command parameter.')
-          @logger.error($!)
+          logging_error_chain($!)
           yield([ "#{tag} BAD invalid command parameter\r\n" ])
         rescue
           raise if ($!.class.name =~ /AssertionFailedError/)
           @logger.error('internal server error.')
-          Error.trace_error_chain($!) do |exception|
-            @logger.error(exception)
-          end
+          logging_error_chain($!)
           yield([ "#{tag} BAD internal server error\r\n" ])
         end
       end
