@@ -55,7 +55,8 @@ module RIMS::Test
       pub1.publish('msg1')
       pub2.publish('msg2')
 
-      error = assert_raise(RuntimeError) { pub3.publish('msg3') }
+      error = assert_raise(RIMS::ServerResponseChannelPublishError) { pub3.publish('msg3') }
+      pp error, error.optional_data if $DEBUG
       assert_match(/detached/, error.message)
 
       assert_equal(%w[ msg2 ], sub1.enum_for(:fetch).to_a)

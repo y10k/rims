@@ -1,6 +1,18 @@
 # -*- coding: utf-8 -*-
 
 module RIMS
+  class ServerResponseChannelError < Error
+  end
+
+  class ServerResponseChannelAttachError < ServerResponseChannelError
+  end
+
+  class ServerResponseChannelDetachError < ServerResponseChannelError
+  end
+
+  class ServerResponseChannelPublishError < ServerResponseChannelError
+  end
+
   class ServerResponseChannel
     def initialize
       @mutex = Thread::Mutex.new
@@ -16,7 +28,9 @@ module RIMS
     def attach(sub)
       @mutex.synchronize{
         @channel[sub.mbox_id] ||= {}
-        (@channel[sub.mbox_id].key? sub.pub_sub_pair_key) and raise ArgumentError, 'conflicted subscriber.'
+        if (@channel[sub.mbox_id].key? sub.pub_sub_pair_key) then
+          raise ServerResponseChannelAttachError.new('conflicted subscriber.', channel: self, subscriber: sub)
+        end
         @channel[sub.mbox_id][sub.pub_sub_pair_key] = sub
       }
 
@@ -30,8 +44,13 @@ module RIMS
     #   - ServerResponseSubscriber#detach
     def detach(sub)
       @mutex.synchronize{
-        ((@channel.key? sub.mbox_id) && (@channel[sub.mbox_id].key? sub.pub_sub_pair_key)) or raise ArgumentError, 'unregistered pub-sub pair.'
-        (@channel[sub.mbox_id][sub.pub_sub_pair_key] == sub) or raise 'internal error: mismatched subscriber.'
+        unless ((@channel.key? sub.mbox_id) && (@channel[sub.mbox_id].key? sub.pub_sub_pair_key)) then
+          raise ServerResponseChannelDetachError.new('unregistered pub-sub pair.', channel: self, subscriber: sub)
+        end
+
+        unless (@channel[sub.mbox_id][sub.pub_sub_pair_key] == sub) then
+          raise ServerResponseChannelDetachError.new('internal error: mismatched subscriber.', channel: self, subscribe: sub)
+        end
 
         @channel[sub.mbox_id].delete(sub.pub_sub_pair_key)
         if (@channel[sub.mbox_id].empty?) then
@@ -74,7 +93,12 @@ module RIMS
     end
 
     def publish(response_message)
-      @channel or raise 'detached publisher.'
+      unless (@channel) then
+        raise ServerResponseChannelPublishError.new('detached publisher.',
+                                                    publisher: self,
+                                                    pub_sub_pair_key: pub_sub_pair_key,
+                                                    message: response_message)
+      end
       @channel.publish(@mbox_id, pub_sub_pair_key, response_message)
       nil
     end
