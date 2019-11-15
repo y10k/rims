@@ -325,6 +325,16 @@ module RIMS
                  })
         }
       end
+      options.on('--daemon-umask=UMASK',
+                 Integer,
+                 'Umask(2). effective only with daemon command.'
+                ) do |umask|
+        build.chain{|c|
+          c.load(daemon: {
+                   umask: umask
+                 })
+        }
+      end
       options.on('--status-file=FILE',
                  String,
                  "Name of status file. effective only with daemon command. default is `#{Service::DEFAULT_CONFIG.status_file}'."
@@ -1132,6 +1142,7 @@ module RIMS
         Riser::Daemon.start_daemon(daemonize: svc_conf.daemonize?,
                                    daemon_name: svc_conf.daemon_name,
                                    daemon_debug: svc_conf.daemon_debug?,
+                                   daemon_umask: svc_conf.daemon_umask,
                                    status_file: svc_conf.status_file,
                                    listen_address: proc{
                                      # to reload on server restart
