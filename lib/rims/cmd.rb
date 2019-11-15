@@ -327,7 +327,7 @@ module RIMS
       end
       options.on('--daemon-umask=UMASK',
                  Integer,
-                 'Umask(2). effective only with daemon command.'
+                 "Umask(2). effective only with daemon command. default is `#{'%04o' % Service::DEFAULT_CONFIG.daemon_umask}'."
                 ) do |umask|
         build.chain{|c|
           c.load(daemon: {
