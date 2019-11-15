@@ -118,6 +118,7 @@ module RIMS
       #   daemon:
       #     daemonize: true
       #     debug: false
+      #     umask: 0037
       #     status_file: rims.pid
       #     server_polling_interval_seconds: 3
       #     server_privileged_user: nobody
@@ -416,6 +417,10 @@ module RIMS
         else
           false
         end
+      end
+
+      def daemon_umask
+        @config.dig('daemon', 'umask') || 0037
       end
 
       def status_file

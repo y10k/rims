@@ -446,6 +446,14 @@ module RIMS::Test
       assert_equal(expected_value, @c.daemon_debug?)
     end
 
+    data('default' => [ 0037, {} ],
+         'umask'   => [ 0022, { daemon: { umask: 0022 } } ])
+    def test_daemon_umask(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.daemon_umask)
+    end
+
     data('default'  => [ File.join(BASE_DIR, 'rims.pid'), {} ],
          'rel_path' => [ File.join(BASE_DIR, 'status'),   { daemon: { status_file: 'status' } } ],
          'abs_path' => [ '/var/run/rims.pid',             { daemon: { status_file: '/var/run/rims.pid' } } ])
