@@ -51,7 +51,7 @@ module RIMS::Test
       assert_equal('write-lock wait timeout', error.message)
     end
 
-    def calculate_threa_work_seconds
+    def calculate_thread_work_seconds
       t0 = Time.now
       1000.times{|i| i.succ }
       t1 = Time.now
@@ -60,10 +60,10 @@ module RIMS::Test
 
       wait_seconds
     end
-    private :calculate_threa_work_seconds
+    private :calculate_thread_work_seconds
 
     def test_read_write_lock_multithread
-      lock_wait_seconds = calculate_threa_work_seconds
+      lock_wait_seconds = calculate_thread_work_seconds
 
       count = 0
       read_thread_num = 10
@@ -116,7 +116,7 @@ module RIMS::Test
     def test_write_lock_timeout_detach
       logger = Logger.new(STDOUT)
       logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
-      wait_seconds = calculate_threa_work_seconds
+      wait_seconds = calculate_thread_work_seconds
 
       t_list = []
       assert_nil(RIMS::ReadWriteLock.write_lock_timeout_detach(wait_seconds, wait_seconds * 2, logger: logger ) {|timeout_seconds|
