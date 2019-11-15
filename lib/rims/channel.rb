@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+require 'forwardable'
+
 module RIMS
   class ServerResponseChannelError < Error
   end
@@ -21,7 +23,7 @@ module RIMS
 
     def make_pub_sub_pair(mbox_id)
       pub = ServerResponsePublisher.new(self, mbox_id)
-      sub = ServerResponseSubscriber.new(self, mbox_id, pub.pub_sub_pair_key)
+      sub = ServerResponseSubscriber.new(self, pub)
       return pub, attach(sub)
     end
 
@@ -113,15 +115,14 @@ module RIMS
     # do not call this method directly, call the following method
     # instead.
     #   - ServerResponseChannel#make_pub_sub_pair
-    def initialize(channel, mbox_id, pub_sub_pair_key)
+    def initialize(channel, pub)
       @channel = channel
-      @mbox_id = mbox_id
-      @pub_sub_pair_key = pub_sub_pair_key
+      @pub = pub
       @queue = Thread::Queue.new
     end
 
-    attr_reader :mbox_id
-    attr_reader :pub_sub_pair_key
+    extend Forwardable
+    def_delegators :@pub, :mbox_id, :pub_sub_pair_key
 
     # do not call this method directly, call the following method
     # instead.
