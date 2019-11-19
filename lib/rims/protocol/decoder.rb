@@ -761,7 +761,7 @@ module RIMS
         def destroy
           tmp_mail_store = @mail_store
           ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
-            @mail_store.write_synchronize(timeout_seconds) {
+            tmp_mail_store.write_synchronize(timeout_seconds) {
               @logger.info("close mail store: #{@unique_user_id}")
               tmp_mail_store.close
             }
