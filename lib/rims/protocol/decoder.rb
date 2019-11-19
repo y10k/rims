@@ -342,6 +342,7 @@ module RIMS
         super(auth, logger)
         @drb_services = drb_services
         @mail_delivery_user = mail_delivery_user
+        @logger.debug("RIMS::Protocol::InitialDecoder#initialize at #{self}") if @logger.debug?
       end
 
       def auth?
@@ -353,6 +354,7 @@ module RIMS
       end
 
       def cleanup
+        @logger.debug("RIMS::Protocol::InitialDecoder#cleanup at #{self}") if @logger.debug?
         nil
       end
 
@@ -367,7 +369,7 @@ module RIMS
       imap_command :noop
 
       def logout(tag)
-        @next_decoder = LogoutDecoder.new(self)
+        @next_decoder = LogoutDecoder.new(self, @logger)
         yield(make_logout_response(tag))
       end
       imap_command :logout
@@ -514,12 +516,10 @@ module RIMS
     end
 
     class LogoutDecoder < Decoder
-      def initialize(parent_decoder)
+      def initialize(parent_decoder, logger)
+        super(nil, logger)
         @parent_decoder = parent_decoder
-      end
-
-      def next_decoder
-        self
+        @logger.debug("RIMS::Protocol::LogoutDecoder#initialize at #{self}") if @logger.debug?
       end
 
       def auth?
@@ -531,6 +531,7 @@ module RIMS
       end
 
       def cleanup
+        @logger.debug("RIMS::Protocol::LogoutDecoder#cleanup at #{self}") if @logger.debug?
         unless (@parent_decoder.nil?) then
           @parent_decoder.cleanup
           @parent_decoder = nil
@@ -693,6 +694,7 @@ module RIMS
           @charset_aliases = charset_aliases
           @charset_convert_options = charset_convert_options
           @folders = {}
+          @logger.debug("RIMS::Protocol::UserMailboxDecoder::Engine#initialize at #{self}") if @logger.debug?
         end
 
         attr_reader :unique_user_id
@@ -768,6 +770,7 @@ module RIMS
         end
 
         def destroy
+          @logger.debug("RIMS::Protocol::UserMailboxDecoder::Engine#destroy at #{self}") if @logger.debug?
           tmp_mail_store = @mail_store
           ReadWriteLock.write_lock_timeout_detach(@cleanup_write_lock_timeout_seconds, @write_lock_timeout_seconds, logger: @logger) {|timeout_seconds|
             tmp_mail_store.write_synchronize(timeout_seconds) {
@@ -1591,6 +1594,7 @@ module RIMS
         @parent_decoder = parent_decoder
         @engine = engine
         @token = nil
+        @logger.debug("RIMS::Protocol::UserMailboxDecoder#initialize at #{self}") if @logger.debug?
       end
 
       def auth?
@@ -1601,24 +1605,31 @@ module RIMS
         ! @token.nil?
       end
 
-      def cleanup
+      # `not_cleanup_parent' keyword argument is defined for MailDeliveryDecoder
+      def cleanup(not_cleanup_parent: false)
+        @logger.debug("RIMS::Protocol::UserMailboxDecoder#cleanup at #{self}") if @logger.debug?
+
         unless (@engine.nil?) then
           begin
             @engine.cleanup(@token)
           ensure
             @token = nil
           end
-
-          begin
-            @engine.destroy
-          ensure
-            @engine = nil
-          end
         end
 
-        unless (@parent_decoder.nil?) then
-          @parent_decoder.cleanup
-          @parent_decoder = nil
+        unless (not_cleanup_parent) then
+          unless (@engine.nil?) then
+            begin
+              @engine.destroy
+            ensure
+              @engine = nil
+            end
+          end
+
+          unless (@parent_decoder.nil?) then
+            @parent_decoder.cleanup
+            @parent_decoder = nil
+          end
         end
 
         nil
@@ -1636,7 +1647,7 @@ module RIMS
           @engine.cleanup(old_token)
         end
 
-        @next_decoder = LogoutDecoder.new(self)
+        @next_decoder = LogoutDecoder.new(self, @logger)
         yield(make_logout_response(tag))
       end
       imap_command :logout
@@ -1805,6 +1816,7 @@ module RIMS
         @auth = auth
         @last_user_cache_key_username = nil
         @last_user_cache_value_engine = nil
+        @logger.debug("RIMS::Protocol::MailDeliveryDecoder#initialize at #{self}") if @logger.debug?
       end
 
       def engine_cached?(username)
@@ -1852,6 +1864,8 @@ module RIMS
       end
 
       def cleanup
+        @logger.debug("RIMS::Protocol::MailDeliveryDecoder#cleanup at #{self}") if @logger.debug?
+
         release_engine_cache
         @drb_services = nil unless @drb_services.nil?
         @auth = nil unless @auth.nil?
@@ -1865,7 +1879,7 @@ module RIMS
       end
 
       def logout(tag)
-        @next_decoder = LogoutDecoder.new(self)
+        @next_decoder = LogoutDecoder.new(self, @logger)
         yield(make_logout_response(tag))
       end
       imap_command :logout
@@ -1943,16 +1957,20 @@ module RIMS
 
       def deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine, res)
         user_decoder = UserMailboxDecoder.new(self, engine, @auth, @logger)
-        user_decoder.append(tag, mbox_name, *opt_args, msg_text) {|append_response|
-          if (append_response.last.split(' ', 3)[1] == 'OK') then
-            @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
-          else
-            @logger.info("message delivery: failed to deliver message.")
-          end
-          for response_data in append_response
-            res << response_data
-          end
-        }
+        begin
+          user_decoder.append(tag, mbox_name, *opt_args, msg_text) {|append_response|
+            if (append_response.last.split(' ', 3)[1] == 'OK') then
+              @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
+            else
+              @logger.info("message delivery: failed to deliver message.")
+            end
+            for response_data in append_response
+              res << response_data
+            end
+          }
+        ensure
+          user_decoder.cleanup(not_cleanup_parent: true)
+        end
       end
       private :deliver_to_user
 
