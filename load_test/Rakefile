@@ -78,6 +78,8 @@ task :imap_append do
   end
 end
 
+CLOBBER.include('imap_append')
+
 desc 'run server'
 task :run_server do
   run_server_conf('imap_server', USER_CONF, *%w[ -v debug -l debug --imap-host=localhost --imap-port=14300 ]) do
@@ -85,7 +87,7 @@ task :run_server do
   end
 end
 
-CLOBBER.include('imap_append')
+CLOBBER.include('imap_server')
 
 # Local Variables:
 # mode: Ruby
