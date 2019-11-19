@@ -722,11 +722,13 @@ module RIMS
           end
           @folders[token] = folder
 
+          @logger.debug("RIMS::Protocol::UserMailboxDecoder::Engine#open_folder: #{token}") if @logger.debug?
           token
         end
         private :open_folder
 
         def close_folder(token)
+          @logger.debug("RIMS::Protocol::UserMailboxDecoder::Engine#close_folder: #{token}") if @logger.debug?
           folder = @folders.delete(token) or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
           folder.reload if folder.updated?
           begin
