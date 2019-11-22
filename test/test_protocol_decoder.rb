@@ -6365,6 +6365,71 @@ module RIMS::Test
       assert_equal(%w[ foo INBOX ], RIMS::Protocol::Decoder.decode_delivery_target_mailbox(encoded_mbox_name))
     end
   end
+
+  class ProtocolDecoderBulkResponseTest < Test::Unit::TestCase
+    def setup
+      limit_count = 10
+      limit_size = 100
+      @res = RIMS::Protocol::Decoder::BulkResponse.new(limit_count, limit_size)
+    end
+
+    data('empty' => [ 0, 0,  [] ],
+         '1'     => [ 1, 3,  %w[ foo ] ],
+         '2'     => [ 2, 6,  %w[ foo bar ] ],
+         '3'     => [ 3, 11, %w[ foo bar baaaz ] ])
+    def test_add(data)
+      expected_count, expected_size, response_list = data
+
+      assert_equal(0, @res.count)
+      assert_equal(0, @res.size)
+
+      for response in response_list
+        @res << response
+      end
+
+      assert_equal(expected_count, @res.count)
+      assert_equal(expected_size, @res.size)
+    end
+
+    data('count: boundary'      => %w[ 1 2 3 4 5 6 7 8 9 0 ],
+         'count: over'          => %w[ 1 2 3 4 5 6 7 8 9 0 a ],
+         'size: boundary'       => [ 'x' * 50, 'y' * 50 ],
+         'size: over'           => [ 'x' * 50, 'y' * 50, 'z' ],
+         'count,size: boundary' => %w[ 1 2 3 4 5 6 7 8 9 0 ].map{|s| s * 10 },
+         'count,size: over'     => %w[ 1 2 3 4 5 6 7 8 9 0 ].map{|s| s * 10 } + %w[ a ])
+    def test_full?(data)
+      response_list = data
+      for response in response_list
+        @res << response
+      end
+      assert_true(@res.full?)
+    end
+
+    data('empty'           => [],
+         'under'           => %w[ foo bar baz ],
+         'count: boundary' => %w[ 1 2 3 4 5 6 7 8 9 ],
+         'size: boundary'  => [ 'x' * 50, 'y' * 49 ])
+    def test_not_full?(data)
+      response_list = data
+      for response in response_list
+        @res << response
+      end
+      assert_false(@res.full?)
+    end
+
+    def test_flush
+      @res << 'foo'
+      @res << 'bar'
+      r1 = @res.flush
+      assert_equal(%w[ foo bar ], r1)
+
+      @res << 'baz'
+      r2 = @res.flush
+      assert_equal(%w[ baz ], r2)
+
+      assert_not_equal(r1, r2)
+    end
+  end
 end
 
 # Local Variables:

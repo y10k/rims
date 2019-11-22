@@ -676,6 +676,41 @@ module RIMS
     end
 
     class UserMailboxDecoder < AuthenticatedDecoder
+      class BulkResponse
+        def initialize(limit_count, limit_size)
+          @limit_count = limit_count
+          @limit_size = limit_size
+          @responses = []
+          @size = 0
+        end
+
+        def count
+          @responses.length
+        end
+
+        attr_reader :size
+
+        def add(response)
+          @responses << response
+          @size += response.bytesize
+          self
+        end
+
+        alias << add
+
+        def full?
+          count >= @limit_count || size >= @limit_size
+        end
+
+        def flush
+          res = @responses
+          @responses = []
+          @size = 0
+
+          res
+        end
+      end
+
       class Engine
         def initialize(unique_user_id, mail_store, logger,
                        bulk_response_count: 100,
@@ -1796,7 +1831,8 @@ module RIMS
     end
 
     # alias
-    Decoder::Engine = UserMailboxDecoder::Engine
+    Decoder::Engine       = UserMailboxDecoder::Engine
+    Decoder::BulkResponse = UserMailboxDecoder::BulkResponse
 
     def Decoder.encode_delivery_target_mailbox(username, mbox_name)
       "b64user-mbox #{Protocol.encode_base64(username)} #{mbox_name}"
