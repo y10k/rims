@@ -714,6 +714,7 @@ module RIMS
       class Engine
         def initialize(unique_user_id, mail_store, logger,
                        bulk_response_count: 100,
+                       bulk_response_size: 1024**2 * 10,
                        read_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                        write_lock_timeout_seconds: ReadWriteLock::DEFAULT_TIMEOUT_SECONDS,
                        cleanup_write_lock_timeout_seconds: 1,
@@ -723,6 +724,7 @@ module RIMS
           @mail_store = mail_store
           @logger = logger
           @bulk_response_count = bulk_response_count
+          @bulk_response_size = bulk_response_size
           @read_lock_timeout_seconds = read_lock_timeout_seconds
           @write_lock_timeout_seconds = write_lock_timeout_seconds
           @cleanup_write_lock_timeout_seconds = cleanup_write_lock_timeout_seconds
@@ -879,6 +881,11 @@ module RIMS
           end
           private :imap_command_selected
         end
+
+        def new_bulk_response
+          BulkResponse.new(@bulk_response_count, @bulk_response_size)
+        end
+        private :new_bulk_response
 
         def noop(token, tag)
           res = []
@@ -1268,27 +1275,21 @@ module RIMS
           return yield([ "#{tag} NO cannot expunge in read-only mode\r\n" ]) if folder.read_only?
           folder.reload if folder.updated?
 
-          res = []
+          res = new_bulk_response
           folder.server_response_fetch{|r|
             res << r
-            if (res.length >= @bulk_response_count) then
-              yield(res)
-              res = []
-            end
-          }
+            yield(res.flush) if res.full?
+         }
 
           folder.expunge_mbox do |msg_num|
             r = "* #{msg_num} EXPUNGE\r\n"
             res << r
-            if (res.length >= @bulk_response_count) then
-              yield(res)
-              res = []
-            end
+            yield(res.flush) if res.full?
             folder.server_response_multicast_push(r)
           end
 
           res << "#{tag} OK EXPUNGE completed\r\n"
-          yield(res)
+          yield(res.flush)
         end
         imap_command_selected :expunge, exclusive: true
 
@@ -1335,13 +1336,10 @@ module RIMS
           end
           cond = parser.parse(cond_args)
 
-          res = []
+          res = new_bulk_response
           folder.server_response_fetch{|r|
             res << r
-            if (res.length >= @bulk_response_count) then
-              yield(res)
-              res = []
-            end
+            yield(res.flush) if res.full?
           }
 
           res << '* SEARCH'
@@ -1355,10 +1353,7 @@ module RIMS
                     else
                       res << " #{msg.num}"
                     end
-                    if (res.length >= @bulk_response_count) then
-                      yield(res)
-                      res = []
-                    end
+                    yield(res.flush) if res.full?
                   end
                 rescue EncodingError
                   @logger.warn("encoding error at the message: uidvalidity(#{folder.mbox_id}) uid(#{msg.uid})")
@@ -1369,14 +1364,12 @@ module RIMS
               res << "\r\n"
             end
           rescue
-            # flush bulk response
-            yield(res)
-            res = []
+            yield(res.flush)
             raise
           end
 
           res << "#{tag} OK SEARCH completed\r\n"
-          yield(res)
+          yield(res.flush)
         end
         imap_command_selected :search
 
@@ -1400,25 +1393,19 @@ module RIMS
           parser = FetchParser.new(@mail_store, folder, charset_aliases: @charset_aliases)
           fetch = parser.parse(data_item_group)
 
-          res = []
+          res = new_bulk_response
           folder.server_response_fetch{|r|
             res << r
-            if (res.length >= @bulk_response_count) then
-              yield(res)
-              res = []
-            end
+            yield(res.flush) if res.full?
           }
 
           for msg in msg_list
             res << ('* '.b << msg.num.to_s.b << ' FETCH '.b << fetch.call(msg) << "\r\n".b)
-            if (res.length >= @bulk_response_count) then
-              yield(res)
-              res = []
-            end
+            yield(res.flush) if res.full?
           end
 
           res << "#{tag} OK FETCH completed\r\n"
-          yield(res)
+          yield(res.flush)
         end
         imap_command_selected :fetch
 
@@ -1498,18 +1485,15 @@ module RIMS
             end
           end
 
-          res = []
+          res = new_bulk_response
           folder.server_response_fetch{|r|
             res << r
-            if (res.length >= @bulk_response_count) then
-              yield(res)
-              res = []
-            end
+            yield(res.flush) if res.full?
           }
 
           if (is_silent) then
             res << "#{tag} OK STORE completed\r\n"
-            yield(res)
+            yield(res.flush)
           else
             for msg in msg_list
               flag_atom_list = nil
@@ -1529,17 +1513,14 @@ module RIMS
                 else
                   res << "* #{msg.num} FETCH (FLAGS (#{flag_atom_list.join(' ')}))\r\n"
                 end
-                if (res.length >= @bulk_response_count) then
-                  yield(res)
-                  res = []
-                end
+                yield(res.flush) if res.full?
               else
                 @logger.warn("not found a message and skipped: uidvalidity(#{folder.mbox_id}) uid(#{msg.uid})")
               end
             end
 
             res << "#{tag} OK STORE completed\r\n"
-            yield(res)
+            yield(res.flush)
           end
         end
         imap_command_selected :store, exclusive: true
