@@ -6421,13 +6421,20 @@ module RIMS::Test
       @res << 'foo'
       @res << 'bar'
       r1 = @res.flush
-      assert_equal(%w[ foo bar ], r1)
+      assert_equal('foo' + 'bar', r1.join(''), 'responses may be joined.')
 
       @res << 'baz'
       r2 = @res.flush
-      assert_equal(%w[ baz ], r2)
+      assert_equal('baz', r2.join(''), 'responses may be joined.')
 
       assert_not_equal(r1, r2)
+    end
+
+    def test_flush_joined
+      for c in ('a'..).first(10)
+        @res << c
+      end
+      assert_equal([ ('a'..).first(10).join('') ], @res.flush)
     end
   end
 end

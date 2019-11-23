@@ -704,6 +704,10 @@ module RIMS
 
         def flush
           res = @responses
+          if (count >= @limit_count) then
+            res = [ res.join('') ]
+          end
+
           @responses = []
           @size = 0
 
