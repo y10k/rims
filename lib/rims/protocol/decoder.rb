@@ -68,18 +68,14 @@ module RIMS
         apply_imap_command = lambda{|name, *args, uid: false|
           last_line = nil
           if (uid) then
-            decoder.__send__(name, *args, uid: true) {|res|
-              for data in res
-                output_write.call(data)
-                last_line = data if (data.is_a? String)
-              end
+            decoder.__send__(name, *args, uid: true) {|response|
+              output_write.call(response)
+              last_line = response if (response.is_a? String)
             }
           else
-            decoder.__send__(name, *args) {|res|
-              for data in res
-                output_write.call(data)
-                last_line = data if (data.is_a? String)
-              end
+            decoder.__send__(name, *args) {|response|
+              output_write.call(response)
+              last_line = response if (response.is_a? String)
             }
           end
           output.flush
@@ -195,24 +191,6 @@ module RIMS
       end
       private :logging_error_chain
 
-      def response_stream(tag)
-        Enumerator.new{|res|
-          begin
-            yield(res)
-          rescue SyntaxError
-            @logger.error('client command syntax error.')
-            logging_error_chain($!)
-            res << "#{tag} BAD client command syntax error\r\n"
-          rescue
-            raise if ($!.class.name =~ /AssertionFailedError/)
-            @logger.error('internal server error.')
-            logging_error_chain($!)
-            res << "#{tag} BAD internal server error\r\n"
-          end
-        }
-      end
-      private :response_stream
-
       def guard_error(imap_command, tag, *args, **kw_args, &block)
         begin
           if (kw_args.empty?) then
@@ -223,16 +201,16 @@ module RIMS
         rescue SyntaxError
           @logger.error('client command syntax error.')
           logging_error_chain($!)
-          yield([ "#{tag} BAD client command syntax error\r\n" ])
+          yield("#{tag} BAD client command syntax error\r\n")
         rescue ArgumentError
           @logger.error('invalid command parameter.')
           logging_error_chain($!)
-          yield([ "#{tag} BAD invalid command parameter\r\n" ])
+          yield("#{tag} BAD invalid command parameter\r\n")
         rescue
           raise if ($!.class.name =~ /AssertionFailedError/)
           @logger.error('internal server error.')
           logging_error_chain($!)
-          yield([ "#{tag} BAD internal server error\r\n" ])
+          yield("#{tag} BAD internal server error\r\n")
         end
       end
       private :guard_error
@@ -290,8 +268,7 @@ module RIMS
         end
         private :imap_command
 
-        def make_engine_and_recovery_if_needed(drb_services, username,
-                                               logger: Logger.new(STDOUT))
+        def make_engine_and_recovery_if_needed(drb_services, username, logger: Logger.new(STDOUT))
           unique_user_id = Authentication.unique_user_id(username)
           logger.debug("unique user ID: #{username} -> #{unique_user_id}") if logger.debug?
 
@@ -299,7 +276,7 @@ module RIMS
           engine = drb_services[:engine, unique_user_id]
 
           begin
-            engine.recovery_if_needed(username) {|msg| yield(msg) }
+            engine.recovery_if_needed(username) {|response| yield(response) }
           rescue
             engine.destroy
             raise
@@ -310,14 +287,13 @@ module RIMS
       end
 
       def make_logout_response(tag)
-        [ "* BYE server logout\r\n",
-          "#{tag} OK LOGOUT completed\r\n"
-        ]
+        yield("* BYE server logout\r\n")
+        yield("#{tag} OK LOGOUT completed\r\n")
       end
       private :make_logout_response
 
       def ok_greeting
-        yield([ "* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n" ])
+        yield("* OK RIMS v#{VERSION} IMAP4rev1 service ready.\r\n")
       end
 
       # common IMAP command
@@ -326,10 +302,8 @@ module RIMS
       def capability(tag)
         capability_list = %w[ IMAP4rev1 UIDPLUS IDLE ]
         capability_list += @auth.capability.map{|auth_capability| "AUTH=#{auth_capability}" }
-        res = []
-        res << "* CAPABILITY #{capability_list.join(' ')}\r\n"
-        res << "#{tag} OK CAPABILITY completed\r\n"
-        yield(res)
+        yield("* CAPABILITY #{capability_list.join(' ')}\r\n")
+        yield("#{tag} OK CAPABILITY completed\r\n")
       end
       imap_command :capability
     end
@@ -381,18 +355,18 @@ module RIMS
       end
 
       def make_not_authenticated_response(tag)
-        [ "#{tag} NO not authenticated\r\n" ]
+        yield("#{tag} NO not authenticated\r\n")
       end
       private :make_not_authenticated_response
 
       def noop(tag)
-        yield([ "#{tag} OK NOOP completed\r\n" ])
+        yield("#{tag} OK NOOP completed\r\n")
       end
       imap_command :noop
 
-      def logout(tag)
+      def logout(tag, &block)
         @next_decoder = LogoutDecoder.new(self, @logger)
-        yield(make_logout_response(tag))
+        make_logout_response(tag, &block)
       end
       imap_command :logout
 
@@ -402,7 +376,7 @@ module RIMS
           @logger.info("mail delivery user: #{username}")
           MailDeliveryDecoder.new(self, @drb_services, @auth, @logger)
         else
-          engine = self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|msg| yield(msg) }
+          engine = self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|untagged_response| yield(untagged_response) }
           UserMailboxDecoder.new(self, engine, @auth, @logger)
         end
       end
@@ -413,126 +387,128 @@ module RIMS
         auth_reader = AuthenticationReader.new(@auth, client_response_input_gets, server_challenge_output_write, @logger)
         if (username = auth_reader.authenticate_client(auth_type, inline_client_response_data_base64)) then
           if (username != :*) then
-            yield response_stream(tag) {|res|
-              @logger.info("authentication OK: #{username}")
-              @next_decoder = accept_authentication(username) {|msg| res << msg << :flush }
-              res << "#{tag} OK AUTHENTICATE #{auth_type} success\r\n"
+            @logger.info("authentication OK: #{username}")
+            @next_decoder = accept_authentication(username) {|untagged_response|
+              yield(untagged_response)
+              yield(:flush)
             }
+            yield("#{tag} OK AUTHENTICATE #{auth_type} success\r\n")
           else
             @logger.info('bad authentication.')
-            yield([ "#{tag} BAD AUTHENTICATE failed\r\n" ])
+            yield("#{tag} BAD AUTHENTICATE failed\r\n")
           end
         else
-          yield([ "#{tag} NO authentication failed\r\n" ])
+          yield("#{tag} NO authentication failed\r\n")
         end
       end
       imap_command :authenticate
 
       def login(tag, username, password)
         if (@auth.authenticate_login(username, password)) then
-          yield response_stream(tag) {|res|
-            @logger.info("login authentication OK: #{username}")
-            @next_decoder = accept_authentication(username) {|msg| res << msg << :flush }
-            res << "#{tag} OK LOGIN completed\r\n"
+          @logger.info("login authentication OK: #{username}")
+          @next_decoder = accept_authentication(username) {|untagged_response|
+            yield(untagged_response)
+            yield(:flush)
           }
+          yield("#{tag} OK LOGIN completed\r\n")
         else
-          yield([ "#{tag} NO failed to login\r\n" ])
+          yield("#{tag} NO failed to login\r\n")
         end
       end
       imap_command :login
 
-      def select(tag, mbox_name)
-        yield(make_not_authenticated_response(tag))
+      def select(tag, mbox_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :select
 
-      def examine(tag, mbox_name)
-        yield(make_not_authenticated_response(tag))
+      def examine(tag, mbox_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :examine
 
-      def create(tag, mbox_name)
-        yield(make_not_authenticated_response(tag))
+      def create(tag, mbox_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :create
 
-      def delete(tag, mbox_name)
-        yield(make_not_authenticated_response(tag))
+      def delete(tag, mbox_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :delete
 
-      def rename(tag, src_name, dst_name)
-        yield(make_not_authenticated_response(tag))
+      def rename(tag, src_name, dst_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :rename
 
-      def subscribe(tag, mbox_name)
-        yield(make_not_authenticated_response(tag))
+      def subscribe(tag, mbox_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :subscribe
 
-      def unsubscribe(tag, mbox_name)
-        yield(make_not_authenticated_response(tag))
+      def unsubscribe(tag, mbox_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :unsubscribe
 
-      def list(tag, ref_name, mbox_name)
-        yield(make_not_authenticated_response(tag))
+      def list(tag, ref_name, mbox_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :list
 
-      def lsub(tag, ref_name, mbox_name)
-        yield(make_not_authenticated_response(tag))
+      def lsub(tag, ref_name, mbox_name, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :lsub
 
-      def status(tag, mbox_name, data_item_group)
-        yield(make_not_authenticated_response(tag))
+      def status(tag, mbox_name, data_item_group, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :status
 
-      def append(tag, mbox_name, *opt_args, msg_text)
-        yield(make_not_authenticated_response(tag))
+      def append(tag, mbox_name, *opt_args, msg_text, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :append
 
-      def check(tag)
-        yield(make_not_authenticated_response(tag))
+      def check(tag, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :check
 
-      def close(tag)
-        yield(make_not_authenticated_response(tag))
+      def close(tag, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :close
 
-      def expunge(tag)
-        yield(make_not_authenticated_response(tag))
+      def expunge(tag, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :expunge
 
-      def search(tag, *cond_args, uid: false)
-        yield(make_not_authenticated_response(tag))
+      def search(tag, *cond_args, uid: false, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :search
 
-      def fetch(tag, msg_set, data_item_group, uid: false)
-        yield(make_not_authenticated_response(tag))
+      def fetch(tag, msg_set, data_item_group, uid: false, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :fetch
 
-      def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        yield(make_not_authenticated_response(tag))
+      def store(tag, msg_set, data_item_name, data_item_value, uid: false, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :store
 
-      def copy(tag, msg_set, mbox_name, uid: false)
-        yield(make_not_authenticated_response(tag))
+      def copy(tag, msg_set, mbox_name, uid: false, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :copy
 
-      def idle(tag, client_input_gets, server_output_write, connection_timer)
-        yield(make_not_authenticated_response(tag))
+      def idle(tag, client_input_gets, server_output_write, connection_timer, &block)
+        make_not_authenticated_response(tag, &block)
       end
       imap_command :idle
     end
@@ -687,12 +663,12 @@ module RIMS
     class AuthenticatedDecoder < Decoder
       def authenticate(tag, client_response_input_gets, server_challenge_output_write,
                        auth_type, inline_client_response_data_base64=nil, &block)
-        yield([ "#{tag} NO duplicated authentication\r\n" ])
+        yield("#{tag} NO duplicated authentication\r\n")
       end
       imap_command :authenticate
 
       def login(tag, username, password, &block)
-        yield([ "#{tag} NO duplicated login\r\n" ])
+        yield("#{tag} NO duplicated login\r\n")
       end
       imap_command :login
     end
@@ -1679,12 +1655,19 @@ module RIMS
         nil
       end
 
-      def noop(tag, &block)
-        @engine.noop(@token, tag, &block)
+      def noop(tag)
+        ret_val = nil
+        @engine.noop(@token, tag) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :noop
 
-      def logout(tag)
+      def logout(tag, &block)
         if (@token) then
           old_token = @token
           @token = nil
@@ -1692,7 +1675,7 @@ module RIMS
         end
 
         @next_decoder = LogoutDecoder.new(self, @logger)
-        yield(make_logout_response(tag))
+        make_logout_response(tag, &block)
       end
       imap_command :logout
 
@@ -1700,7 +1683,9 @@ module RIMS
         ret_val = nil
         old_token = @token
         @token = @engine.select(old_token, tag, mbox_name) {|res|
-          ret_val = yield(res)
+          for response in res
+            ret_val = yield(response)
+          end
         }
 
         ret_val
@@ -1711,128 +1696,218 @@ module RIMS
         ret_val = nil
         old_token = @token
         @token = @engine.examine(old_token, tag, mbox_name) {|res|
-          ret_val = yield(res)
+          for response in res
+            ret_val = yield(response)
+          end
         }
 
         ret_val
       end
       imap_command :examine
 
-      def create(tag, mbox_name, &block)
-        @engine.create(@token, tag, mbox_name, &block)
+      def create(tag, mbox_name)
+        ret_val = nil
+        @engine.create(@token, tag, mbox_name) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :create
 
-      def delete(tag, mbox_name, &block)
-        @engine.delete(@token, tag, mbox_name, &block)
+      def delete(tag, mbox_name)
+        ret_val = nil
+        @engine.delete(@token, tag, mbox_name) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :delete
 
-      def rename(tag, src_name, dst_name, &block)
-        @engine.rename(@token, tag, src_name, dst_name, &block)
+      def rename(tag, src_name, dst_name)
+        ret_val = nil
+        @engine.rename(@token, tag, src_name, dst_name) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :rename
 
-      def subscribe(tag, mbox_name, &block)
-        @engine.subscribe(@token, tag, mbox_name, &block)
+      def subscribe(tag, mbox_name)
+        ret_val = nil
+        @engine.subscribe(@token, tag, mbox_name) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :subscribe
 
-      def unsubscribe(tag, mbox_name, &block)
-        @engine.unsubscribe(@token, tag, mbox_name, &block)
+      def unsubscribe(tag, mbox_name)
+        ret_val = nil
+        @engine.unsubscribe(@token, tag, mbox_name) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :unsubscribe
 
-      def list(tag, ref_name, mbox_name, &block)
-        @engine.list(@token, tag, ref_name, mbox_name, &block)
+      def list(tag, ref_name, mbox_name)
+        ret_val = nil
+        @engine.list(@token, tag, ref_name, mbox_name) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :list
 
-      def lsub(tag, ref_name, mbox_name, &block)
-        @engine.lsub(@token, tag, ref_name, mbox_name, &block)
+      def lsub(tag, ref_name, mbox_name)
+        ret_val = nil
+        @engine.lsub(@token, tag, ref_name, mbox_name) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :lsub
 
-      def status(tag, mbox_name, data_item_group, &block)
-        @engine.status(@token, tag, mbox_name, data_item_group, &block)
+      def status(tag, mbox_name, data_item_group)
+        ret_val = nil
+        @engine.status(@token, tag, mbox_name, data_item_group) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :status
 
-      def append(tag, mbox_name, *opt_args, msg_text, &block)
-        @engine.append(@token, tag, mbox_name, *opt_args, msg_text, &block)
+      def append(tag, mbox_name, *opt_args, msg_text)
+        ret_val = nil
+        @engine.append(@token, tag, mbox_name, *opt_args, msg_text) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :append
 
-      def check(tag, &block)
-        @engine.check(@token, tag, &block)
+      def check(tag)
+        ret_val = nil
+        @engine.check(@token, tag) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :check
 
       def close(tag, &block)
+        ret_val = nil
         old_token = @token
         @token = nil
-
-        yield response_stream(tag) {|res|
-          @engine.close(old_token, tag) {|bulk_res|
-            for r in bulk_res
-              res << r
-            end
-          }
+        @engine.close(old_token, tag) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
         }
+
+        ret_val
       end
       imap_command :close
 
       def expunge(tag)
-        yield response_stream(tag) {|res|
-          @engine.expunge(@token, tag) {|bulk_res|
-            for r in bulk_res
-              res << r
-            end
-          }
+        ret_val = nil
+        @engine.expunge(@token, tag) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
         }
+
+        ret_val
       end
       imap_command :expunge
 
       def search(tag, *cond_args, uid: false)
-        yield response_stream(tag) {|res|
-          @engine.search(@token, tag, *cond_args, uid: uid) {|bulk_res|
-            for r in bulk_res
-              res << r
-            end
-          }
+        ret_val = nil
+        @engine.search(@token, tag, *cond_args, uid: uid) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
         }
+
+        ret_val
       end
       imap_command :search
 
       def fetch(tag, msg_set, data_item_group, uid: false)
-        yield response_stream(tag) {|res|
-          @engine.fetch(@token, tag, msg_set, data_item_group, uid: uid) {|bulk_res|
-            for r in bulk_res
-              res << r
-            end
-          }
+        ret_val = nil
+        @engine.fetch(@token, tag, msg_set, data_item_group, uid: uid) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
         }
+
+        ret_val
       end
       imap_command :fetch
 
       def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        yield response_stream(tag) {|res|
-          @engine.store(@token, tag, msg_set, data_item_name, data_item_value, uid: uid) {|bulk_res|
-            for r in bulk_res
-              res << r
-            end
-          }
+        ret_val = nil
+        @engine.store(@token, tag, msg_set, data_item_name, data_item_value, uid: uid) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
         }
+
+        ret_val
       end
       imap_command :store
 
       def copy(tag, msg_set, mbox_name, uid: false, &block)
-        @engine.copy(@token, tag, msg_set, mbox_name, uid: uid, &block)
+        ret_val = nil
+        @engine.copy(@token, tag, msg_set, mbox_name, uid: uid) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :copy
 
       def idle(tag, client_input_gets, server_output_write, connection_timer, &block)
-        @engine.idle(@token, tag, client_input_gets, server_output_write, connection_timer, &block)
+        ret_val = nil
+        @engine.idle(@token, tag, client_input_gets, server_output_write, connection_timer) {|res|
+          for response in res
+            ret_val = yield(response)
+          end
+        }
+
+        ret_val
       end
       imap_command :idle
     end
@@ -1923,9 +1998,9 @@ module RIMS
         nil
       end
 
-      def logout(tag)
+      def logout(tag, &block)
         @next_decoder = LogoutDecoder.new(self, @logger)
-        yield(make_logout_response(tag))
+        make_logout_response(tag, &block)
       end
       imap_command :logout
 
@@ -1933,86 +2008,84 @@ module RIMS
       private :standard_capability
 
       def capability(tag)
-        standard_capability(tag) {|res|
-          yield res.map{|line|
-            if (line.start_with? '* CAPABILITY ') then
-              line.strip + " X-RIMS-MAIL-DELIVERY-USER\r\n"
-            else
-              line
-            end
-          }
+        standard_capability(tag) {|response|
+          if (response.start_with? '* CAPABILITY ') then
+            yield(response.strip + " X-RIMS-MAIL-DELIVERY-USER\r\n")
+          else
+            yield(response)
+          end
         }
       end
       imap_command :capability
 
       def make_not_allowed_command_response(tag)
-        [ "#{tag} NO not allowed command on mail delivery user\r\n" ]
+        yield("#{tag} NO not allowed command on mail delivery user\r\n")
       end
       private :make_not_allowed_command_response
 
-      def select(tag, mbox_name)
-        yield(make_not_allowed_command_response(tag))
+      def select(tag, mbox_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :select
 
-      def examine(tag, mbox_name)
-        yield(make_not_allowed_command_response(tag))
+      def examine(tag, mbox_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :examine
 
-      def create(tag, mbox_name)
-        yield(make_not_allowed_command_response(tag))
+      def create(tag, mbox_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :create
 
-      def delete(tag, mbox_name)
-        yield(make_not_allowed_command_response(tag))
+      def delete(tag, mbox_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :delete
 
-      def rename(tag, src_name, dst_name)
-        yield(make_not_allowed_command_response(tag))
+      def rename(tag, src_name, dst_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :rename
 
-      def subscribe(tag, mbox_name)
-        yield(make_not_allowed_command_response(tag))
+      def subscribe(tag, mbox_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :subscribe
 
-      def unsubscribe(tag, mbox_name)
-        yield(make_not_allowed_command_response(tag))
+      def unsubscribe(tag, mbox_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :unsubscribe
 
-      def list(tag, ref_name, mbox_name)
-        yield(make_not_allowed_command_response(tag))
+      def list(tag, ref_name, mbox_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :list
 
-      def lsub(tag, ref_name, mbox_name)
-        yield(make_not_allowed_command_response(tag))
+      def lsub(tag, ref_name, mbox_name, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :lsub
 
-      def status(tag, mbox_name, data_item_group)
-        yield(make_not_allowed_command_response(tag))
+      def status(tag, mbox_name, data_item_group, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :status
 
-      def deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine, res)
+      def deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine)
         user_decoder = UserMailboxDecoder.new(self, engine, @auth, @logger)
         begin
-          user_decoder.append(tag, mbox_name, *opt_args, msg_text) {|append_response|
-            if (append_response.last.split(' ', 3)[1] == 'OK') then
-              @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
-            else
-              @logger.info("message delivery: failed to deliver message.")
-            end
-            for response_data in append_response
-              res << response_data
-            end
+          last_response = nil
+          user_decoder.append(tag, mbox_name, *opt_args, msg_text) {|response|
+            last_response = response
+            yield(response)
           }
+          if (last_response.split(' ', 3)[1] == 'OK') then
+            @logger.info("message delivery: successed to deliver #{msg_text.bytesize} octets message.")
+          else
+            @logger.info("message delivery: failed to deliver message.")
+          end
         ensure
           user_decoder.cleanup(not_cleanup_parent: true)
         end
@@ -2025,62 +2098,65 @@ module RIMS
 
         if (@auth.user? username) then
           if (engine_cached? username) then
-            res = []
             engine = engine_cache(username)
-            deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine, res)
+            deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine) {|response|
+              yield(response)
+            }
           else
-            res = response_stream(tag) {|stream_res|
-              engine = store_engine_cache(username) {
-                self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|msg| stream_res << msg << :flush }
+            engine = store_engine_cache(username) {
+              self.class.make_engine_and_recovery_if_needed(@drb_services, username, logger: @logger) {|untagged_response|
+                yield(untagged_response)
+                yield(:flush)
               }
-              deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine, stream_res)
+            }
+            deliver_to_user(tag, username, mbox_name, opt_args, msg_text, engine) {|response|
+              yield(response)
             }
           end
-          yield(res)
         else
           @logger.info('message delivery: not found a user.')
-          yield([ "#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n" ])
+          yield("#{tag} NO not found a user and couldn't deliver a message to the user's mailbox\r\n")
         end
       end
       imap_command :append
 
-      def check(tag)
-        yield(make_not_allowed_command_response(tag))
+      def check(tag, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :check
 
-      def close(tag)
-        yield(make_not_allowed_command_response(tag))
+      def close(tag, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :close
 
-      def expunge(tag)
-        yield(make_not_allowed_command_response(tag))
+      def expunge(tag, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :expunge
 
-      def search(tag, *cond_args, uid: false)
-        yield(make_not_allowed_command_response(tag))
+      def search(tag, *cond_args, uid: false, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :search
 
-      def fetch(tag, msg_set, data_item_group, uid: false)
-        yield(make_not_allowed_command_response(tag))
+      def fetch(tag, msg_set, data_item_group, uid: false, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :fetch
 
-      def store(tag, msg_set, data_item_name, data_item_value, uid: false)
-        yield(make_not_allowed_command_response(tag))
+      def store(tag, msg_set, data_item_name, data_item_value, uid: false, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :store
 
-      def copy(tag, msg_set, mbox_name, uid: false)
-        yield(make_not_allowed_command_response(tag))
+      def copy(tag, msg_set, mbox_name, uid: false, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :copy
 
-      def idle(tag, client_input_gets, server_output_write, connection_timer)
-        yield(make_not_allowed_command_response(tag))
+      def idle(tag, client_input_gets, server_output_write, connection_timer, &block)
+        make_not_allowed_command_response(tag, &block)
       end
       imap_command :idle
     end

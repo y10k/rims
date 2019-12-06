@@ -152,26 +152,23 @@ module RIMS::Test
         block_call = 0
         ret_val = nil
 
+        response_message = cmd_client_output.b
         pp [ :debug_imap_command, imap_command_message, cmd_id, cmd_args ] if $DEBUG
-        @decoder.__send__(cmd_id, tag, *cmd_args) {|responses|
+        @decoder.__send__(cmd_id, tag, *cmd_args) {|response|
           block_call += 1
-          response_message = cmd_client_output.b
-          if (output) then
+          if (block_call == 1 && output) then
             response_message << output.string
           end
-          for response in responses
-            if (response != :flush) then
-              response_message << response
-            end
+          if (response != :flush) then
+            response_message << response
           end
-          response_lines = StringIO.new(response_message, 'r').each_line
-          ret_val = yield(response_lines)
-          assert_raise(StopIteration) { response_lines.next }
         }
+        response_lines = StringIO.new(response_message, 'r').each_line
+        ret_val = yield(response_lines)
+        assert_raise(StopIteration) { response_lines.next }
         if (client_input_text) then
           pp input.string, output.string if $DEBUG
         end
-        assert_equal(1, block_call, 'IMAP command block should be called only once.')
 
         @decoder = @decoder.next_decoder
 
@@ -5839,10 +5836,8 @@ module RIMS::Test
         }
 
         another_decoder = make_decoder
-        another_writer = proc{|res|
-          for line in res
-            p line if $DEBUG
-          end
+        another_writer = proc{|response|
+          p response if $DEBUG
         }
 
         another_decoder.login('tag', 'foo', 'open_sesame', &another_writer)
@@ -6117,10 +6112,8 @@ module RIMS::Test
         }
 
         another_decoder = make_decoder
-        another_writer = proc{|res|
-          for line in res
-            p line if $DEBUG
-          end
+        another_writer = proc{|response|
+          p response if $DEBUG
         }
 
         another_decoder.login('tag', 'foo', 'open_sesame', &another_writer)
