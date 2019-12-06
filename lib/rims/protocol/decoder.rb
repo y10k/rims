@@ -53,7 +53,7 @@ module RIMS
 
           last_line
         }
-        response_write = proc{|res|
+        response_write = lambda{|res|
           begin
             last_line = output_write.call(res)
             logger.info("server response: #{last_line.strip}")
