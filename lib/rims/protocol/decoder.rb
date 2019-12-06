@@ -38,33 +38,55 @@ module RIMS
 
       def self.repl(decoder, limits, input, output, logger)
         input_gets = input.method(:gets)
-        output_write = lambda{|res|
-          last_line = nil
-          for data in res
+        output_write = lambda{|data|
+          begin
             if (data == :flush) then
               output.flush
             else
               logger.debug("response data: #{Protocol.io_data_log(data)}") if logger.debug?
               output << data
-              last_line = data
             end
-          end
-          output.flush
-
-          last_line
-        }
-        response_write = lambda{|res|
-          begin
-            last_line = output_write.call(res)
-            logger.info("server response: #{last_line.strip}")
           rescue
             logger.error('response write error.')
             logging_error_chain($!, logger)
             raise
           end
         }
+        server_output_write = lambda{|res|
+          for data in res
+            output_write.call(data)
+          end
+          output.flush
 
-        decoder.ok_greeting{|res| response_write.call(res) }
+          nil
+        }
+        response_write = lambda{|response|
+          output_write.call(response)
+          output.flush
+          logger.info("server response: #{response.strip}")
+        }
+        apply_imap_command = lambda{|name, *args, uid: false|
+          last_line = nil
+          if (uid) then
+            decoder.__send__(name, *args, uid: true) {|res|
+              for data in res
+                output_write.call(data)
+                last_line = data if (data.is_a? String)
+              end
+            }
+          else
+            decoder.__send__(name, *args) {|res|
+              for data in res
+                output_write.call(data)
+                last_line = data if (data.is_a? String)
+              end
+            }
+          end
+          output.flush
+          logger.info("server response: #{last_line.strip}") if last_line
+        }
+
+        apply_imap_command.call(:ok_greeting)
 
         conn_timer = ConnectionTimer.new(limits, input.to_io)
         request_reader = RequestReader.new(input, output, logger)
@@ -77,7 +99,7 @@ module RIMS
           rescue
             logger.error('invalid client command.')
             logging_error_chain($!, logger)
-            response_write.call([ "* BAD client command syntax error\r\n" ])
+            response_write.call("* BAD client command syntax error\r\n")
             next
           end
 
@@ -113,30 +135,30 @@ module RIMS
                   logger.info("uid command: #{uid_command}")
                   logger.debug("uid parameter: #{uid_args}") if logger.debug?
                   if (uid_name = UID_CMDs[imap_command_normalize(uid_command)]) then
-                    decoder.__send__(uid_name, tag, *uid_args, uid: true) {|res| response_write.call(res) }
+                    apply_imap_command.call(uid_name, tag, *uid_args, uid: true)
                   else
                     logger.error("unknown uid command: #{uid_command}")
-                    response_write.call([ "#{tag} BAD unknown uid command\r\n" ])
+                    response_write.call("#{tag} BAD unknown uid command\r\n")
                   end
                 else
                   logger.error('empty uid parameter.')
-                  response_write.call([ "#{tag} BAD empty uid parameter\r\n" ])
+                  response_write.call("#{tag} BAD empty uid parameter\r\n")
                 end
               when :authenticate
-                decoder.authenticate(tag, input_gets, output_write, *opt_args) {|res| response_write.call(res) }
+                apply_imap_command.call(:authenticate, tag, input_gets, server_output_write, *opt_args)
               when :idle
-                decoder.idle(tag, input_gets, output_write, conn_timer, *opt_args) {|res| response_write.call(res) }
+                apply_imap_command.call(:idle, tag, input_gets, server_output_write, conn_timer, *opt_args)
               else
-                decoder.__send__(name, tag, *opt_args) {|res| response_write.call(res) }
+                apply_imap_command.call(name, tag, *opt_args)
               end
             else
               logger.error("unknown command: #{command}")
-              response_write.call([ "#{tag} BAD unknown command\r\n" ])
+              response_write.call("#{tag} BAD unknown command\r\n")
             end
           rescue
             logger.error('unexpected error.')
             logging_error_chain($!, logger)
-            response_write.call([ "#{tag} BAD unexpected error\r\n" ])
+            response_write.call("#{tag} BAD unexpected error\r\n")
           end
 
           if (normalized_command == 'LOGOUT') then
@@ -148,9 +170,9 @@ module RIMS
 
         if (conn_timer.command_wait_timeout?) then
           if (limits.command_wait_timeout_seconds > 0) then
-            response_write.call([ "* BYE server autologout: idle for too long\r\n" ])
+            response_write.call("* BYE server autologout: idle for too long\r\n")
           else
-            response_write.call([ "* BYE server autologout: shutdown\r\n" ])
+            response_write.call("* BYE server autologout: shutdown\r\n")
           end
         end
 
