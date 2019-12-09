@@ -696,6 +696,10 @@ module RIMS
 
         alias << add
 
+        def empty?
+          @responses.empty?
+        end
+
         def full?
           count >= @limit_count || size >= @limit_size
         end

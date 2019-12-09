@@ -6384,6 +6384,15 @@ module RIMS::Test
       assert_equal(expected_size, @res.size)
     end
 
+    def test_emtpy?
+      assert_true(@res.empty?)
+    end
+
+    def test_not_empty?
+      @res << 'foo'
+      assert_false(@res.empty?)
+    end
+
     data('count: boundary'      => %w[ 1 2 3 4 5 6 7 8 9 0 ],
          'count: over'          => %w[ 1 2 3 4 5 6 7 8 9 0 a ],
          'size: boundary'       => [ 'x' * 50, 'y' * 50 ],
@@ -6415,10 +6424,14 @@ module RIMS::Test
       @res << 'bar'
       r1 = @res.flush
       assert_equal('foo' + 'bar', r1.join(''), 'responses may be joined.')
+      assert_true(@res.empty?)
+      assert_false(@res.full?)
 
       @res << 'baz'
       r2 = @res.flush
       assert_equal('baz', r2.join(''), 'responses may be joined.')
+      assert_true(@res.empty?)
+      assert_false(@res.full?)
 
       assert_not_equal(r1, r2)
     end
@@ -6428,6 +6441,8 @@ module RIMS::Test
         @res << c
       end
       assert_equal([ ('a'..).first(10).join('') ], @res.flush)
+      assert_true(@res.empty?)
+      assert_false(@res.full?)
     end
   end
 end
