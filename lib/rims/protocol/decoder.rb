@@ -894,19 +894,22 @@ module RIMS
         private :new_bulk_response
 
         def noop(token, tag)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
             begin
               @mail_store.read_synchronize(@read_lock_timeout_seconds) {
-                folder.server_response_fetch{|r| res << r } if folder.server_response?
+                folder.server_response_fetch{|untagged_response|
+                  res << untagged_response
+                  yield(res.flush) if res.full?
+                }
               }
             rescue ReadLockTimeoutError
               @logger.warn("give up to get folder status because of read-lock timeout over #{@read_lock_timeout_seconds} seconds")
             end
           end
           res << "#{tag} OK NOOP completed\r\n"
-          yield(res)
+          yield(res.flush)
         end
 
         def folder_open_msgs(token)
@@ -928,20 +931,21 @@ module RIMS
             close_no_response(token)
           end
 
-          res = []
+          res = new_bulk_response
           new_token = nil
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
 
           if (id = @mail_store.mbox_id(mbox_name_utf8)) then
             new_token = open_folder(id)
-            folder_open_msgs(new_token) do |msg|
-              res << msg
-            end
+            folder_open_msgs(new_token) {|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
             res << "#{tag} OK [READ-WRITE] SELECT completed\r\n"
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
-          yield(res)
+          yield(res.flush)
 
           new_token
         end
@@ -952,30 +956,34 @@ module RIMS
             close_no_response(token)
           end
 
-          res = []
+          res = new_bulk_response
           new_token = nil
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
 
           if (id = @mail_store.mbox_id(mbox_name_utf8)) then
             new_token = open_folder(id, read_only: true)
-            folder_open_msgs(new_token) do |msg|
-              res << msg
-            end
+            folder_open_msgs(new_token) {|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
             res << "#{tag} OK [READ-ONLY] EXAMINE completed\r\n"
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
-          yield(res)
+          yield(res.flush)
 
           new_token
         end
         imap_command_authenticated :examine
 
         def create(token, tag, mbox_name)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (@mail_store.mbox_id(mbox_name_utf8)) then
@@ -984,15 +992,18 @@ module RIMS
             @mail_store.add_mbox(mbox_name_utf8)
             res << "#{tag} OK CREATE completed\r\n"
           end
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :create, exclusive: true
 
         def delete(token, tag, mbox_name)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (id = @mail_store.mbox_id(mbox_name_utf8)) then
@@ -1005,38 +1016,47 @@ module RIMS
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :delete, exclusive: true
 
         def rename(token, tag, src_name, dst_name)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           src_name_utf8 = Net::IMAP.decode_utf7(src_name)
           dst_name_utf8 = Net::IMAP.decode_utf7(dst_name)
           unless (id = @mail_store.mbox_id(src_name_utf8)) then
-            return yield(res << "#{tag} NO not found a mailbox\r\n")
+            res << "#{tag} NO not found a mailbox\r\n"
+            return yield(res.flush)
           end
           if (id == @mail_store.mbox_id('INBOX')) then
-            return yield(res << "#{tag} NO not rename inbox\r\n")
+            res << "#{tag} NO not rename inbox\r\n"
+            return yield(res.flush)
           end
           if (@mail_store.mbox_id(dst_name_utf8)) then
-            return yield(res << "#{tag} NO duplicated mailbox\r\n")
+            res << "#{tag} NO duplicated mailbox\r\n"
+            return yield(res.flush)
           end
           @mail_store.rename_mbox(id, dst_name_utf8)
           res << "#{tag} OK RENAME completed\r\n"
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :rename, exclusive: true
 
         def subscribe(token, tag, mbox_name)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (@mail_store.mbox_id(mbox_name_utf8)) then
@@ -1044,15 +1064,18 @@ module RIMS
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :subscribe
 
         def unsubscribe(token, tag, mbox_name)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (@mail_store.mbox_id(mbox_name_utf8)) then
@@ -1060,7 +1083,7 @@ module RIMS
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :unsubscribe
 
@@ -1089,46 +1112,57 @@ module RIMS
         private :list_mbox
 
         def list(token, tag, ref_name, mbox_name)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           if (mbox_name.empty?) then
             res << "* LIST (\\Noselect) NIL \"\"\r\n"
           else
-            list_mbox(ref_name, mbox_name) do |mbox_entry|
+            list_mbox(ref_name, mbox_name) {|mbox_entry|
               res << "* LIST #{mbox_entry}\r\n"
-            end
+              yield(res.flush) if res.full?
+            }
           end
           res << "#{tag} OK LIST completed\r\n"
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :list
 
         def lsub(token, tag, ref_name, mbox_name)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           if (mbox_name.empty?) then
             res << "* LSUB (\\Noselect) NIL \"\"\r\n"
           else
-            list_mbox(ref_name, mbox_name) do |mbox_entry|
+            list_mbox(ref_name, mbox_name) {|mbox_entry|
               res << "* LSUB #{mbox_entry}\r\n"
-            end
+              yield(res.flush) if res.full?
+            }
           end
           res << "#{tag} OK LSUB completed\r\n"
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :lsub
 
         def status(token, tag, mbox_name, data_item_group)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (id = @mail_store.mbox_id(mbox_name_utf8)) then
@@ -1160,7 +1194,7 @@ module RIMS
           else
             res << "#{tag} NO not found a mailbox\r\n"
           end
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :status
 
@@ -1181,7 +1215,7 @@ module RIMS
         private :mailbox_size_server_response_multicast_push
 
         def append(token, tag, mbox_name, *opt_args, msg_text)
-          res = []
+          res = new_bulk_response
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           if (mbox_id = @mail_store.mbox_id(mbox_name_utf8)) then
             msg_flags = []
@@ -1230,30 +1264,39 @@ module RIMS
             mailbox_size_server_response_multicast_push(mbox_id)
             if (token) then
               folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-              folder.server_response_fetch{|r| res << r }
+              folder.server_response_fetch{|untagged_response|
+                res << untagged_response
+                yield(res.flush) if res.full?
+              }
             end
 
             res << "#{tag} OK [APPENDUID #{mbox_id} #{uid}] APPEND completed\r\n"
           else
             if (token) then
               folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-              folder.server_response_fetch{|r| res << r }
+              folder.server_response_fetch{|untagged_response|
+                res << untagged_response
+                yield(res.flush) if res.full?
+              }
             end
             res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end
-          yield(res)
+          yield(res.flush)
         end
         imap_command_authenticated :append, exclusive: true
 
         def check(token, tag)
-          res = []
+          res = new_bulk_response
           if (token) then
             folder = @folders[token] or raise KeyError.new("undefined folder token: #{token}", key: token, receiver: self)
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
           end
           @mail_store.sync
           res << "#{tag} OK CHECK completed\r\n"
-          yield(res)
+          yield(res.flush)
         end
         imap_command_selected :check, exclusive: true
 
@@ -1282,16 +1325,16 @@ module RIMS
           folder.reload if folder.updated?
 
           res = new_bulk_response
-          folder.server_response_fetch{|r|
-            res << r
+          folder.server_response_fetch{|untagged_response|
+            res << untagged_response
             yield(res.flush) if res.full?
          }
 
           folder.expunge_mbox do |msg_num|
-            r = "* #{msg_num} EXPUNGE\r\n"
-            res << r
+            untagged_response = "* #{msg_num} EXPUNGE\r\n"
+            res << untagged_response
             yield(res.flush) if res.full?
-            folder.server_response_multicast_push(r)
+            folder.server_response_multicast_push(untagged_response)
           end
 
           res << "#{tag} OK EXPUNGE completed\r\n"
@@ -1343,8 +1386,8 @@ module RIMS
           cond = parser.parse(cond_args)
 
           res = new_bulk_response
-          folder.server_response_fetch{|r|
-            res << r
+          folder.server_response_fetch{|untagged_response|
+            res << untagged_response
             yield(res.flush) if res.full?
           }
 
@@ -1400,8 +1443,8 @@ module RIMS
           fetch = parser.parse(data_item_group)
 
           res = new_bulk_response
-          folder.server_response_fetch{|r|
-            res << r
+          folder.server_response_fetch{|untagged_response|
+            res << untagged_response
             yield(res.flush) if res.full?
           }
 
@@ -1492,8 +1535,8 @@ module RIMS
           end
 
           res = new_bulk_response
-          folder.server_response_fetch{|r|
-            res << r
+          folder.server_response_fetch{|untagged_response|
+            res << untagged_response
             yield(res.flush) if res.full?
           }
 
@@ -1536,7 +1579,7 @@ module RIMS
           folder.should_be_alive
           folder.reload if folder.updated?
 
-          res = []
+          res = new_bulk_response
           mbox_name_utf8 = Net::IMAP.decode_utf7(mbox_name)
           msg_set = folder.parse_msg_set(msg_set, uid: uid)
 
@@ -1552,17 +1595,26 @@ module RIMS
 
             if (msg_list.size > 0) then
               mailbox_size_server_response_multicast_push(mbox_id)
-              folder.server_response_fetch{|r| res << r }
+              folder.server_response_fetch{|untagged_response|
+                res << untagged_response
+                yield(res.flush) if res.full?
+              }
               res << "#{tag} OK [COPYUID #{mbox_id} #{src_uids.join(',')} #{dst_uids.join(',')}] COPY completed\r\n"
             else
-              folder.server_response_fetch{|r| res << r }
+              folder.server_response_fetch{|untagged_response|
+                res << untagged_response
+                yield(res.flush) if res.full?
+              }
               res << "#{tag} OK COPY completed\r\n"
             end
           else
-            folder.server_response_fetch{|r| res << r }
+            folder.server_response_fetch{|untagged_response|
+              res << untagged_response
+              yield(res.flush) if res.full?
+            }
             res << "#{tag} NO [TRYCREATE] not found a mailbox\r\n"
           end
-          yield(res)
+          yield(res.flush)
         end
         imap_command_selected :copy, exclusive: true
 
@@ -1574,12 +1626,15 @@ module RIMS
           server_output_write.call([ "+ continue\r\n" ])
 
           server_response_thread = Thread.new{
+            res = new_bulk_response
             @logger.info('idle server response thread start...')
             folder.server_response_idle_wait{|server_response_list|
-              for server_response in server_response_list
-                @logger.debug("idle server response: #{server_response}") if @logger.debug?
+              for untagged_response in server_response_list
+                @logger.debug("idle server response: #{untagged_response}") if @logger.debug?
+                res << untagged_response
+                server_output_write.call(res.flush) if res.full?
               end
-              server_output_write.call(server_response_list)
+              server_output_write.call(res.flush) unless res.empty?
             }
             @logger.info('idle server response thread terminated.')
           }
@@ -1592,23 +1647,23 @@ module RIMS
             server_response_thread.join
           end
 
-          res = []
+          last_res = []
           if (line) then
             line.chomp!("\n")
             line.chomp!("\r")
             if (line.upcase == "DONE") then
               @logger.info('idle terminated.')
-              res << "#{tag} OK IDLE terminated\r\n"
+              last_res << "#{tag} OK IDLE terminated\r\n"
             else
               @logger.warn('unexpected client response and idle terminated.')
               @logger.debug("unexpected client response data: #{line}") if @logger.debug?
-              res << "#{tag} BAD unexpected client response\r\n"
+              last_res << "#{tag} BAD unexpected client response\r\n"
             end
           else
             @logger.warn('unexpected client connection close and idle terminated.')
-            res << "#{tag} BAD unexpected client connection close\r\n"
+            last_res << "#{tag} BAD unexpected client connection close\r\n"
           end
-          yield(res)
+          yield(last_res)
         end
         imap_command_selected :idle, exclusive: nil
       end
