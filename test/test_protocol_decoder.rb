@@ -127,6 +127,7 @@ module RIMS::Test
         cmd_name, cmd_args, cmd_client_output = parse_imap_command(tag, imap_command_message)
         normalized_cmd_name = RIMS::Protocol::Decoder.imap_command_normalize(cmd_name)
         cmd_id = RIMS::Protocol::Decoder::IMAP_CMDs[normalized_cmd_name] or flunk("not a imap command: #{cmd_name}")
+        cmd_kw_args = {}
 
         input = nil
         output = nil
@@ -146,7 +147,7 @@ module RIMS::Test
           cmd_args = inout_args + cmd_args
         end
         unless (uid.nil?) then
-          cmd_args += [ { uid: uid } ]
+          cmd_kw_args[:uid] = uid
         end
 
         block_call = 0
@@ -154,7 +155,7 @@ module RIMS::Test
 
         response_message = cmd_client_output.b
         pp [ :debug_imap_command, imap_command_message, cmd_id, cmd_args ] if $DEBUG
-        @decoder.__send__(cmd_id, tag, *cmd_args) {|response|
+        @decoder.__send__(cmd_id, tag, *cmd_args, **cmd_kw_args) {|response|
           block_call += 1
           if (block_call == 1 && output) then
             response_message << output.string
