@@ -804,16 +804,16 @@ module RIMS
     using Logger::JointPlus
 
     def setup(server, daemon: false)
-      file_logger_params = @config.make_file_logger_params
-      logger = Logger.new(*file_logger_params)
+      *file_logger_params, file_logger_opts = @config.make_file_logger_params
+      logger = Logger.new(*file_logger_params, **file_logger_opts)
 
-      stdout_logger_params = @config.make_stdout_logger_params
+      *stdout_logger_params, stdout_logger_opts = @config.make_stdout_logger_params
       unless (daemon && @config.daemonize?) then
-        logger += Logger.new(*stdout_logger_params)
+        logger += Logger.new(*stdout_logger_params, **stdout_logger_opts)
       end
 
-      protocol_logger_params = @config.make_protocol_logger_params
-      protocol_logger = Logger.new(*protocol_logger_params)
+      *protocol_logger_params, protocol_logger_opts = @config.make_protocol_logger_params
+      protocol_logger = Logger.new(*protocol_logger_params, **protocol_logger_opts)
 
       logger.info('preload libraries.')
       Riser.preload
@@ -897,17 +897,17 @@ module RIMS
         file_logger_params[1..-2].each_with_index do |value, i|
           logger.info("file logging parameter: shift_args[#{i}]=#{value}")
         end
-        for name, value in file_logger_params[-1]
+        for name, value in file_logger_opts
           logger.info("file logging parameter: #{name}=#{value}")
         end
-        for name, value in stdout_logger_params[-1]
+        for name, value in stdout_logger_opts
           logger.info("stdout logging parameter: #{name}=#{value}")
         end
         logger.info("protocol logging parameter: path=#{protocol_logger_params[0]}")
         protocol_logger_params[1..-2].each_with_index do |value, i|
           logger.info("protocol logging parameter: shift_args[#{i}]=#{value}")
         end
-        for name, value in protocol_logger_params[-1]
+        for name, value in protocol_logger_opts
           logger.info("protocol logging parameter: #{name}=#{value}")
         end
         logger.info("listen address: #{server_socket.local_address.inspect_sockaddr}")
