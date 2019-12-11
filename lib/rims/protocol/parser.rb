@@ -232,7 +232,7 @@ module RIMS
         @mail_store = mail_store
         @folder = folder
         @charset_aliases = charset_aliases
-        @charset_convert_options = charset_convert_options
+        @charset_convert_options = charset_convert_options || {}
         @charset = nil
         @mail_cache = Hash.new{|hash, uid|
           if (msg_txt = @mail_store.msg_text(@folder.mbox_id, uid)) then
@@ -269,7 +269,7 @@ module RIMS
         if (string.encoding == @charset) then
           string
         else
-          string.encode(@charset, @charset_convert_options)
+          string.encode(@charset, **@charset_convert_options)
         end
       end
       private :encode_charset
