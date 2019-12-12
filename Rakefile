@@ -36,6 +36,10 @@ desc 'Build README.html from markdown source'
 task :readme => %w[ README.html ]
 CLOBBER.include 'README.html'
 
+desc 'Build CHANGELOG.html from markdown source'
+task :changelog => %w[ CHANGELOG.html ]
+CLOBBER.include 'CHANGELOG.html'
+
 namespace :test_cert do
   tls_dir = Pathname('test/tls')
 
