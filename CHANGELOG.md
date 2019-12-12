@@ -1,6 +1,24 @@
 Change Log
 ==========
 
+0.2.9
+-----
+Released on 2019-12-12.
+
+### Added
+- Add `umask(2)` configuration parameter. [#29](https://github.com/y10k/rims/issues/29)
+- Add debug logging for conflicted subscriber error. This problem is
+  not solved because it does not reappear. [#28](https://github.com/y10k/rims/issues/28)
+
+### Changed
+- Ready to Ruby 2.7. [#35](https://github.com/y10k/rims/issues/35)
+
+### Fixed
+- Fix a bug of detached thread finishing a protocol decoder engine.
+- Make bulk message size of inter-process communication not exceeding `DRb`'s `load_limit`.
+  [#30](https://github.com/y10k/rims/issues/30)
+  [#33](https://github.com/y10k/rims/issues/33)
+
 0.2.8
 -----
 Released on 2019-10-10.
