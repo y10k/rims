@@ -159,6 +159,7 @@ module RIMS::Test
 
       # drb_services engine:
       '--bulk-response-count'            => [ %W[ -f #{BASE_DIR}/config.yml --bulk-response-count=128 ] ],
+      '--bulk-response-size'             => [ %W[ -f #{BASE_DIR}/config.yml --bulk-response-size=33554432 ] ],
       '--read-lock-timeout'              => [ %W[ -f #{BASE_DIR}/config.yml --read-lock-timeout=10 ] ],
       '--write-lock-timeout'             => [ %W[ -f #{BASE_DIR}/config.yml --write-lock-timeout=10 ] ],
       '--clenup-write-lock-timeout'      => [ %W[ -f #{BASE_DIR}/config.yml --write-lock-timeout=5 ] ],

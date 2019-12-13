@@ -552,6 +552,16 @@ module RIMS
                  })
         }
       end
+      options.on('--bulk-response-size=SIZE',
+                 Integer) do |size|
+        build.chain{|c|
+          c.load(drb_services: {
+                   engine: {
+                     bulk_response_size: size
+                   }
+                 })
+        }
+      end
       options.on('--read-lock-timeout=SECONDS',
                  Float
                 ) do |seconds|
