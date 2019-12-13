@@ -176,6 +176,7 @@ module RIMS
       #     load_limit: 134217728
       #     engine:
       #       bulk_response_count: 100
+      #       bulk_response_size: 33554432
       #       read_lock_timeout_seconds: 30
       #       write_lock_timeout_seconds: 30
       #       cleanup_write_lock_timeout_seconds: 1
@@ -646,6 +647,10 @@ module RIMS
         @config.dig('drb_services', 'engine', 'bulk_response_count') || 100
       end
 
+      def bulk_response_size
+        @config.dig('drb_services', 'engine', 'bulk_response_size') || 1024**2 * 10
+      end
+
       def read_lock_timeout_seconds
         @config.dig('drb_services', 'engine', 'read_lock_timeout_seconds') ||
           @config.dig('read_lock_timeout_seconds') || # for backward compatibility
@@ -876,6 +881,7 @@ module RIMS
                                                   mail_store = MailStore.build(unique_user_id, kvs_meta_open, kvs_text_open)
                                                   Protocol::Decoder::Engine.new(unique_user_id, mail_store, logger,
                                                                                 bulk_response_count: @config.bulk_response_count,
+                                                                                bulk_response_size: @config.bulk_response_size,
                                                                                 read_lock_timeout_seconds: @config.read_lock_timeout_seconds,
                                                                                 write_lock_timeout_seconds: @config.write_lock_timeout_seconds,
                                                                                 cleanup_write_lock_timeout_seconds: @config.cleanup_write_lock_timeout_seconds,
@@ -1000,6 +1006,7 @@ module RIMS
           logger.info("drb_services client config parameter: #{name}=#{value}")
         end
         logger.info("drb_services engine parameter: bulk_response_count=#{@config.bulk_response_count}")
+        logger.info("drb_services engine parameter: bulk_response_size=#{@config.bulk_response_size}")
         logger.info("drb_services engine parameter: read_lock_timeout_seconds=#{@config.read_lock_timeout_seconds}")
         logger.info("drb_services engine parameter: write_lock_timeout_seconds=#{@config.write_lock_timeout_seconds}")
         logger.info("drb_services engine parameter: cleanup_write_lock_timeout_seconds=#{@config.cleanup_write_lock_timeout_seconds}")

@@ -863,6 +863,21 @@ module RIMS::Test
       assert_equal(expected_value, @c.bulk_response_count)
     end
 
+    data('default' => [ 1024**2 * 10, {} ],
+         'config'  => [ 33554432,
+                        { drb_services: {
+                            engine: {
+                              bulk_response_size: 33554432
+                            }
+                          }
+                        }
+                      ])
+    def test_bulk_response_size(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.bulk_response_size)
+    end
+
     data('default'  => [ 30, {} ],
          'config'   => [ 15,
                          { drb_services: {
