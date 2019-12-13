@@ -85,7 +85,7 @@ module RIMS
         apply_imap_command.call(:ok_greeting)
 
         conn_timer = ConnectionTimer.new(limits, input.to_io)
-        request_reader = RequestReader.new(input, output, logger)
+        request_reader = decoder.make_requrest_reader(input, output)
 
         until (conn_timer.command_wait_timeout?)
           conn_timer.command_wait or break
@@ -339,6 +339,10 @@ module RIMS
         @drb_services = drb_services
         @mail_delivery_user = mail_delivery_user
         @logger.debug("RIMS::Protocol::InitialDecoder#initialize at #{self}") if @logger.debug?
+      end
+
+      def make_requrest_reader(input, output)
+        RequestReader.new(input, output, @logger)
       end
 
       def auth?
