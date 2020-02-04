@@ -1902,7 +1902,7 @@ module RIMS
       end
       imap_command :check
 
-      def close(tag, &block)
+      def close(tag)
         ret_val = nil
         old_token = @token
         @token = nil
@@ -1964,7 +1964,7 @@ module RIMS
       end
       imap_command :store
 
-      def copy(tag, msg_set, mbox_name, uid: false, &block)
+      def copy(tag, msg_set, mbox_name, uid: false)
         ret_val = nil
         @engine.copy(@token, tag, msg_set, mbox_name, uid: uid) {|res|
           for response in res
@@ -1976,7 +1976,7 @@ module RIMS
       end
       imap_command :copy
 
-      def idle(tag, client_input_gets, server_output_write, connection_timer, &block)
+      def idle(tag, client_input_gets, server_output_write, connection_timer)
         ret_val = nil
         @engine.idle(@token, tag, client_input_gets, server_output_write, connection_timer) {|res|
           for response in res
