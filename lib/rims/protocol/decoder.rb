@@ -868,22 +868,40 @@ module RIMS
 
         class << self
           def imap_command_authenticated(name, **guard_optional)
+            name = name.to_sym
             orig_name = "_#{name}".to_sym
             alias_method orig_name, name
-            define_method name, lambda{|token, tag, *args, **kw_args, &block|
-              guard_authenticated(orig_name, token, tag, *args, **kw_args, **guard_optional, &block)
-            }
-            name.to_sym
+
+            guard_options_name = "_#{name}_guard_options".to_sym
+            define_method guard_options_name, lambda{ guard_optional }
+            private guard_options_name
+
+            class_eval(<<-EOF, __FILE__, __LINE__ + 1)
+              def #{name}(token, tag, *args, **kw_args, &block)
+                guard_authenticated(:#{orig_name}, token, tag, *args, **kw_args, **#{guard_options_name}, &block)
+              end
+            EOF
+
+            name
           end
           private :imap_command_authenticated
 
           def imap_command_selected(name, **guard_optional)
+            name = name.to_sym
             orig_name = "_#{name}".to_sym
             alias_method orig_name, name
-            define_method name, lambda{|token, tag, *args, **kw_args, &block|
-              guard_selected(orig_name, token, tag, *args, **kw_args, **guard_optional, &block)
-            }
-            name.to_sym
+
+            guard_options_name = "_#{name}_guard_options".to_sym
+            define_method guard_options_name, lambda{ guard_optional }
+            private guard_options_name
+
+            class_eval(<<-EOF, __FILE__, __LINE__ + 1)
+              def #{name}(token, tag, *args, **kw_args, &block)
+                guard_selected(:#{orig_name}, token, tag, *args, **kw_args, **#{guard_options_name}, &block)
+              end
+            EOF
+
+            name
           end
           private :imap_command_selected
         end
