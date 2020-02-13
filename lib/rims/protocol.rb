@@ -57,14 +57,14 @@ module RIMS
     end
     module_function :decode_base64
 
-    autoload :FetchBody, 'rims/protocol/parser'
-    autoload :RequestReader, 'rims/protocol/parser'
+    autoload :FetchBody,            'rims/protocol/parser'
+    autoload :RequestReader,        'rims/protocol/parser'
     autoload :AuthenticationReader, 'rims/protocol/parser'
-    autoload :SearchParser, 'rims/protocol/parser'
-    autoload :FetchParser, 'rims/protocol/parser'
-    autoload :ConnectionLimits, 'rims/protocol/connection'
-    autoload :ConnectionTimer, 'rims/protocol/connection'
-    autoload :Decoder, 'rims/protocol/decoder'
+    autoload :SearchParser,         'rims/protocol/parser'
+    autoload :FetchParser,          'rims/protocol/parser'
+    autoload :ConnectionLimits,     'rims/protocol/connection'
+    autoload :ConnectionTimer,      'rims/protocol/connection'
+    autoload :Decoder,              'rims/protocol/decoder'
 
     def body(symbol: nil, option: nil, section: nil, section_list: nil, partial_origin: nil, partial_size: nil)
       FetchBody.new(symbol, option, section, section_list, partial_origin, partial_size)
