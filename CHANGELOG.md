@@ -1,6 +1,29 @@
 Change Log
 ==========
 
+<!--
+subsections:
+### Added
+### Changed
+### Removed
+### Fixed
+-->
+
+0.3.0
+-----
+
+### Added
+- Input size limits.
+  [#34](https://github.com/y10k/rims/issues/34)
+- Configurable bulk_response_size parameter.
+  [#36](https://github.com/y10k/rims/issues/36)
+
+### Changed
+- Ready to Ruby 2.7.
+  [#35](https://github.com/y10k/rims/issues/35)
+- Semantic versioning.
+  [#37](https://github.com/y10k/rims/issues/37)
+
 0.2.9
 -----
 Released on 2019-12-12.
