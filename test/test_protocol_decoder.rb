@@ -257,8 +257,10 @@ module RIMS::Test
     end
     private :open_mail_store
 
+    LINE_LENGTH_LIMIT = 128
+
     def make_decoder
-      RIMS::Protocol::Decoder.new_decoder(@drb_services, @auth, @logger)
+      RIMS::Protocol::Decoder.new_decoder(@drb_services, @auth, @logger, line_length_limit: LINE_LENGTH_LIMIT)
     end
     private :make_decoder
 
@@ -6336,6 +6338,63 @@ module RIMS::Test
     def test_charset_convert_options_stream
       use_imap_stream_decode_engine
       test_charset_convert_options
+    end
+
+    # always run in stream
+    def test_command_line_too_long_error
+      use_imap_stream_decode_engine
+      imap_decode_engine_evaluate{
+        assert_untagged_response{|assert|
+          assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        }
+
+        assert_imap_command('APPEND INBOX ' + 'x' * LINE_LENGTH_LIMIT) {|assert|
+          assert.equal('* BAD line too long')
+          assert.equal('* BYE server autologout: connection terminated')
+        }
+      }
+    end
+
+    # always run in stream
+    def test_authenticate_line_too_long_error
+      use_imap_stream_decode_engine
+      imap_decode_engine_evaluate{
+        assert_untagged_response{|assert|
+          assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        }
+
+        assert_imap_command('AUTHENTICATE plain',
+                            client_input_text: 'x' * LINE_LENGTH_LIMIT + "\r\n") {|assert|
+          assert.equal('+ ')
+          assert.equal('* BAD line too long')
+          assert.equal('* BYE server autologout: connection terminated')
+        }
+      }
+    end
+
+    # always run in stream
+    def test_idle_line_too_long_error
+      use_imap_stream_decode_engine
+      imap_decode_engine_evaluate{
+        assert_untagged_response{|assert|
+          assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+        }
+
+        assert_imap_command('LOGIN foo open_sesame') {|assert|
+          assert.equal("#{tag} OK LOGIN completed")
+        }
+
+        assert_imap_command('SELECT INBOX') {|assert|
+          assert.skip_while{|line| line =~ /^\* / }
+          assert.equal("#{tag} OK [READ-WRITE] SELECT completed")
+        }
+
+        assert_imap_command('IDLE', client_input_text: 'DONE' + ' ' * LINE_LENGTH_LIMIT +  "\r\n") {|assert|
+          assert.match(/^\+ /)
+          assert.equal('* BAD line too long')
+          assert.equal('* BYE server autologout: connection terminated')
+        }
+      }
     end
   end
 

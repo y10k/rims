@@ -37,7 +37,6 @@ module RIMS
       end
 
       def self.repl(decoder, limits, input, output, logger)
-        input_gets = input.method(:gets)
         output_write = lambda{|data|
           begin
             if (data == :flush) then
@@ -86,89 +85,101 @@ module RIMS
 
         conn_timer = ConnectionTimer.new(limits, input.to_io)
         request_reader = decoder.make_requrest_reader(input, output)
+        input_gets = request_reader.method(:gets)
 
-        until (conn_timer.command_wait_timeout?)
-          conn_timer.command_wait or break
+        begin
+          until (conn_timer.command_wait_timeout?)
+            conn_timer.command_wait or break
 
-          begin
-            atom_list = request_reader.read_command
-          rescue
-            logger.error('invalid client command.')
-            logging_error_chain($!, logger)
-            response_write.call("* BAD client command syntax error\r\n")
-            next
-          end
+            begin
+              atom_list = request_reader.read_command
+            rescue LineTooLongError
+              raise
+            rescue
+              logger.error('invalid client command.')
+              logging_error_chain($!, logger)
+              response_write.call("* BAD client command syntax error\r\n")
+              next
+            end
 
-          break unless atom_list
+            break unless atom_list
 
-          tag, command, *opt_args = atom_list
-          normalized_command = imap_command_normalize(command)
-          logger.info("client command: #{tag} #{command}")
-          if (logger.debug?) then
-            case (normalized_command)
-            when 'LOGIN'
-              log_opt_args = opt_args.dup
-              log_opt_args[-1] = '********'
-            when 'AUTHENTICATE'
-              if (opt_args[1]) then
+            tag, command, *opt_args = atom_list
+            normalized_command = imap_command_normalize(command)
+            logger.info("client command: #{tag} #{command}")
+            if (logger.debug?) then
+              case (normalized_command)
+              when 'LOGIN'
                 log_opt_args = opt_args.dup
-                log_opt_args[1] = '********'
+                log_opt_args[-1] = '********'
+              when 'AUTHENTICATE'
+                if (opt_args[1]) then
+                  log_opt_args = opt_args.dup
+                  log_opt_args[1] = '********'
+                else
+                  log_opt_args = opt_args
+                end
               else
                 log_opt_args = opt_args
               end
-            else
-              log_opt_args = opt_args
+              logger.debug("client command parameter: #{log_opt_args.inspect}")
             end
-            logger.debug("client command parameter: #{log_opt_args.inspect}")
-          end
 
-          begin
-            if (name = IMAP_CMDs[normalized_command]) then
-              case (name)
-              when :uid
-                unless (opt_args.empty?) then
-                  uid_command, *uid_args = opt_args
-                  logger.info("uid command: #{uid_command}")
-                  logger.debug("uid parameter: #{uid_args}") if logger.debug?
-                  if (uid_name = UID_CMDs[imap_command_normalize(uid_command)]) then
-                    apply_imap_command.call(uid_name, tag, *uid_args, uid: true)
+            begin
+              if (name = IMAP_CMDs[normalized_command]) then
+                case (name)
+                when :uid
+                  unless (opt_args.empty?) then
+                    uid_command, *uid_args = opt_args
+                    logger.info("uid command: #{uid_command}")
+                    logger.debug("uid parameter: #{uid_args}") if logger.debug?
+                    if (uid_name = UID_CMDs[imap_command_normalize(uid_command)]) then
+                      apply_imap_command.call(uid_name, tag, *uid_args, uid: true)
+                    else
+                      logger.error("unknown uid command: #{uid_command}")
+                      response_write.call("#{tag} BAD unknown uid command\r\n")
+                    end
                   else
-                    logger.error("unknown uid command: #{uid_command}")
-                    response_write.call("#{tag} BAD unknown uid command\r\n")
+                    logger.error('empty uid parameter.')
+                    response_write.call("#{tag} BAD empty uid parameter\r\n")
                   end
+                when :authenticate
+                  apply_imap_command.call(:authenticate, tag, input_gets, server_output_write, *opt_args)
+                when :idle
+                  apply_imap_command.call(:idle, tag, input_gets, server_output_write, conn_timer, *opt_args)
                 else
-                  logger.error('empty uid parameter.')
-                  response_write.call("#{tag} BAD empty uid parameter\r\n")
+                  apply_imap_command.call(name, tag, *opt_args)
                 end
-              when :authenticate
-                apply_imap_command.call(:authenticate, tag, input_gets, server_output_write, *opt_args)
-              when :idle
-                apply_imap_command.call(:idle, tag, input_gets, server_output_write, conn_timer, *opt_args)
               else
-                apply_imap_command.call(name, tag, *opt_args)
+                logger.error("unknown command: #{command}")
+                response_write.call("#{tag} BAD unknown command\r\n")
               end
-            else
-              logger.error("unknown command: #{command}")
-              response_write.call("#{tag} BAD unknown command\r\n")
+            rescue LineTooLongError
+              raise
+            rescue
+              logger.error('unexpected error.')
+              logging_error_chain($!, logger)
+              response_write.call("#{tag} BAD unexpected error\r\n")
             end
-          rescue
-            logger.error('unexpected error.')
-            logging_error_chain($!, logger)
-            response_write.call("#{tag} BAD unexpected error\r\n")
+
+            if (normalized_command == 'LOGOUT') then
+              break
+            end
+
+            decoder = decoder.next_decoder
           end
-
-          if (normalized_command == 'LOGOUT') then
-            break
-          end
-
-          decoder = decoder.next_decoder
-        end
-
-        if (conn_timer.command_wait_timeout?) then
-          if (limits.command_wait_timeout_seconds > 0) then
-            response_write.call("* BYE server autologout: idle for too long\r\n")
-          else
-            response_write.call("* BYE server autologout: shutdown\r\n")
+        rescue LineTooLongError
+          logger.error('line too long error.')
+          logging_error_chain($!, logger)
+          response_write.call("* BAD line too long\r\n")
+          response_write.call("* BYE server autologout: connection terminated\r\n")
+        else
+          if (conn_timer.command_wait_timeout?) then
+            if (limits.command_wait_timeout_seconds > 0) then
+              response_write.call("* BYE server autologout: idle for too long\r\n")
+            else
+              response_write.call("* BYE server autologout: shutdown\r\n")
+            end
           end
         end
 
@@ -198,6 +209,8 @@ module RIMS
           else
             __send__(imap_command, tag, *args, **kw_args, &block)
           end
+        rescue LineTooLongError
+          raise
         rescue SyntaxError
           @logger.error('client command syntax error.')
           logging_error_chain($!)
@@ -334,15 +347,17 @@ module RIMS
       end
 
       def initialize(drb_services, auth, logger,
-                     mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user)
+                     mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user,
+                     line_length_limit: 1024*8)
         super(auth, logger)
         @drb_services = drb_services
         @mail_delivery_user = mail_delivery_user
+        @line_length_limit = line_length_limit
         @logger.debug("RIMS::Protocol::InitialDecoder#initialize at #{self}") if @logger.debug?
       end
 
       def make_requrest_reader(input, output)
-        RequestReader.new(input, output, @logger)
+        RequestReader.new(input, output, @logger, line_length_limit: @line_length_limit)
       end
 
       def auth?
