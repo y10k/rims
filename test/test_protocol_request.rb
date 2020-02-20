@@ -7,12 +7,47 @@ require 'test/unit'
 
 module RIMS::Test
   class ProtocolRequestReaderTest < Test::Unit::TestCase
+    LINE_LENGTH_LIMIT = 128
+
     def setup
       @input = StringIO.new('', 'r')
       @output = StringIO.new('', 'w')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
-      @reader = RIMS::Protocol::RequestReader.new(@input, @output, @logger)
+      @reader = RIMS::Protocol::RequestReader.new(@input, @output, @logger, line_length_limit: LINE_LENGTH_LIMIT)
+    end
+
+    data('EOF' => [
+           nil,
+           ''
+         ],
+         'short_line_length' => [
+           "foo\r\n",
+           "foo\r\n"
+         ],
+         'upper_bound_line_length' => [
+           'x' * (LINE_LENGTH_LIMIT - 2) + "\r\n",
+           'x' * (LINE_LENGTH_LIMIT - 2) + "\r\n"
+         ])
+    def test_gets(data)
+      expected_line, input_line = data
+      @input.string = input_line
+      assert_equal(expected_line, @reader.gets)
+    end
+
+    data('too_long_line_length' => [
+           'x' * LINE_LENGTH_LIMIT,
+           'x' * LINE_LENGTH_LIMIT + "yyy\r\n"
+         ],
+         'upper_bound_line_length' => [
+           'x' * LINE_LENGTH_LIMIT,
+           'x' * LINE_LENGTH_LIMIT
+         ])
+    def test_gets_line_too_long_error
+      expected_line_fragment, input_line = data
+      @input.string = input_line
+      error = assert_raise(RIMS::LineTooLongError) { @reader.gets }
+      assert_equal(expected_line_fragment, error.optional_data[:line_fragment])
     end
 
     LITERAL_1 = <<-'EOF'
@@ -94,6 +129,15 @@ body[]
       assert_raise(StopIteration) { cmd_cont_req.next }
     end
 
+    def test_test_scan_line_line_too_long_error
+      line = 'A003 APPEND saved-messages (\Seen) ' + "{#{LITERAL_1.bytesize}}"
+      @input.string = LITERAL_1 + ' x' * LINE_LENGTH_LIMIT + "\r\n"
+
+      assert_raise(RIMS::LineTooLongError) {
+        @reader.scan_line(line)
+      }
+    end
+
     data('EOF'               => [ nil,                                           nil ],
          'empty'             => [ [],                                            "\n" ],
          'tagged_command'    => [ %w[ abcd CAPABILITY ],                         "abcd CAPABILITY\n" ],
@@ -164,6 +208,11 @@ body[]
       assert_match(/^\+ /, cmd_cont_req.next)
       assert_match(/^\+ /, cmd_cont_req.next)
       assert_raise(StopIteration) { cmd_cont_req.next }
+    end
+
+    def test_read_line_line_too_long_error
+      @input.string = 'tag' + ' x' * LINE_LENGTH_LIMIT + "\r\n"
+      assert_raise(RIMS::LineTooLongError) { @reader.read_line }
     end
 
     data('empty'           => [ [],                                 [] ],
@@ -323,6 +372,11 @@ body[]
       else
         assert_equal('', @output.string)
       end
+    end
+
+    def test_read_command_line_too_long_error
+      @input.string = 'tag' + ' x' * LINE_LENGTH_LIMIT + "\r\n"
+      assert_raise(RIMS::LineTooLongError) { @reader.read_command }
     end
   end
 end

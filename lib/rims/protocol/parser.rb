@@ -33,14 +33,27 @@ module RIMS
     end
 
     class RequestReader
-      def initialize(input, output, logger)
+      def initialize(input, output, logger, line_length_limit: 1024*8)
         @input = input
         @output = output
         @logger = logger
+        @line_length_limit = line_length_limit
+      end
+
+      def gets
+        if (line = @input.gets($/, @line_length_limit)) then # arguments compatible with OpenSSL::Buffering#gets
+          if (line.bytesize < @line_length_limit) then
+            line
+          elsif (line.bytesize == @line_length_limit && (line.end_with? $/)) then
+            line
+          else
+            raise LineTooLongError.new('line too long.', line_fragment: line)
+          end
+        end
       end
 
       def read_line
-        line = @input.gets or return
+        line = gets or return
         @logger.debug("read line: #{Protocol.io_data_log(line)}") if @logger.debug?
         line.chomp!("\n")
         line.chomp!("\r")
