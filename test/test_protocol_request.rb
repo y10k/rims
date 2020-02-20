@@ -2,6 +2,7 @@
 
 require 'logger'
 require 'rims'
+require 'stringio'
 require 'test/unit'
 
 module RIMS::Test
