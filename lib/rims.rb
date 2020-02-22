@@ -15,6 +15,7 @@ module RIMS
   autoload :Hash_KeyValueStore,     'rims/hash_kvs'
   autoload :IllegalLockError,       'rims/lock'
   autoload :KeyValueStore,          'rims/kvs'
+  autoload :LineTooLongError,       'rims/protocol'
   autoload :LockError,              'rims/lock'
   autoload :MailFolder,             'rims/mail_store'
   autoload :MailStore,              'rims/mail_store'

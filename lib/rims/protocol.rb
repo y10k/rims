@@ -7,6 +7,9 @@ module RIMS
   class SyntaxError < ProtocolError
   end
 
+  class LineTooLongError < SyntaxError
+  end
+
   class MessageSetSyntaxError < SyntaxError
   end
 
