@@ -533,7 +533,7 @@ module RIMS
                  })
         }
       end
-      options.on('--drb-load-limit=NUMBER',
+      options.on('--drb-load-limit=SIZE',
                  Integer
                 ) do |size|
         build.chain{|c|
