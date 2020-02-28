@@ -141,6 +141,9 @@ module RIMS::Test
       '--read-polling-interval'          => [ %W[ -f #{BASE_DIR}/config.yml --read-polling-interval=5 ] ],
       '--command-wait-timeout'           => [ %W[ -f #{BASE_DIR}/config.yml --command-wait-timeout=3600 ] ],
 
+      # protocol:
+      '--line-length-limit'              => [ %W[ -f #{BASE_DIR}/config.yml --line-length-limit=16384 ] ],
+
       # charset aliases:
       '--use-default-charset-aliases'    => [ %W[ -f #{BASE_DIR}/config.yml --use-default-charset-aliases ] ],
       '--no-use-default-charset-aliases' => [ %W[ -f #{BASE_DIR}/config.yml --no-use-default-charset-aliases ] ],

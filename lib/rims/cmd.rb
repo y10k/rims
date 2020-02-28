@@ -472,6 +472,15 @@ module RIMS
                  })
         }
       end
+      options.on('--line-length-limit=SIZE',
+                 Integer
+                ) do |size|
+        build.chain{|c|
+          c.load(protocol: {
+                   line_length_limit: size
+                 })
+        }
+      end
       options.on('--[no-]use-default-charset-aliases'
                 ) do |use_default_aliases|
         build.chain{|c|
