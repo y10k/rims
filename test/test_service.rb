@@ -717,6 +717,14 @@ module RIMS::Test
       assert_equal(expected_values, limits.to_h)
     end
 
+    data('default' => [ 1024 * 8,  {} ],
+         'config'  => [ 1024 * 16, { protocol: { line_length_limit: 1024 * 16 } } ])
+    def test_protocol_line_length_limit(data)
+      expected_value, config = data
+      @c.load(config)
+      assert_equal(expected_value, @c.protocol_line_length_limit)
+    end
+
     data('default'                 => [ [ [ 'EUC-JP',      Encoding::EUCJP_MS ],
                                           [ 'ISO-2022-JP', Encoding::CP50221 ],
                                           [ 'SHIFT_JIS',   Encoding::WINDOWS_31J ]
