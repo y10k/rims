@@ -4,10 +4,13 @@ module RIMS
   class ProtocolError < Error
   end
 
-  class SyntaxError < ProtocolError
+  class ReadSizeError < ProtocolError
   end
 
-  class LineTooLongError < SyntaxError
+  class LineTooLongError < ReadSizeError
+  end
+
+  class SyntaxError < ProtocolError
   end
 
   class MessageSetSyntaxError < SyntaxError

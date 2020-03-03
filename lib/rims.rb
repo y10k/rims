@@ -25,6 +25,7 @@ module RIMS
   autoload :RFC822,                 'rims/rfc822'
   autoload :ReadLockError,          'rims/lock'
   autoload :ReadLockTimeoutError,   'rims/lock'
+  autoload :ReadSizeError,          'rims/protocol'
   autoload :ReadWriteLock,          'rims/lock'
   autoload :ServerResponseChannel,  'rims/channel'
   autoload :Service,                'rims/service'
