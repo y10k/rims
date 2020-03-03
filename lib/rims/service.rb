@@ -998,6 +998,7 @@ module RIMS
         logger.info("connection parameter: send_buffer_limit_size=#{@config.send_buffer_limit_size}")
         logger.info("connection parameter: read_polling_interval_seconds=#{conn_limits.read_polling_interval_seconds}")
         logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
+        logger.info("protocol parameter: line_length_limit=#{@config.protocol_line_length_limit}")
         @config.charset_aliases.each_with_index do |(name, enc), i|
           logger.info("charset aliases parameter: alias[#{i}]: #{name} -> #{enc.name}")
         end
