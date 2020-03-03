@@ -10,6 +10,15 @@ module RIMS
   class LineTooLongError < ReadSizeError
   end
 
+  class LiteralSizeTooLargeError < ReadSizeError
+    def initialize(message=nil, command_tag=nil, **kw_args)
+      super(message, **kw_args)
+      @command_tag = command_tag
+    end
+
+    attr_reader :command_tag
+  end
+
   class SyntaxError < ProtocolError
   end
 
