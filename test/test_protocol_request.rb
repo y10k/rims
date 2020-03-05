@@ -165,6 +165,7 @@ body[]
       expected_atom_list, input_string, is_literal = data
       @input.string = input_string if input_string
       assert_equal(expected_atom_list, @reader.read_command)
+      assert_equal(expected_atom_list[0], @reader.command_tag) if expected_atom_list
 
       if (is_literal) then
         cmd_cont_req = @output.string.each_line
@@ -180,6 +181,7 @@ body[]
 
       @input.string = "A284 SEARCH CHARSET UTF-8 TEXT {#{literal[0].bytesize}}\n" + literal[0] + " TEXT {#{literal[1].bytesize}}\n" + literal[1] + "\n"
       assert_equal([ 'A284', 'SEARCH', 'CHARSET', 'UTF-8', 'TEXT', literal[0], 'TEXT', literal[1] ], @reader.read_command)
+      assert_equal('A284', @reader.command_tag)
       assert_equal('', @input.read)
 
       cmd_cont_req = @output.string.each_line
@@ -194,14 +196,15 @@ body[]
       assert_match(/need for tag/, error.message)
     end
 
-    data('*' => '*',
-         '+' => '+')
+    data('*'          => %w[ * * ],
+         '+'          => %w[ + + ],
+         'not_string' => [ '{123}', [ :literal, 123 ] ])
     def test_read_command_invalid_tag_error(data)
-      invalid_tag = data
-      @input.string = "#{invalid_tag} noop\r\n"
+      invalid_tag, parsed_tag = data
+      @input.string = invalid_tag
       error = assert_raise(RIMS::SyntaxError) { @reader.read_command }
       assert_match(/invalid command tag/, error.message)
-      assert_include(error.message, invalid_tag)
+      assert_include(error.message, parsed_tag.to_s)
     end
 
     def test_read_command_line_too_long_error

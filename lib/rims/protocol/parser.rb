@@ -101,7 +101,10 @@ module RIMS
         @output = output
         @logger = logger
         @line_length_limit = line_length_limit
+        @command_tag = nil
       end
+
+      attr_reader :command_tag
 
       def gets
         if (line = @input.gets($/, @line_length_limit)) then # arguments compatible with OpenSSL::Buffering#gets
@@ -134,6 +137,13 @@ module RIMS
         line.chomp!("\r")
         atom_list = self.class.scan(line)
 
+        if (@command_tag.nil? && ! atom_list.empty?) then
+          unless ((atom_list[0].is_a? String) && ! (atom_list[0].start_with? '*', '+')) then
+            raise SyntaxError, "invalid command tag: #{atom_list[0]}"
+          end
+          @command_tag = atom_list[0]
+        end
+
         if ((atom_list[-1].is_a? Array) && (atom_list[-1][0] == :literal)) then
           atom_list[-1] = read_literal(atom_list[-1][1])
           next_atom_list = read_line or raise 'unexpected client close.'
@@ -145,15 +155,13 @@ module RIMS
       private :read_line
 
       def read_command
+        @command_tag = nil
         while (atom_list = read_line)
           if (atom_list.empty?) then
             next
           end
           if (atom_list.length < 2) then
             raise SyntaxError, 'need for tag and command.'
-          end
-          if (atom_list[0] =~ /\A [*+]/x) then
-            raise SyntaxError, "invalid command tag: #{atom_list[0]}"
           end
           return self.class.parse(atom_list)
         end
