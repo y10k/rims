@@ -38,8 +38,7 @@ module RIMS
       module_function :message_data_list
 
       def make_body(description)
-        reader = RIMS::Protocol::RequestReader.new(StringIO.new('', 'r'), StringIO.new('', 'w'), Logger.new(STDOUT))
-        reader.parse(reader.scan_line(description))[0]
+        RIMS::Protocol::RequestReader.parse(RIMS::Protocol::RequestReader.scan(description))[0]
       end
       private :make_body
 

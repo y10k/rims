@@ -205,7 +205,7 @@ module RIMS
           if (atom_list[0] =~ /\A [*+]/x) then
             raise SyntaxError, "invalid command tag: #{atom_list[0]}"
           end
-          return parse(atom_list)
+          return self.class.parse(atom_list)
         end
 
         nil
