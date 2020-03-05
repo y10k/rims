@@ -70,83 +70,6 @@ body[]
 
     LITERAL_3 = 'body[]'
 
-    data('EOF'               => [ nil,                                           nil ],
-         'empty'             => [ [],                                            "\n" ],
-         'tagged_command'    => [ %w[ abcd CAPABILITY ],                         "abcd CAPABILITY\n" ],
-         'tagged_response'   => [ %w[ abcd OK CAPABILITY completed ],            "abcd OK CAPABILITY completed\n" ],
-         'untagged_response' => [ %w[ * CAPABILITY IMAP4rev1 AUTH=KERBEROS_V4 ], "* CAPABILITY IMAP4rev1 AUTH=KERBEROS_V4\n" ],
-         'untagged_exists'   => [ %w[ * 172 EXISTS ],                            "* 172 EXISTS\n" ],
-         'untagged_unseen' => [
-           [ '*', 'OK', '['.intern, 'UNSEEN', '12', ']'.intern, 'Message', '12', 'is', 'first', 'unseen', ],
-           "* OK [UNSEEN 12] Message 12 is first unseen\n"
-         ],
-         'untagged_flags' => [
-           [ '*', 'FLAGS', '('.intern, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft', ')'.intern ],
-           "* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\n"
-         ],
-         'untagged_permanentflags' => [
-           [ '*', 'OK', '['.intern, 'PERMANENTFLAGS', '('.intern, '\Deleted', '\Seen', '\*', ')'.intern, ']'.intern, 'Limited' ],
-           "* OK [PERMANENTFLAGS (\\Deleted \\Seen \\*)] Limited\n"
-         ],
-         'list_empty_reference' => [
-           [ 'A82', 'LIST', '', '*' ],
-           "A82 LIST \"\" *\n"
-         ],
-         'untagged_list_delimiter' => [
-           [ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo' ],
-           "* LIST (\\Noselect) \"/\" foo\n"
-         ],
-         'untagged_list_quoted_name' => [
-           [ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo [bar] (baz)' ],
-           "* LIST (\\Noselect) \"/\" \"foo [bar] (baz)\""
-         ],
-         'untagged_list_nil_delimiter' => [
-           [ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ],
-           "* LIST (\\Noselect) NIL \"\"\n"
-         ],
-         'fetch_body_command' => [
-           [ 'A654', 'FETCH', '2:4',
-             '('.intern,
-             [ :body, RIMS::Protocol.body(symbol: 'BODY', section: '') ],
-             ')'.intern
-           ],
-           "A654 FETCH 2:4 (BODY[])\n"
-         ])
-    def test_read_line(data)
-      expected_atom_list, line = data
-      @input.string = line if line
-      assert_equal(expected_atom_list, @reader.read_line)
-      assert_equal('', @output.string)
-    end
-
-    def test_read_line_string_literal
-      @input.string = "A003 APPEND saved-messages (\\Seen) {#{LITERAL_1.bytesize}}\n" + LITERAL_1 + "\n"
-      assert_equal([ 'A003', 'APPEND', 'saved-messages', '('.intern, '\Seen', ')'.intern, LITERAL_1 ], @reader.read_line)
-      assert_equal('', @input.read)
-
-      cmd_cont_req = @output.string.each_line
-      assert_match(/^\+ /, cmd_cont_req.next)
-      assert_raise(StopIteration) { cmd_cont_req.next }
-    end
-
-    def test_read_line_string_literal_multi
-      literal = RIMS::RFC822::Parse.split_message(LITERAL_1)
-
-      @input.string = "* ({#{literal[0].bytesize}}\n" + literal[0] + " {#{literal[1].bytesize}}\n" + literal[1] + ")\n"
-      assert_equal([ '*', '('.intern, literal[0], literal[1], ')'.intern ], @reader.read_line)
-      assert_equal('', @input.read)
-
-      cmd_cont_req = @output.string.each_line
-      assert_match(/^\+ /, cmd_cont_req.next)
-      assert_match(/^\+ /, cmd_cont_req.next)
-      assert_raise(StopIteration) { cmd_cont_req.next }
-    end
-
-    def test_read_line_line_too_long_error
-      @input.string = 'tag' + ' x' * LINE_LENGTH_LIMIT + "\r\n"
-      assert_raise(RIMS::LineTooLongError) { @reader.read_line }
-    end
-
     data('empty'                           => [ nil,                                nil ],
          'newline'                         => [ nil,                                "\n" ],
          'whitespaces'                     => [ nil,                                " \t\n" ],
@@ -250,6 +173,19 @@ body[]
       else
         assert_equal('', @output.string)
       end
+    end
+
+    def test_read_command_string_literal_multi
+      literal = RIMS::RFC822::Parse.split_message(LITERAL_1)
+
+      @input.string = "A284 SEARCH CHARSET UTF-8 TEXT {#{literal[0].bytesize}}\n" + literal[0] + " TEXT {#{literal[1].bytesize}}\n" + literal[1] + "\n"
+      assert_equal([ 'A284', 'SEARCH', 'CHARSET', 'UTF-8', 'TEXT', literal[0], 'TEXT', literal[1] ], @reader.read_command)
+      assert_equal('', @input.read)
+
+      cmd_cont_req = @output.string.each_line
+      assert_match(/^\+ /, cmd_cont_req.next)
+      assert_match(/^\+ /, cmd_cont_req.next)
+      assert_raise(StopIteration) { cmd_cont_req.next }
     end
 
     def test_read_command_no_tag_error

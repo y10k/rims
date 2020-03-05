@@ -142,6 +142,7 @@ module RIMS
 
         atom_list
       end
+      private :read_line
 
       def read_command
         while (atom_list = read_line)
