@@ -33,6 +33,43 @@ module RIMS
     end
 
     class RequestReader
+      def self.scan(line)
+        atom_list = line.scan(/BODY(?:\.\S+)?\[.*?\](?:<\d+\.\d+>)?|[\[\]()]|".*?"|[^\[\]()\s]+/i).map{|s|
+          case (s)
+          when '(', ')', '[', ']', /\A NIL \z/ix
+            s.upcase.intern
+          when /\A "/x
+            s.sub(/\A "/x, '').sub(/" \z/x, '')
+          when /
+                 \A
+                 (?<body_symbol>BODY) (?:\. (?<body_option>\S+))? \[ (?<body_section>.*) \]
+                 (?:< (?<partial_origin>\d+) \. (?<partial_size>\d+) >)?
+                 \z
+               /ix
+            body_symbol = $~[:body_symbol]
+            body_option = $~[:body_option]
+            body_section = $~[:body_section]
+            partial_origin = $~[:partial_origin] && $~[:partial_origin].to_i
+            partial_size = $~[:partial_size] && $~[:partial_size].to_i
+            [ :body,
+              Protocol.body(symbol: body_symbol,
+                            option: body_option,
+                            section: body_section,
+                            partial_origin: partial_origin,
+                            partial_size: partial_size)
+            ]
+          else
+            s
+          end
+        }
+        if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /\A {\d+} \z/x)) then
+          literal_size = $&[1..-2].to_i
+          atom_list[-1] = [ :literal, literal_size ]
+        end
+
+        atom_list
+      end
+
       def initialize(input, output, logger, line_length_limit: 1024*8)
         @input = input
         @output = output

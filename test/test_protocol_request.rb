@@ -403,6 +403,58 @@ body[]
       assert_equal("x\r\n", @input.read, 'not read end of line')
     end
   end
+
+  class ProtocolRequestReaderClassMethodTest < Test::Unit::TestCase
+    data('empty'             => [ [],                                            '' ],
+         'tagged_command'    => [ %w[ abcd CAPABILITY ],                         'abcd CAPABILITY' ],
+         'tagged_response'   => [ %w[ abcd OK CAPABILITY completed ],            'abcd OK CAPABILITY completed' ],
+         'untagged_response' => [ %w[ * CAPABILITY IMAP4rev1 AUTH=KERBEROS_V4 ], '* CAPABILITY IMAP4rev1 AUTH=KERBEROS_V4' ],
+         'untagged_exists'   => [ %w[ * 172 EXISTS ],                            '* 172 EXISTS' ],
+         'untagged_unseen' => [
+           [ '*', 'OK', '['.intern, 'UNSEEN', '12', ']'.intern, 'Message', '12', 'is', 'first', 'unseen' ],
+           '* OK [UNSEEN 12] Message 12 is first unseen'
+         ],
+         'untagged_flags' => [
+           [ '*', 'FLAGS', '('.intern, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft', ')'.intern ],
+           '* FLAGS (\Answered \Flagged \Deleted \Seen \Draft)'
+         ],
+         'untagged_permanentflags' => [
+           [ '*', 'OK', '['.intern, 'PERMANENTFLAGS', '('.intern, '\Deleted', '\Seen', '\*', ')'.intern, ']'.intern, 'Limited' ],
+           '* OK [PERMANENTFLAGS (\Deleted \Seen \*)] Limited'
+         ],
+         'list_empty_reference' => [
+           [ 'A82', 'LIST', '', '*' ],
+           'A82 LIST "" *'
+         ],
+         'untagged_list_delimiter' => [
+           [ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo' ],
+           '* LIST (\Noselect) "/" foo'
+         ],
+         'untagged_list_quoted_name' => [
+           [ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, '/', 'foo [bar] (baz)' ],
+           '* LIST (\Noselect) "/" "foo [bar] (baz)"'
+         ],
+         'untagged_list_nil_delimiter' => [
+           [ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ],
+           '* LIST (\Noselect) NIL ""'
+         ],
+         'fetch_body_command' => [
+           [ 'A654', 'FETCH', '2:4',
+             '('.intern,
+             [ :body, RIMS::Protocol.body(symbol: 'BODY', section: '') ],
+             ')'.intern
+           ],
+           'A654 FETCH 2:4 (BODY[])'
+         ],
+         'append_literal' => [
+           [ 'A003', 'APPEND', 'saved-messages', '('.intern, '\Seen', ')'.intern, [ :literal, 310 ] ],
+           'A003 APPEND saved-messages (\Seen) {310}'
+         ])
+    def test_scan(data)
+      expected_atom_list, line = data
+      assert_equal(expected_atom_list, RIMS::Protocol::RequestReader.scan(line))
+    end
+  end
 end
 
 # Local Variables:
