@@ -374,6 +374,22 @@ body[]
       end
     end
 
+    def test_read_command_no_tag_error
+      @input.string = "noop\r\n"
+      error = assert_raise(RIMS::SyntaxError) { @reader.read_command }
+      assert_match(/need for tag/, error.message)
+    end
+
+    data('*' => '*',
+         '+' => '+')
+    def test_read_command_invalid_tag_error(data)
+      invalid_tag = data
+      @input.string = "#{invalid_tag} noop\r\n"
+      error = assert_raise(RIMS::SyntaxError) { @reader.read_command }
+      assert_match(/invalid command tag/, error.message)
+      assert_include(error.message, invalid_tag)
+    end
+
     def test_read_command_line_too_long_error
       line = 'X001 x'
       while (line.bytesize < LINE_LENGTH_LIMIT)

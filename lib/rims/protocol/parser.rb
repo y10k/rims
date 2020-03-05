@@ -137,10 +137,10 @@ module RIMS
             next
           end
           if (atom_list.length < 2) then
-            raise 'need for tag and command.'
+            raise SyntaxError, 'need for tag and command.'
           end
           if (atom_list[0] =~ /\A [*+]/x) then
-            raise "invalid command tag: #{atom_list[0]}"
+            raise SyntaxError, "invalid command tag: #{atom_list[0]}"
           end
           return parse(atom_list)
         end
