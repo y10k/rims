@@ -143,51 +143,6 @@ module RIMS
         atom_list
       end
 
-      def scan_line(line)
-        atom_list = line.scan(/BODY(?:\.\S+)?\[.*?\](?:<\d+\.\d+>)?|[\[\]()]|".*?"|[^\[\]()\s]+/i).map{|s|
-          case (s)
-          when '(', ')', '[', ']', /\A NIL \z/ix
-            s.upcase.intern
-          when /\A "/x
-            s.sub(/\A "/x, '').sub(/" \z/x, '')
-          when /
-                 \A
-                 (?<body_symbol>BODY) (?:\. (?<body_option>\S+))? \[ (?<body_section>.*) \]
-                 (?:< (?<partial_origin>\d+) \. (?<partial_size>\d+) >)?
-                 \z
-               /ix
-            body_symbol = $~[:body_symbol]
-            body_option = $~[:body_option]
-            body_section = $~[:body_section]
-            partial_origin = $~[:partial_origin] && $~[:partial_origin].to_i
-            partial_size = $~[:partial_size] && $~[:partial_size].to_i
-            [ :body,
-              Protocol.body(symbol: body_symbol,
-                            option: body_option,
-                            section: body_section,
-                            partial_origin: partial_origin,
-                            partial_size: partial_size)
-            ]
-          else
-            s
-          end
-        }
-        if ((atom_list[-1].is_a? String) && (atom_list[-1] =~ /\A {\d+} \z/x)) then
-          next_size = $&[1..-2].to_i
-          @logger.debug("found literal: #{next_size} octets.") if @logger.debug?
-          @output.write("+ continue\r\n")
-          @output.flush
-          @logger.debug('continue literal.') if @logger.debug?
-          literal_string = @input.read(next_size) or raise 'unexpected client close.'
-          @logger.debug("read literal: #{Protocol.io_data_log(literal_string)}") if @logger.debug?
-          atom_list[-1] = literal_string
-          next_atom_list = read_line or raise 'unexpected client close.'
-          atom_list += next_atom_list
-        end
-
-        atom_list
-      end
-
       def read_command
         while (atom_list = read_line)
           if (atom_list.empty?) then
