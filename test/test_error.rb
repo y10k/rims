@@ -4,7 +4,7 @@ require 'rims'
 require 'test/unit'
 
 module RIMS::Test
-  class TestError < Test::Unit::TestCase
+  class ErrorTest < Test::Unit::TestCase
     def test_optional_data
       error = RIMS::Error.new('test', foo: 1, bar: '2')
       assert_equal('test', error.message)
