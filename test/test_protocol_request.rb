@@ -215,60 +215,6 @@ body[]
       assert_raise(RIMS::LineTooLongError) { @reader.read_line }
     end
 
-    data('empty'           => [ [],                                 [] ],
-         'tagged_command'  => [ %w[ abcd CAPABILITY ],              %w[ abcd CAPABILITY ] ],
-         'tagged_response' => [ %w[ abcd OK CAPABILITY completed ], %w[ abcd OK CAPABILITY completed ] ],
-         'untagged_unseen' => [
-           [ '*', 'OK', [ :block, 'UNSEEN', '12' ], 'Message', '12', 'is', 'first', 'unseen' ],
-           [ '*', 'OK', '['.intern, 'UNSEEN', '12', ']'.intern, 'Message', '12', 'is', 'first', 'unseen' ]
-         ],
-         'untagged_flags' =>[
-           [ '*', 'FLAGS', [ :group,  '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft' ] ],
-           [ '*', 'FLAGS', '('.intern, '\Answered', '\Flagged', '\Deleted', '\Seen', '\Draft', ')'.intern ]
-         ],
-         'untagged_permanentflags' => [
-           [ '*', 'OK', [ :block, 'PERMANENTFLAGS', [ :group, '\Deleted', '\Seen', '\*' ] ], 'Limited' ],
-           [ '*', 'OK', '['.intern, 'PERMANENTFLAGS', '('.intern, '\Deleted', '\Seen', '\*', ')'.intern, ']'.intern, 'Limited' ]
-         ],
-         'untagged_list_nil_delimiter' => [
-           [ '*', 'LIST', [ :group, '\Noselect' ], :NIL, '' ],
-           [ '*', 'LIST', '('.intern, '\Noselect', ')'.intern, :NIL, '' ]
-         ],
-         'fetch_body_command' => [
-           [ 'A654', 'FETCH', '2:4',
-             [ :group,
-               [ :body,
-                 RIMS::Protocol.body(symbol:       'BODY',
-                                     section:      '',
-                                     section_list: [])
-               ]
-             ]
-           ],
-           [ 'A654',                   'FETCH',                             '2:4',
-             '('.intern,
-             [ :body,                  RIMS::Protocol.body(symbol:  'BODY', section: '') ],
-             ')'.intern
-           ]
-         ],
-         'append_command' => [
-           [ 'A003',                   'APPEND',                            'saved-messages', "foo\nbody[]\nbar\n" ],
-           [ 'A003',                   'APPEND',                            'saved-messages', "foo\nbody[]\nbar\n" ]
-         ])
-    def test_parse(data)
-      expected_atom_list,              input_atom_list = data
-      assert_equal(expected_atom_list, @reader.parse(input_atom_list))
-      assert_equal('',                 @output.string)
-    end
-
-    data('unclosed_square_bracket' => [ '*', 'OK',   '['.intern, 'UNSEEN', '12' ],
-         'unclosed_parenthesis'    => [ '*', 'LIST', '('.intern, '\Noselect' ])
-    def test_parse_not_found_a_terminator_error(data)
-      input_atom_list = data
-      error = assert_raise(RIMS::SyntaxError) { @reader.parse(input_atom_list) }
-      assert_match(/not found a terminator/, error.message)
-      assert_equal('', @output.string)
-    end
-
     data('empty'                           => [ nil,                                nil ],
          'newline'                         => [ nil,                                "\n" ],
          'whitespaces'                     => [ nil,                                " \t\n" ],

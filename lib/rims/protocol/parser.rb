@@ -168,32 +168,6 @@ module RIMS
         atom_list
       end
 
-      def parse(atom_list, last_atom=nil)
-        syntax_list = []
-        while (atom = atom_list.shift)
-          case (atom)
-          when last_atom
-            break
-          when :'('
-            syntax_list.push([ :group ] + parse(atom_list, :')'))
-          when :'['
-            syntax_list.push([ :block ] + parse(atom_list, :']'))
-          else
-            if ((atom.is_a? Array) && (atom[0] == :body)) then
-              body = atom[1]
-              body.section_list = parse(scan_line(body.section))
-            end
-            syntax_list.push(atom)
-          end
-        end
-
-        if (atom == nil && last_atom != nil) then
-          raise SyntaxError, "not found a terminator: `#{last_atom}'"
-        end
-
-        syntax_list
-      end
-
       def read_command
         while (atom_list = read_line)
           if (atom_list.empty?) then
