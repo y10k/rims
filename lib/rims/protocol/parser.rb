@@ -115,12 +115,32 @@ module RIMS
         end
       end
 
+      def read_literal(size)
+        @logger.debug("found literal: #{size} octets.") if @logger.debug?
+        @output.write("+ continue\r\n")
+        @output.flush
+        @logger.debug('continue literal.') if @logger.debug?
+        literal_string = @input.read(size) or raise 'unexpected client close.'
+        @logger.debug("read literal: #{Protocol.io_data_log(literal_string)}") if @logger.debug?
+
+        literal_string
+      end
+      private :read_literal
+
       def read_line
         line = gets or return
         @logger.debug("read line: #{Protocol.io_data_log(line)}") if @logger.debug?
         line.chomp!("\n")
         line.chomp!("\r")
-        scan_line(line)
+        atom_list = self.class.scan(line)
+
+        if ((atom_list[-1].is_a? Array) && (atom_list[-1][0] == :literal)) then
+          atom_list[-1] = read_literal(atom_list[-1][1])
+          next_atom_list = read_line or raise 'unexpected client close.'
+          atom_list += next_atom_list
+        end
+
+        atom_list
       end
 
       def scan_line(line)
