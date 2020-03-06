@@ -98,7 +98,7 @@ module RIMS
             rescue
               logger.error('invalid client command.')
               logging_error_chain($!, logger)
-              response_write.call("* BAD client command syntax error\r\n")
+              response_write.call("#{request_reader.command_tag || '*'} BAD client command syntax error\r\n")
               next
             end
 

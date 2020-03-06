@@ -5482,11 +5482,11 @@ module RIMS::Test
     end
 
     def test_error_handling_stream
-      use_imap_stream_decode_engine
+      use_imap_stream_decode_engine # always run in stream
       imap_decode_engine_evaluate{
         assert_imap_command('') {|assert|
           assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
-          assert.equal('* BAD client command syntax error')
+          assert.equal("#{tag} BAD client command syntax error")
         }
 
         assert_imap_command('no_command') {|assert|
@@ -5503,6 +5503,16 @@ module RIMS::Test
 
         assert_imap_command('noop detarame') {|assert|
           assert.equal("#{tag} BAD invalid command parameter")
+        }
+
+        @tag = '*T000'
+        assert_imap_command('noop') {|assert|
+          assert.equal('* BAD client command syntax error')
+        }
+
+        @tag = '+T000'
+        assert_imap_command('noop') {|assert|
+          assert.equal('* BAD client command syntax error')
         }
       }
     end
