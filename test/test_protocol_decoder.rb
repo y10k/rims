@@ -257,10 +257,13 @@ module RIMS::Test
     end
     private :open_mail_store
 
-    LINE_LENGTH_LIMIT = 128
+    LINE_LENGTH_LIMIT  = 128
+    LITERAL_SIZE_LIMIT = 1024**2
 
     def make_decoder
-      RIMS::Protocol::Decoder.new_decoder(@drb_services, @auth, @logger, line_length_limit: LINE_LENGTH_LIMIT)
+      RIMS::Protocol::Decoder.new_decoder(@drb_services, @auth, @logger,
+                                          line_length_limit: LINE_LENGTH_LIMIT,
+                                          literal_size_limit: LITERAL_SIZE_LIMIT)
     end
     private :make_decoder
 
@@ -5569,6 +5572,10 @@ module RIMS::Test
 
         assert_imap_command('noop detarame') {|assert|
           assert.equal("#{tag} BAD invalid command parameter")
+        }
+
+        assert_imap_command("APPEND INBOX {#{LITERAL_SIZE_LIMIT + 1}}") {|assert|
+          assert.equal("#{tag} BAD literal size too large")
         }
 
         @tag = '*T000'
