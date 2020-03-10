@@ -375,8 +375,16 @@ body[]
     end
 
     def test_read_command_line_too_long_error
-      @input.string = 'tag' + ' x' * LINE_LENGTH_LIMIT + "\r\n"
+      line = 'X001 x'
+      while (line.bytesize < LINE_LENGTH_LIMIT)
+        line << 'x'
+      end
+      line << "x\r\n"
+      assert_operator(line.bytesize, :>, LINE_LENGTH_LIMIT)
+
+      @input.string = line
       assert_raise(RIMS::LineTooLongError) { @reader.read_command }
+      assert_equal("x\r\n", @input.read, 'not read end of line')
     end
   end
 end
