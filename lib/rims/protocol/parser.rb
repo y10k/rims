@@ -96,11 +96,12 @@ module RIMS
         syntax_list
       end
 
-      def initialize(input, output, logger, line_length_limit: 1024*8)
+      def initialize(input, output, logger, line_length_limit: 1024*8, literal_size_limit: (1024**2)*10)
         @input = input
         @output = output
         @logger = logger
         @line_length_limit = line_length_limit
+        @literal_size_limit = literal_size_limit
         @command_tag = nil
       end
 
@@ -120,6 +121,9 @@ module RIMS
 
       def read_literal(size)
         @logger.debug("found literal: #{size} octets.") if @logger.debug?
+        if (size > @literal_size_limit) then
+          raise LiteralSizeTooLargeError.new('literal size too large', @command_tag)
+        end
         @output.write("+ continue\r\n")
         @output.flush
         @logger.debug('continue literal.') if @logger.debug?

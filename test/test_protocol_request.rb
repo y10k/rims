@@ -7,14 +7,17 @@ require 'test/unit'
 
 module RIMS::Test
   class ProtocolRequestReaderTest < Test::Unit::TestCase
-    LINE_LENGTH_LIMIT = 128
+    LINE_LENGTH_LIMIT  = 128
+    LITERAL_SIZE_LIMIT = 1024**2
 
     def setup
       @input = StringIO.new('', 'r')
       @output = StringIO.new('', 'w')
       @logger = Logger.new(STDOUT)
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
-      @reader = RIMS::Protocol::RequestReader.new(@input, @output, @logger, line_length_limit: LINE_LENGTH_LIMIT)
+      @reader = RIMS::Protocol::RequestReader.new(@input, @output, @logger,
+                                                  line_length_limit: LINE_LENGTH_LIMIT,
+                                                  literal_size_limit: LITERAL_SIZE_LIMIT)
     end
 
     data('EOF' => [
@@ -160,6 +163,11 @@ body[]
            [ 'A005', 'APPEND', 'saved-messages', LITERAL_3 ],
            "A005 APPEND saved-messages {#{LITERAL_3.bytesize}}\n" + LITERAL_3 + "\n",
            true
+         ],
+         'append_literal_size_limit' => [
+           [ 'A005', 'APPEND', 'saved-messages', 'x' * LITERAL_SIZE_LIMIT ],
+           "A005 APPEND saved-messages {#{LITERAL_SIZE_LIMIT}}\n" + 'x' * LITERAL_SIZE_LIMIT  + "\n",
+           true
          ])
     def test_read_command(data)
       expected_atom_list, input_string, is_literal = data
@@ -218,6 +226,12 @@ body[]
       @input.string = line
       assert_raise(RIMS::LineTooLongError) { @reader.read_command }
       assert_equal("x\r\n", @input.read, 'not read end of line')
+    end
+
+    def test_read_command_literal_size_too_large_error
+      @input.string = "A001 APPEND saved-messages {#{LITERAL_SIZE_LIMIT + 1}}\n" + 'x' * (LITERAL_SIZE_LIMIT + 1)  + "\n"
+      assert_raise(RIMS::LiteralSizeTooLargeError) { @reader.read_command }
+      assert_equal('x' * (LITERAL_SIZE_LIMIT + 1)  + "\n", @input.read, 'not read literal')
     end
   end
 
