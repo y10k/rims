@@ -6451,9 +6451,8 @@ module RIMS::Test
       test_charset_convert_options
     end
 
-    # always run in stream
-    def test_command_line_too_long_error
-      use_imap_stream_decode_engine
+    def test_command_line_too_long_error_stream
+      use_imap_stream_decode_engine # always run in stream
       imap_decode_engine_evaluate{
         assert_untagged_response{|assert|
           assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
@@ -6466,9 +6465,8 @@ module RIMS::Test
       }
     end
 
-    # always run in stream
-    def test_authenticate_line_too_long_error
-      use_imap_stream_decode_engine
+    def test_authenticate_line_too_long_error_stream
+      use_imap_stream_decode_engine # always run in stream
       imap_decode_engine_evaluate{
         assert_untagged_response{|assert|
           assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
@@ -6483,9 +6481,8 @@ module RIMS::Test
       }
     end
 
-    # always run in stream
-    def test_idle_line_too_long_error
-      use_imap_stream_decode_engine
+    def test_idle_line_too_long_error_stream
+      use_imap_stream_decode_engine # always run in stream
       imap_decode_engine_evaluate{
         assert_untagged_response{|assert|
           assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
