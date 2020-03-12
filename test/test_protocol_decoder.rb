@@ -1987,6 +1987,72 @@ module RIMS::Test
       test_append_utf7_mbox_name
     end
 
+    def test_append_literal_stream
+      make_mail_simple
+      make_mail_multipart
+      make_mail_mime_subject
+
+      use_imap_stream_decode_engine # always run in stream
+      imap_decode_engine_evaluate{
+        if (stream_test?) then
+          assert_untagged_response{|assert|
+            assert.equal("* OK RIMS v#{RIMS::VERSION} IMAP4rev1 service ready.")
+          }
+        end
+
+        assert_imap_command('LOGIN foo open_sesame') {|assert|
+          assert.equal("#{tag} OK LOGIN completed")
+        }
+
+        open_mail_store{
+          assert_msg_uid()
+        }
+
+        assert_imap_command("APPEND INBOX {#{@simple_mail.raw_source.bytesize}}",
+                            client_input_text: @simple_mail.raw_source + "\r\n") {|assert|
+          assert.match(/^\+ /)
+          assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
+        }
+
+        open_mail_store{
+          assert_msg_uid(1)
+          assert_equal(@simple_mail.raw_source, get_msg_text(1))
+          assert_msg_flags(1, recent: true)
+        }
+
+        assert_imap_command("APPEND INBOX {#{@mpart_mail.raw_source.bytesize}}",
+                            client_input_text: @mpart_mail.raw_source + "\r\n") {|assert|
+          assert.match(/^\+ /)
+          assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
+        }
+
+        open_mail_store{
+          assert_msg_uid(1, 2)
+          assert_equal(@mpart_mail.raw_source, get_msg_text(2))
+          assert_msg_flags(2, recent: true)
+        }
+
+        assert_imap_command("APPEND INBOX {#{@mime_subject_mail.raw_source.bytesize}}",
+                            client_input_text: @mime_subject_mail.raw_source + "\r\n") {|assert|
+          assert.match(/^\+ /)
+          assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
+        }
+
+        open_mail_store{
+          assert_msg_uid(1, 2, 3)
+          assert_equal(@mime_subject_mail.raw_source, get_msg_text(3))
+          assert_msg_flags(3, recent: true)
+        }
+
+        assert_imap_command('LOGOUT') {|assert|
+          assert.match(/^\* BYE /)
+          assert.equal("#{tag} OK LOGOUT completed")
+        }
+
+        assert_imap_closed
+      }
+    end
+
     def test_check
       imap_decode_engine_evaluate{
         if (stream_test?) then
