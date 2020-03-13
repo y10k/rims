@@ -143,6 +143,7 @@ module RIMS::Test
 
       # protocol:
       '--line-length-limit'              => [ %W[ -f #{BASE_DIR}/config.yml --line-length-limit=16384 ] ],
+      '--literal-size-limit'             => [ %W[ -f #{BASE_DIR}/config.yml --literal-size-limit=16777216 ] ],
 
       # charset aliases:
       '--use-default-charset-aliases'    => [ %W[ -f #{BASE_DIR}/config.yml --use-default-charset-aliases ] ],
