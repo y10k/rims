@@ -160,6 +160,7 @@ module RIMS
       #     command_wait_timeout_seconds: 1800
       #   protocol:
       #     line_length_limit: 8192
+      #     literal_size_limit: 10485760
       #   charset:
       #     use_default_aliases: true
       #     aliases:
@@ -571,6 +572,10 @@ module RIMS
 
       def protocol_line_length_limit
         @config.dig('protocol', 'line_length_limit') || 1024 * 8
+      end
+
+      def protocol_literal_size_limit
+        @config.dig('protocol', 'literal_size_limit') || 1024**2 * 10
       end
 
       def charset_aliases
@@ -999,6 +1004,7 @@ module RIMS
         logger.info("connection parameter: read_polling_interval_seconds=#{conn_limits.read_polling_interval_seconds}")
         logger.info("connection parameter: command_wait_timeout_seconds=#{conn_limits.command_wait_timeout_seconds}")
         logger.info("protocol parameter: line_length_limit=#{@config.protocol_line_length_limit}")
+        logger.info("protocol parameter: literal_size_limit=#{@config.protocol_literal_size_limit}")
         @config.charset_aliases.each_with_index do |(name, enc), i|
           logger.info("charset aliases parameter: alias[#{i}]: #{name} -> #{enc.name}")
         end
@@ -1066,7 +1072,8 @@ module RIMS
                 stream = Riser::LoggingStream.new(stream, protocol_logger)
                 decoder = Protocol::Decoder.new_decoder(drb_services, auth, logger,
                                                         mail_delivery_user: @config.mail_delivery_user,
-                                                        line_length_limit: @config.protocol_line_length_limit)
+                                                        line_length_limit: @config.protocol_line_length_limit,
+                                                        literal_size_limit: @config.protocol_literal_size_limit)
                 Protocol::Decoder.repl(decoder, conn_limits, stream, stream, logger)
               ensure
                 if (stream) then
