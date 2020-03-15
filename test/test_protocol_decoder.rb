@@ -382,6 +382,17 @@ module RIMS::Test
     end
     private :assert_imap_command
 
+    def assert_imap_closed
+      if (stream_test?) then
+        assert_raise(Errno::EPIPE, StopIteration) {
+          assert_imap_command('NOOP') {|assert|
+            assert.equal("#{tag} OK NOOP completed")
+          }
+        }
+      end
+    end
+    private :assert_imap_closed
+
     def client_plain_response_base64(authentication_id, plain_password)
       response_txt = [ authentication_id, authentication_id, plain_password ].join("\0")
       RIMS::Protocol.encode_base64(response_txt)
@@ -564,6 +575,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -609,6 +622,8 @@ module RIMS::Test
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
+
+        assert_imap_closed
       }
     end
 
@@ -660,6 +675,8 @@ module RIMS::Test
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
+
+        assert_imap_closed
       }
     end
 
@@ -715,6 +732,8 @@ module RIMS::Test
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
+
+        assert_imap_closed
       }
     end
 
@@ -757,6 +776,8 @@ module RIMS::Test
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
+
+        assert_imap_closed
       }
     end
 
@@ -838,6 +859,8 @@ module RIMS::Test
           assert_equal(false, @decoder.selected?)
         end
 
+        assert_imap_closed
+
         open_mail_store{
           assert_msg_uid(                      2, 3)
           assert_flag_enabled_msgs('answered',     )
@@ -888,6 +911,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -969,6 +994,8 @@ module RIMS::Test
           assert_equal(false, @decoder.selected?)
         end
 
+        assert_imap_closed
+
         open_mail_store{
           assert_msg_uid(                      1, 2, 3)
           assert_flag_enabled_msgs('answered',        )
@@ -1019,6 +1046,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1068,6 +1097,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1104,6 +1135,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1176,6 +1209,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1216,6 +1251,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1295,6 +1332,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1342,6 +1381,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1411,6 +1452,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1521,6 +1564,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1559,6 +1604,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1665,6 +1712,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1696,6 +1745,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1763,6 +1814,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1883,6 +1936,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1922,6 +1977,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -1983,6 +2040,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -2094,6 +2153,8 @@ module RIMS::Test
           assert_equal(false, @decoder.auth?)
           assert_equal(false, @decoder.selected?)
         end
+
+        assert_imap_closed
       }
     end
 
@@ -2198,6 +2259,8 @@ module RIMS::Test
           assert_equal(false, @decoder.auth?)
           assert_equal(false, @decoder.selected?)
         end
+
+        assert_imap_closed
       }
     end
 
@@ -2348,6 +2411,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -2424,6 +2489,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -2553,6 +2620,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -2670,6 +2739,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -2794,6 +2865,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -2865,6 +2938,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -2929,6 +3004,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -3082,6 +3159,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -3234,6 +3313,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -3586,6 +3667,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -3888,6 +3971,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -4240,6 +4325,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -4542,6 +4629,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -4711,6 +4800,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -4915,6 +5006,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -5119,6 +5212,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -5172,6 +5267,8 @@ module RIMS::Test
           assert.match(/^\* BYE /)
           assert.equal("#{tag} OK LOGOUT completed")
         }
+
+        assert_imap_closed
       }
     end
 
@@ -5264,6 +5361,8 @@ module RIMS::Test
           assert_equal(false, @decoder.auth?)
           assert_equal(false, @decoder.selected?)
         end
+
+        assert_imap_closed
       }
     end
 
@@ -5372,6 +5471,8 @@ module RIMS::Test
           assert_equal(false, @decoder.auth?)
           assert_equal(false, @decoder.selected?)
         end
+
+        assert_imap_closed
       }
     end
 
@@ -5434,6 +5535,8 @@ module RIMS::Test
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
+
+        assert_imap_closed
       }
     end
 
@@ -5590,6 +5693,8 @@ module RIMS::Test
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
+
+        assert_imap_closed
       }
     end
 
@@ -5648,6 +5753,8 @@ module RIMS::Test
         }
 
         assert_equal(false, @decoder.auth?) if command_test?
+
+        assert_imap_closed
       }
     end
 
@@ -6251,6 +6358,8 @@ module RIMS::Test
           assert_equal(false, @decoder.auth?)
           assert_equal(false, @decoder.selected?)
         end
+
+        assert_imap_closed
       }
     end
 
@@ -6332,6 +6441,8 @@ module RIMS::Test
           assert_equal(false, @decoder.auth?)
           assert_equal(false, @decoder.selected?)
         end
+
+        assert_imap_closed
       }
     end
 
