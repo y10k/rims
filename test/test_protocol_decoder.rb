@@ -6462,6 +6462,8 @@ module RIMS::Test
           assert.equal('* BAD line too long')
           assert.equal('* BYE server autologout: connection terminated')
         }
+
+        assert_imap_closed
       }
     end
 
@@ -6478,6 +6480,8 @@ module RIMS::Test
           assert.equal('* BAD line too long')
           assert.equal('* BYE server autologout: connection terminated')
         }
+
+        assert_imap_closed
       }
     end
 
@@ -6502,6 +6506,8 @@ module RIMS::Test
           assert.equal('* BAD line too long')
           assert.equal('* BYE server autologout: connection terminated')
         }
+
+        assert_imap_closed
       }
     end
   end
