@@ -61,7 +61,7 @@ module RIMS::Test
     end
   end
 
-  class PasswordHashSourceEntry < Test::Unit::TestCase
+  class PasswordHashSourceEntryTest < Test::Unit::TestCase
     def setup
       @digest_factory = Digest::SHA256
       @hash_type = 'SHA256'
