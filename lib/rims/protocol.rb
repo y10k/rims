@@ -22,6 +22,9 @@ module RIMS
   class LiteralSizeTooLargeError < RecoverableReadSizeError
   end
 
+  class CommandSizeTooLargeError < RecoverableReadSizeError
+  end
+
   class SyntaxError < ProtocolError
   end
 

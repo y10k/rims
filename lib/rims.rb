@@ -8,6 +8,7 @@ module RIMS
   autoload :Authentication,           'rims/auth'
   autoload :Checksum_KeyValueStore,   'rims/cksum_kvs'
   autoload :Cmd,                      'rims/cmd'
+  autoload :CommandSizeTooLargeError, 'rims/protocol'
   autoload :DB,                       'rims/db'
   autoload :Error,                    'rims/error'
   autoload :GDBM_KeyValueStore,       'rims/gdbm_kvs'
