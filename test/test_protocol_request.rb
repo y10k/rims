@@ -12,6 +12,7 @@ module RIMS::Test
 
     LINE_LENGTH_LIMIT  = 128
     LITERAL_SIZE_LIMIT = 1024**2
+    COMMAND_SIZE_LIMIT = LITERAL_SIZE_LIMIT + LINE_LENGTH_LIMIT
 
     def setup
       @input = StringIO.new('', 'r')
@@ -20,7 +21,8 @@ module RIMS::Test
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL
       @reader = RIMS::Protocol::RequestReader.new(@input, @output, @logger,
                                                   line_length_limit: LINE_LENGTH_LIMIT,
-                                                  literal_size_limit: LITERAL_SIZE_LIMIT)
+                                                  literal_size_limit: LITERAL_SIZE_LIMIT,
+                                                  command_size_limit: COMMAND_SIZE_LIMIT)
     end
 
     data('EOF' => [
@@ -235,6 +237,18 @@ body[]
       @input.string = "A001 APPEND saved-messages #{literal('x' * (LITERAL_SIZE_LIMIT + 1))}\n"
       assert_raise(RIMS::LiteralSizeTooLargeError) { @reader.read_command }
       assert_equal('x' * (LITERAL_SIZE_LIMIT + 1)  + "\n", @input.read, 'not read literal')
+    end
+
+    def test_read_command_command_size_too_large_error_by_line
+      @input.string = "A001 APPEND #{literal('x' * LITERAL_SIZE_LIMIT)} #{'y' * (LINE_LENGTH_LIMIT - 2)}\n"
+      assert_raise(RIMS::CommandSizeTooLargeError) { @reader.read_command }
+      assert_equal('', @input.read, 'read whole a line')
+    end
+
+    def test_read_command_command_size_too_large_error_by_literal
+      @input.string = "A001 APPEND #{literal('x' * LITERAL_SIZE_LIMIT)} #{literal('y' * LITERAL_SIZE_LIMIT)}\n"
+      assert_raise(RIMS::CommandSizeTooLargeError) { @reader.read_command }
+      assert_equal('y' * (LITERAL_SIZE_LIMIT) + "\n", @input.read, 'not read literal')
     end
   end
 

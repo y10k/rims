@@ -96,13 +96,15 @@ module RIMS
         syntax_list
       end
 
-      def initialize(input, output, logger, line_length_limit: 1024*8, literal_size_limit: (1024**2)*10)
+      def initialize(input, output, logger, line_length_limit: 1024*8, literal_size_limit: (1024**2)*10, command_size_limit: (1024**2)*10)
         @input = input
         @output = output
         @logger = logger
         @line_length_limit = line_length_limit
         @literal_size_limit = literal_size_limit
+        @command_size_limit = command_size_limit
         @command_tag = nil
+        @read_size = 0
       end
 
       attr_reader :command_tag
@@ -124,10 +126,14 @@ module RIMS
         if (size > @literal_size_limit) then
           raise LiteralSizeTooLargeError.new('literal size too large', @command_tag)
         end
+        if (@read_size + size > @command_size_limit) then
+          raise CommandSizeTooLargeError.new('command size too large', @command_tag)
+        end
         @output.write("+ continue\r\n")
         @output.flush
         @logger.debug('continue literal.') if @logger.debug?
         literal_string = @input.read(size) or raise 'unexpected client close.'
+        @read_size += size
         @logger.debug("read literal: #{Protocol.io_data_log(literal_string)}") if @logger.debug?
 
         literal_string
@@ -139,6 +145,10 @@ module RIMS
         @logger.debug("read line: #{Protocol.io_data_log(line)}") if @logger.debug?
         line.chomp!("\n")
         line.chomp!("\r")
+        @read_size += line.bytesize
+        if (@read_size > @command_size_limit) then
+          raise CommandSizeTooLargeError.new('command size too large', @command_tag)
+        end
         atom_list = self.class.scan(line)
 
         if (@command_tag.nil? && ! atom_list.empty?) then
@@ -160,8 +170,10 @@ module RIMS
 
       def read_command
         @command_tag = nil
+        @read_size = 0
         while (atom_list = read_line)
           if (atom_list.empty?) then
+            @read_size = 0
             next
           end
           if (atom_list.length < 2) then
