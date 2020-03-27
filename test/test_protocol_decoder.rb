@@ -259,11 +259,13 @@ module RIMS::Test
 
     LINE_LENGTH_LIMIT  = 128
     LITERAL_SIZE_LIMIT = 1024**2
+    COMMAND_SIZE_LIMIT = LITERAL_SIZE_LIMIT + LINE_LENGTH_LIMIT
 
     def make_decoder
       RIMS::Protocol::Decoder.new_decoder(@drb_services, @auth, @logger,
                                           line_length_limit: LINE_LENGTH_LIMIT,
-                                          literal_size_limit: LITERAL_SIZE_LIMIT)
+                                          literal_size_limit: LITERAL_SIZE_LIMIT,
+                                          command_size_limit: COMMAND_SIZE_LIMIT)
     end
     private :make_decoder
 
@@ -5573,6 +5575,16 @@ module RIMS::Test
 
         assert_imap_command("APPEND INBOX {#{LITERAL_SIZE_LIMIT + 1}}") {|assert|
           assert.equal("#{tag} BAD literal size too large")
+        }
+
+        assert_imap_command("APPEND #{literal('x' * LITERAL_SIZE_LIMIT)} #{'y' * (LINE_LENGTH_LIMIT - 3)}") {|assert|
+          assert.match(/^\+ /)
+          assert.equal("#{tag} BAD command size too large") # by last line
+        }
+
+        assert_imap_command("APPEND #{literal('x' * LITERAL_SIZE_LIMIT)} {#{LITERAL_SIZE_LIMIT}}") {|assert|
+          assert.match(/^\+ /)
+          assert.equal("#{tag} BAD command size too large") # by last literal
         }
 
         @tag = '*T000'

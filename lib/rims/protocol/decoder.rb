@@ -100,6 +100,11 @@ module RIMS
               logging_error_chain($!, logger)
               response_write.call("#{request_reader.command_tag || '*'} BAD literal size too large\r\n")
               next
+            rescue CommandSizeTooLargeError
+              logger.error('command size too large error.')
+              logging_error_chain($!, logger)
+              response_write.call("#{request_reader.command_tag || '*'} BAD command size too large\r\n")
+              next
             rescue
               logger.error('invalid client command.')
               logging_error_chain($!, logger)
@@ -354,19 +359,22 @@ module RIMS
       def initialize(drb_services, auth, logger,
                      mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user,
                      line_length_limit: Service::DEFAULT_CONFIG.protocol_line_length_limit,
-                     literal_size_limit: Service::DEFAULT_CONFIG.protocol_literal_size_limit)
+                     literal_size_limit: Service::DEFAULT_CONFIG.protocol_literal_size_limit,
+                     command_size_limit: (1024**2)*10)
         super(auth, logger)
         @drb_services = drb_services
         @mail_delivery_user = mail_delivery_user
         @line_length_limit = line_length_limit
         @literal_size_limit = literal_size_limit
+        @command_size_limit = command_size_limit
         @logger.debug("RIMS::Protocol::InitialDecoder#initialize at #{self}") if @logger.debug?
       end
 
       def make_requrest_reader(input, output)
         RequestReader.new(input, output, @logger,
                           line_length_limit: @line_length_limit,
-                          literal_size_limit: @literal_size_limit)
+                          literal_size_limit: @literal_size_limit,
+                          command_size_limit: @command_size_limit)
       end
 
       def auth?
