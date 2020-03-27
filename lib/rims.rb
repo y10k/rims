@@ -28,6 +28,7 @@ module RIMS
   autoload :ReadLockTimeoutError,     'rims/lock'
   autoload :ReadSizeError,            'rims/protocol'
   autoload :ReadWriteLock,            'rims/lock'
+  autoload :RecoverableReadSizeError, 'rims/protocol'
   autoload :ServerResponseChannel,    'rims/channel'
   autoload :Service,                  'rims/service'
   autoload :SyntaxError,              'rims/protocol'
