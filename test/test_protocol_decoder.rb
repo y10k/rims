@@ -2011,8 +2011,7 @@ module RIMS::Test
           assert_msg_uid()
         }
 
-        assert_imap_command("APPEND INBOX {#{@simple_mail.raw_source.bytesize}}",
-                            client_input_text: @simple_mail.raw_source + "\r\n") {|assert|
+        assert_imap_command("APPEND INBOX #{literal(@simple_mail.raw_source)}") {|assert|
           assert.match(/^\+ /)
           assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
         }
@@ -2023,8 +2022,7 @@ module RIMS::Test
           assert_msg_flags(1, recent: true)
         }
 
-        assert_imap_command("APPEND INBOX {#{@mpart_mail.raw_source.bytesize}}",
-                            client_input_text: @mpart_mail.raw_source + "\r\n") {|assert|
+        assert_imap_command("APPEND INBOX #{literal(@mpart_mail.raw_source)}") {|assert|
           assert.match(/^\+ /)
           assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
         }
@@ -2035,8 +2033,7 @@ module RIMS::Test
           assert_msg_flags(2, recent: true)
         }
 
-        assert_imap_command("APPEND INBOX {#{@mime_subject_mail.raw_source.bytesize}}",
-                            client_input_text: @mime_subject_mail.raw_source + "\r\n") {|assert|
+        assert_imap_command("APPEND INBOX #{literal(@mime_subject_mail.raw_source)}") {|assert|
           assert.match(/^\+ /)
           assert.match(/^#{tag} OK \[APPENDUID \d+ \d+\] APPEND completed/)
         }
@@ -2777,13 +2774,13 @@ module RIMS::Test
         }
 
         utf8_msg = "\u306F\u306B\u307B"
-        assert_imap_command("SEARCH CHARSET utf-8 BODY {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert_imap_command("SEARCH CHARSET utf-8 BODY #{literal(utf8_msg)}".b) {|assert|
           assert.match(/^\+ /)
           assert.equal("* SEARCH 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
-        assert_imap_command("SEARCH CHARSET euc-jp BODY {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert_imap_command("SEARCH CHARSET euc-jp BODY #{literal(utf8_msg)}".b) {|assert|
           assert.match(/^\+ /)
           assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
@@ -2903,13 +2900,13 @@ module RIMS::Test
         }
 
         utf8_msg = "\u306F\u306B\u307B"
-        assert_imap_command("SEARCH CHARSET utf-8 TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert_imap_command("SEARCH CHARSET utf-8 TEXT #{literal(utf8_msg)}".b) {|assert|
           assert.match(/^\+ /)
           assert.equal("* SEARCH 4 5\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
         }
 
-        assert_imap_command("SEARCH CHARSET euc-jp TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert_imap_command("SEARCH CHARSET euc-jp TEXT #{literal(utf8_msg)}".b) {|assert|
           assert.match(/^\+ /)
           assert.match(/^#{tag} BAD /, peek_next_line: true).match(/syntax error/)
         }
@@ -2997,7 +2994,7 @@ module RIMS::Test
         }
 
         utf8_msg = "\u306F\u306B\u307B"
-        assert_imap_command("SEARCH CHARSET utf-8 TEXT {#{utf8_msg.bytesize}}\r\n#{utf8_msg}".b) {|assert|
+        assert_imap_command("SEARCH CHARSET utf-8 TEXT #{literal(utf8_msg)}".b) {|assert|
           assert.match(/^\+ /)
           assert.equal("* SEARCH\r\n")
           assert.equal("#{tag} OK SEARCH completed\r\n")
