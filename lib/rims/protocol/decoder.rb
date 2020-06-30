@@ -360,7 +360,7 @@ module RIMS
                      mail_delivery_user: Service::DEFAULT_CONFIG.mail_delivery_user,
                      line_length_limit: Service::DEFAULT_CONFIG.protocol_line_length_limit,
                      literal_size_limit: Service::DEFAULT_CONFIG.protocol_literal_size_limit,
-                     command_size_limit: (1024**2)*10)
+                     command_size_limit: Service::DEFAULT_CONFIG.protocol_command_size_limit)
         super(auth, logger)
         @drb_services = drb_services
         @mail_delivery_user = mail_delivery_user
