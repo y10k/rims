@@ -9,8 +9,9 @@ subsections:
 ### Fixed
 -->
 
-0.3.0
+0.3.1
 -----
+Released on 2020-08-29.
 
 ### Added
 - Input size limits.
