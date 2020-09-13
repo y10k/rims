@@ -46,6 +46,10 @@ module RIMS
       mail_store
     end
 
+    def self.scan_unique_user_id(config, &block)
+      config.scan_unique_user_id(MAILBOX_DATA_STRUCTURE_VERSION, &block)
+    end
+
     def_delegators :@rw_lock, :read_synchronize, :write_synchronize
 
     def get_mbox_db(mbox_id)
