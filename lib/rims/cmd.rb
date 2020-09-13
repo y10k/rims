@@ -1438,6 +1438,32 @@ module RIMS
     end
     command_function :cmd_unique_user_id, 'Show unique user ID from username.'
 
+    def cmd_list_user_id(options, args)
+      svc_conf = RIMS::Service::Configuration.new
+      load_service_config = false
+
+      options.banner += ' [base directory] OR -f [config.yml path]'
+      options.on('-f', '--config-yaml=CONFIG_FILE',
+                 String,
+                 'Load optional parameters from CONFIG_FILE.') do |path|
+        svc_conf.load_yaml(path)
+        load_service_config = true
+      end
+      options.parse!(args)
+
+      unless (load_service_config) then
+        base_dir = args.shift or raise 'need for base directory.'
+        svc_conf.load(base_dir: base_dir)
+      end
+
+      MailStore.scan_unique_user_id(svc_conf) do |unique_user_id|
+        puts unique_user_id
+      end
+
+      0
+    end
+    command_function :cmd_list_user_id, 'List all user ID.'
+
     def cmd_show_user_mbox(options, args)
       svc_conf = RIMS::Service::Configuration.new
       load_service_config = false

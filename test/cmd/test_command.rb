@@ -1138,6 +1138,16 @@ Hello world.
         # IMAP commands for Selected State
         assert_no_response_selected_state_imap_commands.call(/not authenticated/)
 
+        [ %W[ #{@base_dir} ],
+          %W[ -f #{@base_dir / 'config.yml'} ],
+          %W[ --config-yaml=#{@base_dir / 'config.yml'} ],
+        ].each do |args|
+          stdout, stderr, status = Open3.capture3('rims', 'list-user-id', *args)
+          assert_equal('', stdout, "list-user-id #{args.join(' ')}")
+          assert_equal('', stderr, "list-user-id #{args.join(' ')}")
+          assert_equal(0, status.exitstatus, "list-user-id #{args.join(' ')}")
+        end
+
         imap_connect(use_ssl) {|imap_auth_plain|
           imap_auth_plain.authenticate('PLAIN', 'foo', 'foo')
           imap_auth_plain.logout
@@ -1150,6 +1160,16 @@ Hello world.
 
         # State: Not Authenticated -> Authenticated
         imap.login('foo', 'foo')
+
+        [ %W[ #{@base_dir} ],
+          %W[ -f #{@base_dir / 'config.yml'} ],
+          %W[ --config-yaml=#{@base_dir / 'config.yml'} ],
+        ].each do |args|
+          stdout, stderr, status = Open3.capture3('rims', 'list-user-id', *args)
+          assert_equal(RIMS::Authentication.unique_user_id('foo') + "\n", stdout, "list-user-id #{args.join(' ')}")
+          assert_equal('', stderr, "list-user-id #{args.join(' ')}")
+          assert_equal(0, status.exitstatus, "list-user-id #{args.join(' ')}")
+        end
 
         # IMAP commands for Any State
         assert_equal(%w[ IMAP4REV1 UIDPLUS IDLE AUTH=PLAIN AUTH=CRAM-MD5 ], imap.capability)
