@@ -1207,14 +1207,18 @@ module RIMS::Test
       assert_equal(expected_params, @c.make_text_key_value_store_params.to_h)
     end
 
+    def test_make_key_value_store_base_dir
+      assert_equal(Pathname(File.join(@base_dir, 'mailbox')), @c.make_key_value_store_base_dir('mailbox'))
+    end
+
+    def test_make_key_value_store_base_dir_short_mailbox_data_structure_version_error
+      error = assert_raise(ArgumentError) { @c.make_key_value_store_base_dir('') }
+      assert_equal('too short mailbox data structure version.', error.message)
+    end
+
     def test_make_key_value_store_path
       assert_equal(Pathname(File.join(@base_dir, 'mailbox', '11', '22222222')),
                    @c.make_key_value_store_path('mailbox', '1122222222'))
-    end
-
-    def test_make_key_value_store_path_short_mailbox_data_structure_version_error
-      error = assert_raise(ArgumentError) { @c.make_key_value_store_path('', '1122222222') }
-      assert_equal('too short mailbox data structure version.', error.message)
     end
 
     data('too_short' => '1',

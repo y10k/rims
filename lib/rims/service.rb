@@ -732,10 +732,14 @@ module RIMS
                                     {})
       end
 
-      def make_key_value_store_path(mailbox_data_structure_version, unique_user_id)
+      def make_key_value_store_base_dir(mailbox_data_structure_version)
         if (mailbox_data_structure_version.empty?) then
           raise ArgumentError, 'too short mailbox data structure version.'
         end
+        base_dir + mailbox_data_structure_version
+      end
+
+      def make_key_value_store_path(mailbox_data_structure_version, unique_user_id)
         if (unique_user_id.length <= 2) then
           raise ArgumentError, 'too short unique user ID.'
         end
@@ -743,7 +747,7 @@ module RIMS
         bucket_dir_name = unique_user_id[0..1]
         store_dir_name = unique_user_id[2..-1]
 
-        base_dir + mailbox_data_structure_version + bucket_dir_name + store_dir_name
+        make_key_value_store_base_dir(mailbox_data_structure_version) + bucket_dir_name + store_dir_name
       end
 
       def make_authentication
