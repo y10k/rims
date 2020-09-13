@@ -750,6 +750,23 @@ module RIMS
         make_key_value_store_base_dir(mailbox_data_structure_version) + bucket_dir_name + store_dir_name
       end
 
+      def scan_unique_user_id(mailbox_data_structure_version)
+        return enum_for(:scan_unique_user_id, mailbox_data_structure_version) unless block_given?
+        key_value_store_base_dir = make_key_value_store_base_dir(mailbox_data_structure_version)
+        key_value_store_base_dir.glob('[0-9a-z][0-9a-z]') do |bucket_dir|
+          if (bucket_dir.directory?) then
+            bucket_dir.glob('[0-9a-z]*') do |store_dir|
+              if (store_dir.directory?) then
+                unique_user_id = bucket_dir.basename.to_s + store_dir.basename.to_s
+                yield(unique_user_id)
+              end
+            end
+          end
+        end
+
+        nil
+      end
+
       def make_authentication
         if (@config.dig('authentication')&.is_a? Hash) then
           auth_conf = @config.dig('authentication')

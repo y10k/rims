@@ -1229,6 +1229,21 @@ module RIMS::Test
       assert_equal('too short unique user ID.', error.message)
     end
 
+    data('empty'       => [],
+         'single_user' => %w[ 1122222222 ],
+         'some_users'  => %w[
+           1122222222
+           1133333333
+           4455555555
+         ])
+    def test_scan_unique_user_id(data)
+      expected_unique_user_id_list = data
+      for unique_user_id in expected_unique_user_id_list
+        FileUtils.mkdir_p(@c.make_key_value_store_path('mailbox', unique_user_id).to_s)
+      end
+      assert_equal(expected_unique_user_id_list.sort, @c.scan_unique_user_id('mailbox').to_a.sort)
+    end
+
     authentication_users = {
       presence: [
         { 'user' => 'alice', 'pass' => 'open sesame' },
