@@ -35,6 +35,8 @@ module RIMS
   autoload :RecoverableReadSizeError, 'rims/protocol'
   autoload :ServerResponseChannel,    'rims/channel'
   autoload :Service,                  'rims/service'
+  autoload :SimpleText_DumpReader,    'rims/simple_dump'
+  autoload :SimpleText_DumpWriter,    'rims/simple_dump'
   autoload :SyntaxError,              'rims/protocol'
   autoload :Test,                     'rims/test'
   autoload :WriteLockError,           'rims/lock'
