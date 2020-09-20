@@ -5037,7 +5037,7 @@ module RIMS::Test
           assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
         }
 
-        # copy of empty messge set
+        # copy of empty message set
         assert_imap_command('COPY 100 WORK') {|assert|
           assert.match(/#{tag} OK COPY completed/)
         }
@@ -5243,7 +5243,7 @@ module RIMS::Test
           assert_msg_text('c', 'e', 'g', 'c', 'e', 'g',           mbox_id: work_id)
         }
 
-        # copy of empty messge set
+        # copy of empty message set
         assert_imap_command('COPY 100 WORK', uid: true) {|assert|
           assert.match(/#{tag} OK COPY completed/)
         }

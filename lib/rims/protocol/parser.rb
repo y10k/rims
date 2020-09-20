@@ -431,7 +431,7 @@ module RIMS
           search_string = force_charset(search_string)
           search_regexp = compile_search_regexp(search_string)
           search_body = proc{|mail|
-            if (mail.text? || mail.messge?) then
+            if (mail.text? || mail.message?) then
               search_regexp.match? encode_charset(mail.mime_charset_body_text)
             elsif (mail.multipart?) then
               mail.parts.any?{|next_mail|
