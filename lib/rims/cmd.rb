@@ -872,6 +872,53 @@ module RIMS
     end
     command_function :cmd_dump, 'Dump mailboxes to standard output.'
 
+    def cmd_restore(options, args)
+      # built-in plug-in
+      require 'rims/simple_dump'
+
+      dump_type = 'simple'
+      options.on('--dump-type=TYPE', String, 'Choose dump type.') {|value|
+        dump_type = value
+      }
+
+      opt_dry_run = false
+      options.on('--[no-]dry-run') {|value|
+        opt_dry_run = value
+      }
+
+      opt_verbose = false
+      options.on('--[no-]verbose') {|value|
+        opt_verbose = value
+      }
+
+      build = make_service_config(options)
+      options.parse!(args)
+
+      config = build.call
+      config.require_features
+      meta_kvs_factory = config.make_meta_key_value_store_params.build_factory
+      text_kvs_factory = config.make_text_key_value_store_params.build_factory
+      dump_reader = Dump.get_reader_plug_in(dump_type).new(STDIN)
+
+      invalid_count = 0
+      Dump.restore(dump_reader, config, meta_kvs_factory, text_kvs_factory, dry_run: opt_dry_run) {|filename, valid|
+        unless (valid) then
+          invalid_count += 1
+          STDERR.puts "warning: #{filename}: invalid data!"
+        end
+        if (opt_verbose) then
+          puts filename
+        end
+      }
+
+      if (invalid_count > 0) then
+        1
+      else
+        0
+      end
+    end
+    command_function :cmd_restore, 'Restore mailboxes from standard input.'
+
     def imap_res2str(imap_response)
       "#{imap_response.name} #{imap_response.data.text}"
     end
