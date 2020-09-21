@@ -839,6 +839,39 @@ module RIMS
     end
     command_function :cmd_server, "Run IMAP server."
 
+    def cmd_dump(options, args)
+      # built-in plug-in
+      require 'rims/simple_dump'
+
+      dump_type = 'simple'
+      options.on('--dump-type=TYPE', String, 'Choose dump type.') {|value|
+        dump_type = value
+      }
+
+      opt_verbose = false
+      options.on('--[no-]verbose') {|value|
+        opt_verbose = value
+      }
+
+      build = make_service_config(options)
+      options.parse!(args)
+
+      config = build.call
+      config.require_features
+      meta_kvs_factory = config.make_meta_key_value_store_params.build_factory
+      text_kvs_factory = config.make_text_key_value_store_params.build_factory
+      dump_writer = Dump.get_writer_plug_in(dump_type).new(STDOUT)
+
+      Dump.dump_all(dump_writer, config, meta_kvs_factory, text_kvs_factory) {|filename|
+        if (opt_verbose) then
+          STDERR.puts filename
+        end
+      }
+
+      0
+    end
+    command_function :cmd_dump, 'Dump mailboxes to standard output.'
+
     def imap_res2str(imap_response)
       "#{imap_response.name} #{imap_response.data.text}"
     end
