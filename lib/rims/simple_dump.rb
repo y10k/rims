@@ -96,6 +96,8 @@ Content-Disposition: attachment; filename="#{filename}"
       self
     end
   end
+
+  Dump.add_plug_in('simple', SimpleText_DumpReader, SimpleText_DumpWriter)
 end
 
 # Local Variables:
