@@ -50,6 +50,10 @@ module RIMS
       config.scan_unique_user_id(MAILBOX_DATA_STRUCTURE_VERSION, &block)
     end
 
+    def self.key_value_store_path(config, unique_user_id)
+      config.make_key_value_store_path(MAILBOX_DATA_STRUCTURE_VERSION, unique_user_id)
+    end
+
     def_delegators :@rw_lock, :read_synchronize, :write_synchronize
 
     def get_mbox_db(mbox_id)
