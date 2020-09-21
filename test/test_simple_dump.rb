@@ -9,47 +9,12 @@ require 'test/unit'
 
 module RIMS::Test
   class SimpleText_DumpTest < Test::Unit::TestCase
+    include RIMS::Test::DumpTestUtility
     include RIMS::Test::ProtocolFetchMailSample
 
-    def setup
-      @output = StringIO.new('', 'w')
-      @input = StringIO.new('', 'r')
-      @dump_writer = RIMS::SimpleText_DumpWriter.new(@output)
-      @dump_reader = RIMS::SimpleText_DumpReader.new(@input)
-    end
-
-    data('empty' => [],
-         'rfc822' => [
-           [ 'test/message/0', MAIL_SIMPLE_TEXT ]
-         ],
-         'text' => [
-           [ 'test/text/0', "Hello world.\n" ]
-         ],
-         'binary' => [
-           [ 'test/bin/0', 0xFF.chr * 32 ]
-         ],
-         'composite' => [
-           [ 'test/message/0', MAIL_SIMPLE_TEXT ],
-           [ 'test/text/0',    "Hello world.\n" ],
-           [ 'test/bin/0',     0xFF.chr * 32 ]
-         ])
-    def test_write_read(data)
-      contents = data
-
-      for filename, content in contents
-        @dump_writer.add(filename, content)
-      end
-      pp @output.string if $DEBUG
-
-      @input.string = @output.string
-      read_contents = @dump_reader.each.to_a
-      assert_equal(contents,
-                   read_contents.map{|filename, content, valid|
-                     [ filename, content ]
-                   })
-      for filename, content, valid in read_contents
-        assert(valid, filename)
-      end
+    def get_dump_name
+      require 'rims/simple_dump' # load plug-in explicitly
+      'simple'
     end
 
     data('invalid_header_size_format' => [ "x,0\n", /invalid header size format/ ],

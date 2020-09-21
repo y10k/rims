@@ -2,7 +2,9 @@
 
 require 'digest'
 require 'fileutils'
+require 'pp' if $DEBUG
 require 'set'
+require 'stringio'
 
 module RIMS
   module Test
@@ -444,6 +446,62 @@ Hello world.
 
         kvs.destroy
         assert_equal(false, (@Test_KeyValueStore.exist? @name))
+      end
+    end
+
+    module DumpTestUtility
+      def get_dump_name
+        raise NotImplementedError, 'not implemented.'
+      end
+
+      def setup
+        @output = StringIO.new('', 'w')
+        @input = StringIO.new('', 'r')
+        @dump_writer = RIMS::Dump.get_writer_plug_in(get_dump_name).new(@output)
+        @dump_reader = RIMS::Dump.get_reader_plug_in(get_dump_name).new(@input)
+      end
+
+      def _test_write_read(data)
+        contents = data
+
+        for filename, content in contents
+          @dump_writer.add(filename, content)
+        end
+        pp @output.string if $DEBUG
+
+        @input.string = @output.string
+        read_contents = @dump_reader.each.to_a
+        assert_equal(contents,
+                     read_contents.map{|filename, content, valid|
+                       [ filename, content ]
+                     })
+        for filename, content, valid in read_contents
+          assert(valid, filename)
+        end
+      end
+      private :_test_write_read
+
+      def test_write_read_empty
+        _test_write_read([])
+      end
+
+      def test_write_read_rfc822
+        _test_write_read([ [ 'test/message/0', ProtocolFetchMailSample::MAIL_SIMPLE_TEXT ] ])
+      end
+
+      def test_write_read_text
+        _test_write_read([ [ 'test/text/0', "Hello world.\n" ] ])
+      end
+
+      def test_write_read_binary
+        _test_write_read([ [ 'test/bin/0', 0xFF.chr * 32 ] ])
+      end
+
+      def test_write_read_composite
+        _test_write_read([ [ 'test/message/0', ProtocolFetchMailSample::MAIL_SIMPLE_TEXT ],
+                           [ 'test/text/0',    "Hello world.\n" ],
+                           [ 'test/bin/0',     0xFF.chr * 32 ]
+                         ])
       end
     end
   end
