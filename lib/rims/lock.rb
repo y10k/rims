@@ -117,7 +117,7 @@ module RIMS
     # compatible for Thread::Mutex
     alias synchronize write_synchronize
 
-    def self.write_lock_timeout_detach(first_timeout_seconds, detached_timeout_seconds, logger: Logger.new(STDOUT)) # yields: timeout_seconds
+    def self.write_lock_timeout_detach(first_timeout_seconds, detached_timeout_seconds, logger: Logger.new(STDOUT)) # :yields: timeout_seconds
       begin
         logger.debug('ready to detach write-lock timeout.') if logger.debug?
         yield(first_timeout_seconds)
