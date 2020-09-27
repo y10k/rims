@@ -17,7 +17,8 @@ module RIMS::Test
   class CommandTest < Test::Unit::TestCase
     include Timeout
 
-    BASE_DIR = 'cmd_base_dir'
+    BASE_DIR    = 'cmd_base_dir'
+    RESTORE_DIR = 'cmd_restore_dir'
 
     def setup
       @base_dir = Pathname(BASE_DIR)
@@ -1107,7 +1108,25 @@ Hello world.
         }
       }
 
-      run_server(use_ssl: use_ssl, optional: config) {|imap|
+      all_mailbox_messages = nil
+      fetch_all = lambda{|imap|
+        messages = {}
+        for mailbox in imap.list('', '*')
+          imap.examine(mailbox.name)
+          messages[mailbox.name] = imap.fetch(1..-1, %w(UID INTERNALDATE FLAGS BODY[]))
+          imap.close
+        end
+
+        if ($DEBUG) then
+          p :fetch_all
+          pp messages
+        end
+
+        messages
+      }
+
+      config_path = make_server_confing(use_ssl: use_ssl, optional: config)
+      make_server_process(config_path, use_ssl: use_ssl) {|imap|
         assert_imap_no_response = lambda{|error_message_pattern, &block|
           error_response = assert_raise(Net::IMAP::NoResponseError) { block.call }
           assert_match(error_message_pattern, error_response.message)
@@ -2048,6 +2067,65 @@ Hello world.
         imap.examine('INBOX')
         assert_equal('mail delivery test', imap.fetch('*', 'RFC822')[0].attr['RFC822'])
         imap.close
+
+        all_mailbox_messages = fetch_all[imap]
+      }
+
+      dump_restore_optional = []
+      dump_restore_optional << '--verbose' if $DEBUG
+
+      dump_path = @base_dir + 'dump'
+      Open3.popen3('rims', 'dump', '-f', config_path.to_s, *dump_restore_optional) {|stdin, stdout, stderr, wait_thread|
+        stderr_thread = Thread.new{
+          for line in stderr
+            puts "dump stderr: #{line}" if $DEBUG
+          end
+        }
+
+        dump_path.open('w') {|output|
+          while (data = stdout.read(512 * 1024))
+            output.write(data)
+          end
+        }
+
+        server_status = wait_thread.value
+        pp server_status if $DEBUG
+        assert_equal(0, server_status.exitstatus)
+
+        stderr_thread.join
+      }
+
+      restore_config_path = make_server_confing(use_ssl: use_ssl, base_dir: Pathname(RESTORE_DIR), optional: config)
+      Open3.popen3('rims', 'restore', '-f', restore_config_path.to_s, *dump_restore_optional) {|stdin, stdout, stderr, wait_thread|
+        stdout_thread = Thread.new{
+          for line in stdout
+            puts "restore stdout: #{line}" if $DEBUG
+          end
+        }
+        stderr_thread = Thread.new{
+          for line in stderr
+            puts "restore stderr: #{line}" if $DEBUG
+          end
+        }
+
+        dump_path.open('r') {|input|
+          while (data = input.read(512 * 1024))
+            stdin.write(data)
+          end
+          stdin.close           # exit restore
+        }
+
+        server_status = wait_thread.value
+        pp server_status if $DEBUG
+        assert_equal(0, server_status.exitstatus)
+
+        stdout_thread.join
+        stderr_thread.join
+      }
+
+      make_server_process(restore_config_path, use_ssl: use_ssl) {|imap|
+        imap.login('foo', 'foo')
+        assert_equal(all_mailbox_messages, fetch_all[imap])
       }
     end
 
