@@ -22,10 +22,13 @@ module RIMS::Test
     def setup
       @base_dir = Pathname(BASE_DIR)
       @base_dir.mkpath
+      @clean_dirs = [ @base_dir ]
     end
 
     def teardown
-      @base_dir.rmtree
+      for dir in @clean_dirs
+        dir.rmtree
+      end
     end
 
     def imap_connect(use_ssl=false)
@@ -392,7 +395,10 @@ module RIMS::Test
       warn("warning: do `rake test_cert:make' to create TLS private key file and TLS certificate file for test.")
     end
 
-    def run_server(use_ssl: false, optional: {})
+    def make_server_confing(use_ssl: false, base_dir: @base_dir, optional: {})
+      @clean_dirs << base_dir unless (@clean_dirs.include? base_dir)
+      base_dir.mkpath unless base_dir.directory?
+
       config = {
         logging: {
           file: { level: 'debug' },
@@ -418,8 +424,8 @@ module RIMS::Test
       }
 
       if (use_ssl) then
-        FileUtils.cp(TLS_SERVER_PKEY.to_s, @base_dir.to_s)
-        FileUtils.cp(TLS_SERVER_CERT.to_s, @base_dir.to_s)
+        FileUtils.cp(TLS_SERVER_PKEY.to_s, base_dir.to_s)
+        FileUtils.cp(TLS_SERVER_CERT.to_s, base_dir.to_s)
         config.update({ openssl: {
                           ssl_context: %Q{
                             _.cert = X509::Certificate.new((base_dir / #{TLS_SERVER_CERT.basename.to_s.dump}).read)
@@ -431,9 +437,15 @@ module RIMS::Test
 
       config.update(optional)
 
-      config_path = @base_dir + 'config.yml'
-      config_path.write(RIMS::Service::Configuration.stringify_symbol(config).to_yaml)
+      config_path = base_dir + 'config.yml'
+      config_path.write(RIMS::Service::Configuration.
+                          stringify_symbol(config).to_yaml)
 
+      config_path
+    end
+    private :make_server_confing
+
+    def make_server_process(config_path, use_ssl: false)
       Open3.popen3('rims', 'server', '-f', config_path.to_s) {|stdin, stdout, stderr, wait_thread|
         begin
           stdout_thread = Thread.new{
@@ -459,9 +471,9 @@ module RIMS::Test
           stderr_thread.join if stderr_thread
           if ($DEBUG) then
             p :rims_log
-            puts((@base_dir + 'rims.log').read)
+            puts((config_path.parent + 'rims.log').read)
             p :protocol_log
-            puts((@base_dir + 'protocol.log').read)
+            puts((config_path.parent + 'protocol.log').read)
           end
         end
 
@@ -471,6 +483,12 @@ module RIMS::Test
 
         ret_val
       }
+    end
+    private :make_server_process
+
+    def run_server(use_ssl: false, **kw_args, &block)
+      config_path = make_server_confing(use_ssl: use_ssl, **kw_args)
+      make_server_process(config_path, use_ssl: use_ssl, &block)
     end
     private :run_server
 
