@@ -389,7 +389,7 @@ module RIMS::Test
 
     def assert_imap_closed
       if (stream_test?) then
-        assert_raise(Errno::EPIPE, StopIteration) {
+        assert_raise(Errno::EPIPE, Errno::ECONNRESET, StopIteration) {
           assert_imap_command('NOOP') {|assert|
             assert.equal("#{tag} OK NOOP completed")
           }
